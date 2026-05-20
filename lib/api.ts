@@ -1,5 +1,12 @@
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
+export interface WorkflowPayload {
+  id: string;
+  name: string;
+  nodes: unknown[];
+  edges: unknown[];
+}
+
 export const api = {
   // Get all available agents from backend
   getAgents: async () => {
@@ -17,20 +24,24 @@ export const api = {
     return res.json();
   },
 
-  // Get workflow definition (for backend to call)
+  // Get the latest version of one workflow
   getWorkflow: async (workflowId: string = "default") => {
     const res = await fetch(`${BACKEND_URL}/api/workflows/${workflowId}`);
     return res.json();
   },
 
-  // Save workflow
-  saveWorkflow: async (workflowId: string, nodes: any[], edges: any[]) => {
-    const payload = { id: workflowId, nodes, edges, updatedAt: new Date().toISOString() };
+  // Get the latest version of every workflow
+  getWorkflows: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/workflows`);
+    return res.json();
+  },
 
+  // Save workflow
+  saveWorkflow: async (workflow: WorkflowPayload) => {
     const res = await fetch(`${BACKEND_URL}/api/workflows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(workflow),
     });
     return res.json();
   }
