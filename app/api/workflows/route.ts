@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const workflows = new Map(); // In-memory for now (later → DB)
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const id = params.id;
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const id = url.searchParams.get('id');
   
   const workflow = workflows.get(id) || {
     id: "default",

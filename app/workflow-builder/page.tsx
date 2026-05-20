@@ -7,10 +7,10 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import AgentSidebar from '@/components/AgentSidebar';
-import WorkflowToolbar from '@/components/WorkflowToolbar';
-import PropertiesPanel from '@/components/PropertiesPanel';
-import CustomNode from '@/components/CustomNode';
+import AgentSidebar from '../components/AgentSidebar';
+import WorkflowToolbar from '../components/WorkflowToolbar';
+import PropertiesPanel from '../components/PropertiesPanel';
+import CustomNode from '../components/CustomNode';
 
 const nodeTypes = { custom: CustomNode };
 
