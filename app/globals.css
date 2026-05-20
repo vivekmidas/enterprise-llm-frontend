@@ -1,0 +1,172 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #fffbff;
+  --foreground: #1f1b16;
+  --card: #fff8f5;
+  --card-foreground: #1f1b16;
+  --popover: #fffbff;
+  --popover-foreground: #1f1b16;
+  --primary: #410093;
+  --primary-foreground: #ffffff;
+  --secondary: #ff4500;
+  --secondary-foreground: #ffffff;
+  --muted: #f4ece8;
+  --muted-foreground: #5d534e;
+  --accent: #ffe2d6;
+  --accent-foreground: #8a2800;
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --border: #e6d5cd;
+  --input: #fff3ee;
+  --ring: #410093;
+  --chart-1: #ff4500;
+  --chart-2: #410093;
+  --chart-3: #ff8a65;
+  --chart-4: #7e57c2;
+  --chart-5: #ffb74d;
+  --radius: 0.5rem;
+  --sidebar: #fff8f5;
+  --sidebar-foreground: #1f1b16;
+  --sidebar-primary: #ff4500;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #410093;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #e6d5cd;
+  --sidebar-ring: #410093;
+  /* Added custom font family tokens for design system */
+  --font-dm-sans: "DM Sans", sans-serif;
+  --font-space-grotesk: "Space Grotesk", sans-serif;
+}
+
+.dark {
+  --background: #15110e;
+  --foreground: #f6ede8;
+  --card: #1e1916;
+  --card-foreground: #f6ede8;
+  --popover: #15110e;
+  --popover-foreground: #f6ede8;
+  --primary: #ff7a45;
+  --primary-foreground: #2b0f00;
+  --secondary: #410093;
+  --secondary-foreground: #ffffff;
+  --muted: #2a2420;
+  --muted-foreground: #c7b7af;
+  --accent: #3a241a;
+  --accent-foreground: #ffd9c8;
+  --destructive: #f2b8b5;
+  --destructive-foreground: #601410;
+  --border: #3a312c;
+  --input: #2a2420;
+  --ring: #ff7a45;
+  --chart-1: #ff7a45;
+  --chart-2: #b28bff;
+  --chart-3: #ffab91;
+  --chart-4: #9575cd;
+  --chart-5: #ffd180;
+  --sidebar: #1c1713;
+  --sidebar-foreground: #f6ede8;
+  --sidebar-primary: #ff7a45;
+  --sidebar-primary-foreground: #2b0f00;
+  --sidebar-accent: #410093;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #3a312c;
+  --sidebar-ring: #ff7a45;
+}
+
+.theme-bank {
+  --primary: #ff4500;
+  --primary-foreground: #ffffff;
+  --secondary: #410093;
+  --secondary-foreground: #ffffff;
+  --ring: #410093;
+}
+
+.dark .theme-bank {
+  --primary: #ff7a45;
+  --primary-foreground: #2b0f00;
+  --secondary: #410093;
+  --secondary-foreground: #ffffff;
+  --ring: #ff7a45;
+}
+
+.theme-healthcare {
+  --primary: #ff4500;
+  --primary-foreground: #ffffff;
+  --secondary: #410093;
+  --secondary-foreground: #ffffff;
+  --ring: #410093;
+}
+
+.dark .theme-healthcare {
+  --primary: #ff7a45;
+  --primary-foreground: #2b0f00;
+  --secondary: #410093;
+  --secondary-foreground: #ffffff;
+  --ring: #ff7a45;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  /* Added custom font family tokens for design system */
+  --font-sans: var(--font-dm-sans);
+  --font-heading: var(--font-space-grotesk);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Added custom font family for body */
+    font-family: var(--font-sans);
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    /* Added custom font family for headings */
+    font-family: var(--font-heading);
+  }
+}
