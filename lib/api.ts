@@ -26,19 +26,19 @@ export const api = {
 
   // Get the latest version of one workflow
   getWorkflow: async (workflowId: string = "default") => {
-    const res = await fetch(`${BACKEND_URL}/api/workflows/${workflowId}`);
+    const res = await fetch(`${BACKEND_URL}/workflow/${workflowId}`);
     return res.json();
   },
 
   // Get the latest version of every workflow
   getWorkflows: async () => {
-    const res = await fetch(`${BACKEND_URL}/api/workflows`);
+    const res = await fetch(`${BACKEND_URL}/workflow`);
     return res.json();
   },
 
   // Save workflow
   saveWorkflow: async (workflow: WorkflowPayload) => {
-    const res = await fetch(`${BACKEND_URL}/api/workflows`, {
+    const res = await fetch(`${BACKEND_URL}/workflow`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(workflow),

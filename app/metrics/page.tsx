@@ -1,64 +1,70 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { Activity, Zap, Clock } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/lib/card';
+import { Activity, Zap, Clock, AlertTriangle, ChevronDown, ChevronUp, Database } from 'lucide-react';
+import { useState } from 'react';
+import { api } from '@/lib/api';
+
+const TIME_RANGES = [
+  { label: '5m', value: 5 },
+  { label: '10m', value: 10 },
+  { label: '30m', value: 30 },
+  { label: '1h', value: 60 },
+];
 
 export default function MetricsDashboard() {
-  const { data: rawMetrics, isLoading, error } = useQuery({
-    queryKey: ['prometheus-metrics'],
+  const [timeRange, setTimeRange] = useState(30);
+  const [expandedTrace, setExpandedTrace] = useState<string | null>(null);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['observability-metrics', timeRange],
     queryFn: async () => {
-      const response = await fetch('http://localhost:8000/metrics');
+      const response = await fetch(`http://localhost:8000/api/observability/traces?minutes=${timeRange}`);
       if (!response.ok) throw new Error('Failed to fetch metrics');
-      return response.text();
+      return response.json();
     },
-    refetchInterval: 5000,
+    refetchInterval: 10000,
   });
 
-  const [parsedMetrics, setParsedMetrics] = useState<any>({});
-
-  useEffect(() => {
-    if (rawMetrics) {
-      const metrics: any = {};
-      const lines = rawMetrics.split('\n');
-      lines.forEach(line => {
-        if (line.startsWith('#') || !line.trim()) return;
-        const match = line.match(/(\w+)(?:\{[^}]*\})?\s+([\d.]+)/);
-        if (match) {
-          metrics[match[1]] = parseFloat(match[2]);
-        }
-      });
-      setParsedMetrics(metrics);
-    }
-  }, [rawMetrics]);
-
   const kpiData = [
-    { title: 'Total Requests', value: parsedMetrics.llm_requests_total || 0, icon: Activity },
-    { title: 'LLM Calls', value: parsedMetrics.llm_calls_total || 0, icon: Zap },
-    { title: 'Avg Latency', value: `${parsedMetrics.avg_latency_ms || 0}ms`, icon: Clock },
+    { title: 'Total Requests', value: data?.summary?.total_requests || 0, icon: Activity, color: 'text-blue-500' },
+    { title: 'Avg Latency', value: `${data?.summary?.avg_latency_ms || 0}ms`, icon: Clock, color: 'text-amber-500' },
+    { title: 'Error Rate', value: `${data?.summary?.error_rate || 0}%`, icon: AlertTriangle, color: 'text-red-500' },
   ];
 
   if (isLoading) return <div className="p-6">Loading metrics...</div>;
   if (error) return <div className="p-6 text-red-500">Error loading metrics</div>;
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Observability Dashboard</h1>
-        <div className="flex items-center gap-2 text-sm text-emerald-600">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          Live (refreshing every 5s)
+    <div className="min-h-screen bg-gray-950 text-gray-100 p-8 space-y-8">
+      <header className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Observability Hub</h1>
+          <p className="text-gray-400 mt-1">Real-time performance and trace analysis</p>
         </div>
-      </div>
+        <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-800">
+          {TIME_RANGES.map((range) => (
+            <button
+              key={range.value}
+              onClick={() => setTimeRange(range.value)}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${timeRange === range.value
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+      </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {kpiData.map((item, i) => (
-          <Card key={i}>
+          <Card key={i} className="bg-gray-900 border-gray-800">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
-              <item.icon className="h-5 w-5 text-blue-500" />
+              <CardTitle className="text-sm font-medium text-gray-400">{item.title}</CardTitle>
+              <item.icon className={`h-5 w-5 ${item.color}`} />
             </CardHeader>
             <CardContent>
               <div className="text-4xl font-bold tracking-tight">{item.value}</div>
@@ -67,8 +73,76 @@ export default function MetricsDashboard() {
         ))}
       </div>
 
-      <div className="text-sm text-muted-foreground">
-        Note: Connect backend on port 8000. shadcn/ui Card component assumed - run npx shadcn@latest add card if missing.
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Database className="h-5 w-5 text-blue-400" />
+          Recent Traces
+        </h2>
+        <div className="rounded-xl border border-gray-800 bg-gray-900 overflow-hidden">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-800/50 text-gray-400 uppercase text-xs">
+              <tr>
+                <th className="px-6 py-4 font-semibold">Status</th>
+                <th className="px-6 py-4 font-semibold">Workflow ID</th>
+                <th className="px-6 py-4 font-semibold">Trace ID</th>
+                <th className="px-6 py-4 font-semibold">Latency</th>
+                <th className="px-6 py-4 font-semibold">Time</th>
+                <th className="px-6 py-4 font-semibold"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {data.traces.map((trace: any) => (
+                <>
+                  <tr
+                    key={trace.trace_id}
+                    className="hover:bg-gray-800/30 cursor-pointer transition-colors"
+                    onClick={() => setExpandedTrace(expandedTrace === trace.trace_id ? null : trace.trace_id)}
+                  >
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${trace.violations?.length > 0 ? 'bg-red-900/40 text-red-400' : 'bg-emerald-900/40 text-emerald-400'
+                        }`}>
+                        {trace.violations?.length > 0 ? 'Flagged' : 'Healthy'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-medium text-gray-200">{trace.workflow_id}</td>
+                    <td className="px-6 py-4 font-mono text-gray-400">{trace.trace_id.substring(0, 8)}...</td>
+                    <td className="px-6 py-4 text-gray-300">{trace.latency_ms}ms</td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {new Date(trace.timestamp * 1000).toLocaleTimeString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {expandedTrace === trace.trace_id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </td>
+                  </tr>
+                  {expandedTrace === trace.trace_id && (
+                    <tr className="bg-gray-950/50">
+                      <td colSpan={6} className="px-6 py-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-bold text-gray-500 uppercase">Agents Executed</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {trace.agents_executed?.map((agent: string) => (
+                                <span key={agent} className="bg-gray-800 border border-gray-700 px-2 py-1 rounded text-xs">
+                                  {agent}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-bold text-gray-500 uppercase">Trace Data (Raw)</h4>
+                            <pre className="p-4 bg-black rounded-lg border border-gray-800 overflow-auto max-h-60 text-[10px] font-mono leading-relaxed">
+                              {JSON.stringify(trace, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

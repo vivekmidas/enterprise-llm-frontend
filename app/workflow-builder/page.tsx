@@ -386,7 +386,7 @@ export default function WorkflowBuilder() {
     const onGet = useCallback(async () => {
         try {
             const data = await api.getWorkflows();
-            const workflows = data.workflows || [];
+            const workflows = Array.isArray(data) ? data : (data.workflows || []);
             const latestWorkflow = workflows.find((workflow: { id: string }) => workflow.id === workflowId) || workflows[0];
 
             if (!latestWorkflow) {
