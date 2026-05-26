@@ -9,6 +9,8 @@ export type ComponentCategory =
   | 'End'
   | 'Data'
   | 'Agent'
+  | 'Workflow'
+  | 'Clock'
   | 'Custom';
 
 export type AgentIcon =
@@ -16,11 +18,14 @@ export type AgentIcon =
   | 'alert-triangle'
   | 'user-cog'
   | 'bot'
+  | 'alert-circle'
+  | 'clock,'
   | 'check-circle'
   | 'play-circle'
   | 'message-square'
   | 'x-circle'
-  | 'database';
+  | 'database'
+  | 'workflow';
 
 export interface ComponentCategoryStyle {
   borderColor: string;
@@ -123,6 +128,12 @@ export const componentCategories: Record<ComponentCategory, ComponentCategorySty
     bgColor: 'bg-gray-50',
     icon: 'message-square',
   },
+  Workflow: {
+    borderColor: 'border-indigo-500',
+    textColor: 'text-indigo-700',
+    bgColor: 'bg-indigo-50',
+    icon: 'workflow',
+  },
 };
 
 export const getComponentCategory = (group?: string): ComponentCategory => {
@@ -135,7 +146,7 @@ export const getComponentCategory = (group?: string): ComponentCategory => {
 
 const isAgentIcon = (icon?: string): icon is AgentIcon =>
   Boolean(icon) &&
-  ['shield', 'alert-triangle', 'user-cog', 'bot', 'check-circle', 'play-circle', 'message-square', 'x-circle', 'database'].includes(
+  ['shield', 'alert-triangle', 'user-cog', 'bot', 'check-circle', 'play-circle', 'message-square', 'x-circle', 'database', 'workflow'].includes(
     icon as AgentIcon,
   );
 

@@ -5,11 +5,13 @@ import { DragEvent } from 'react';
 import type { ComponentType } from 'react';
 import {
     AlertTriangle,
+    AlertCircle,
     Bot,
     Brain,
     BrainCircuit,
     CheckCircle,
     Clock,
+    Cloud,
     Database,
     KeyRound,
     Mail,
@@ -42,18 +44,24 @@ const iconMap: Record<AgentIcon, ComponentType<{ className?: string }>> = {
     shield: Shield,
     'alert-triangle': AlertTriangle,
     'user-cog': UserCog,
-    bot: Bot,
+
     'check-circle': CheckCircle,
     'play-circle': PlayCircle,
     'message-square': MessageSquare,
     'x-circle': XCircle,
     database: Database,
+    workflow: Workflow,
+    'clock,': Clock,
+    'alert-circle': AlertCircle,
+    bot: Bot
 };
 
 const componentIconMap: Record<string, ComponentType<{ className?: string }>> = {
     WhatsApp: MessageCircle,
     Email: Mail,
     Tweet: Send,
+    Clock: Clock,
+    Workflow: Workflow,
     SMS: MessageSquare,
     'SMTP Agent': Mail,
     API: Network,
@@ -74,10 +82,13 @@ const categoryRail: Array<{
         { group: 'Output', label: 'Output', icon: Megaphone, color: 'text-purple-500' },
         { group: 'Context', label: 'Context', icon: Send, color: 'text-green-500' },
         { group: 'Custom', label: 'Custom', icon: Settings, color: 'text-slate-500' },
-        { group: 'Agent', label: 'Agent', icon: Workflow, color: 'text-teal-500' },
+        // { group: 'Agent', label: 'Agent', icon: Workflow, color: 'text-teal-500' },
+        { group: "Condition", label: "Condition", icon: Workflow, color: 'text-indigo-500' },
         { group: 'Validation', label: 'Validation', icon: BrainCircuit, color: 'text-yellow-500' },
         { group: 'End', label: 'End', icon: CheckCircle, color: 'text-gray-400' },
         { group: 'Data', label: 'Data', icon: Database, color: 'text-blue-400' },
+        // { group: 'Agent', label: 'Agent', icon: MessageSquare, color: 'text-gray-500' },
+        { group: 'External', label: 'External', icon: Cloud, color: 'text-indigo-500' },
     ];
 
 const workflowNodes: AgentDefinition[] = [
@@ -413,7 +424,7 @@ const workflowNodes: AgentDefinition[] = [
         name: 'Scheduler Agent',
         description: 'Runs a command or triggers an agent recurringly in the background',
         group: 'Custom',
-        icon: 'play-circle',
+        icon: 'clock,',
         propertySchema: [
             { key: 'interval', label: 'Interval', type: 'number', placeholder: '60' },
             { key: 'unit', label: 'Unit', type: 'choice', options: ['seconds', 'minutes'] },
@@ -485,6 +496,23 @@ const workflowNodes: AgentDefinition[] = [
         group: 'End',
         icon: 'x-circle',
         outcome: 'failure',
+    },
+    {
+        name: 'Condition',
+        description: 'Evaluates the workflow state and branches execution based on success or failure.',
+        group: 'Condition',
+        icon: 'workflow',
+        propertySchema: [
+            {
+                key: 'checkType',
+                label: 'Check For',
+                type: 'choice',
+                options: ['Status (Success/Failure)', 'Presence of Violations'],
+            }
+        ],
+        defaultProperties: {
+            checkType: 'Status (Success/Failure)',
+        },
     },
 ];
 

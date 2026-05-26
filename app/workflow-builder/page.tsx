@@ -77,27 +77,21 @@ const buildExecutionSequence = (nodes: Node[], edges: { source?: string | null; 
     });
 
     if ((incoming.get(startNodes[0].id) || 0) > 0) {
-        return { sequence: [] as Node[], error: 'Start node must be the beginning of the workflow.' };
+        return { sequence: [] as Node[], error: 'Start node cannot have incoming edges.' };
     }
 
-    const sequence: Node[] = [];
     const visited = new Set<string>();
-    let current: Node | undefined = startNodes[0];
+    const stack = [startNodes[0].id];
+    const sequence: Node[] = [];
 
-    while (current) {
-        if (visited.has(current.id)) {
-            return { sequence: [] as Node[], error: 'Workflow cannot contain cycles in sequential execution mode.' };
-        }
-
-        visited.add(current.id);
-        sequence.push(current);
-
-        const nextIds: string[] = outgoing.get(current.id) || [];
-        if (nextIds.length > 1) {
-            return { sequence: [] as Node[], error: `${current.data?.name || current.id} has multiple outgoing edges. Sequential runs support one next step.` };
-        }
-
-        current = nextIds[0] ? byId.get(nextIds[0]) : undefined;
+    while (stack.length > 0) {
+        const nodeId = stack.pop()!;
+        if (visited.has(nodeId)) continue;
+        visited.add(nodeId);
+        const node = byId.get(nodeId);
+        if (node) sequence.push(node);
+        const nextIds = outgoing.get(nodeId) || [];
+        stack.push(...nextIds);
     }
 
     if (sequence.length < 2) {
@@ -141,6 +135,18 @@ const runWorkflowNode = async (node: Node, input: Record<string, unknown>) => {
             event: data.outcome === 'failure' ? 'workflow.failed' : 'workflow.completed',
             outcome: data.outcome || 'success',
             received: input,
+        };
+    }
+
+    if (group === 'Condition') {
+        // Simulate: evaluate based on presence of violations in the current payload
+        const hasViolations = input.violations && Array.isArray(input.violations) && input.violations.length > 0;
+        const status = hasViolations ? 'failure' : (Math.random() > 0.4 ? 'success' : 'failure');
+
+        return {
+            status,
+            message: `Condition evaluated to ${status}.`,
+            ...input
         };
     }
 
@@ -254,10 +260,28 @@ export default function WorkflowBuilder() {
         setEdges((eds) => {
             const source = nodes.find((node) => node.id === params.source);
             const target = nodes.find((node) => node.id === params.target);
+            const isCondition = source?.data?.group === 'Condition';
 
             if (target?.data?.group === 'Start' || source?.data?.group === 'End') {
                 setStatus('Start cannot have incoming edges and End cannot have outgoing edges.');
                 return eds;
+            }
+
+            // Enforce output connection limits
+            const existingSourceEdges = eds.filter(e => e.source === params.source);
+
+            if (!isCondition && existingSourceEdges.length >= 1) {
+                setStatus(`${source?.data?.name || 'Agent'} already has an output connection. Standard agents support only one output.`);
+                return eds;
+            }
+
+            if (isCondition) {
+                // Ensure success/failure branches are unique
+                const alreadyConnectedBranch = existingSourceEdges.find(e => e.sourceHandle === params.sourceHandle);
+                if (alreadyConnectedBranch) {
+                    setStatus(`The '${params.sourceHandle}' branch of this Condition is already connected.`);
+                    return eds;
+                }
             }
 
             return addEdge(params, eds);
@@ -457,15 +481,15 @@ export default function WorkflowBuilder() {
     }, [setNodes]);
 
     const onExecute = useCallback(async () => {
-        const { sequence, error } = buildExecutionSequence(nodes, edges);
-        if (error) {
-            setStatus(error);
+        const startNode = nodes.find(n => n.data?.group === 'Start');
+        if (!startNode) {
+            setStatus('Workflow must have exactly one Start node.');
             return;
         }
 
         setIsExecuting(true);
         setExecutionTrace([]);
-        setStatus(`Running ${sequence.length} steps...`);
+        setStatus(`Executing workflow...`);
         setNodes((currentNodes) =>
             currentNodes.map((node) => ({
                 ...node,
@@ -480,20 +504,30 @@ export default function WorkflowBuilder() {
             startedBy: 'manual',
         };
 
-        for (const node of sequence) {
+
+        let currentNode: Node | undefined = startNode;
+        const visited = new Set<string>();
+
+        while (currentNode) {
+            if (visited.has(currentNode.id) && currentNode.data?.group !== 'Condition') {
+                setStatus('Infinite loop detected.');
+                break;
+            }
+            visited.add(currentNode.id);
+
             const startedAtMs = Date.now();
             const startedAt = new Date(startedAtMs).toISOString();
-            const nodeName = String(node.data?.name || node.data?.label || node.id);
-            const group = String(node.data?.group || node.data?.category || 'Agent');
+            const nodeName = String(currentNode.data?.name || currentNode.data?.label || currentNode.id);
+            const group = String(currentNode.data?.group || currentNode.data?.category || 'Agent');
 
-            setNodeExecutionStatus(node.id, 'running');
+            setNodeExecutionStatus(currentNode.id, 'running');
 
             try {
-                const output = await runWorkflowNode(node, payload);
+                const output = await runWorkflowNode(currentNode, payload);
                 const finishedAtMs = Date.now();
                 const traceStep: WorkflowTraceStep = {
-                    id: `${node.id}-${startedAtMs}`,
-                    nodeId: node.id,
+                    id: `${currentNode.id}-${startedAtMs}`,
+                    nodeId: currentNode.id,
                     nodeName,
                     group,
                     status: 'success',
@@ -505,13 +539,25 @@ export default function WorkflowBuilder() {
                 };
 
                 setExecutionTrace((trace) => [...trace, traceStep]);
-                setNodeExecutionStatus(node.id, 'success');
+                setNodeExecutionStatus(currentNode.id, 'success');
                 payload = output;
+
+                if (group === 'End') break;
+
+                // Branching logic: traverse based on output status if it's a condition
+                const outgoingEdges = edges.filter(e => e.source === currentNode?.id);
+                if (group === 'Condition') {
+                    const resultStatus = output.status === 'failure' ? 'failure' : 'success';
+                    const edge = outgoingEdges.find(e => e.sourceHandle === resultStatus);
+                    currentNode = edge ? nodes.find(n => n.id === edge.target) : undefined;
+                } else {
+                    currentNode = outgoingEdges[0] ? nodes.find(n => n.id === outgoingEdges[0].target) : undefined;
+                }
             } catch (nodeError) {
                 const finishedAtMs = Date.now();
                 const traceStep: WorkflowTraceStep = {
-                    id: `${node.id}-${startedAtMs}`,
-                    nodeId: node.id,
+                    id: `${currentNode.id}-${startedAtMs}`,
+                    nodeId: currentNode.id,
                     nodeName,
                     group,
                     status: 'error',
@@ -523,7 +569,7 @@ export default function WorkflowBuilder() {
                 };
 
                 setExecutionTrace((trace) => [...trace, traceStep]);
-                setNodeExecutionStatus(node.id, 'error');
+                setNodeExecutionStatus(currentNode.id, 'error');
                 setStatus(`Execution stopped at ${nodeName}: ${traceStep.error}`);
                 setIsExecuting(false);
                 return;
@@ -531,7 +577,7 @@ export default function WorkflowBuilder() {
         }
 
         setIsExecuting(false);
-        setStatus(`Execution completed. Captured ${sequence.length} trace steps.`);
+        setStatus(`Execution completed. Captured ${executionTrace.length + 1} trace steps.`);
     }, [edges, nodes, setNodeExecutionStatus, setNodes, workflowId, workflowName]);
 
     return (
