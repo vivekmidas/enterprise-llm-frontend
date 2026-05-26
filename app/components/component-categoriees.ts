@@ -144,7 +144,7 @@ export const inferAgentGroup = (name: string): ComponentCategory => {
 
   if (normalizedName.includes('guard')) return 'Guardrails';
   if (normalizedName === 'start') return 'Start';
-  if (normalizedName.includes('email') || normalizedName.includes('sms') || normalizedName.includes('schedule') || normalizedName.includes('webhook')) return 'Trigger';
+  if (normalizedName.includes('email') || normalizedName.includes('sms') || normalizedName.includes('schedule') || normalizedName.includes('webhook') || normalizedName.includes('smtp')) return 'Trigger';
   if (normalizedName.includes('success') || normalizedName.includes('failure') || normalizedName.includes('end')) return 'End';
   if (normalizedName.includes('db') || normalizedName.includes('database') || normalizedName.includes('crm')) return 'Data';
   if (normalizedName.includes('validator') || normalizedName.includes('validation')) return 'Validation';
@@ -168,229 +168,10 @@ const getAgentPropertyDefinition = (
   group: string,
   triggerType?: string,
 ): Pick<AgentDefinition, 'propertySchema' | 'defaultProperties'> => {
-  const normalizedName = name.toLowerCase();
-  const normalizedTrigger = triggerType?.toLowerCase();
-
-  if (normalizedName.includes('schedule') || normalizedTrigger === 'schedule') {
-    return {
-      propertySchema: [
-        {
-          key: 'timePeriod',
-          label: 'Time Period',
-          type: 'choice',
-          options: ['Every 5 minutes', 'Hourly', 'Daily', 'Weekly', 'Monthly'],
-        },
-        {
-          key: 'actionClass',
-          label: 'Action Class',
-          type: 'string',
-          placeholder: 'com.enterprise.workflow.actions.ScheduleAction',
-        },
-        {
-          key: 'enabled',
-          label: 'Enabled',
-          type: 'boolean',
-        },
-      ],
-      defaultProperties: {
-        timePeriod: 'Hourly',
-        actionClass: '',
-        enabled: true,
-      },
-    };
-  }
-
-  if (normalizedName.includes('sms') || normalizedTrigger === 'sms') {
-    return {
-      propertySchema: [
-        {
-          key: 'incomingNumber',
-          label: 'Incoming Number',
-          type: 'string',
-          placeholder: '+15551234567',
-        },
-        {
-          key: 'provider',
-          label: 'Provider',
-          type: 'choice',
-          options: ['Twilio', 'Vonage', 'Custom Gateway'],
-        },
-        {
-          key: 'acceptedKeywords',
-          label: 'Accepted Keywords',
-          type: 'choice',
-          options: ['START', 'HELP', 'STOP', 'SUPPORT'],
-          multiple: true,
-        },
-        {
-          key: 'autoReply',
-          label: 'Auto Reply',
-          type: 'boolean',
-        },
-      ],
-      defaultProperties: {
-        incomingNumber: '',
-        provider: 'Twilio',
-        acceptedKeywords: ['START'],
-        autoReply: true,
-      },
-    };
-  }
-
-  if (normalizedName.includes('email') || normalizedTrigger === 'email') {
-    return {
-      propertySchema: [
-        {
-          key: 'inboxAddress',
-          label: 'Inbox Address',
-          type: 'string',
-          placeholder: 'support@example.com',
-        },
-        {
-          key: 'includeAttachments',
-          label: 'Include Attachments',
-          type: 'boolean',
-        },
-      ],
-      defaultProperties: {
-        inboxAddress: '',
-        includeAttachments: true,
-      },
-    };
-  }
-
-  if (group === 'LLM') {
-    return {
-      propertySchema: [
-        {
-          key: 'model',
-          label: 'Model',
-          type: 'choice',
-          options: ['gpt-4.1', 'gpt-4.1-mini', 'custom'],
-        },
-        {
-          key: 'systemPrompt',
-          label: 'System Prompt',
-          type: 'string',
-          placeholder: 'Instructions for the model',
-        },
-        {
-          key: 'streamResponse',
-          label: 'Stream Response',
-          type: 'boolean',
-        },
-      ],
-      defaultProperties: {
-        model: 'gpt-4.1-mini',
-        systemPrompt: '',
-        streamResponse: true,
-      },
-    };
-  }
-
-  if (group === 'Data' || normalizedName.includes('db') || normalizedName.includes('database')) {
-    if (normalizedName.includes('crm')) {
-      return {
-        propertySchema: [
-          {
-            key: 'baseUrl',
-            label: 'CRM Base URL',
-            type: 'string',
-            placeholder: 'https://crm.example.com',
-          },
-          {
-            key: 'apiKey',
-            label: 'API Key',
-            type: 'password',
-            placeholder: 'Paste token',
-          },
-          {
-            key: 'entity',
-            label: 'Entity',
-            type: 'choice',
-            options: ['Contact', 'Account', 'Lead', 'Opportunity', 'Case'],
-          },
-          {
-            key: 'lookupField',
-            label: 'Lookup Field',
-            type: 'string',
-            placeholder: 'email',
-          },
-          {
-            key: 'lookupValue',
-            label: 'Lookup Value',
-            type: 'string',
-            placeholder: '{{input.email}}',
-          },
-        ],
-        defaultProperties: {
-          baseUrl: '',
-          apiKey: '',
-          entity: 'Contact',
-          lookupField: 'email',
-          lookupValue: '',
-        },
-      };
-    }
-
-    return {
-      propertySchema: [
-        {
-          key: 'ipAddress',
-          label: 'IP Address',
-          type: 'string',
-          placeholder: '10.0.0.12',
-        },
-        {
-          key: 'port',
-          label: 'Port',
-          type: 'number',
-          placeholder: '5432',
-        },
-        {
-          key: 'username',
-          label: 'Username',
-          type: 'string',
-          placeholder: 'readonly_user',
-        },
-        {
-          key: 'password',
-          label: 'Password',
-          type: 'password',
-          placeholder: 'Password',
-        },
-        {
-          key: 'dbName',
-          label: 'Database Name',
-          type: 'string',
-          placeholder: 'customers',
-        },
-        {
-          key: 'sqlCommand',
-          label: 'SQL Command',
-          type: 'textarea',
-          placeholder: 'select * from customers limit 10',
-        },
-      ],
-      defaultProperties: {
-        ipAddress: '',
-        port: 5432,
-        username: '',
-        password: '',
-        dbName: '',
-        sqlCommand: '',
-      },
-    };
-  }
-
+  // Delinked: Agent definitions should carry their own properties.
+  // Providing a generic minimal schema as fallback.
   return {
     propertySchema: [
-      {
-        key: 'actionClass',
-        label: 'Action Class',
-        type: 'string',
-        placeholder: 'com.enterprise.workflow.actions.CustomAction',
-      },
       {
         key: 'enabled',
         label: 'Enabled',
@@ -398,7 +179,6 @@ const getAgentPropertyDefinition = (
       },
     ],
     defaultProperties: {
-      actionClass: '',
       enabled: true,
     },
   };

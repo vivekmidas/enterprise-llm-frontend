@@ -5,12 +5,19 @@ export interface WorkflowPayload {
   name: string;
   nodes: unknown[];
   edges: unknown[];
+  category?: string;
 }
 
 export const api = {
   // Get all available agents from backend
   getAgents: async () => {
     const res = await fetch(`${BACKEND_URL}/agents`);
+    return res.json();
+  },
+
+  // Get workflow categories
+  getWorkflowCategories: async () => {
+    const res = await fetch(`${BACKEND_URL}/workflow/categories`);
     return res.json();
   },
 

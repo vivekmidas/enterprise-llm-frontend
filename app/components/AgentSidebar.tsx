@@ -55,9 +55,11 @@ const componentIconMap: Record<string, ComponentType<{ className?: string }>> = 
     Email: Mail,
     Tweet: Send,
     SMS: MessageSquare,
+    'SMTP Agent': Mail,
     API: Network,
     Call: PhoneCall,
     Schedule: Clock,
+    'Scheduler Agent': Clock,
 };
 
 const categoryRail: Array<{
@@ -85,6 +87,11 @@ const workflowNodes: AgentDefinition[] = [
         group: 'Trigger',
         icon: 'message-square',
         triggerType: 'whatsapp',
+        propertySchema: [
+            { key: 'phoneNumber', label: 'Phone Number', type: 'string', placeholder: '+1...' },
+            { key: 'apiKey', label: 'WhatsApp API Key', type: 'password' }
+        ],
+        defaultProperties: { phoneNumber: '', apiKey: '' }
     },
     {
         name: 'Email',
@@ -92,6 +99,75 @@ const workflowNodes: AgentDefinition[] = [
         group: 'Trigger',
         icon: 'message-square',
         triggerType: 'email',
+        propertySchema: [
+            {
+                key: 'inboxAddress',
+                label: 'Inbox Address',
+                type: 'string',
+                placeholder: 'support@example.com',
+            },
+            {
+                key: 'includeAttachments',
+                label: 'Include Attachments',
+                type: 'boolean',
+            },
+        ],
+        defaultProperties: {
+            inboxAddress: '',
+            includeAttachments: true,
+        },
+    },
+    {
+        name: 'SMTP Agent',
+        description: 'Polls and reads emails from server',
+        group: 'Trigger',
+        icon: 'message-square',
+        triggerType: 'smtp',
+        propertySchema: [
+            {
+                key: 'host',
+                label: 'Host',
+                type: 'string',
+                placeholder: 'smtp.gmail.com',
+            },
+            {
+                key: 'port',
+                label: 'Port',
+                type: 'number',
+                placeholder: '587',
+            },
+            {
+                key: 'secure',
+                label: 'Use TLS/SSL',
+                type: 'boolean',
+            },
+            {
+                key: 'username',
+                label: 'Username',
+                type: 'string',
+                placeholder: 'service-account@company.com',
+            },
+            {
+                key: 'password',
+                label: 'Password',
+                type: 'password',
+                placeholder: 'App Password or Secret',
+            },
+            {
+                key: 'interval',
+                label: 'Polling Interval (mins)',
+                type: 'number',
+                placeholder: '5',
+            },
+        ],
+        defaultProperties: {
+            host: '',
+            port: 587,
+            secure: true,
+            username: '',
+            password: '',
+            interval: 1,
+        },
     },
     {
         name: 'Tweet',
@@ -99,6 +175,11 @@ const workflowNodes: AgentDefinition[] = [
         group: 'Trigger',
         icon: 'message-square',
         triggerType: 'tweet',
+        propertySchema: [
+            { key: 'hashtag', label: 'Hashtag to Monitor', type: 'string', placeholder: '#support' },
+            { key: 'bearerToken', label: 'Twitter Bearer Token', type: 'password' }
+        ],
+        defaultProperties: { hashtag: '', bearerToken: '' }
     },
     {
         name: 'SMS',
@@ -145,6 +226,11 @@ const workflowNodes: AgentDefinition[] = [
         group: 'Trigger',
         icon: 'bot',
         triggerType: 'api',
+        propertySchema: [
+            { key: 'endpoint', label: 'Webhook Endpoint', type: 'string', placeholder: '/api/v1/webhook' },
+            { key: 'authMethod', label: 'Auth Method', type: 'choice', options: ['None', 'API Key', 'Bearer Token'] }
+        ],
+        defaultProperties: { endpoint: '', authMethod: 'None' }
     },
     {
         name: 'Call',
@@ -152,6 +238,11 @@ const workflowNodes: AgentDefinition[] = [
         group: 'Trigger',
         icon: 'message-square',
         triggerType: 'call',
+        propertySchema: [
+            { key: 'forwardNumber', label: 'Forward To', type: 'string', placeholder: '+1...' },
+            { key: 'recordingEnabled', label: 'Enable Recording', type: 'boolean' }
+        ],
+        defaultProperties: { forwardNumber: '', recordingEnabled: false }
     },
     {
         name: 'Schedule',
@@ -182,6 +273,88 @@ const workflowNodes: AgentDefinition[] = [
             timePeriod: 'Hourly',
             actionClass: '',
             enabled: true,
+        },
+    },
+    {
+        name: 'generic_llm_agent',
+        description: 'Generic LLM call via IP/Port',
+        group: 'LLM',
+        icon: 'bot',
+        propertySchema: [
+            {
+                key: 'ip',
+                label: 'IP Address',
+                type: 'string',
+                placeholder: '127.0.0.1',
+            },
+            {
+                key: 'port',
+                label: 'Port',
+                type: 'number',
+                placeholder: '8000',
+            },
+            {
+                key: 'model',
+                label: 'Model Name',
+                type: 'string',
+                placeholder: 'llama-3',
+            },
+            {
+                key: 'systemPrompt',
+                label: 'System Prompt',
+                type: 'textarea',
+                placeholder: 'Instructions for the model',
+            },
+            {
+                key: 'temperature',
+                label: 'Temperature',
+                type: 'number',
+                placeholder: '0.7',
+            },
+        ],
+        defaultProperties: {
+            ip: '127.0.0.1',
+            port: 8000,
+            model: 'llama-3',
+            systemPrompt: 'You are a helpful assistant.',
+            temperature: 0.7,
+        },
+    },
+    {
+        name: 'LLM Agent',
+        description: 'Large Language Model processing',
+        group: 'LLM',
+        icon: 'bot',
+        propertySchema: [
+            {
+                key: 'model',
+                label: 'Model',
+                type: 'choice',
+                options: ['gpt-4.1', 'gpt-4.1-mini', 'claude-3-opus', 'custom'],
+            },
+            {
+                key: 'systemPrompt',
+                label: 'System Prompt',
+                type: 'textarea',
+                placeholder: 'Instructions for the model',
+            },
+            {
+                key: 'temperature',
+                label: 'Temperature',
+                type: 'number',
+                placeholder: '0.7',
+            },
+            {
+                key: 'streamResponse',
+                label: 'Stream Response',
+                type: 'boolean',
+            },
+        ],
+        defaultProperties: {
+            model: 'gpt-4.1-mini',
+            systemPrompt: 'You are a helpful assistant.',
+            temperature: 0.7,
+            streamResponse: true,
         },
     },
     {
@@ -235,6 +408,24 @@ const workflowNodes: AgentDefinition[] = [
             dbName: '',
             sqlCommand: '',
         },
+    },
+    {
+        name: 'Scheduler Agent',
+        description: 'Runs a command or triggers an agent recurringly in the background',
+        group: 'Custom',
+        icon: 'play-circle',
+        propertySchema: [
+            { key: 'interval', label: 'Interval', type: 'number', placeholder: '60' },
+            { key: 'unit', label: 'Unit', type: 'choice', options: ['seconds', 'minutes'] },
+            { key: 'command', label: 'Shell Command', type: 'string', placeholder: 'echo "Task running"' },
+            { key: 'targetAgent', label: 'Target Agent Name', type: 'string', placeholder: 'profanity_guard' }
+        ],
+        defaultProperties: {
+            interval: 60,
+            unit: 'seconds',
+            command: '',
+            targetAgent: ''
+        }
     },
     {
         name: 'CRM Agent',
@@ -297,9 +488,14 @@ const workflowNodes: AgentDefinition[] = [
     },
 ];
 
-export default function AgentSidebar() {
+interface AgentSidebarProps {
+    onSelectWorkflow?: (id: string) => void;
+    onAllAgentsLoaded?: (agentNames: string[]) => void;
+}
+
+export default function AgentSidebar({ onSelectWorkflow, onAllAgentsLoaded }: AgentSidebarProps) {
     const [agents, setAgents] = useState<AgentDefinition[]>([]);
-    const [workflows, setWorkflows] = useState<string[]>(['email_channel', 'whatsapp', 'web']);
+    const [workflows, setWorkflows] = useState<any[]>([]);
     const [activeGroup, setActiveGroup] = useState('Trigger');
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
@@ -308,17 +504,19 @@ export default function AgentSidebar() {
         Promise.all([api.getAgents(), api.getWorkflows().catch(() => ({ workflows: [] }))])
             .then(([agentData, workflowData]) => {
                 setAgents((agentData.agents || []).map(normalizeAgent));
-                const savedWorkflowNames = (workflowData.workflows || [])
-                    .map((workflow: { id?: string; name?: string }) => workflow.id || workflow.name)
-                    .filter(Boolean);
-
-                if (savedWorkflowNames.length > 0) {
-                    setWorkflows(Array.from(new Set([...savedWorkflowNames])));
-                }
+                const workflowsArray = Array.isArray(workflowData) ? workflowData : (workflowData.workflows || []);
+                setWorkflows(workflowsArray);
             })
             .catch(() => undefined)
             .finally(() => setLoading(false));
     }, []);
+
+    useEffect(() => {
+        if (!loading && onAllAgentsLoaded) {
+            const allAgentNames = [...workflowNodes, ...agents].map(agent => agent.name);
+            onAllAgentsLoaded(Array.from(new Set(allAgentNames)));
+        }
+    }, [loading, agents, onAllAgentsLoaded]);
 
     const allComponents = [...workflowNodes, ...agents];
     const visibleComponents = allComponents
@@ -345,8 +543,15 @@ export default function AgentSidebar() {
 
             <div className="space-y-3 px-4 text-sm text-gray-900">
                 {workflows.map((workflow) => (
-                    <button key={workflow} className="block text-left transition-colors hover:text-blue-600">
-                        {workflow}
+                    <button
+                        key={workflow.id}
+                        onClick={() => onSelectWorkflow?.(workflow.id)}
+                        className="flex w-full items-center justify-between text-left transition-colors hover:text-blue-600"
+                    >
+                        <span>{workflow.name || workflow.id}</span>
+                        <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 uppercase font-bold">
+                            {workflow.category || 'default'}
+                        </span>
                     </button>
                 ))}
             </div>

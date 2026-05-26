@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import ReactFlow, {
     Node, addEdge, Connection, useNodesState, useEdgesState,
     Background, Controls, MiniMap,
@@ -144,63 +144,52 @@ const runWorkflowNode = async (node: Node, input: Record<string, unknown>) => {
         };
     }
 
-    if (normalizedName.includes('db') || normalizedName.includes('database')) {
-        const sqlCommand = String(properties.sqlCommand || '').trim();
-        if (!properties.ipAddress || !properties.port || !properties.username || !properties.dbName || !sqlCommand) {
-            throw new Error('DB Agent requires IP address, port, username, database name, and SQL command.');
-        }
-
-        return {
-            adapter: 'database',
-            dryRun: true,
-            connection: `${properties.username}@${properties.ipAddress}:${properties.port}/${properties.dbName}`,
-            sqlCommand,
-            rows: [
-                { id: 1, source: 'simulated-db', status: 'matched' },
-                { id: 2, source: 'simulated-db', status: 'matched' },
-            ],
-            previous: input,
-        };
-    }
-
-    if (normalizedName.includes('crm')) {
-        if (!properties.baseUrl || !properties.entity || !properties.lookupField) {
-            throw new Error('CRM Agent requires CRM base URL, entity, and lookup field.');
-        }
-
-        return {
-            adapter: 'crm',
-            dryRun: true,
-            entity: properties.entity,
-            lookup: {
-                field: properties.lookupField,
-                value: properties.lookupValue || 'from previous node',
-            },
-            record: {
-                id: 'crm_001',
-                name: 'Sample Customer',
-                tier: 'Enterprise',
-                openCases: 2,
-            },
-            previous: input,
-        };
-    }
-
-    if (group === 'Trigger') {
-        return {
-            event: `${data.triggerType || normalizedName}.received`,
-            configuration: maskSecrets(properties),
-            payload: input,
-        };
-    }
-
+    // Generic simulation logic for all other agents (DB, CRM, SMTP, LLM, etc.)
+    // This delinks the builder execution from hardcoded agent-specific properties.
     return {
-        agent: name,
+        nodeId: node.id,
+        nodeName: name,
         group,
+        status: 'success',
+        executionTime: new Date().toISOString(),
         configuration: maskSecrets(properties),
-        received: input,
-        result: `${name} completed`,
+        input: input,
+        output: {
+            message: `Simulated execution of ${name} completed.`,
+            data: {
+                processed_at: Date.now(),
+                ...(group === 'Trigger' ? { event_type: data.triggerType || normalizedName } : {}),
+                ...(group === 'Data' ? { rows_affected: 2 } : {}),
+                ...(group === 'LLM' ? { model_response: "Simulated AI response based on provided prompt." } : {})
+            }
+        }
     };
+};
+
+const updateSchedulerAgentSchema = (node: Node, agentNames: string[]): Node => {
+    if (node.data?.name !== 'Scheduler Agent') return node;
+
+    const currentSchema = (node.data.propertySchema || []) as AgentPropertyDefinition[];
+    const targetProp = currentSchema.find(p => p.key === 'targetAgent');
+    const sortedAgentNames = [...new Set(['', ...agentNames])].sort();
+
+    // Only update if options are different to avoid unnecessary state updates
+    if (targetProp?.type === 'choice' && JSON.stringify(targetProp.options) === JSON.stringify(sortedAgentNames)) {
+        return node;
+    }
+
+    const updatedPropertySchema = currentSchema.map((prop: AgentPropertyDefinition) => {
+        if (prop.key === 'targetAgent') {
+            return {
+                ...prop,
+                type: 'choice' as const,
+                options: sortedAgentNames,
+                multiple: false,
+            };
+        }
+        return prop;
+    });
+    return { ...node, data: { ...node.data, propertySchema: updatedPropertySchema } };
 };
 
 const initialNodes: Node[] = [
@@ -235,10 +224,31 @@ export default function WorkflowBuilder() {
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [workflowId, setWorkflowId] = useState('email_channel');
     const [workflowName, setWorkflowName] = useState('Email Channel');
+    const [workflowCategory, setWorkflowCategory] = useState('default');
+    const [availableCategories, setAvailableCategories] = useState<string[]>(['default']);
     const [workflowVersion, setWorkflowVersion] = useState<number | null>(null);
     const [status, setStatus] = useState('');
     const [executionTrace, setExecutionTrace] = useState<WorkflowTraceStep[]>([]);
+    const [availableAgentNames, setAvailableAgentNames] = useState<string[]>([]);
     const [isExecuting, setIsExecuting] = useState(false);
+
+    // Sync all existing nodes on the canvas if the list of available agents refreshes
+    useEffect(() => {
+        if (availableAgentNames.length > 0) {
+            setNodes((nds) => nds.map((node) => updateSchedulerAgentSchema(node, availableAgentNames)));
+        }
+    }, [availableAgentNames, setNodes]);
+
+    useEffect(() => {
+        api.getWorkflowCategories()
+            .then(data => {
+                const cats = Array.isArray(data) ? data : (data.categories || []);
+                if (cats.length > 0) {
+                    setAvailableCategories(['default', ...cats]);
+                }
+            })
+            .catch(() => console.error("Failed to load categories"));
+    }, []);
 
     const onConnect = useCallback((params: Connection) =>
         setEdges((eds) => {
@@ -303,9 +313,11 @@ export default function WorkflowBuilder() {
                 properties: agent.defaultProperties || {},
             },
         };
-        setNodes((nds) => nds.concat(newNode));
+
+        const finalNode = updateSchedulerAgentSchema(newNode, availableAgentNames);
+        setNodes((nds) => nds.concat(finalNode));
         setStatus('');
-    }, [nodes, setNodes]);
+    }, [nodes, setNodes, availableAgentNames]);
 
     const onUpdateNode = useCallback((nodeId: string, newData: WorkflowNodeData) => {
         setNodes((nds) =>
@@ -317,6 +329,7 @@ export default function WorkflowBuilder() {
             node?.id === nodeId ? { ...node, data: newData } : node
         );
     }, [setNodes]);
+
     const validateWorkflow = useCallback(() => {
         const { error } = buildExecutionSequence(nodes, edges);
         return error;
@@ -341,6 +354,7 @@ export default function WorkflowBuilder() {
                 name: workflowName,
                 nodes,
                 edges,
+                category: workflowCategory,
             });
 
             setWorkflowVersion(savedWorkflow.version);
@@ -372,6 +386,7 @@ export default function WorkflowBuilder() {
                 name: nextName.trim(),
                 nodes,
                 edges,
+                category: workflowCategory,
             });
 
             setWorkflowId(savedWorkflow.id || nextId);
@@ -394,17 +409,42 @@ export default function WorkflowBuilder() {
                 return;
             }
 
-            setNodes(latestWorkflow.nodes || initialNodes);
+            setNodes((latestWorkflow.nodes || initialNodes).map((node: Node) => updateSchedulerAgentSchema(node, availableAgentNames)));
             setEdges(latestWorkflow.edges || []);
             setWorkflowId(latestWorkflow.id || workflowId);
             setWorkflowName(latestWorkflow.name || latestWorkflow.id || workflowName);
+            setWorkflowCategory(latestWorkflow.category || 'default');
             setWorkflowVersion(latestWorkflow.version);
             setSelectedNode(null);
             setStatus(`Loaded ${workflows.length} latest workflow${workflows.length === 1 ? '' : 's'}.`);
         } catch {
-            setStatus('Unable to get workflows.');
+            setStatus('Unable to get workflows or update scheduler agent schema.');
         }
     }, [setEdges, setNodes, workflowId, workflowName]);
+
+    const loadWorkflow = useCallback(async (id: string) => {
+        try {
+            setStatus(`Loading ${id}...`);
+            const data = await api.getWorkflow(id);
+
+            if (!data) {
+                setStatus(`Workflow ${id} not found.`);
+                return;
+            }
+
+            setNodes((data.nodes || initialNodes).map((node: Node) => updateSchedulerAgentSchema(node, availableAgentNames)));
+            setEdges(data.edges || []);
+            setWorkflowId(data.id || id);
+            setWorkflowName(data.name || data.id || id);
+            setWorkflowCategory(data.category || 'default');
+            setWorkflowVersion(data.version);
+            setSelectedNode(null);
+            setExecutionTrace([]);
+            setStatus(`Loaded ${data.name || id}.`);
+        } catch (e) {
+            setStatus(`Unable to load workflow ${id}.`);
+        }
+    }, [setEdges, setNodes, availableAgentNames]);
 
     const setNodeExecutionStatus = useCallback((nodeId: string, executionStatus: ExecutionStatus) => {
         setNodes((currentNodes) =>
@@ -501,7 +541,17 @@ export default function WorkflowBuilder() {
                 <div className="flex items-center gap-4">
                     <h1 className="text-2xl font-semibold text-gray-900">Workflow Builder</h1>
                     <div className="text-sm text-gray-500">
-                        {workflowId} • v{workflowVersion ?? 1} • Active
+                        {workflowId} • v{workflowVersion ?? 1} •
+                        <select
+                            value={workflowCategory}
+                            onChange={(e) => setWorkflowCategory(e.target.value)}
+                            className="mx-1 bg-transparent border-none focus:ring-0 text-gray-500 font-medium cursor-pointer outline-none"
+                        >
+                            {availableCategories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                        • Active
                     </div>
                 </div>
 
@@ -517,8 +567,8 @@ export default function WorkflowBuilder() {
             </div>
 
             <div className="flex flex-1 overflow-hidden">
-                {/* Left Sidebar */}
-                <AgentSidebar />
+                {/* Left Sidebar - Pass onAllAgentsLoaded callback */}
+                <AgentSidebar onSelectWorkflow={loadWorkflow} onAllAgentsLoaded={setAvailableAgentNames} />
 
                 {/* Canvas */}
                 <div className="flex-1 relative" onDragOver={onDragOver} onDrop={onDrop}>
@@ -595,6 +645,7 @@ export default function WorkflowBuilder() {
                     selectedNode={selectedNode}
                     onClose={() => setSelectedNode(null)}
                     onUpdateNode={onUpdateNode}
+                    onSave={onSave}
                 />
             </div>
         </div>
