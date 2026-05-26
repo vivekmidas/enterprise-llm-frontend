@@ -21,7 +21,7 @@ interface PropertiesPanelProps {
 }
 
 /**
- * PropertiesPanel - Sidebar component for editing workflow node configurations.
+ * PropertiesPanel - Sidebar component for editing agent node configurations.
  * 
  * It dynamically renders form fields based on the node's `propertySchema`
  * and allows editing basic metadata like name and description.

@@ -91,7 +91,7 @@ const categoryRail: Array<{
         { group: 'External', label: 'External', icon: Cloud, color: 'text-indigo-500' },
     ];
 
-const workflowNodes: AgentDefinition[] = [
+const builtInNodes: AgentDefinition[] = [
     {
         name: 'WhatsApp',
         description: 'Customer initiates WhatsApp chat',
@@ -272,7 +272,7 @@ const workflowNodes: AgentDefinition[] = [
                 key: 'actionClass',
                 label: 'Action Class',
                 type: 'string',
-                placeholder: 'com.enterprise.workflow.actions.ScheduleAction',
+                placeholder: 'com.enterprise.agent.actions.ScheduleAction',
             },
             {
                 key: 'enabled',
@@ -499,7 +499,7 @@ const workflowNodes: AgentDefinition[] = [
     },
     {
         name: 'Condition',
-        description: 'Evaluates the workflow state and branches execution based on success or failure.',
+        description: 'Evaluates the agent state and branches execution based on success or failure.',
         group: 'Condition',
         icon: 'workflow',
         propertySchema: [
@@ -517,23 +517,23 @@ const workflowNodes: AgentDefinition[] = [
 ];
 
 interface AgentSidebarProps {
-    onSelectWorkflow?: (id: string) => void;
+    onSelectAgent?: (id: string) => void;
     onAllAgentsLoaded?: (agentNames: string[]) => void;
 }
 
-export default function AgentSidebar({ onSelectWorkflow, onAllAgentsLoaded }: AgentSidebarProps) {
+export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: AgentSidebarProps) {
     const [agents, setAgents] = useState<AgentDefinition[]>([]);
-    const [workflows, setWorkflows] = useState<any[]>([]);
+    const [savedAgents, setSavedAgents] = useState<any[]>([]);
     const [activeGroup, setActiveGroup] = useState('Trigger');
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        Promise.all([api.getAgents(), api.getWorkflows().catch(() => ({ workflows: [] }))])
-            .then(([agentData, workflowData]) => {
+        Promise.all([api.getAgents(), api.getSavedAgents().catch(() => ({ workflows: [] }))])
+            .then(([agentData, agentListData]) => {
                 setAgents((agentData.agents || []).map(normalizeAgent));
-                const workflowsArray = Array.isArray(workflowData) ? workflowData : (workflowData.workflows || []);
-                setWorkflows(workflowsArray);
+                const agentsArray = Array.isArray(agentListData) ? agentListData : (agentListData.workflows || []);
+                setSavedAgents(agentsArray);
             })
             .catch(() => undefined)
             .finally(() => setLoading(false));
@@ -541,12 +541,12 @@ export default function AgentSidebar({ onSelectWorkflow, onAllAgentsLoaded }: Ag
 
     useEffect(() => {
         if (!loading && onAllAgentsLoaded) {
-            const allAgentNames = [...workflowNodes, ...agents].map(agent => agent.name);
+            const allAgentNames = [...builtInNodes, ...agents].map(agent => agent.name);
             onAllAgentsLoaded(Array.from(new Set(allAgentNames)));
         }
     }, [loading, agents, onAllAgentsLoaded]);
 
-    const allComponents = [...workflowNodes, ...agents];
+    const allComponents = [...builtInNodes, ...agents];
     const visibleComponents = allComponents
         .filter((agent) => agent.group === activeGroup || (activeGroup === 'Agent' && getComponentCategory(agent.group) === 'Agent'))
         .filter((agent) => {
@@ -566,19 +566,19 @@ export default function AgentSidebar({ onSelectWorkflow, onAllAgentsLoaded }: Ag
         <div className="w-[320px] shrink-0 overflow-auto border-r border-sky-200 bg-white px-5 py-6">
             <button className="mb-7 flex w-full items-center gap-2 rounded-lg bg-blue-50 px-5 py-1 text-left text-m font-medium text-blue-600 transition-colors hover:bg-blue-100">
                 <Plus className="h-6 w-6" />
-                <span>New Workflow</span>
+                <span>New Agent</span>
             </button>
 
             <div className="space-y-3 px-4 text-sm text-gray-900">
-                {workflows.map((workflow) => (
+                {savedAgents.map((agent) => (
                     <button
-                        key={workflow.id}
-                        onClick={() => onSelectWorkflow?.(workflow.id)}
+                        key={agent.id}
+                        onClick={() => onSelectAgent?.(agent.id)}
                         className="flex w-full items-center justify-between text-left transition-colors hover:text-blue-600"
                     >
-                        <span>{workflow.name || workflow.id}</span>
+                        <span>{agent.name || agent.id}</span>
                         <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 uppercase font-bold">
-                            {workflow.category || 'default'}
+                            {agent.category || 'default'}
                         </span>
                     </button>
                 ))}

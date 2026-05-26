@@ -63,7 +63,7 @@ const toProperties = (node: Node): NodeProperties => {
 const buildExecutionSequence = (nodes: Node[], edges: { source?: string | null; target?: string | null }[]) => {
     const startNodes = nodes.filter((node) => node.data?.group === 'Start');
     if (startNodes.length !== 1) {
-        return { sequence: [] as Node[], error: 'Workflow must have exactly one Start node.' };
+        return { sequence: [] as Node[], error: 'Agent must have exactly one Start node.' };
     }
 
     const byId = new Map<string, Node>(nodes.map((node) => [node.id, node]));
@@ -95,7 +95,7 @@ const buildExecutionSequence = (nodes: Node[], edges: { source?: string | null; 
     }
 
     if (sequence.length < 2) {
-        return { sequence: [] as Node[], error: 'Connect Start to at least one agent before executing.' };
+        return { sequence: [] as Node[], error: 'Connect Start to at least one component before executing.' };
     }
 
     const unreachable = nodes.filter((node) => !visited.has(node.id));
@@ -106,7 +106,7 @@ const buildExecutionSequence = (nodes: Node[], edges: { source?: string | null; 
     return { sequence, error: '' };
 };
 
-const runWorkflowNode = async (node: Node, input: Record<string, unknown>) => {
+const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
     const data = node.data || {};
     const properties = toProperties(node);
     const name = String(data.name || data.label || node.id);
@@ -125,14 +125,14 @@ const runWorkflowNode = async (node: Node, input: Record<string, unknown>) => {
 
     if (group === 'Start') {
         return {
-            event: 'workflow.started',
+            event: 'agent.started',
             payload: input,
         };
     }
 
     if (group === 'End') {
         return {
-            event: data.outcome === 'failure' ? 'workflow.failed' : 'workflow.completed',
+            event: data.outcome === 'failure' ? 'agent.failed' : 'agent.completed',
             outcome: data.outcome || 'success',
             received: input,
         };
@@ -224,15 +224,15 @@ const initialNodes: Node[] = [
     }
 ];
 
-export default function WorkflowBuilder() {
+export default function AgentBuilder() {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-    const [workflowId, setWorkflowId] = useState('email_channel');
-    const [workflowName, setWorkflowName] = useState('Email Channel');
-    const [workflowCategory, setWorkflowCategory] = useState('default');
+    const [agentId, setAgentId] = useState('email_channel');
+    const [agentName, setAgentName] = useState('Email Channel');
+    const [agentCategory, setAgentCategory] = useState('default');
     const [availableCategories, setAvailableCategories] = useState<string[]>(['default']);
-    const [workflowVersion, setWorkflowVersion] = useState<number | null>(null);
+    const [agentVersion, setAgentVersion] = useState<number | null>(null);
     const [status, setStatus] = useState('');
     const [executionTrace, setExecutionTrace] = useState<WorkflowTraceStep[]>([]);
     const [availableAgentNames, setAvailableAgentNames] = useState<string[]>([]);
@@ -316,7 +316,7 @@ export default function WorkflowBuilder() {
         }
 
         if (agent.group === 'Trigger' && nodes.some((node) => node.data?.group === 'Trigger')) {
-            setStatus('Only one Trigger node is allowed per workflow.');
+            setStatus('Only one Trigger node is allowed per agent.');
             return;
         }
 
@@ -354,42 +354,42 @@ export default function WorkflowBuilder() {
         );
     }, [setNodes]);
 
-    const validateWorkflow = useCallback(() => {
+    const validateAgent = useCallback(() => {
         const { error } = buildExecutionSequence(nodes, edges);
         return error;
     }, [edges, nodes]);
 
     const onValidate = useCallback(() => {
-        const validationError = validateWorkflow();
-        setStatus(validationError || 'Workflow is valid.');
+        const validationError = validateAgent();
+        setStatus(validationError || 'Agent is valid.');
         return !validationError;
-    }, [validateWorkflow]);
+    }, [validateAgent]);
 
     const onSave = useCallback(async () => {
-        const validationError = validateWorkflow();
+        const validationError = validateAgent();
         if (validationError) {
             setStatus(validationError);
             return;
         }
 
         try {
-            const savedWorkflow = await api.saveWorkflow({
-                id: workflowId,
-                name: workflowName,
+            const savedAgent = await api.saveAgent({
+                id: agentId,
+                name: agentName,
                 nodes,
                 edges,
-                category: workflowCategory,
+                category: agentCategory,
             });
 
-            setWorkflowVersion(savedWorkflow.version);
-            setStatus(`Saved ${savedWorkflow.name} v${savedWorkflow.version}.`);
+            setAgentVersion(savedAgent.version);
+            setStatus(`Saved ${savedAgent.name} v${savedAgent.version}.`);
         } catch {
-            setStatus('Unable to save workflow.');
+            setStatus('Unable to save agent.');
         }
-    }, [edges, nodes, validateWorkflow, workflowId, workflowName]);
+    }, [edges, nodes, validateAgent, agentId, agentName, agentCategory]);
 
     const onSaveAs = useCallback(async () => {
-        const nextName = window.prompt('Save workflow as', workflowName);
+        const nextName = window.prompt('Save agent as', agentName);
         if (!nextName?.trim()) return;
 
         const nextId = nextName
@@ -398,75 +398,75 @@ export default function WorkflowBuilder() {
             .replace(/[^a-z0-9]+/g, '_')
             .replace(/^_+|_+$/g, '') || `workflow_${Date.now()}`;
 
-        const validationError = validateWorkflow();
+        const validationError = validateAgent();
         if (validationError) {
             setStatus(validationError);
             return;
         }
 
         try {
-            const savedWorkflow = await api.saveWorkflow({
+            const savedAgent = await api.saveAgent({
                 id: nextId,
                 name: nextName.trim(),
                 nodes,
                 edges,
-                category: workflowCategory,
+                category: agentCategory,
             });
 
-            setWorkflowId(savedWorkflow.id || nextId);
-            setWorkflowName(savedWorkflow.name || nextName.trim());
-            setWorkflowVersion(savedWorkflow.version ?? 1);
-            setStatus(`Saved new workflow ${savedWorkflow.name || nextName.trim()} v${savedWorkflow.version ?? 1}.`);
+            setAgentId(savedAgent.id || nextId);
+            setAgentName(savedAgent.name || nextName.trim());
+            setAgentVersion(savedAgent.version ?? 1);
+            setStatus(`Saved new agent ${savedAgent.name || nextName.trim()} v${savedAgent.version ?? 1}.`);
         } catch {
-            setStatus('Unable to save workflow as new workflow.');
+            setStatus('Unable to save agent as new agent.');
         }
-    }, [edges, nodes, validateWorkflow, workflowName]);
+    }, [edges, nodes, validateAgent, agentName, agentCategory]);
 
     const onGet = useCallback(async () => {
         try {
-            const data = await api.getWorkflows();
+            const data = await api.getSavedAgents();
             const workflows = Array.isArray(data) ? data : (data.workflows || []);
-            const latestWorkflow = workflows.find((workflow: { id: string }) => workflow.id === workflowId) || workflows[0];
+            const latestWorkflow = workflows.find((workflow: { id: string }) => workflow.id === agentId) || workflows[0];
 
             if (!latestWorkflow) {
-                setStatus('No saved workflows found.');
+                setStatus('No saved agents found.');
                 return;
             }
 
             setNodes((latestWorkflow.nodes || initialNodes).map((node: Node) => updateSchedulerAgentSchema(node, availableAgentNames)));
             setEdges(latestWorkflow.edges || []);
-            setWorkflowId(latestWorkflow.id || workflowId);
-            setWorkflowName(latestWorkflow.name || latestWorkflow.id || workflowName);
-            setWorkflowCategory(latestWorkflow.category || 'default');
-            setWorkflowVersion(latestWorkflow.version);
+            setAgentId(latestWorkflow.id || agentId);
+            setAgentName(latestWorkflow.name || latestWorkflow.id || agentName);
+            setAgentCategory(latestWorkflow.category || 'default');
+            setAgentVersion(latestWorkflow.version);
             setSelectedNode(null);
-            setStatus(`Loaded ${workflows.length} latest workflow${workflows.length === 1 ? '' : 's'}.`);
+            setStatus(`Loaded ${workflows.length} latest agent${workflows.length === 1 ? '' : 's'}.`);
         } catch {
-            setStatus('Unable to get workflows or update scheduler agent schema.');
+            setStatus('Unable to get agents or update scheduler agent schema.');
         }
-    }, [setEdges, setNodes, workflowId, workflowName]);
+    }, [setEdges, setNodes, agentId, agentName, availableAgentNames]);
 
-    const loadWorkflow = useCallback(async (id: string) => {
+    const loadAgent = useCallback(async (id: string) => {
         try {
             setStatus(`Loading ${id}...`);
-            const data = await api.getWorkflow(id);
+            const data = await api.getAgentById(id);
 
             if (!data) {
-                setStatus(`Workflow ${id} not found.`);
+                setStatus(`Agent ${id} not found.`);
                 return;
             }
 
             setNodes((data.nodes || initialNodes).map((node: Node) => updateSchedulerAgentSchema(node, availableAgentNames)));
             setEdges(data.edges || []);
-            setWorkflowId(data.id || id);
-            setWorkflowName(data.name || data.id || id);
-            setWorkflowCategory(data.category || 'default');
-            setWorkflowVersion(data.version);
+            setAgentId(data.id || id);
+            setAgentName(data.name || data.id || id);
+            setAgentCategory(data.category || 'default');
+            setAgentVersion(data.version);
             setSelectedNode(null);
             setExecutionTrace([]);
             setStatus(`Loaded ${data.name || id}.`);
         } catch (e) {
-            setStatus(`Unable to load workflow ${id}.`);
+            setStatus(`Unable to load agent ${id}.`);
         }
     }, [setEdges, setNodes, availableAgentNames]);
 
@@ -483,13 +483,13 @@ export default function WorkflowBuilder() {
     const onExecute = useCallback(async () => {
         const startNode = nodes.find(n => n.data?.group === 'Start');
         if (!startNode) {
-            setStatus('Workflow must have exactly one Start node.');
+            setStatus('Agent must have exactly one Start node.');
             return;
         }
 
         setIsExecuting(true);
         setExecutionTrace([]);
-        setStatus(`Executing workflow...`);
+        setStatus(`Executing agent...`);
         setNodes((currentNodes) =>
             currentNodes.map((node) => ({
                 ...node,
@@ -498,8 +498,8 @@ export default function WorkflowBuilder() {
         );
 
         let payload: Record<string, unknown> = {
-            workflowId,
-            workflowName,
+            agentId,
+            agentName,
             runId: `run_${Date.now()}`,
             startedBy: 'manual',
         };
@@ -523,7 +523,7 @@ export default function WorkflowBuilder() {
             setNodeExecutionStatus(currentNode.id, 'running');
 
             try {
-                const output = await runWorkflowNode(currentNode, payload);
+                const output = await runAgentNode(currentNode, payload);
                 const finishedAtMs = Date.now();
                 const traceStep: WorkflowTraceStep = {
                     id: `${currentNode.id}-${startedAtMs}`,
@@ -578,19 +578,19 @@ export default function WorkflowBuilder() {
 
         setIsExecuting(false);
         setStatus(`Execution completed. Captured ${executionTrace.length + 1} trace steps.`);
-    }, [edges, nodes, setNodeExecutionStatus, setNodes, workflowId, workflowName]);
+    }, [edges, nodes, setNodeExecutionStatus, setNodes, agentId, agentName]);
 
     return (
         <div className="flex h-screen flex-col bg-gray-50">
             {/* Top Bar */}
             <div className="h-16 border-b bg-white flex items-center px-6 justify-between shadow-sm">
                 <div className="flex items-center gap-4">
-                    <h1 className="text-2xl font-semibold text-gray-900">Workflow Builder</h1>
+                    <h1 className="text-2xl font-semibold text-gray-900">Agent Builder</h1>
                     <div className="text-sm text-gray-500">
-                        {workflowId} • v{workflowVersion ?? 1} •
+                        {agentId} • v{agentVersion ?? 1} •
                         <select
-                            value={workflowCategory}
-                            onChange={(e) => setWorkflowCategory(e.target.value)}
+                            value={agentCategory}
+                            onChange={(e) => setAgentCategory(e.target.value)}
                             className="mx-1 bg-transparent border-none focus:ring-0 text-gray-500 font-medium cursor-pointer outline-none"
                         >
                             {availableCategories.map(cat => (
@@ -614,7 +614,7 @@ export default function WorkflowBuilder() {
 
             <div className="flex flex-1 overflow-hidden">
                 {/* Left Sidebar - Pass onAllAgentsLoaded callback */}
-                <AgentSidebar onSelectWorkflow={loadWorkflow} onAllAgentsLoaded={setAvailableAgentNames} />
+                <AgentSidebar onSelectAgent={loadAgent} onAllAgentsLoaded={setAvailableAgentNames} />
 
                 {/* Canvas */}
                 <div className="flex-1 relative" onDragOver={onDragOver} onDrop={onDrop}>
@@ -643,7 +643,7 @@ export default function WorkflowBuilder() {
                     <div className="absolute bottom-4 left-4 right-4 max-h-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
                         <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-2">
                             <div>
-                                <div className="text-sm font-semibold text-gray-900">Execution Trace</div>
+                                <div className="text-sm font-semibold text-gray-900">Agent Trace</div>
                                 <div className="text-xs text-gray-500">Sequential input, output, error, and duration per agent</div>
                             </div>
                             <div className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isExecuting ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
@@ -653,7 +653,7 @@ export default function WorkflowBuilder() {
                         <div className="max-h-48 overflow-auto p-3">
                             {executionTrace.length === 0 ? (
                                 <div className="rounded-lg border border-dashed border-gray-200 px-4 py-5 text-sm text-gray-500">
-                                    Execute the workflow to capture node-level traces.
+                                    Execute the agent to capture node-level traces.
                                 </div>
                             ) : (
                                 <div className="space-y-2">
