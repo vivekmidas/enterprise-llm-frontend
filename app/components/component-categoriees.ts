@@ -1,3 +1,5 @@
+import { Clock } from 'lucide-react';
+
 export type ComponentCategory =
   | 'Start'
   | 'Guardrails'
@@ -19,7 +21,7 @@ export type AgentIcon =
   | 'user-cog'
   | 'bot'
   | 'alert-circle'
-  | 'clock,'
+  | 'clock'
   | 'check-circle'
   | 'play-circle'
   | 'message-square'
@@ -47,18 +49,26 @@ export interface AgentPropertyDefinition {
 
 export interface AgentDefinition {
   name: string;
+  label?: string;
   description: string;
   group: string;
   icon: AgentIcon;
+  color?: string;
+  badge?: string;
+  subLabel?: string;
   triggerType?: string;
   outcome?: string;
   propertySchema?: AgentPropertyDefinition[];
   defaultProperties?: Record<string, PropertyValue>;
 }
 
-type AgentInput = Partial<AgentDefinition> & {
+type NodeInput = Partial<AgentDefinition> & {
   category?: string;
   icon?: string;
+  label?: string;
+  color?: string;
+  badge?: string;
+  sub_label?: string; // Support snake_case from backend
 };
 
 export const componentCategories: Record<ComponentCategory, ComponentCategoryStyle> = {
@@ -128,6 +138,12 @@ export const componentCategories: Record<ComponentCategory, ComponentCategorySty
     bgColor: 'bg-gray-50',
     icon: 'message-square',
   },
+  Clock: {
+    borderColor: 'border-orange-500',
+    textColor: 'text-orange-700',
+    bgColor: 'bg-orange-50',
+    icon: 'clock',
+  },
   Workflow: {
     borderColor: 'border-indigo-500',
     textColor: 'text-indigo-700',
@@ -146,19 +162,46 @@ export const getComponentCategory = (group?: string): ComponentCategory => {
 
 const isAgentIcon = (icon?: string): icon is AgentIcon =>
   Boolean(icon) &&
-  ['shield', 'alert-triangle', 'user-cog', 'bot', 'check-circle', 'play-circle', 'message-square', 'x-circle', 'database', 'workflow'].includes(
-    icon as AgentIcon,
-  );
+  [
+    'shield',
+    'alert-triangle',
+    'user-cog',
+    'bot',
+    'check-circle',
+    'play-circle',
+    'message-square',
+    'x-circle',
+    'database',
+    'workflow',
+  ].includes(icon as AgentIcon);
 
 export const inferAgentGroup = (name: string): ComponentCategory => {
   const normalizedName = name.toLowerCase();
 
   if (normalizedName.includes('guard')) return 'Guardrails';
   if (normalizedName === 'start') return 'Start';
-  if (normalizedName.includes('email') || normalizedName.includes('sms') || normalizedName.includes('schedule') || normalizedName.includes('webhook') || normalizedName.includes('smtp')) return 'Trigger';
-  if (normalizedName.includes('success') || normalizedName.includes('failure') || normalizedName.includes('end')) return 'End';
-  if (normalizedName.includes('db') || normalizedName.includes('database') || normalizedName.includes('crm')) return 'Data';
-  if (normalizedName.includes('validator') || normalizedName.includes('validation')) return 'Validation';
+  if (
+    normalizedName.includes('email') ||
+    normalizedName.includes('sms') ||
+    normalizedName.includes('schedule') ||
+    normalizedName.includes('webhook') ||
+    normalizedName.includes('smtp')
+  )
+    return 'Trigger';
+  if (
+    normalizedName.includes('success') ||
+    normalizedName.includes('failure') ||
+    normalizedName.includes('end')
+  )
+    return 'End';
+  if (
+    normalizedName.includes('db') ||
+    normalizedName.includes('database') ||
+    normalizedName.includes('crm')
+  )
+    return 'Data';
+  if (normalizedName.includes('validator') || normalizedName.includes('validation'))
+    return 'Validation';
   if (normalizedName.includes('context')) return 'Context';
   if (normalizedName.includes('llm') || normalizedName.includes('model')) return 'LLM';
   if (normalizedName.includes('output')) return 'Output';
@@ -195,7 +238,7 @@ const getAgentPropertyDefinition = (
   };
 };
 
-export const normalizeAgent = (agent: string | AgentInput): AgentDefinition => {
+export const normalizeAgent = (agent: string | NodeInput): AgentDefinition => {
   if (typeof agent === 'string') {
     const group = inferAgentGroup(agent);
     const category = componentCategories[group];
@@ -217,9 +260,13 @@ export const normalizeAgent = (agent: string | AgentInput): AgentDefinition => {
 
   return {
     name,
+    label: agent.label || toDisplayName(name),
     description: agent.description || `${toDisplayName(name)} agent`,
     group,
     icon: isAgentIcon(agent.icon) ? agent.icon : category.icon,
+    color: agent.color,
+    badge: agent.badge,
+    subLabel: agent.subLabel || agent.sub_label,
     triggerType: agent.triggerType,
     outcome: agent.outcome,
     propertySchema: agent.propertySchema || propertyDefinition.propertySchema,

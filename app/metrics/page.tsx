@@ -2,7 +2,15 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/lib/card';
-import { Activity, Zap, Clock, AlertTriangle, ChevronDown, ChevronUp, Database } from 'lucide-react';
+import {
+  Activity,
+  Zap,
+  Clock,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Database,
+} from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 
@@ -20,7 +28,9 @@ export default function MetricsDashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['observability-metrics', timeRange],
     queryFn: async () => {
-      const response = await fetch(`http://localhost:8000/api/observability/traces?minutes=${timeRange}`);
+      const response = await fetch(
+        `http://localhost:8000/api/observability/traces?minutes=${timeRange}`,
+      );
       if (!response.ok) throw new Error('Failed to fetch metrics');
       return response.json();
     },
@@ -28,9 +38,24 @@ export default function MetricsDashboard() {
   });
 
   const kpiData = [
-    { title: 'Total Requests', value: data?.summary?.total_requests || 0, icon: Activity, color: 'text-blue-500' },
-    { title: 'Avg Latency', value: `${data?.summary?.avg_latency_ms || 0}ms`, icon: Clock, color: 'text-amber-500' },
-    { title: 'Error Rate', value: `${data?.summary?.error_rate || 0}%`, icon: AlertTriangle, color: 'text-red-500' },
+    {
+      title: 'Total Requests',
+      value: data?.summary?.total_requests || 0,
+      icon: Activity,
+      color: 'text-blue-500',
+    },
+    {
+      title: 'Avg Latency',
+      value: `${data?.summary?.avg_latency_ms || 0}ms`,
+      icon: Clock,
+      color: 'text-amber-500',
+    },
+    {
+      title: 'Error Rate',
+      value: `${data?.summary?.error_rate || 0}%`,
+      icon: AlertTriangle,
+      color: 'text-red-500',
+    },
   ];
 
   if (isLoading) return <div className="p-6">Loading metrics...</div>;
@@ -48,10 +73,11 @@ export default function MetricsDashboard() {
             <button
               key={range.value}
               onClick={() => setTimeRange(range.value)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${timeRange === range.value
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                timeRange === range.value
                   ? 'bg-blue-600 text-white shadow-lg'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                }`}
+              }`}
             >
               {range.label}
             </button>
@@ -96,22 +122,35 @@ export default function MetricsDashboard() {
                   <tr
                     key={trace.trace_id}
                     className="hover:bg-gray-800/30 cursor-pointer transition-colors"
-                    onClick={() => setExpandedTrace(expandedTrace === trace.trace_id ? null : trace.trace_id)}
+                    onClick={() =>
+                      setExpandedTrace(expandedTrace === trace.trace_id ? null : trace.trace_id)
+                    }
                   >
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${trace.violations?.length > 0 ? 'bg-red-900/40 text-red-400' : 'bg-emerald-900/40 text-emerald-400'
-                        }`}>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          trace.violations?.length > 0
+                            ? 'bg-red-900/40 text-red-400'
+                            : 'bg-emerald-900/40 text-emerald-400'
+                        }`}
+                      >
                         {trace.violations?.length > 0 ? 'Flagged' : 'Healthy'}
                       </span>
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-200">{trace.workflow_id}</td>
-                    <td className="px-6 py-4 font-mono text-gray-400">{trace.trace_id.substring(0, 8)}...</td>
+                    <td className="px-6 py-4 font-mono text-gray-400">
+                      {trace.trace_id.substring(0, 8)}...
+                    </td>
                     <td className="px-6 py-4 text-gray-300">{trace.latency_ms}ms</td>
                     <td className="px-6 py-4 text-gray-500">
                       {new Date(trace.timestamp * 1000).toLocaleTimeString()}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {expandedTrace === trace.trace_id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      {expandedTrace === trace.trace_id ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
                     </td>
                   </tr>
                   {expandedTrace === trace.trace_id && (
@@ -119,17 +158,24 @@ export default function MetricsDashboard() {
                       <td colSpan={6} className="px-6 py-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-gray-500 uppercase">Agents Executed</h4>
+                            <h4 className="text-xs font-bold text-gray-500 uppercase">
+                              Agents Executed
+                            </h4>
                             <div className="flex flex-wrap gap-2">
                               {trace.agents_executed?.map((agent: string) => (
-                                <span key={agent} className="bg-gray-800 border border-gray-700 px-2 py-1 rounded text-xs">
+                                <span
+                                  key={agent}
+                                  className="bg-gray-800 border border-gray-700 px-2 py-1 rounded text-xs"
+                                >
                                   {agent}
                                 </span>
                               ))}
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-gray-500 uppercase">Trace Data (Raw)</h4>
+                            <h4 className="text-xs font-bold text-gray-500 uppercase">
+                              Trace Data (Raw)
+                            </h4>
                             <pre className="p-4 bg-black rounded-lg border border-gray-800 overflow-auto max-h-60 text-[10px] font-mono leading-relaxed">
                               {JSON.stringify(trace, null, 2)}
                             </pre>

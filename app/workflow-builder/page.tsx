@@ -2,24 +2,36 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import ReactFlow, {
-    Node, addEdge, Connection, useNodesState, useEdgesState,
-    Background, Controls, MiniMap,
+    Node,
+    addEdge,
+    Connection,
+    useNodesState,
+    useEdgesState,
+    Background,
+    Controls,
+    MiniMap,
     ConnectionLineType,
-    BackgroundVariant
+    BackgroundVariant,
 } from 'reactflow';
-import 'reactflow/dist/style.css';
 
 import { api } from '@/lib/api';
 import AgentSidebar from '../components/AgentSidebar';
 import WorkflowToolbar from '../components/WorkflowToolbar';
 import PropertiesPanel from '../components/PropertiesPanel';
 import CustomNode from '../components/CustomNode';
-import { AgentPropertyDefinition, PropertyValue, normalizeAgent } from '../components/component-categoriees';
+import {
+    AgentPropertyDefinition,
+    PropertyValue,
+    normalizeAgent,
+} from '../components/component-categoriees';
 
 const nodeTypes = { custom: CustomNode };
 type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
 type NodeProperties = Record<string, PropertyValue>;
-type WorkflowNodeData = Record<string, PropertyValue | AgentPropertyDefinition[] | NodeProperties | ExecutionStatus | undefined>;
+type WorkflowNodeData = Record<
+    string,
+    PropertyValue | AgentPropertyDefinition[] | NodeProperties | ExecutionStatus | undefined
+>;
 
 interface WorkflowTraceStep {
     id: string;
@@ -37,6 +49,10 @@ interface WorkflowTraceStep {
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** 
+ * Recursively redacts sensitive values (passwords, tokens, keys) 
+ * from metadata objects before they are displayed in the UI Trace logs.
+ */
 const maskSecrets = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(maskSecrets);
     if (!value || typeof value !== 'object') return value;
@@ -44,7 +60,11 @@ const maskSecrets = (value: unknown): unknown => {
     return Object.fromEntries(
         Object.entries(value as Record<string, unknown>).map(([key, fieldValue]) => {
             const normalizedKey = key.toLowerCase();
-            if (normalizedKey.includes('password') || normalizedKey.includes('apikey') || normalizedKey.includes('token')) {
+            if (
+                normalizedKey.includes('password') ||
+                normalizedKey.includes('apikey') ||
+                normalizedKey.includes('token')
+            ) {
                 return [key, fieldValue ? '••••••••' : ''];
             }
 
@@ -53,14 +73,23 @@ const maskSecrets = (value: unknown): unknown => {
     );
 };
 
+/** Extracts the 'properties' object from a ReactFlow node's data */
 const toProperties = (node: Node): NodeProperties => {
     const properties = node.data?.properties;
     return properties && typeof properties === 'object' && !Array.isArray(properties)
-        ? properties as NodeProperties
+        ? (properties as NodeProperties)
         : {};
 };
 
-const buildExecutionSequence = (nodes: Node[], edges: { source?: string | null; target?: string | null }[]) => {
+/**
+ * Logic to determine the order of execution.
+ * Performs a graph traversal starting from the 'Start' node and 
+ * checks for disconnected components or invalid graph structures.
+ */
+const buildExecutionSequence = (
+    nodes: Node[],
+    edges: { source?: string | null; target?: string | null }[],
+) => {
     const startNodes = nodes.filter((node) => node.data?.group === 'Start');
     if (startNodes.length !== 1) {
         return { sequence: [] as Node[], error: 'Agent must have exactly one Start node.' };
@@ -95,17 +124,27 @@ const buildExecutionSequence = (nodes: Node[], edges: { source?: string | null; 
     }
 
     if (sequence.length < 2) {
-        return { sequence: [] as Node[], error: 'Connect Start to at least one component before executing.' };
+        return {
+            sequence: [] as Node[],
+            error: 'Connect Start to at least one component before executing.',
+        };
     }
 
     const unreachable = nodes.filter((node) => !visited.has(node.id));
     if (unreachable.length > 0) {
-        return { sequence: [] as Node[], error: `Every node must be connected in the execution sequence. Unconnected: ${unreachable[0].data?.name || unreachable[0].id}.` };
+        return {
+            sequence: [] as Node[],
+            error: `Every node must be connected in the execution sequence. Unconnected: ${unreachable[0].data?.name || unreachable[0].id}.`,
+        };
     }
 
     return { sequence, error: '' };
 };
 
+/**
+ * Simulates the execution of a single agent node.
+ * Handles specific behavior for Start, End, and Condition nodes.
+ */
 const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
     const data = node.data || {};
     const properties = toProperties(node);
@@ -140,13 +179,14 @@ const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
 
     if (group === 'Condition') {
         // Simulate: evaluate based on presence of violations in the current payload
-        const hasViolations = input.violations && Array.isArray(input.violations) && input.violations.length > 0;
-        const status = hasViolations ? 'failure' : (Math.random() > 0.4 ? 'success' : 'failure');
+        const hasViolations =
+            input.violations && Array.isArray(input.violations) && input.violations.length > 0;
+        const status = hasViolations ? 'failure' : Math.random() > 0.4 ? 'success' : 'failure';
 
         return {
             status,
             message: `Condition evaluated to ${status}.`,
-            ...input
+            ...input,
         };
     }
 
@@ -166,21 +206,30 @@ const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
                 processed_at: Date.now(),
                 ...(group === 'Trigger' ? { event_type: data.triggerType || normalizedName } : {}),
                 ...(group === 'Data' ? { rows_affected: 2 } : {}),
-                ...(group === 'LLM' ? { model_response: "Simulated AI response based on provided prompt." } : {})
-            }
-        }
+                ...(group === 'LLM'
+                    ? { model_response: 'Simulated AI response based on provided prompt.' }
+                    : {}),
+            },
+        },
     };
 };
 
+/**
+ * Dynamically updates the 'targetAgent' dropdown options within a node's schema.
+ * Used specifically by the Scheduler Agent to let users pick from available workflows.
+ */
 const updateSchedulerAgentSchema = (node: Node, agentNames: string[]): Node => {
     if (node.data?.name !== 'Scheduler Agent') return node;
 
     const currentSchema = (node.data.propertySchema || []) as AgentPropertyDefinition[];
-    const targetProp = currentSchema.find(p => p.key === 'targetAgent');
+    const targetProp = currentSchema.find((p) => p.key === 'targetAgent');
     const sortedAgentNames = [...new Set(['', ...agentNames])].sort();
 
     // Only update if options are different to avoid unnecessary state updates
-    if (targetProp?.type === 'choice' && JSON.stringify(targetProp.options) === JSON.stringify(sortedAgentNames)) {
+    if (
+        targetProp?.type === 'choice' &&
+        JSON.stringify(targetProp.options) === JSON.stringify(sortedAgentNames)
+    ) {
         return node;
     }
 
@@ -221,7 +270,7 @@ const initialNodes: Node[] = [
                 enabled: true,
             },
         },
-    }
+    },
 ];
 
 export default function AgentBuilder() {
@@ -246,46 +295,57 @@ export default function AgentBuilder() {
     }, [availableAgentNames, setNodes]);
 
     useEffect(() => {
-        api.getWorkflowCategories()
-            .then(data => {
-                const cats = Array.isArray(data) ? data : (data.categories || []);
+        api
+            .getWorkflowCategories()
+            .then((data) => {
+                const cats = Array.isArray(data) ? data : data.categories || [];
                 if (cats.length > 0) {
                     setAvailableCategories(['default', ...cats]);
                 }
             })
-            .catch(() => console.error("Failed to load categories"));
+            .catch(() => console.error('Failed to load categories'));
     }, []);
 
-    const onConnect = useCallback((params: Connection) =>
-        setEdges((eds) => {
-            const source = nodes.find((node) => node.id === params.source);
-            const target = nodes.find((node) => node.id === params.target);
-            const isCondition = source?.data?.group === 'Condition';
+    /** Validates connections to prevent cycles and enforce port logic */
+    const onConnect = useCallback(
+        (params: Connection) =>
+            setEdges((eds) => {
+                const source = nodes.find((node) => node.id === params.source);
+                const target = nodes.find((node) => node.id === params.target);
+                const isCondition = source?.data?.group === 'Condition';
 
-            if (target?.data?.group === 'Start' || source?.data?.group === 'End') {
-                setStatus('Start cannot have incoming edges and End cannot have outgoing edges.');
-                return eds;
-            }
-
-            // Enforce output connection limits
-            const existingSourceEdges = eds.filter(e => e.source === params.source);
-
-            if (!isCondition && existingSourceEdges.length >= 1) {
-                setStatus(`${source?.data?.name || 'Agent'} already has an output connection. Standard agents support only one output.`);
-                return eds;
-            }
-
-            if (isCondition) {
-                // Ensure success/failure branches are unique
-                const alreadyConnectedBranch = existingSourceEdges.find(e => e.sourceHandle === params.sourceHandle);
-                if (alreadyConnectedBranch) {
-                    setStatus(`The '${params.sourceHandle}' branch of this Condition is already connected.`);
+                if (target?.data?.group === 'Start' || source?.data?.group === 'End') {
+                    setStatus('Start cannot have incoming edges and End cannot have outgoing edges.');
                     return eds;
                 }
-            }
 
-            return addEdge(params, eds);
-        }), [nodes, setEdges]);
+                // Enforce output connection limits
+                const existingSourceEdges = eds.filter((e) => e.source === params.source);
+
+                if (!isCondition && existingSourceEdges.length >= 1) {
+                    setStatus(
+                        `${source?.data?.name || 'Agent'} already has an output connection. Standard agents support only one output.`,
+                    );
+                    return eds;
+                }
+
+                if (isCondition) {
+                    // Ensure success/failure branches are unique
+                    const alreadyConnectedBranch = existingSourceEdges.find(
+                        (e) => e.sourceHandle === params.sourceHandle,
+                    );
+                    if (alreadyConnectedBranch) {
+                        setStatus(
+                            `The '${params.sourceHandle}' branch of this Condition is already connected.`,
+                        );
+                        return eds;
+                    }
+                }
+
+                return addEdge(params, eds);
+            }),
+        [nodes, setEdges],
+    );
 
     const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => setSelectedNode(node), []);
     const onPaneClick = () => setSelectedNode(null);
@@ -295,64 +355,71 @@ export default function AgentBuilder() {
         event.dataTransfer.dropEffect = 'move';
     }, []);
 
-    const onDrop = useCallback((event: React.DragEvent) => {
-        event.preventDefault();
-        const agentPayload = event.dataTransfer.getData('application/reactflow-agent');
-        const agentName = event.dataTransfer.getData('application/reactflow');
-        if (!agentPayload && !agentName) return;
+    /** Handles dropping a component from the sidebar onto the canvas */
+    const onDrop = useCallback(
+        (event: React.DragEvent) => {
+            event.preventDefault();
+            const agentPayload = event.dataTransfer.getData('application/reactflow-agent');
+            const agentName = event.dataTransfer.getData('application/reactflow');
+            if (!agentPayload && !agentName) return;
 
-        let agent = normalizeAgent(agentName);
-        if (agentPayload) {
-            try {
-                agent = normalizeAgent(JSON.parse(agentPayload));
-            } catch {
-                agent = normalizeAgent(agentName);
+            let agent = normalizeAgent(agentName);
+            if (agentPayload) {
+                try {
+                    agent = normalizeAgent(JSON.parse(agentPayload));
+                } catch {
+                    agent = normalizeAgent(agentName);
+                }
             }
-        }
 
-        if (agent.group === 'Start' && nodes.some((node) => node.data?.group === 'Start')) {
-            setStatus('Only one Start node is allowed.');
-            return;
-        }
+            if (agent.group === 'Start' && nodes.some((node) => node.data?.group === 'Start')) {
+                setStatus('Only one Start node is allowed.');
+                return;
+            }
 
-        if (agent.group === 'Trigger' && nodes.some((node) => node.data?.group === 'Trigger')) {
-            setStatus('Only one Trigger node is allowed per agent.');
-            return;
-        }
+            if (agent.group === 'Trigger' && nodes.some((node) => node.data?.group === 'Trigger')) {
+                setStatus('Only one Trigger node is allowed per agent.');
+                return;
+            }
 
-        const newNode: Node = {
-            id: `${agent.name}-${Date.now()}`,
-            type: 'custom',
-            position: { x: event.clientX - 100, y: event.clientY - 50 },
-            data: {
-                label: agent.name,
-                name: agent.name,
-                description: agent.description,
-                group: agent.group,
-                category: agent.group,
-                icon: agent.icon,
-                triggerType: agent.triggerType,
-                outcome: agent.outcome,
-                propertySchema: agent.propertySchema || [],
-                properties: agent.defaultProperties || {},
-            },
-        };
+            const newNode: Node = {
+                id: `${agent.name}-${Date.now()}`,
+                type: 'custom',
+                position: { x: event.clientX - 100, y: event.clientY - 50 },
+                data: {
+                    label: agent.label || agent.name,
+                    name: agent.name,
+                    description: agent.description,
+                    group: agent.group,
+                    category: agent.group,
+                    icon: agent.icon,
+                    color: agent.color,
+                    badge: agent.badge,
+                    subLabel: agent.subLabel,
+                    triggerType: agent.triggerType,
+                    outcome: agent.outcome,
+                    propertySchema: agent.propertySchema || [],
+                    properties: agent.defaultProperties || {},
+                },
+            };
 
-        const finalNode = updateSchedulerAgentSchema(newNode, availableAgentNames);
-        setNodes((nds) => nds.concat(finalNode));
-        setStatus('');
-    }, [nodes, setNodes, availableAgentNames]);
+            const finalNode = updateSchedulerAgentSchema(newNode, availableAgentNames);
+            setNodes((nds) => nds.concat(finalNode));
+            setStatus('');
+        },
+        [nodes, setNodes, availableAgentNames],
+    );
 
-    const onUpdateNode = useCallback((nodeId: string, newData: WorkflowNodeData) => {
-        setNodes((nds) =>
-            nds.map((node) =>
-                node.id === nodeId ? { ...node, data: newData } : node
-            )
-        );
-        setSelectedNode((node) =>
-            node?.id === nodeId ? { ...node, data: newData } : node
-        );
-    }, [setNodes]);
+    /** Updates node data when edited in the PropertiesPanel */
+    const onUpdateNode = useCallback(
+        (nodeId: string, newData: WorkflowNodeData) => {
+            setNodes((nds) =>
+                nds.map((node) => (node.id === nodeId ? { ...node, data: newData } : node)),
+            );
+            setSelectedNode((node) => (node?.id === nodeId ? { ...node, data: newData } : node));
+        },
+        [setNodes],
+    );
 
     const validateAgent = useCallback(() => {
         const { error } = buildExecutionSequence(nodes, edges);
@@ -365,6 +432,7 @@ export default function AgentBuilder() {
         return !validationError;
     }, [validateAgent]);
 
+    /** Saves the current graph to the backend API */
     const onSave = useCallback(async () => {
         const validationError = validateAgent();
         if (validationError) {
@@ -392,11 +460,12 @@ export default function AgentBuilder() {
         const nextName = window.prompt('Save agent as', agentName);
         if (!nextName?.trim()) return;
 
-        const nextId = nextName
-            .trim()
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '_')
-            .replace(/^_+|_+$/g, '') || `workflow_${Date.now()}`;
+        const nextId =
+            nextName
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '') || `workflow_${Date.now()}`;
 
         const validationError = validateAgent();
         if (validationError) {
@@ -416,7 +485,9 @@ export default function AgentBuilder() {
             setAgentId(savedAgent.id || nextId);
             setAgentName(savedAgent.name || nextName.trim());
             setAgentVersion(savedAgent.version ?? 1);
-            setStatus(`Saved new agent ${savedAgent.name || nextName.trim()} v${savedAgent.version ?? 1}.`);
+            setStatus(
+                `Saved new agent ${savedAgent.name || nextName.trim()} v${savedAgent.version ?? 1}.`,
+            );
         } catch {
             setStatus('Unable to save agent as new agent.');
         }
@@ -425,15 +496,20 @@ export default function AgentBuilder() {
     const onGet = useCallback(async () => {
         try {
             const data = await api.getSavedAgents();
-            const workflows = Array.isArray(data) ? data : (data.workflows || []);
-            const latestWorkflow = workflows.find((workflow: { id: string }) => workflow.id === agentId) || workflows[0];
+            const workflows = Array.isArray(data) ? data : data.workflows || [];
+            const latestWorkflow =
+                workflows.find((workflow: { id: string }) => workflow.id === agentId) || workflows[0];
 
             if (!latestWorkflow) {
                 setStatus('No saved agents found.');
                 return;
             }
 
-            setNodes((latestWorkflow.nodes || initialNodes).map((node: Node) => updateSchedulerAgentSchema(node, availableAgentNames)));
+            setNodes(
+                (latestWorkflow.nodes || initialNodes).map((node: Node) =>
+                    updateSchedulerAgentSchema(node, availableAgentNames),
+                ),
+            );
             setEdges(latestWorkflow.edges || []);
             setAgentId(latestWorkflow.id || agentId);
             setAgentName(latestWorkflow.name || latestWorkflow.id || agentName);
@@ -446,42 +522,54 @@ export default function AgentBuilder() {
         }
     }, [setEdges, setNodes, agentId, agentName, availableAgentNames]);
 
-    const loadAgent = useCallback(async (id: string) => {
-        try {
-            setStatus(`Loading ${id}...`);
-            const data = await api.getAgentById(id);
+    const loadAgent = useCallback(
+        async (id: string) => {
+            try {
+                setStatus(`Loading ${id}...`);
+                const data = await api.getAgentById(id);
 
-            if (!data) {
-                setStatus(`Agent ${id} not found.`);
-                return;
+                if (!data) {
+                    setStatus(`Agent ${id} not found.`);
+                    return;
+                }
+
+                setNodes(
+                    (data.nodes || initialNodes).map((node: Node) =>
+                        updateSchedulerAgentSchema(node, availableAgentNames),
+                    ),
+                );
+                setEdges(data.edges || []);
+                setAgentId(data.id || id);
+                setAgentName(data.name || data.id || id);
+                setAgentCategory(data.category || 'default');
+                setAgentVersion(data.version);
+                setSelectedNode(null);
+                setExecutionTrace([]);
+                setStatus(`Loaded ${data.name || id}.`);
+            } catch (e) {
+                setStatus(`Unable to load agent ${id}.`);
             }
+        },
+        [setEdges, setNodes, availableAgentNames],
+    );
 
-            setNodes((data.nodes || initialNodes).map((node: Node) => updateSchedulerAgentSchema(node, availableAgentNames)));
-            setEdges(data.edges || []);
-            setAgentId(data.id || id);
-            setAgentName(data.name || data.id || id);
-            setAgentCategory(data.category || 'default');
-            setAgentVersion(data.version);
-            setSelectedNode(null);
-            setExecutionTrace([]);
-            setStatus(`Loaded ${data.name || id}.`);
-        } catch (e) {
-            setStatus(`Unable to load agent ${id}.`);
-        }
-    }, [setEdges, setNodes, availableAgentNames]);
+    const setNodeExecutionStatus = useCallback(
+        (nodeId: string, executionStatus: ExecutionStatus) => {
+            setNodes((currentNodes) =>
+                currentNodes.map((node) =>
+                    node.id === nodeId ? { ...node, data: { ...node.data, executionStatus } } : node,
+                ),
+            );
+        },
+        [setNodes],
+    );
 
-    const setNodeExecutionStatus = useCallback((nodeId: string, executionStatus: ExecutionStatus) => {
-        setNodes((currentNodes) =>
-            currentNodes.map((node) =>
-                node.id === nodeId
-                    ? { ...node, data: { ...node.data, executionStatus } }
-                    : node,
-            ),
-        );
-    }, [setNodes]);
-
+    /**
+     * The main execution loop. Traverses the graph node by node,
+     * calling runAgentNode for each and updating the execution trace.
+     */
     const onExecute = useCallback(async () => {
-        const startNode = nodes.find(n => n.data?.group === 'Start');
+        const startNode = nodes.find((n) => n.data?.group === 'Start');
         if (!startNode) {
             setStatus('Agent must have exactly one Start node.');
             return;
@@ -504,30 +592,31 @@ export default function AgentBuilder() {
             startedBy: 'manual',
         };
 
-
         let currentNode: Node | undefined = startNode;
         const visited = new Set<string>();
 
         while (currentNode) {
-            if (visited.has(currentNode.id) && currentNode.data?.group !== 'Condition') {
+            const activeNode: Node = currentNode;
+
+            if (visited.has(activeNode.id) && activeNode.data?.group !== 'Condition') {
                 setStatus('Infinite loop detected.');
                 break;
             }
-            visited.add(currentNode.id);
+            visited.add(activeNode.id);
 
             const startedAtMs = Date.now();
             const startedAt = new Date(startedAtMs).toISOString();
-            const nodeName = String(currentNode.data?.name || currentNode.data?.label || currentNode.id);
-            const group = String(currentNode.data?.group || currentNode.data?.category || 'Agent');
+            const nodeName = String(activeNode.data?.name || activeNode.data?.label || activeNode.id);
+            const group = String(activeNode.data?.group || activeNode.data?.category || 'Agent');
 
-            setNodeExecutionStatus(currentNode.id, 'running');
+            setNodeExecutionStatus(activeNode.id, 'running');
 
             try {
-                const output = await runAgentNode(currentNode, payload);
+                const output = await runAgentNode(activeNode, payload);
                 const finishedAtMs = Date.now();
                 const traceStep: WorkflowTraceStep = {
-                    id: `${currentNode.id}-${startedAtMs}`,
-                    nodeId: currentNode.id,
+                    id: `${activeNode.id}-${startedAtMs}`,
+                    nodeId: activeNode.id,
                     nodeName,
                     group,
                     status: 'success',
@@ -539,25 +628,27 @@ export default function AgentBuilder() {
                 };
 
                 setExecutionTrace((trace) => [...trace, traceStep]);
-                setNodeExecutionStatus(currentNode.id, 'success');
+                setNodeExecutionStatus(activeNode.id, 'success');
                 payload = output;
 
                 if (group === 'End') break;
 
                 // Branching logic: traverse based on output status if it's a condition
-                const outgoingEdges = edges.filter(e => e.source === currentNode?.id);
+                const outgoingEdges = edges.filter((e) => e.source === activeNode.id);
                 if (group === 'Condition') {
                     const resultStatus = output.status === 'failure' ? 'failure' : 'success';
-                    const edge = outgoingEdges.find(e => e.sourceHandle === resultStatus);
-                    currentNode = edge ? nodes.find(n => n.id === edge.target) : undefined;
+                    const edge = outgoingEdges.find((e) => e.sourceHandle === resultStatus);
+                    currentNode = edge ? nodes.find((n) => n.id === edge.target) : undefined;
                 } else {
-                    currentNode = outgoingEdges[0] ? nodes.find(n => n.id === outgoingEdges[0].target) : undefined;
+                    currentNode = outgoingEdges[0]
+                        ? nodes.find((n) => n.id === outgoingEdges[0].target)
+                        : undefined;
                 }
             } catch (nodeError) {
                 const finishedAtMs = Date.now();
                 const traceStep: WorkflowTraceStep = {
-                    id: `${currentNode.id}-${startedAtMs}`,
-                    nodeId: currentNode.id,
+                    id: `${activeNode.id}-${startedAtMs}`,
+                    nodeId: activeNode.id,
                     nodeName,
                     group,
                     status: 'error',
@@ -569,7 +660,7 @@ export default function AgentBuilder() {
                 };
 
                 setExecutionTrace((trace) => [...trace, traceStep]);
-                setNodeExecutionStatus(currentNode.id, 'error');
+                setNodeExecutionStatus(activeNode.id, 'error');
                 setStatus(`Execution stopped at ${nodeName}: ${traceStep.error}`);
                 setIsExecuting(false);
                 return;
@@ -593,8 +684,10 @@ export default function AgentBuilder() {
                             onChange={(e) => setAgentCategory(e.target.value)}
                             className="mx-1 bg-transparent border-none focus:ring-0 text-gray-500 font-medium cursor-pointer outline-none"
                         >
-                            {availableCategories.map(cat => (
-                                <option key={cat} value={cat}>{cat}</option>
+                            {availableCategories.map((cat) => (
+                                <option key={cat} value={cat}>
+                                    {cat}
+                                </option>
                             ))}
                         </select>
                         • Active
@@ -628,12 +721,11 @@ export default function AgentBuilder() {
                         onPaneClick={onPaneClick}
                         nodeTypes={nodeTypes}
                         defaultEdgeOptions={{
-                            type: "smoothstep",
+                            type: 'smoothstep',
                             animated: true,
                         }}
                         connectionLineType={ConnectionLineType.Straight}
                         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-
                     >
                         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
                         <Controls />
@@ -644,9 +736,13 @@ export default function AgentBuilder() {
                         <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-2">
                             <div>
                                 <div className="text-sm font-semibold text-gray-900">Agent Trace</div>
-                                <div className="text-xs text-gray-500">Sequential input, output, error, and duration per agent</div>
+                                <div className="text-xs text-gray-500">
+                                    Sequential input, output, error, and duration per agent
+                                </div>
                             </div>
-                            <div className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isExecuting ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                            <div
+                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isExecuting ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}
+                            >
                                 {isExecuting ? 'Running' : `${executionTrace.length} steps`}
                             </div>
                         </div>
@@ -661,21 +757,33 @@ export default function AgentBuilder() {
                                         <details key={step.id} className="rounded-lg border border-gray-200 bg-white">
                                             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-sm">
                                                 <div className="min-w-0">
-                                                    <span className="font-semibold text-gray-900">{index + 1}. {step.nodeName}</span>
-                                                    <span className="ml-2 text-xs text-gray-500">{step.group} • {step.durationMs}ms</span>
+                                                    <span className="font-semibold text-gray-900">
+                                                        {index + 1}. {step.nodeName}
+                                                    </span>
+                                                    <span className="ml-2 text-xs text-gray-500">
+                                                        {step.group} • {step.durationMs}ms
+                                                    </span>
                                                 </div>
-                                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${step.status === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                <span
+                                                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${step.status === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}
+                                                >
                                                     {step.status}
                                                 </span>
                                             </summary>
                                             <div className="grid gap-3 border-t border-gray-100 p-3 text-xs md:grid-cols-2">
                                                 <div>
                                                     <div className="mb-1 font-semibold text-gray-600">Input</div>
-                                                    <pre className="max-h-36 overflow-auto rounded-md bg-gray-950 p-3 text-gray-100">{JSON.stringify(step.input, null, 2)}</pre>
+                                                    <pre className="max-h-36 overflow-auto rounded-md bg-gray-950 p-3 text-gray-100">
+                                                        {JSON.stringify(step.input, null, 2)}
+                                                    </pre>
                                                 </div>
                                                 <div>
-                                                    <div className="mb-1 font-semibold text-gray-600">{step.error ? 'Error' : 'Output'}</div>
-                                                    <pre className="max-h-36 overflow-auto rounded-md bg-gray-950 p-3 text-gray-100">{step.error || JSON.stringify(step.output, null, 2)}</pre>
+                                                    <div className="mb-1 font-semibold text-gray-600">
+                                                        {step.error ? 'Error' : 'Output'}
+                                                    </div>
+                                                    <pre className="max-h-36 overflow-auto rounded-md bg-gray-950 p-3 text-gray-100">
+                                                        {step.error || JSON.stringify(step.output, null, 2)}
+                                                    </pre>
                                                 </div>
                                             </div>
                                         </details>

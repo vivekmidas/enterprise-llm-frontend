@@ -9,20 +9,20 @@ export interface AgentPayload {
 }
 
 export const api = {
-  // Get all available agents from backend
-  getAgents: async () => {
+  /** Fetches all available agent definitions that can be used as components */
+  getAgents: async (): Promise<{ agents: any[] }> => {
     const res = await fetch(`${BACKEND_URL}/agents`);
     return res.json();
   },
 
-  // Get workflow categories
-  getWorkflowCategories: async () => {
-    const res = await fetch(`${BACKEND_URL}/workflow/categories`);
+  /** Retrieves defined categories to organize workflows in the UI */
+  getWorkflowCategories: async (): Promise<string[] | { categories: string[] }> => {
+    const res = await fetch(`${BACKEND_URL}/workflows/categories`);
     return res.json();
   },
 
-  // Execute agent (called by Test button)
-  executeChat: async (message: string, agentId: string = "default") => {
+  /** Triggers a workflow execution by sending a message to the backend */
+  executeChat: async (message: string, agentId: string = 'default') => {
     const res = await fetch(`${BACKEND_URL}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -31,25 +31,25 @@ export const api = {
     return res.json();
   },
 
-  // Get the latest version of one agent
-  getAgentById: async (agentId: string = "default") => {
-    const res = await fetch(`${BACKEND_URL}/workflow/${agentId}`);
+  /** Fetches the full graph data (nodes/edges) for a specific agent ID */
+  getAgentById: async (agentId: string = 'default') => {
+    const res = await fetch(`${BACKEND_URL}/workflows/${agentId}`);
     return res.json();
   },
 
-  // Get the latest version of every agent
+  /** Lists all saved workflows stored in the database */
   getSavedAgents: async () => {
-    const res = await fetch(`${BACKEND_URL}/workflow`);
+    const res = await fetch(`${BACKEND_URL}/workflows`);
     return res.json();
   },
 
   // Save agent
   saveAgent: async (agent: AgentPayload) => {
-    const res = await fetch(`${BACKEND_URL}/workflow`, {
+    const res = await fetch(`${BACKEND_URL}/workflows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(agent),
     });
     return res.json();
-  }
+  },
 };

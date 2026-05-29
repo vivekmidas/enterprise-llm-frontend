@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -38,8 +38,8 @@
   --sidebar-border: #e6d5cd;
   --sidebar-ring: #410093;
   /* Added custom font family tokens for design system */
-  --font-dm-sans: "DM Sans", sans-serif;
-  --font-space-grotesk: "Space Grotesk", sans-serif;
+  --font-dm-sans: 'DM Sans', sans-serif;
+  --font-space-grotesk: 'Space Grotesk', sans-serif;
 }
 
 .dark {
