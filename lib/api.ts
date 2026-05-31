@@ -11,13 +11,13 @@ export interface AgentPayload {
 export const api = {
   /** Fetches all available agent definitions that can be used as components */
   getAgents: async (): Promise<{ agents: any[] }> => {
-    const res = await fetch(`${BACKEND_URL}/agents`);
+    const res = await fetch(`${BACKEND_URL}/nodes`);
     return res.json();
   },
 
   /** Retrieves defined categories to organize workflows in the UI */
   getWorkflowCategories: async (): Promise<string[] | { categories: string[] }> => {
-    const res = await fetch(`${BACKEND_URL}/workflows/categories`);
+    const res = await fetch(`${BACKEND_URL}/nodes/categories`);
     return res.json();
   },
 
