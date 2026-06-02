@@ -17,7 +17,7 @@ export const api = {
 
   /** Retrieves defined categories to organize workflows in the UI */
   getWorkflowCategories: async (): Promise<string[] | { categories: string[] }> => {
-    const res = await fetch(`${BACKEND_URL}/nodes/categories`);
+    const res = await fetch(`${BACKEND_URL}/categories`);
     return res.json();
   },
 
@@ -49,6 +49,16 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(agent),
+    });
+    return res.json();
+  },
+
+  /** Updates a node definition in the registry (catalog) */
+  updateNode: async (node: any) => {
+    const res = await fetch(`${BACKEND_URL}/nodes/${node.name}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(node),
     });
     return res.json();
   },

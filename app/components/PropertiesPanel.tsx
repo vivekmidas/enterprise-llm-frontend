@@ -241,11 +241,11 @@ export default function PropertiesPanel({
 
         {/* Visual Category / Group */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">GROUP</label>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">CATEGORY</label>
           <input
             type="text"
-            value={String(localData.group || localData.category || '')}
-            onChange={(e) => handleChanges({ group: e.target.value, category: e.target.value })}
+            value={String(localData.category || localData.group || '')}
+            onChange={(e) => handleChanges({ category: e.target.value, group: e.target.value })}
             className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
           />
         </div>

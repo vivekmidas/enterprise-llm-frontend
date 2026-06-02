@@ -19,11 +19,27 @@ import {
   Database,
   Workflow,
   Clock,
+  Brain,
+  BrainCircuit,
+  Cloud,
+  KeyRound,
+  Mail,
+  Megaphone,
+  Network,
+  Fence,
 } from 'lucide-react';
-import { AgentIcon, componentCategories, getComponentCategory } from './component-categoriees';
+import { getCategory } from './component-categoriees';
 
-const iconMap: Record<AgentIcon, ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   shield: Shield,
+  brain: Brain,
+  cloud: Cloud,
+  key: KeyRound,
+  fence: Fence,
+  mail: Mail,
+  megaphone: Megaphone,
+  network: Network,
+  'brain-circuit': BrainCircuit,
   'alert-triangle': AlertTriangle,
   'user-cog': UserCog,
   bot: Bot,
@@ -34,27 +50,43 @@ const iconMap: Record<AgentIcon, ComponentType<{ className?: string }>> = {
   'x-circle': XCircle,
   database: Database,
   workflow: Workflow,
-  'alert-circle': AlertTriangle, // fallback
+  'alert-circle': AlertTriangle,
+};
+
+const getCategoryColors = (color: string) => {
+  const styles: Record<string, { border: string; text: string; bg: string }> = {
+    emerald: { border: 'border-emerald-600', text: 'text-emerald-700', bg: 'bg-emerald-50' },
+    red: { border: 'border-red-500', text: 'text-red-600', bg: 'bg-red-50' },
+    amber: { border: 'border-amber-500', text: 'text-amber-600', bg: 'bg-amber-50' },
+    blue: { border: 'border-blue-500', text: 'text-blue-600', bg: 'bg-blue-50' },
+    purple: { border: 'border-purple-600', text: 'text-purple-600', bg: 'bg-purple-50' },
+    gray: { border: 'border-gray-500', text: 'text-gray-700', bg: 'bg-gray-50' },
+    cyan: { border: 'border-cyan-500', text: 'text-cyan-700', bg: 'bg-cyan-50' },
+    indigo: { border: 'border-indigo-500', text: 'text-indigo-700', bg: 'bg-indigo-50' },
+    orange: { border: 'border-orange-500', text: 'text-orange-700', bg: 'bg-orange-50' },
+    yellow: { border: 'border-yellow-500', text: 'text-yellow-700', bg: 'bg-yellow-50' },
+  };
+  return styles[color] || styles.gray;
 };
 
 /** Maps node groups to visual styles defined in component-categories */
 export default function CustomNode({ data, selected }: NodeProps) {
-  const group = getComponentCategory(data.group || data.category);
-  const category = componentCategories[group];
-  const Icon = iconMap[data.icon as AgentIcon] || iconMap[category.icon];
+  const category = getCategory(data.category || data.group);
+  const Icon = iconMap[data.icon as string] || iconMap[category.icon] || Bot;
+  const colors = getCategoryColors(category.color);
 
   return (
     <div
-      className={`bg-white border-2 shadow-sm hover:shadow-md transition-all rounded-lg p-2 min-w-[48 px] max-w-40 ${category.borderColor} ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+      className={`bg-white border-2 shadow-sm hover:shadow-md transition-all rounded-lg p-2 min-w-12 max-w-40 ${colors.border} ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
     >
       <div className="flex items-start gap-1">
-        <div className={`rounded-md p-1 ${category.bgColor}`}>
-          <Icon className={`h-5 w-5 ${category.textColor}`} />
+        <div className={`rounded-md p-1 ${colors.bg}`}>
+          <Icon className={`h-5 w-5 ${colors.text}`} title={category.label} />
         </div>
         <div className="flex-1 min-w-0">
           {/* <div className="font-semibold text-gray-900 text-[15px] leading-tight">{data.name || data.label}</div> */}
           <div className="mt-1 flex items-center gap-1">
-            <div className={`text-xs font-medium ${category.textColor}`}>{group}</div>
+            <div className={`text-xs font-medium ${colors.text}`}>{category.name}</div>
             {data.executionStatus && (
               <div
                 className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${data.executionStatus === 'success'
@@ -71,8 +103,8 @@ export default function CustomNode({ data, selected }: NodeProps) {
         </div>
       </div>
 
-      {data.group !== 'Start' && (
-        /* Standard input handle for all nodes except Start */
+      {(data.category || data.group) !== 'Start' && (
+        
         <Handle
           type="target"
           position={Position.Left}
@@ -80,8 +112,8 @@ export default function CustomNode({ data, selected }: NodeProps) {
         />
       )}
 
-      /* Standard output handle for linear nodes. Hidden for Condition (multi-output) and End nodes. */
-      {data.group !== 'End' && data.group !== 'Condition' && (
+      {/* Standard output handle for linear nodes. Hidden for Condition (multi-output) and End nodes. */}
+      {(data.category || data.group) !== 'End' && (data.category || data.group) !== 'Condition' && (
         <Handle
           type="source"
           position={Position.Right}
@@ -89,8 +121,8 @@ export default function CustomNode({ data, selected }: NodeProps) {
         />
       )}
 
-      /* Specialized handles for the Condition node to support Success/Failure branching */
-      {data.group === 'Condition' && (
+      {/* Specialized handles for the Condition node to support Success/Failure branching */}
+      {(data.category || data.group) === 'Condition' && (
         <>
           <Handle
             type="source"

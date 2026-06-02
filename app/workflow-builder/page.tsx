@@ -90,7 +90,7 @@ const buildExecutionSequence = (
     nodes: Node[],
     edges: { source?: string | null; target?: string | null }[],
 ) => {
-    const startNodes = nodes.filter((node) => node.data?.group === 'Start');
+    const startNodes = nodes.filter((node) => (node.data?.category || node.data?.group) === 'Start');
     if (startNodes.length !== 1) {
         return { sequence: [] as Node[], error: 'Agent must have exactly one Start node.' };
     }
@@ -149,7 +149,7 @@ const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
     const data = node.data || {};
     const properties = toProperties(node);
     const name = String(data.name || data.label || node.id);
-    const group = String(data.group || data.category || 'Agent');
+    const category = String(data.category || data.group || 'Agent');
     const normalizedName = name.toLowerCase();
 
     await wait(350 + Math.floor(Math.random() * 250));
@@ -162,14 +162,14 @@ const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
         };
     }
 
-    if (group === 'Start') {
+    if (category === 'Start') {
         return {
             event: 'agent.started',
             payload: input,
         };
     }
 
-    if (group === 'End') {
+    if (category === 'End') {
         return {
             event: data.outcome === 'failure' ? 'agent.failed' : 'agent.completed',
             outcome: data.outcome || 'success',
@@ -177,7 +177,7 @@ const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
         };
     }
 
-    if (group === 'Condition') {
+    if (category === 'Condition') {
         // Simulate: evaluate based on presence of violations in the current payload
         const hasViolations =
             input.violations && Array.isArray(input.violations) && input.violations.length > 0;
@@ -195,7 +195,7 @@ const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
     return {
         nodeId: node.id,
         nodeName: name,
-        group,
+        category,
         status: 'success',
         executionTime: new Date().toISOString(),
         configuration: maskSecrets(properties),
@@ -204,9 +204,9 @@ const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
             message: `Simulated execution of ${name} completed.`,
             data: {
                 processed_at: Date.now(),
-                ...(group === 'Trigger' ? { event_type: data.triggerType || normalizedName } : {}),
-                ...(group === 'Data' ? { rows_affected: 2 } : {}),
-                ...(group === 'LLM'
+                ...(category === 'Trigger' ? { event_type: data.triggerType || normalizedName } : {}),
+                ...(category === 'Data' ? { rows_affected: 2 } : {}),
+                ...(category === 'LLM'
                     ? { model_response: 'Simulated AI response based on provided prompt.' }
                     : {}),
             },
@@ -280,7 +280,7 @@ export default function AgentBuilder() {
     const [agentId, setAgentId] = useState('email_channel');
     const [agentName, setAgentName] = useState('Email Channel');
     const [agentCategory, setAgentCategory] = useState('default');
-    const [availableCategories, setAvailableCategories] = useState<string[]>(['default']);
+    const [availableCategories, setAvailableCategories] = useState<any[]>(['default']);
     const [agentVersion, setAgentVersion] = useState<number | null>(null);
     const [status, setStatus] = useState('');
     const [executionTrace, setExecutionTrace] = useState<WorkflowTraceStep[]>([]);
@@ -300,7 +300,7 @@ export default function AgentBuilder() {
             .then((data) => {
                 const cats = Array.isArray(data) ? data : data.categories || [];
                 if (cats.length > 0) {
-                    setAvailableCategories(['default', ...cats]);
+                    setAvailableCategories([ ...cats]);
                 }
             })
             .catch(() => console.error('Failed to load categories'));
@@ -312,9 +312,9 @@ export default function AgentBuilder() {
             setEdges((eds) => {
                 const source = nodes.find((node) => node.id === params.source);
                 const target = nodes.find((node) => node.id === params.target);
-                const isCondition = source?.data?.group === 'Condition';
+                const isCondition = (source?.data?.category || source?.data?.group) === 'Condition';
 
-                if (target?.data?.group === 'Start' || source?.data?.group === 'End') {
+                if ((target?.data?.category || target?.data?.group) === 'Start' || (source?.data?.category || source?.data?.group) === 'End') {
                     setStatus('Start cannot have incoming edges and End cannot have outgoing edges.');
                     return eds;
                 }
@@ -372,12 +372,12 @@ export default function AgentBuilder() {
                 }
             }
 
-            if (agent.group === 'Start' && nodes.some((node) => node.data?.group === 'Start')) {
+            if (agent.category === 'Start' && nodes.some((node) => (node.data?.category || node.data?.group) === 'Start')) {
                 setStatus('Only one Start node is allowed.');
                 return;
             }
 
-            if (agent.group === 'Trigger' && nodes.some((node) => node.data?.group === 'Trigger')) {
+            if (agent.category === 'Trigger' && nodes.some((node) => (node.data?.category || node.data?.group) === 'Trigger')) {
                 setStatus('Only one Trigger node is allowed per agent.');
                 return;
             }
@@ -390,8 +390,7 @@ export default function AgentBuilder() {
                     label: agent.label || agent.name,
                     name: agent.name,
                     description: agent.description,
-                    group: agent.group,
-                    category: agent.group,
+                    category: agent.category,
                     icon: agent.icon,
                     color: agent.color,
                     badge: agent.badge,
@@ -569,7 +568,7 @@ export default function AgentBuilder() {
      * calling runAgentNode for each and updating the execution trace.
      */
     const onExecute = useCallback(async () => {
-        const startNode = nodes.find((n) => n.data?.group === 'Start');
+        const startNode = nodes.find((n) => (n.data?.category || n.data?.group) === 'Start');
         if (!startNode) {
             setStatus('Agent must have exactly one Start node.');
             return;
@@ -598,7 +597,7 @@ export default function AgentBuilder() {
         while (currentNode) {
             const activeNode: Node = currentNode;
 
-            if (visited.has(activeNode.id) && activeNode.data?.group !== 'Condition') {
+            if (visited.has(activeNode.id) && (activeNode.data?.category || activeNode.data?.group) !== 'Condition') {
                 setStatus('Infinite loop detected.');
                 break;
             }
@@ -607,7 +606,7 @@ export default function AgentBuilder() {
             const startedAtMs = Date.now();
             const startedAt = new Date(startedAtMs).toISOString();
             const nodeName = String(activeNode.data?.name || activeNode.data?.label || activeNode.id);
-            const group = String(activeNode.data?.group || activeNode.data?.category || 'Agent');
+            const category = String(activeNode.data?.category || activeNode.data?.group || 'Agent');
 
             setNodeExecutionStatus(activeNode.id, 'running');
 
@@ -618,7 +617,7 @@ export default function AgentBuilder() {
                     id: `${activeNode.id}-${startedAtMs}`,
                     nodeId: activeNode.id,
                     nodeName,
-                    group,
+                    group: category,
                     status: 'success',
                     startedAt,
                     finishedAt: new Date(finishedAtMs).toISOString(),
@@ -631,11 +630,11 @@ export default function AgentBuilder() {
                 setNodeExecutionStatus(activeNode.id, 'success');
                 payload = output;
 
-                if (group === 'End') break;
+                if (category === 'End') break;
 
                 // Branching logic: traverse based on output status if it's a condition
                 const outgoingEdges = edges.filter((e) => e.source === activeNode.id);
-                if (group === 'Condition') {
+                if (category === 'Condition') {
                     const resultStatus = output.status === 'failure' ? 'failure' : 'success';
                     const edge = outgoingEdges.find((e) => e.sourceHandle === resultStatus);
                     currentNode = edge ? nodes.find((n) => n.id === edge.target) : undefined;
@@ -650,7 +649,7 @@ export default function AgentBuilder() {
                     id: `${activeNode.id}-${startedAtMs}`,
                     nodeId: activeNode.id,
                     nodeName,
-                    group,
+                    group: category,
                     status: 'error',
                     startedAt,
                     finishedAt: new Date(finishedAtMs).toISOString(),
@@ -684,9 +683,14 @@ export default function AgentBuilder() {
                             onChange={(e) => setAgentCategory(e.target.value)}
                             className="mx-1 bg-transparent border-none focus:ring-0 text-gray-500 font-medium cursor-pointer outline-none"
                         >
-                            {availableCategories.map((cat) => (
-                                <option key={cat} value={cat}>
-                                    {cat}
+                            {availableCategories.map((cat, index) => (
+                                <option
+                                    key={typeof cat === 'string' ? `${cat}-${index}` : `${cat.name || index}-${index}`}
+                                    value={typeof cat === 'string' ? cat : cat.name || cat.group}
+                                >
+                                    {typeof cat === 'string'
+                                        ? cat
+                                        : cat.label || cat.name || cat.group || index}
                                 </option>
                             ))}
                         </select>

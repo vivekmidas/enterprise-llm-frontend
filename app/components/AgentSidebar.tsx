@@ -12,6 +12,7 @@ import {
   CheckCircle,
   Clock,
   Cloud,
+  Fence,
   Database,
   KeyRound,
   Mail,
@@ -34,13 +35,12 @@ import {
 import { api } from '@/lib/api';
 import {
   AgentDefinition,
-  AgentIcon,
-  componentCategories,
-  getComponentCategory,
+  CATEGORIES,
+  getCategory,
   normalizeAgent,
 } from './component-categoriees';
 
-const iconMap: Record<AgentIcon, ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   shield: Shield,
   'alert-triangle': AlertTriangle,
   'user-cog': UserCog,
@@ -51,8 +51,16 @@ const iconMap: Record<AgentIcon, ComponentType<{ className?: string }>> = {
   database: Database,
   workflow: Workflow,
   clock: Clock,
+  fence: Fence,
   'alert-circle': AlertCircle,
   bot: Bot,
+  brain: Brain,
+  'brain-circuit': BrainCircuit,
+  cloud: Cloud,
+  key: KeyRound,
+  mail: Mail,
+  megaphone: Megaphone,
+  network: Network,
 };
 
 const componentIconMap: Record<string, ComponentType<{ className?: string }>> = {
@@ -69,26 +77,13 @@ const componentIconMap: Record<string, ComponentType<{ className?: string }>> = 
   'Scheduler Agent': Clock,
 };
 
-const categoryRail: Array<{
+interface CategoryItem {
   group: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
   color: string;
-}> = [
-    { group: 'Trigger', label: 'Trigger', icon: Zap, color: 'text-blue-500' },
-    { group: 'LLM', label: 'LLM', icon: Brain, color: 'text-orange-500' },
-    { group: 'Guardrails', label: 'Guardrails', icon: KeyRound, color: 'text-red-500' },
-    { group: 'Output', label: 'Output', icon: Megaphone, color: 'text-purple-500' },
-    { group: 'Context', label: 'Context', icon: Send, color: 'text-green-500' },
-    { group: 'Custom', label: 'Custom', icon: Settings, color: 'text-slate-500' },
-    // { group: 'Agent', label: 'Agent', icon: Workflow, color: 'text-teal-500' },
-    { group: 'Condition', label: 'Condition', icon: Workflow, color: 'text-indigo-500' },
-    { group: 'Validation', label: 'Validation', icon: BrainCircuit, color: 'text-yellow-500' },
-    { group: 'End', label: 'End', icon: CheckCircle, color: 'text-gray-400' },
-    { group: 'Data', label: 'Data', icon: Database, color: 'text-blue-400' },
-    // { group: 'Agent', label: 'Agent', icon: MessageSquare, color: 'text-gray-500' },
-    { group: 'External', label: 'External', icon: Cloud, color: 'text-indigo-500' },
-  ];
+  description?: string;
+}
 
 interface AgentSidebarProps {
   onSelectAgent?: (id: string) => void;
@@ -98,6 +93,7 @@ interface AgentSidebarProps {
 export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: AgentSidebarProps) {
   const [agents, setAgents] = useState<AgentDefinition[]>([]);
   const [savedAgents, setSavedAgents] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [activeGroup, setActiveGroup] = useState('Trigger');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -106,14 +102,33 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
     Promise.all([
       api.getAgents(),
       api.getSavedAgents().catch(() => ({ workflows: [] })),
+      api.getWorkflowCategories().catch(() => ({ categories: [] })),
     ] as const) // Use 'as const' for tuple type inference
-      .then(([agentData, agentListData]) => {
+      .then(([agentData, agentListData, categoryData]) => {
         const fetchedAgents = Array.isArray(agentData) ? agentData : (agentData.agents || []);
         setAgents(fetchedAgents.map(normalizeAgent));
         const agentsArray = Array.isArray(agentListData)
           ? agentListData
           : agentListData.workflows || [];
         setSavedAgents(agentsArray);
+
+        const fetchedCats = Array.isArray(categoryData) ? categoryData : (categoryData.categories || []);
+        const mappedCategories: CategoryItem[] = fetchedCats.map((cat: any) => {
+          const group = typeof cat === 'string' ? cat : cat.group || 'default';
+          const label = typeof cat === 'string' ? group : (cat.label || "");
+        
+          return {
+            group,
+            label,
+            icon: iconMap[cat.icon.toLowerCase()] || Settings,
+            color: `text-black`,
+          };
+        });
+        setCategories(mappedCategories);
+
+        if (mappedCategories.length > 0 && !mappedCategories.some(c => c.group === activeGroup)) {
+          setActiveGroup(mappedCategories[0].group);
+        }
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
@@ -130,14 +145,14 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
   const visibleComponents = allComponents
     .filter(
       (agent) =>
-        agent.group === activeGroup ||
-        (activeGroup === 'Agent' && getComponentCategory(agent.group) === 'Agent'),
+        agent.category === activeGroup ||
+        (activeGroup === 'Agent' && getCategory(agent.category).name === 'Agent'),
     )
     .filter((agent) => {
       const query = searchQuery.trim().toLowerCase();
       if (!query) return true;
 
-      return `${agent.name} ${agent.description} ${agent.group}`.toLowerCase().includes(query);
+      return `${agent.name} ${agent.description} ${agent.name}`.toLowerCase().includes(query);
     });
 
   const onDragStart = (event: DragEvent<HTMLDivElement>, agent: AgentDefinition) => {
@@ -148,7 +163,7 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
 
   return (
     <div className="w-[320px] shrink-0 overflow-auto border-r border-sky-200 bg-white px-5 py-6">
-      <button className="mb-7 flex w-full items-center gap-2 rounded-lg bg-blue-50 px-5 py-1 text-left text-m font-medium text-blue-600 transition-colors hover:bg-blue-100">
+      <button className="mb-7 flex w-full items-center gap-2 rounded-lg bg-blue-50 px-5 py-1 text-left text-sm font-medium text-blue-600 transition-colors hover:bg-blue-100">
         <Plus className="h-6 w-6" />
         <span>New Agent</span>
       </button>
@@ -170,7 +185,7 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
 
       <div className="my-2 border-t-2 border-stone-200" />
 
-      <h2 className="mb-5 text-m font-semibold text-slate-800">Components</h2>
+      <h2 className="mb-5 text-sm font-semibold text-slate-800 uppercase tracking-wider">Components</h2>
 
       <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-1 text-gray-400 shadow-sm">
         <Search className="h-5 w-5 shrink-0" />
@@ -178,35 +193,36 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="Search components..."
-          className="w-full bg-transparent text-m text-gray-900 placeholder:text-gray-400 focus:outline-none"
+          className="w-full bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
         />
       </div>
 
       <div className="flex gap-2">
         <div className="flex w-8 shrink-0 flex-col items-center gap-2">
-          {categoryRail.map(({ group, label, icon: Icon, color }) => {
-            const isActive = activeGroup === group;
+          {categories.map((category) => {
+            const isActive = activeGroup === category.group;
+            const Icon = category.icon;
 
             return (
               <button
-                key={group}
+                key={category.group}
                 type="button"
-                title={label}
-                aria-label={label}
-                onClick={() => setActiveGroup(group)}
+                title={category.label}
+                aria-label={category.label}
+                onClick={() => setActiveGroup(category.group)}
                 className={`flex h-8 w-8 items-center justify-center rounded-lg border bg-white transition-all hover:border-blue-300 hover:bg-blue-50 ${isActive
                   ? 'border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-300'
                   : 'border-gray-200'
                   }`}
               >
-                <Icon className={`h-5 w-5 ${color}`} />
+                <Icon className={`h-5 w-10 text-black color-black`} />
               </button>
             );
           })}
         </div>
 
         <div className="min-w-0 flex-1 border-l border-stone-200 pl-4">
-          <h3 className="mb-5 text-l font-semibold text-slate-800">{activeGroup}</h3>
+          <h3 className="mb-5 text-lg font-semibold text-slate-800">{activeGroup}</h3>
 
           {loading ? (
             <p className="text-gray-500">Loading components...</p>
@@ -215,13 +231,13 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
           ) : (
             <div className="space-y-1">
               {visibleComponents.map((agent) => {
-                const category = componentCategories[getComponentCategory(agent.group)];
+                const category = getCategory(agent.category);
                 const Icon =
-                  componentIconMap[agent.name] || iconMap[agent.icon] || iconMap[category.icon];
+                  componentIconMap[agent.icon] || iconMap[agent.icon] || iconMap[category.icon] || Bot;
 
                 return (
                   <div
-                    key={`${agent.group}-${agent.name}`}
+                    key={`${agent.category}-${agent.name}`}
                     draggable
                     onDragStart={(event) => onDragStart(event, agent)}
                     className="cursor-grab rounded-lg border border-gray-200 bg-white p-2 shadow-sm transition-all hover:border-blue-300 hover:shadow-md active:cursor-grabbing"
@@ -238,7 +254,7 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
                         <div className="text-sm font-semibold leading-tight text-slate-800">
                           {agent.label || agent.name}
                         </div>
-                        <div className="text-sm mt-1  leading-snug text-gray-500">
+                        <div className="text-sm mt-1 leading-snug text-gray-500">
                           {agent.description}
                         </div>
                         {agent.badge && (

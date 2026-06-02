@@ -1,39 +1,8 @@
-import { Clock } from 'lucide-react';
-
-export type ComponentCategory =
-  | 'Start'
-  | 'Guardrails'
-  | 'Validation'
-  | 'Context'
-  | 'LLM'
-  | 'Output'
-  | 'Trigger'
-  | 'End'
-  | 'Data'
-  | 'Agent'
-  | 'Workflow'
-  | 'Clock'
-  | 'Custom';
-
-export type AgentIcon =
-  | 'shield'
-  | 'alert-triangle'
-  | 'user-cog'
-  | 'bot'
-  | 'alert-circle'
-  | 'clock'
-  | 'check-circle'
-  | 'play-circle'
-  | 'message-square'
-  | 'x-circle'
-  | 'database'
-  | 'workflow';
-
-export interface ComponentCategoryStyle {
-  borderColor: string;
-  textColor: string;
-  bgColor: string;
-  icon: AgentIcon;
+export interface Category {
+  name: string;   // Formerly group
+  label: string;  // Display name and tooltip
+  icon: string;
+  color: string;  // Base color name (e.g. 'blue', 'emerald')
 }
 
 export type PropertyValue = string | number | boolean | string[];
@@ -51,8 +20,8 @@ export interface AgentDefinition {
   name: string;
   label?: string;
   description: string;
-  group: string;
-  icon: AgentIcon;
+  category: string; // Renamed from group
+  icon: string;
   color?: string;
   badge?: string;
   subLabel?: string;
@@ -63,119 +32,35 @@ export interface AgentDefinition {
 }
 
 type NodeInput = Partial<AgentDefinition> & {
-  category?: string;
+  group?: string; // Support legacy naming from nodes
   icon?: string;
   label?: string;
   color?: string;
   badge?: string;
-  sub_label?: string; // Support snake_case from backend
+  sub_label?: string;
 };
 
-export const componentCategories: Record<ComponentCategory, ComponentCategoryStyle> = {
-  Start: {
-    borderColor: 'border-emerald-600',
-    textColor: 'text-emerald-700',
-    bgColor: 'bg-emerald-50',
-    icon: 'play-circle',
-  },
-  Guardrails: {
-    borderColor: 'border-red-500',
-    textColor: 'text-red-600',
-    bgColor: 'bg-red-50',
-    icon: 'shield',
-  },
-  Validation: {
-    borderColor: 'border-amber-500',
-    textColor: 'text-amber-600',
-    bgColor: 'bg-amber-50',
-    icon: 'alert-triangle',
-  },
-  Context: {
-    borderColor: 'border-blue-500',
-    textColor: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    icon: 'user-cog',
-  },
-  LLM: {
-    borderColor: 'border-purple-600',
-    textColor: 'text-purple-600',
-    bgColor: 'bg-purple-50',
-    icon: 'bot',
-  },
-  Output: {
-    borderColor: 'border-emerald-500',
-    textColor: 'text-emerald-600',
-    bgColor: 'bg-emerald-50',
-    icon: 'check-circle',
-  },
-  Trigger: {
-    borderColor: 'border-blue-500',
-    textColor: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    icon: 'play-circle',
-  },
-  End: {
-    borderColor: 'border-gray-500',
-    textColor: 'text-gray-700',
-    bgColor: 'bg-gray-50',
-    icon: 'check-circle',
-  },
-  Data: {
-    borderColor: 'border-cyan-500',
-    textColor: 'text-cyan-700',
-    bgColor: 'bg-cyan-50',
-    icon: 'database',
-  },
-  Agent: {
-    borderColor: 'border-gray-300',
-    textColor: 'text-gray-600',
-    bgColor: 'bg-gray-50',
-    icon: 'message-square',
-  },
-  Custom: {
-    borderColor: 'border-gray-300',
-    textColor: 'text-gray-600',
-    bgColor: 'bg-gray-50',
-    icon: 'message-square',
-  },
-  Clock: {
-    borderColor: 'border-orange-500',
-    textColor: 'text-orange-700',
-    bgColor: 'bg-orange-50',
-    icon: 'clock',
-  },
-  Workflow: {
-    borderColor: 'border-indigo-500',
-    textColor: 'text-indigo-700',
-    bgColor: 'bg-indigo-50',
-    icon: 'workflow',
-  },
+export const CATEGORIES: Record<string, Category> = {
+  Start: { name: 'Start', label: 'Workflow Start', icon: 'play-circle', color: 'emerald' },
+  Guardrails: { name: 'Guardrails', label: 'Safety Guardrails', icon: 'fence', color: 'red' },
+  Validation: { name: 'Validation', label: 'Input Validation', icon: 'alert-triangle', color: 'amber' },
+  Context: { name: 'Context', label: 'Context Injection', icon: 'user-cog', color: 'blue' },
+  LLM: { name: 'LLM', label: 'LLM Processing', icon: 'bot', color: 'purple' },
+  Output: { name: 'Output', label: 'Output Generation', icon: 'check-circle', color: 'emerald' },
+  Trigger: { name: 'Trigger', label: 'Event Trigger', icon: 'play-circle', color: 'blue' },
+  End: { name: 'End', label: 'Workflow End', icon: 'check-circle', color: 'gray' },
+  Data: { name: 'Data', label: 'Data Operations', icon: 'database', color: 'cyan' },
+  Agent: { name: 'Agent', label: 'AI Agent', icon: 'message-square', color: 'gray' },
+  Custom: { name: 'Custom', label: 'Custom Node', icon: 'message-square', color: 'gray' },
+  Clock: { name: 'Clock', label: 'Timer/Schedule', icon: 'clock', color: 'orange' },
+  Workflow: { name: 'Workflow', label: 'Sub-workflow', icon: 'workflow', color: 'indigo' },
 };
 
-export const getComponentCategory = (group?: string): ComponentCategory => {
-  if (group && group in componentCategories) {
-    return group as ComponentCategory;
-  }
-
-  return 'Agent';
+export const getCategory = (name?: string): Category => {
+  return (name && CATEGORIES[name]) || CATEGORIES.Agent;
 };
 
-const isAgentIcon = (icon?: string): icon is AgentIcon =>
-  Boolean(icon) &&
-  [
-    'shield',
-    'alert-triangle',
-    'user-cog',
-    'bot',
-    'check-circle',
-    'play-circle',
-    'message-square',
-    'x-circle',
-    'database',
-    'workflow',
-  ].includes(icon as AgentIcon);
-
-export const inferAgentGroup = (name: string): ComponentCategory => {
+export const inferAgentCategory = (name: string): string => {
   const normalizedName = name.toLowerCase();
 
   if (normalizedName.includes('guard')) return 'Guardrails';
@@ -218,9 +103,9 @@ const toDisplayName = (name: string) =>
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const getAgentPropertyDefinition = (
-  name: string,
-  group: string,
-  triggerType?: string,
+  _name: string,
+  _category: string,
+  _triggerType?: string,
 ): Pick<AgentDefinition, 'propertySchema' | 'defaultProperties'> => {
   // Delinked: Agent definitions should carry their own properties.
   // Providing a generic minimal schema as fallback.
@@ -240,30 +125,30 @@ const getAgentPropertyDefinition = (
 
 export const normalizeAgent = (agent: string | NodeInput): AgentDefinition => {
   if (typeof agent === 'string') {
-    const group = inferAgentGroup(agent);
-    const category = componentCategories[group];
-    const propertyDefinition = getAgentPropertyDefinition(agent, group);
+    const categoryName = inferAgentCategory(agent);
+    const category = getCategory(categoryName);
+    const propertyDefinition = getAgentPropertyDefinition(agent, categoryName);
 
     return {
       name: agent,
       description: `${toDisplayName(agent)} agent`,
-      group,
+      category: categoryName,
       icon: category.icon,
       ...propertyDefinition,
     };
   }
 
   const name = agent.name || 'Untitled Agent';
-  const group = agent.group || agent.category || inferAgentGroup(name);
-  const category = componentCategories[getComponentCategory(group)];
-  const propertyDefinition = getAgentPropertyDefinition(name, group, agent.triggerType);
+  const categoryName = agent.category || agent.group || inferAgentCategory(name);
+  const category = getCategory(categoryName);
+  const propertyDefinition = getAgentPropertyDefinition(name, categoryName, agent.triggerType);
 
   return {
     name,
     label: agent.label || toDisplayName(name),
     description: agent.description || `${toDisplayName(name)} agent`,
-    group,
-    icon: isAgentIcon(agent.icon) ? agent.icon : category.icon,
+    category: categoryName,
+    icon: agent.icon || category.icon,
     color: agent.color,
     badge: agent.badge,
     subLabel: agent.subLabel || agent.sub_label,
