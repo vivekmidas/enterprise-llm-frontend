@@ -15,6 +15,11 @@ export const api = {
     return res.json();
   },
 
+  getNodesForCategories: async (category_id:number): Promise<{ nodes: string[] }> => {
+    const res = await fetch(`${BACKEND_URL}/nodes/categories/${category_id}`);
+    return res.json();
+  },
+
   /** Retrieves defined categories to organize workflows in the UI */
   getWorkflowCategories: async (): Promise<string[] | { categories: string[] }> => {
     const res = await fetch(`${BACKEND_URL}/categories`);
@@ -61,5 +66,33 @@ export const api = {
       body: JSON.stringify(node),
     });
     return res.json();
+  },
+
+  /** Creates a new node category */
+  createCategory: async (category: any) => {
+    const res = await fetch(`${BACKEND_URL}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(category),
+    });
+    return res.json();
+  },
+
+  /** Updates an existing category */
+  updateCategory: async (id: number, category: any) => {
+    const res = await fetch(`${BACKEND_URL}/categories/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(category),
+    });
+    return res.json();
+  },
+
+  /** Deletes a category */
+  deleteCategory: async (id: number) => {
+    const res = await fetch(`${BACKEND_URL}/categories/${id}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
   },
 };

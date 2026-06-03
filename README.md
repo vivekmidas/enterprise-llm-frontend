@@ -15,3 +15,6 @@ bun dev
 ```
 
 docker run -it -p 3000:3000 1ca30d609857
+
+pnpm prettier --write ./
+pnpm lint

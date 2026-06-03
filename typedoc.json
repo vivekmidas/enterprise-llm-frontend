@@ -1,19 +1,13 @@
 {
-    "entryPoints": [
-        "app",
-        "lib"
-    ],
-    "out": "docs",
-    "plugin": [],
-    "includeVersion": true,
-    "exclude": [
-        "**/*.test.ts",
-        "node_modules/**"
-    ],
-    "theme": "default",
-    "name": "Enterprise LLM Gateway Frontend Documentation",
-    "readme": "README.md",
-    "categorizeByGroup": true,
-    "cleanOutputDir": true,
-    "githubPages": false
+  "entryPoints": ["app", "lib"],
+  "out": "docs",
+  "plugin": [],
+  "includeVersion": true,
+  "exclude": ["**/*.test.ts", "node_modules/**"],
+  "theme": "default",
+  "name": "Enterprise LLM Gateway Frontend Documentation",
+  "readme": "README.md",
+  "categorizeByGroup": true,
+  "cleanOutputDir": true,
+  "githubPages": false
 }

@@ -33,12 +33,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import {
-  AgentDefinition,
-  CATEGORIES,
-  getCategory,
-  normalizeAgent,
-} from './component-categoriees';
+import { AgentDefinition, CATEGORIES, getCategory, normalizeAgent } from './component-categoriees';
 
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   shield: Shield,
@@ -78,11 +73,12 @@ const componentIconMap: Record<string, ComponentType<{ className?: string }>> = 
 };
 
 interface CategoryItem {
-  group: string;
+  group: number;
   label: string;
   icon: ComponentType<{ className?: string }>;
   color: string;
   description?: string;
+  id:number;
 }
 
 interface AgentSidebarProps {
@@ -94,7 +90,7 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
   const [agents, setAgents] = useState<AgentDefinition[]>([]);
   const [savedAgents, setSavedAgents] = useState<any[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [activeGroup, setActiveGroup] = useState('Trigger');
+  const [activeGroup, setActiveGroup] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -105,29 +101,32 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
       api.getWorkflowCategories().catch(() => ({ categories: [] })),
     ] as const) // Use 'as const' for tuple type inference
       .then(([agentData, agentListData, categoryData]) => {
-        const fetchedAgents = Array.isArray(agentData) ? agentData : (agentData.agents || []);
-        setAgents(fetchedAgents.map(normalizeAgent));
+        const fetchedAgents = Array.isArray(agentData) ? agentData : agentData.agents || [];
+        setAgents(fetchedAgents);
         const agentsArray = Array.isArray(agentListData)
           ? agentListData
           : agentListData.workflows || [];
         setSavedAgents(agentsArray);
 
-        const fetchedCats = Array.isArray(categoryData) ? categoryData : (categoryData.categories || []);
+        const fetchedCats = Array.isArray(categoryData)
+          ? categoryData
+          : categoryData.categories || [];
         const mappedCategories: CategoryItem[] = fetchedCats.map((cat: any) => {
-          const group = typeof cat === 'string' ? cat : cat.group || 'default';
-          const label = typeof cat === 'string' ? group : (cat.label || "");
-        
+          const id = typeof cat === 'object' ? Number(cat.id || 1) : 1;
+          const label = typeof cat === 'object' ? (cat.label || cat.name || 'default') : String(cat);
+
           return {
-            group,
+            group: id,
             label,
-            icon: iconMap[cat.icon.toLowerCase()] || Settings,
+            icon: iconMap[cat.icon?.toLowerCase()] || Settings,
             color: `text-black`,
+            id
           };
         });
         setCategories(mappedCategories);
 
-        if (mappedCategories.length > 0 && !mappedCategories.some(c => c.group === activeGroup)) {
-          setActiveGroup(mappedCategories[0].group);
+        if (mappedCategories.length > 0 && !mappedCategories.some((c) => c.id === activeGroup)) {
+          setActiveGroup(mappedCategories[0].id);
         }
       })
       .catch(() => undefined)
@@ -141,12 +140,26 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
     }
   }, [loading, agents, onAllAgentsLoaded]);
 
+  /**
+   * Handles category selection and refreshes the node registry to ensure 
+   * the latest component definitions are retrieved from the backend.
+   */
+  const handleCategoryClick = async (category_id: number) => {
+    setActiveGroup(category_id);
+    try {
+      const agentData = await api.getNodesForCategories(category_id);
+      const fetchedAgents = Array.isArray(agentData) ? agentData : agentData.nodes || [];
+      setAgents(fetchedAgents);
+    } catch (error) {
+      console.error('Failed to refresh latest nodes from registry:', error);
+    }
+  };
+
   const allComponents = agents;
   const visibleComponents = allComponents
     .filter(
       (agent) =>
-        agent.category === activeGroup ||
-        (activeGroup === 'Agent' && getCategory(agent.category).name === 'Agent'),
+        Number(agent.category) === activeGroup || activeGroup === 1,
     )
     .filter((agent) => {
       const query = searchQuery.trim().toLowerCase();
@@ -185,7 +198,9 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
 
       <div className="my-2 border-t-2 border-stone-200" />
 
-      <h2 className="mb-5 text-sm font-semibold text-slate-800 uppercase tracking-wider">Components</h2>
+      <h2 className="mb-5 text-sm font-semibold text-slate-800 uppercase tracking-wider">
+        Components
+      </h2>
 
       <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-1 text-gray-400 shadow-sm">
         <Search className="h-5 w-5 shrink-0" />
@@ -200,8 +215,9 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
       <div className="flex gap-2">
         <div className="flex w-8 shrink-0 flex-col items-center gap-2">
           {categories.map((category) => {
-            const isActive = activeGroup === category.group;
+            const isActive = activeGroup === category.id;
             const Icon = category.icon;
+            
 
             return (
               <button
@@ -209,11 +225,12 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
                 type="button"
                 title={category.label}
                 aria-label={category.label}
-                onClick={() => setActiveGroup(category.group)}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg border bg-white transition-all hover:border-blue-300 hover:bg-blue-50 ${isActive
-                  ? 'border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-300'
-                  : 'border-gray-200'
-                  }`}
+                onClick={() => handleCategoryClick(category.id)}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border bg-white transition-all hover:border-blue-300 hover:bg-blue-50 ${
+                  isActive
+                    ? 'border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-300'
+                    : 'border-gray-200'
+                }`}
               >
                 <Icon className={`h-5 w-10 text-black color-black`} />
               </button>
@@ -222,7 +239,9 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
         </div>
 
         <div className="min-w-0 flex-1 border-l border-stone-200 pl-4">
-          <h3 className="mb-5 text-lg font-semibold text-slate-800">{activeGroup}</h3>
+        <h3 className="mb-5 text-lg font-semibold text-slate-800">
+          {activeGroup === 1 ? 'All Components' : categories.find(c => c.id === activeGroup)?.label || activeGroup}
+        </h3>
 
           {loading ? (
             <p className="text-gray-500">Loading components...</p>
@@ -233,14 +252,18 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
               {visibleComponents.map((agent) => {
                 const category = getCategory(agent.category);
                 const Icon =
-                  componentIconMap[agent.icon] || iconMap[agent.icon] || iconMap[category.icon] || Bot;
+                  componentIconMap[agent.icon] ||
+                  iconMap[agent.icon] ||
+                  iconMap[category.icon] ||
+                  Bot;
 
                 return (
                   <div
-                    key={`${agent.category}-${agent.name}`}
+                      key={`${agent.category}-${agent.name}`}
                     draggable
                     onDragStart={(event) => onDragStart(event, agent)}
                     className="cursor-grab rounded-lg border border-gray-200 bg-white p-2 shadow-sm transition-all hover:border-blue-300 hover:shadow-md active:cursor-grabbing"
+                    title={agent.label}
                     style={agent.color ? { borderLeft: `3px solid ${agent.color}` } : {}}
                   >
                     <div className="flex items-start gap-2">
@@ -254,10 +277,10 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
                         <div className="text-sm font-semibold leading-tight text-slate-800">
                           {agent.label || agent.name}
                         </div>
-                        <div className="text-sm mt-1 leading-snug text-gray-500">
+                        {/* <div className="text-sm mt-1 leading-snug text-gray-500">
                           {agent.description}
-                        </div>
-                        {agent.badge && (
+                        </div> */}
+                        {agent.version && (
                           <div className="mt-1 inline-block px-1.5 py-0.5 rounded bg-gray-100 text-[10px] text-gray-500 font-bold uppercase tracking-tighter">
                             {agent.badge}
                           </div>
