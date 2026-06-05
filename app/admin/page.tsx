@@ -173,34 +173,56 @@ export default function AdminPage() {
   };
 
   const updateProperty = (key: string, value: any) => {
-    if (!editingAgent) return;
-    setEditingAgent({
-      ...editingAgent,
-      properties: { ...editingAgent.properties, [key]: value },
+    setEditingAgent((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        properties: { ...prev.properties, [key]: value },
+      };
     });
   };
 
   const updateSchema = (index: number, field: string, value: any) => {
-    if (!editingAgent) return;
-    const newSchema = [...(editingAgent.property_schema || [])];
-    newSchema[index] = { ...newSchema[index], [field]: value };
-    setEditingAgent({ ...editingAgent, property_schema: newSchema });
+    setEditingAgent((prev) => {
+      if (!prev) return null;
+      const newSchema = [...(prev.property_schema || [])];
+      const oldKey = newSchema[index].key;
+      newSchema[index] = { ...newSchema[index], [field]: value };
+
+      let nextProperties = { ...prev.properties };
+      // If we are renaming the 'key', migrate the value in the properties object
+      if (field === 'key' && oldKey !== value) {
+        nextProperties[value] = nextProperties[oldKey];
+        delete nextProperties[oldKey];
+      }
+
+      return { ...prev, property_schema: newSchema, properties: nextProperties };
+    });
   };
 
   const removeSchemaField = (index: number) => {
-    if (!editingAgent) return;
-    const newSchema = editingAgent.property_schema.filter((_, i) => i !== index);
-    setEditingAgent({ ...editingAgent, property_schema: newSchema });
+    setEditingAgent((prev) => {
+      if (!prev) return null;
+      const keyToRemove = prev.property_schema[index]?.key;
+      const nextProperties = { ...prev.properties };
+      if (keyToRemove) {
+        delete nextProperties[keyToRemove];
+      }
+      const newSchema = prev.property_schema.filter((_, i) => i !== index);
+      return { ...prev, property_schema: newSchema, properties: nextProperties };
+    });
   };
 
   const addSchemaField = () => {
-    if (!editingAgent) return;
-    const key = `property_${Date.now()}`;
-    const newField = { key, label: 'New Property', type: 'string' };
-    setEditingAgent({
-      ...editingAgent,
-      properties: { ...editingAgent.properties, [key]: '' },
-      property_schema: [...(editingAgent.property_schema || []), newField],
+    setEditingAgent((prev) => {
+      if (!prev) return null;
+      const key = `property_${Date.now()}`;
+      const newField = { key, label: 'New Property', type: 'string' };
+      return {
+        ...prev,
+        properties: { ...prev.properties, [key]: '' },
+        property_schema: [...(prev.property_schema || []), newField],
+      };
     });
   };
 
@@ -678,12 +700,7 @@ export default function AdminPage() {
                             </td>
                             <td className="px-4 py-3 text-right">
                               <button
-                                onClick={() => {
-                                  const newProps = { ...editingAgent.properties };
-                                  delete newProps[field.key];
-                                  setEditingAgent({ ...editingAgent, properties: newProps });
-                                  removeSchemaField(idx);
-                                }}
+                                onClick={() => removeSchemaField(idx)}
                                 className="text-gray-400 hover:text-red-500 transition-colors"
                               >
                                 <Trash2 className="h-4 w-4" />
