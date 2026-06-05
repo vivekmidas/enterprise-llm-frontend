@@ -12,8 +12,13 @@ import ReactFlow, {
   MiniMap,
   ConnectionLineType,
   BackgroundVariant,
+  ReactFlowProvider,
+  useReactFlow,
 } from 'reactflow';
 
+import 'reactflow/dist/style.css';
+
+import { X, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
 import AgentSidebar from '../components/AgentSidebar';
 import WorkflowToolbar from '../components/WorkflowToolbar';
@@ -273,7 +278,7 @@ const initialNodes: Node[] = [
   },
 ];
 
-export default function AgentBuilder() {
+function AgentBuilderContent() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -286,13 +291,19 @@ export default function AgentBuilder() {
   const [executionTrace, setExecutionTrace] = useState<WorkflowTraceStep[]>([]);
   const [availableAgentNames, setAvailableAgentNames] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const { screenToFlowPosition } = useReactFlow();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Sync all existing nodes on the canvas if the list of available agents refreshes
   useEffect(() => {
-    if (availableAgentNames.length > 0) {
+    if (isMounted && availableAgentNames.length > 0) {
       setNodes((nds) => nds.map((node) => updateSchedulerAgentSchema(node, availableAgentNames)));
     }
-  }, [availableAgentNames, setNodes]);
+  }, [availableAgentNames, setNodes, isMounted]);
 
   useEffect(() => {
     api
@@ -353,70 +364,73 @@ export default function AgentBuilder() {
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => setSelectedNode(node), []);
   const onPaneClick = () => setSelectedNode(null);
 
+  /** React Flow DND: Allow the drop by preventing default browser behavior */
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
   }, []);
 
-  /** Handles dropping a component from the sidebar onto the canvas */
+  const onDragStart = (event: React.DragEvent, agent: any) => {
+    event.dataTransfer.setData('application/reactflow-agent', JSON.stringify(agent));
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
   const onDrop = useCallback(
-    (event: React.DragEvent) => {
+    (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
-      const agentPayload = event.dataTransfer.getData('application/reactflow-agent');
-      const agentName = event.dataTransfer.getData('application/reactflow');
-      if (!agentPayload && !agentName) return;
+      event.dataTransfer.dropEffect = 'move';
 
-      let agent = normalizeAgent(agentName);
-      if (agentPayload) {
-        try {
-          agent = normalizeAgent(JSON.parse(agentPayload));
-        } catch {
-          agent = normalizeAgent(agentName);
-        }
-      }
-
-      if (
-        agent.category === 'Start' &&
-        nodes.some((node) => (node.data?.category || node.data?.group) === 'Start')
-      ) {
-        setStatus('Only one Start node is allowed.');
+      const agentDataStr = event.dataTransfer.getData('application/reactflow-agent');
+      if (!agentDataStr) {
+        setStatus('No agent data found in drop.');
         return;
       }
 
-      if (
-        agent.category === 'Trigger' &&
-        nodes.some((node) => (node.data?.category || node.data?.group) === 'Trigger')
-      ) {
-        setStatus('Only one Trigger node is allowed per agent.');
-        return;
+      try {
+        const agentData = JSON.parse(agentDataStr);
+        const position = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+
+        // Better centering (adjust based on your CustomNode size)
+        const nodePosition = { x: position.x - 80, y: position.y - 40 };
+
+        normalizeAgent(agentData.name)
+          .then((fullAgent) => {
+            const newNode: Node = {
+              id: `${fullAgent.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`,
+              type: 'custom',
+              position: nodePosition,
+              data: {
+                ...fullAgent,
+                properties: fullAgent.defaultProperties || {},
+                propertySchema: fullAgent.propertySchema || [],
+                executionStatus: 'idle' as ExecutionStatus,
+              },
+            };
+
+            setNodes((nds) => nds.concat(newNode));
+            setStatus(`✅ Added ${fullAgent.label || fullAgent.name} to workflow`);
+          })
+          .catch((err) => {
+            console.error('normalizeAgent failed:', err);
+            setStatus(`Failed to load agent details: ${err.message}`);
+          });
+      } catch (err) {
+        console.error('Drop parsing error:', err);
+        setStatus('Invalid drag data');
       }
-
-      const newNode: Node = {
-        id: `${agent.name}-${Date.now()}`,
-        type: 'custom',
-        position: { x: event.clientX - 100, y: event.clientY - 50 },
-        data: {
-          label: agent.label || agent.name,
-          name: agent.name,
-          description: agent.description,
-          category: agent.category,
-          icon: agent.icon,
-          color: agent.color,
-          badge: agent.badge,
-          subLabel: agent.subLabel,
-          triggerType: agent.triggerType,
-          outcome: agent.outcome,
-          propertySchema: agent.propertySchema || [],
-          properties: agent.defaultProperties || {},
-        },
-      };
-
-      const finalNode = updateSchedulerAgentSchema(newNode, availableAgentNames);
-      setNodes((nds) => nds.concat(finalNode));
-      setStatus('');
     },
-    [nodes, setNodes, availableAgentNames],
+    [setNodes, screenToFlowPosition, setStatus],
   );
+
+  /** React Flow equivalent of 'ondragstop' for nodes already on the canvas */
+  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    setStatus(
+      `Moved ${node.data?.name || node.id} to [${Math.round(node.position.x)}, ${Math.round(node.position.y)}]`,
+    );
+  }, []);
 
   /** Updates node data when edited in the PropertiesPanel */
   const onUpdateNode = useCallback(
@@ -602,6 +616,7 @@ export default function AgentBuilder() {
 
     let currentNode: Node | undefined = startNode;
     const visited = new Set<string>();
+    let stepCount = 0;
 
     while (currentNode) {
       const activeNode: Node = currentNode;
@@ -640,6 +655,7 @@ export default function AgentBuilder() {
 
         setExecutionTrace((trace) => [...trace, traceStep]);
         setNodeExecutionStatus(activeNode.id, 'success');
+        stepCount++;
         payload = output;
 
         if (category === 'End') break;
@@ -679,8 +695,12 @@ export default function AgentBuilder() {
     }
 
     setIsExecuting(false);
-    setStatus(`Execution completed. Captured ${executionTrace.length + 1} trace steps.`);
+    setStatus(`Execution completed. Captured ${stepCount} trace steps.`);
   }, [edges, nodes, setNodeExecutionStatus, setNodes, agentId, agentName]);
+
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
@@ -725,8 +745,13 @@ export default function AgentBuilder() {
         {/* Left Sidebar - Pass onAllAgentsLoaded callback */}
         <AgentSidebar onSelectAgent={loadAgent} onAllAgentsLoaded={setAvailableAgentNames} />
 
-        {/* Canvas */}
-        <div className="flex-1 relative" onDragOver={onDragOver} onDrop={onDrop}>
+        {/* Main Canvas */}
+        {/* Canvas Container */}
+        <div
+          className="flex-1 relative bg-gray-50 overflow-hidden"
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -735,79 +760,79 @@ export default function AgentBuilder() {
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             onPaneClick={onPaneClick}
+            onNodeDragStop={onNodeDragStop}
             nodeTypes={nodeTypes}
+            nodesDraggable={true}
+            nodesConnectable={true}
+            elementsSelectable={true}
+            selectNodesOnDrag={false}
+            panOnDrag={true}
+            panOnScroll={true}
+            zoomOnScroll={true}
+            zoomOnDoubleClick={true}
             defaultEdgeOptions={{
               type: 'smoothstep',
               animated: true,
             }}
             connectionLineType={ConnectionLineType.Straight}
             defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+            fitView={false}
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
             <Controls />
             <MiniMap />
           </ReactFlow>
 
-          <div className="absolute bottom-4 left-4 right-4 max-h-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
-            <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-2">
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Agent Trace</div>
-                <div className="text-xs text-gray-500">
-                  Sequential input, output, error, and duration per agent
+          {/* Trace Panel - Fixed z-index & pointer events */}
+          {executionTrace.length > 0 && (
+            <div className="absolute bottom-4 left-4 right-4 z-20 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl pointer-events-auto flex flex-col">
+              <div className="flex items-center justify-between p-3 border-b bg-gray-50 sticky top-0 z-10">
+                <div className="flex items-center gap-2">
+                  <Clock size={16} className="text-blue-500" />
+                  <h3 className="font-semibold text-sm text-gray-700">Execution Trace Log</h3>
+                  <span className="text-xs bg-gray-200 px-2 py-0.5 rounded-full text-gray-600">
+                    {executionTrace.length} steps
+                  </span>
                 </div>
+                <button
+                  onClick={() => setExecutionTrace([])}
+                  className="p-1 hover:bg-gray-200 rounded-full transition-colors text-gray-500"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <div
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isExecuting ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}
-              >
-                {isExecuting ? 'Running' : `${executionTrace.length} steps`}
-              </div>
-            </div>
-            <div className="max-h-48 overflow-auto p-3">
-              {executionTrace.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-gray-200 px-4 py-5 text-sm text-gray-500">
-                  Execute the agent to capture node-level traces.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {executionTrace.map((step, index) => (
-                    <details key={step.id} className="rounded-lg border border-gray-200 bg-white">
-                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-sm">
-                        <div className="min-w-0">
-                          <span className="font-semibold text-gray-900">
-                            {index + 1}. {step.nodeName}
-                          </span>
-                          <span className="ml-2 text-xs text-gray-500">
-                            {step.group} • {step.durationMs}ms
-                          </span>
-                        </div>
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${step.status === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}
-                        >
-                          {step.status}
+              <div className="p-2 space-y-1">
+                {executionTrace.map((step) => (
+                  <div
+                    key={step.id}
+                    className="group p-2 hover:bg-gray-50 rounded border border-transparent hover:border-gray-100 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {step.status === 'success' ? (
+                          <CheckCircle size={14} className="text-green-500" />
+                        ) : (
+                          <AlertCircle size={14} className="text-red-500" />
+                        )}
+                        <span className="font-bold text-xs text-gray-800">{step.nodeName}</span>
+                        <span className="text-[10px] text-gray-400 uppercase font-medium">
+                          {step.group}
                         </span>
-                      </summary>
-                      <div className="grid gap-3 border-t border-gray-100 p-3 text-xs md:grid-cols-2">
-                        <div>
-                          <div className="mb-1 font-semibold text-gray-600">Input</div>
-                          <pre className="max-h-36 overflow-auto rounded-md bg-gray-950 p-3 text-gray-100">
-                            {JSON.stringify(step.input, null, 2)}
-                          </pre>
-                        </div>
-                        <div>
-                          <div className="mb-1 font-semibold text-gray-600">
-                            {step.error ? 'Error' : 'Output'}
-                          </div>
-                          <pre className="max-h-36 overflow-auto rounded-md bg-gray-950 p-3 text-gray-100">
-                            {step.error || JSON.stringify(step.output, null, 2)}
-                          </pre>
-                        </div>
                       </div>
-                    </details>
-                  ))}
-                </div>
-              )}
+                      <span className="text-[10px] font-mono text-gray-400">
+                        {step.durationMs}ms
+                      </span>
+                    </div>
+                    {step.error && (
+                      <p className="mt-1 text-[11px] text-red-600 bg-red-50 p-1 rounded border border-red-100">
+                        {step.error}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Right Panel */}
@@ -819,5 +844,13 @@ export default function AgentBuilder() {
         />
       </div>
     </div>
+  );
+}
+
+export default function AgentBuilder() {
+  return (
+    <ReactFlowProvider>
+      <AgentBuilderContent />
+    </ReactFlowProvider>
   );
 }

@@ -150,7 +150,7 @@ export default function AdminPage() {
       await api.deleteCategory(id);
       const catsRes = await api.getWorkflowCategories();
       const cats = Array.isArray(catsRes) ? catsRes : catsRes.categories || [];
-      setCategories(cats.map((cat: any) => typeof cat === 'string' ? { name: cat } : cat));
+      setCategories(cats.map((cat: any) => (typeof cat === 'string' ? { name: cat } : cat)));
     } catch (error) {
       console.error('Failed to delete category:', error);
     }
@@ -206,7 +206,8 @@ export default function AdminPage() {
 
   const renderValueInput = (field: any, value: any) => {
     const handleValChange = (v: any) => updateProperty(field.key, v);
-    const commonClasses = "w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-gray-900";
+    const commonClasses =
+      'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-gray-900';
 
     if (field.type === 'boolean') {
       return (
@@ -249,7 +250,14 @@ export default function AdminPage() {
           className={commonClasses}
           value={Array.isArray(value) ? value.join(', ') : String(value ?? '')}
           placeholder="val1, val2, val3..."
-          onChange={(e) => handleValChange(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+          onChange={(e) =>
+            handleValChange(
+              e.target.value
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+            )
+          }
         />
       );
     }
@@ -646,11 +654,14 @@ export default function AdminPage() {
                                   <option value="password">Password</option>
                                 </select>
                                 <label className="flex items-center gap-1 text-[10px] text-gray-500">
-                                  <input 
-                                    type="checkbox" 
+                                  <input
+                                    type="checkbox"
                                     checked={field.multiple || false}
-                                    onChange={(e) => updateSchema(idx, 'multiple', e.target.checked)}
-                                  /> Multi
+                                    onChange={(e) =>
+                                      updateSchema(idx, 'multiple', e.target.checked)
+                                    }
+                                  />{' '}
+                                  Multi
                                 </label>
                               </div>
                             </td>
@@ -722,11 +733,15 @@ export default function AdminPage() {
 
               <div className="p-6 space-y-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">System Name (ID)</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase">
+                    System Name (ID)
+                  </label>
                   <input
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900"
                     value={editingCategory.name || ''}
-                    onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                    onChange={(e) =>
+                      setEditingCategory({ ...editingCategory, name: e.target.value })
+                    }
                     placeholder="e.g. social_media"
                   />
                 </div>
@@ -735,7 +750,9 @@ export default function AdminPage() {
                   <input
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900"
                     value={editingCategory.group || ''}
-                    onChange={(e) => setEditingCategory({ ...editingCategory, group: e.target.value })}
+                    onChange={(e) =>
+                      setEditingCategory({ ...editingCategory, group: e.target.value })
+                    }
                     placeholder="e.g. core_integrations"
                   />
                 </div>
@@ -744,7 +761,9 @@ export default function AdminPage() {
                   <input
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900"
                     value={editingCategory.label || ''}
-                    onChange={(e) => setEditingCategory({ ...editingCategory, label: e.target.value })}
+                    onChange={(e) =>
+                      setEditingCategory({ ...editingCategory, label: e.target.value })
+                    }
                     placeholder="e.g. Social Media"
                   />
                 </div>
@@ -753,16 +772,22 @@ export default function AdminPage() {
                   <textarea
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 h-20"
                     value={editingCategory.description || ''}
-                    onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })}
+                    onChange={(e) =>
+                      setEditingCategory({ ...editingCategory, description: e.target.value })
+                    }
                     placeholder="Purpose of this category..."
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Icon Name (Lucide)</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase">
+                    Icon Name (Lucide)
+                  </label>
                   <input
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900"
                     value={editingCategory.icon || ''}
-                    onChange={(e) => setEditingCategory({ ...editingCategory, icon: e.target.value })}
+                    onChange={(e) =>
+                      setEditingCategory({ ...editingCategory, icon: e.target.value })
+                    }
                     placeholder="e.g. share"
                   />
                 </div>
@@ -772,7 +797,9 @@ export default function AdminPage() {
                     <input
                       className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900"
                       value={editingCategory.color || ''}
-                      onChange={(e) => setEditingCategory({ ...editingCategory, color: e.target.value })}
+                      onChange={(e) =>
+                        setEditingCategory({ ...editingCategory, color: e.target.value })
+                      }
                       placeholder="#3b82f6"
                     />
                     <div

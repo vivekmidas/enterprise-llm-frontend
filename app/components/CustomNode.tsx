@@ -1,6 +1,6 @@
 /**
  * CustomNode - A specialized ReactFlow node component.
- * Handles dynamic icon rendering, category-based styling, 
+ * Handles dynamic icon rendering, category-based styling,
  * and conditional handle (port) visibility for branching logic.
  */
 'use client';
@@ -74,27 +74,32 @@ export default function CustomNode({ data, selected }: NodeProps) {
   const category = getCategory(data.category || data.group);
   const Icon = iconMap[data.icon as string] || iconMap[category.icon] || Bot;
   const colors = getCategoryColors(category.color);
+  const categoryName = category?.name || String(data.category || data.group || '');
 
   return (
     <div
-      className={`bg-white border-2 shadow-sm hover:shadow-md transition-all rounded-lg p-2 min-w-12 max-w-40 ${colors.border} ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+      className={`bg-white border-2 shadow-sm hover:shadow-md transition-all rounded-lg p-2 min-w-[140px] max-w-52 select-none ${colors.border} ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+      style={{ cursor: 'grab' }} // Visual feedback
     >
       <div className="flex items-start gap-1">
         <div className={`rounded-md p-1 ${colors.bg}`}>
           <Icon className={`h-5 w-5 ${colors.text}`} title={category.label} />
         </div>
         <div className="flex-1 min-w-0">
-          {/* <div className="font-semibold text-gray-900 text-[15px] leading-tight">{data.name || data.label}</div> */}
+          <div className="font-semibold text-gray-900 text-[15px] leading-tight truncate">
+            {data.name || data.label}
+          </div>
           <div className="mt-1 flex items-center gap-1">
             <div className={`text-xs font-medium ${colors.text}`}>{category.name}</div>
             {data.executionStatus && (
               <div
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${data.executionStatus === 'success'
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : data.executionStatus === 'error'
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-blue-100 text-blue-700'
-                  }`}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                  data.executionStatus === 'success'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : data.executionStatus === 'error'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-blue-100 text-blue-700'
+                }`}
               >
                 {data.executionStatus}
               </div>
@@ -103,26 +108,25 @@ export default function CustomNode({ data, selected }: NodeProps) {
         </div>
       </div>
 
-      {(data.category || data.group) !== 'Start' && (
-        
+      {categoryName !== 'Start' && data.name !== 'Start' && (
         <Handle
           type="target"
           position={Position.Left}
-          className="w-3 h-3 bg-white border-2 border-gray-400"
+          className="w-4 h-4 bg-blue-600 border-2 border-white shadow-md hover:scale-125 transition-transform !z-50 !pointer-events-auto cursor-crosshair"
         />
       )}
 
       {/* Standard output handle for linear nodes. Hidden for Condition (multi-output) and End nodes. */}
-      {(data.category || data.group) !== 'End' && (data.category || data.group) !== 'Condition' && (
+      {categoryName !== 'End' && categoryName !== 'Condition' && data.name !== 'End' && (
         <Handle
           type="source"
           position={Position.Right}
-          className="w-3 h-3 bg-white border-2 border-gray-400"
+          className="w-4 h-4 bg-blue-600 border-2 border-white shadow-md hover:scale-125 transition-transform !z-50 !pointer-events-auto cursor-crosshair"
         />
       )}
 
       {/* Specialized handles for the Condition node to support Success/Failure branching */}
-      {(data.category || data.group) === 'Condition' && (
+      {(categoryName === 'Condition' || data.name === 'Condition') && (
         <>
           <Handle
             type="source"
@@ -131,9 +135,11 @@ export default function CustomNode({ data, selected }: NodeProps) {
             style={{
               top: '30%',
               backgroundColor: '#10b981',
-              width: 12,
+              width: 14,
               height: 12,
               border: '2px solid white',
+              zIndex: 50,
+              pointerEvents: 'auto',
             }}
           />
           <div className="absolute right-4 top-[30%] -translate-y-1/2 text-[9px] font-bold text-emerald-600 uppercase">
@@ -147,9 +153,11 @@ export default function CustomNode({ data, selected }: NodeProps) {
             style={{
               top: '70%',
               backgroundColor: '#ef4444',
-              width: 12,
+              width: 14,
               height: 12,
               border: '2px solid white',
+              zIndex: 50,
+              pointerEvents: 'auto',
             }}
           />
           <div className="absolute right-4 top-[70%] -translate-y-1/2 text-[9px] font-bold text-red-600 uppercase">

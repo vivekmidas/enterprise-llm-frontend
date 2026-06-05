@@ -15,7 +15,17 @@ export const api = {
     return res.json();
   },
 
-  getNodesForCategories: async (category_id:number): Promise<{ nodes: string[] }> => {
+  getAgentByName: async (name: string): Promise<any> => {
+    const res = await fetch(`${BACKEND_URL}/nodes/${name}`);
+    return res.json();
+  },
+
+  getAgentById: async (id: number): Promise<any> => {
+    const res = await fetch(`${BACKEND_URL}/nodes/${id}`);
+    return res.json();
+  },
+
+  getNodesForCategories: async (category_id: number): Promise<{ nodes: string[] }> => {
     const res = await fetch(`${BACKEND_URL}/nodes/categories/${category_id}`);
     return res.json();
   },

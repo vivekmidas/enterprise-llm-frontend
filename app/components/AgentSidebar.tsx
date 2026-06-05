@@ -78,7 +78,7 @@ interface CategoryItem {
   icon: ComponentType<{ className?: string }>;
   color: string;
   description?: string;
-  id:number;
+  id: number;
 }
 
 interface AgentSidebarProps {
@@ -113,14 +113,14 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
           : categoryData.categories || [];
         const mappedCategories: CategoryItem[] = fetchedCats.map((cat: any) => {
           const id = typeof cat === 'object' ? Number(cat.id || 1) : 1;
-          const label = typeof cat === 'object' ? (cat.label || cat.name || 'default') : String(cat);
+          const label = typeof cat === 'object' ? cat.label || cat.name || 'default' : String(cat);
 
           return {
             group: id,
             label,
             icon: iconMap[cat.icon?.toLowerCase()] || Settings,
             color: `text-black`,
-            id
+            id,
           };
         });
         setCategories(mappedCategories);
@@ -141,7 +141,7 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
   }, [loading, agents, onAllAgentsLoaded]);
 
   /**
-   * Handles category selection and refreshes the node registry to ensure 
+   * Handles category selection and refreshes the node registry to ensure
    * the latest component definitions are retrieved from the backend.
    */
   const handleCategoryClick = async (category_id: number) => {
@@ -157,10 +157,7 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
 
   const allComponents = agents;
   const visibleComponents = allComponents
-    .filter(
-      (agent) =>
-        Number(agent.category) === activeGroup || activeGroup === 1,
-    )
+    .filter((agent) => Number(agent.category) === activeGroup || activeGroup === 1)
     .filter((agent) => {
       const query = searchQuery.trim().toLowerCase();
       if (!query) return true;
@@ -170,8 +167,14 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
 
   const onDragStart = (event: DragEvent<HTMLDivElement>, agent: AgentDefinition) => {
     event.dataTransfer.setData('application/reactflow-agent', JSON.stringify(agent));
-    event.dataTransfer.setData('application/reactflow', agent.name);
     event.dataTransfer.effectAllowed = 'move';
+    // Add a visual indicator to the element being dragged
+    (event.target as HTMLElement).style.opacity = '0.5';
+  };
+
+  const onDragEnd = (event: DragEvent<HTMLDivElement>) => {
+    // Reset visual indicator when drag stops
+    (event.target as HTMLElement).style.opacity = '1';
   };
 
   return (
@@ -217,7 +220,6 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
           {categories.map((category) => {
             const isActive = activeGroup === category.id;
             const Icon = category.icon;
-            
 
             return (
               <button
@@ -239,9 +241,11 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
         </div>
 
         <div className="min-w-0 flex-1 border-l border-stone-200 pl-4">
-        <h3 className="mb-5 text-lg font-semibold text-slate-800">
-          {activeGroup === 1 ? 'All Components' : categories.find(c => c.id === activeGroup)?.label || activeGroup}
-        </h3>
+          <h3 className="mb-5 text-lg font-semibold text-slate-800">
+            {activeGroup === 1
+              ? 'All Components'
+              : categories.find((c) => c.id === activeGroup)?.label || activeGroup}
+          </h3>
 
           {loading ? (
             <p className="text-gray-500">Loading components...</p>
@@ -250,7 +254,7 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
           ) : (
             <div className="space-y-1">
               {visibleComponents.map((agent) => {
-                const category = getCategory(agent.category);
+                const category = getCategory(agent.id);
                 const Icon =
                   componentIconMap[agent.icon] ||
                   iconMap[agent.icon] ||
@@ -259,9 +263,10 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
 
                 return (
                   <div
-                      key={`${agent.category}-${agent.name}`}
+                    key={`${agent.category}-${agent.name}`}
                     draggable
                     onDragStart={(event) => onDragStart(event, agent)}
+                    onDragEnd={onDragEnd}
                     className="cursor-grab rounded-lg border border-gray-200 bg-white p-2 shadow-sm transition-all hover:border-blue-300 hover:shadow-md active:cursor-grabbing"
                     title={agent.label}
                     style={agent.color ? { borderLeft: `3px solid ${agent.color}` } : {}}
