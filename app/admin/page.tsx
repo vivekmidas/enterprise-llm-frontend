@@ -50,6 +50,7 @@ interface AgentNode {
   name: string;
   label: string;
   description: string;
+  node_type: string;
   version: string;
   category: string;
   group: string;
@@ -551,6 +552,16 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, sub_label: e.target.value })
                       }
+                    />
+                  </div>
+                                    <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                     Node Type (e.g. trigger, tool)
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={editingAgent.node_type || ''}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, node_type: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">

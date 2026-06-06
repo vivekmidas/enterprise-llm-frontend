@@ -3,9 +3,11 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:800
 export interface AgentPayload {
   id: string;
   name: string;
+  description?: string;
   nodes: unknown[];
   edges: unknown[];
   category?: string;
+  is_enabled?: boolean;
 }
 
 export const api = {
@@ -20,7 +22,7 @@ export const api = {
     return res.json();
   },
 
-  getAgentById: async (id: number): Promise<any> => {
+  getNodesById: async (id: number): Promise<any> => {
     const res = await fetch(`${BACKEND_URL}/nodes/${id}`);
     return res.json();
   },
@@ -52,6 +54,12 @@ export const api = {
     return res.json();
   },
 
+    /** Fetches the full graph data (nodes/edges) for a specific agent ID */
+  getWorkflowById: async (agentId: string = 'default') => {
+    const res = await fetch(`${BACKEND_URL}/workflows/${agentId}`);
+    return res.json();
+  },
+  
   /** Lists all saved workflows stored in the database */
   getSavedAgents: async () => {
     const res = await fetch(`${BACKEND_URL}/workflows`);

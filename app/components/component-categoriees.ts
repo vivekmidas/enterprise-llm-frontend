@@ -25,6 +25,7 @@ export interface AgentDefinition {
   label?: string;
   description: string;
   category: number | string; // Renamed from group
+  nodeType?: 'trigger' | 'tool' | 'default';
   icon: string;
   color?: string;
   badge?: string;
@@ -32,11 +33,11 @@ export interface AgentDefinition {
   triggerType?: string;
   outcome?: string;
   propertySchema?: AgentPropertyDefinition[];
-  defaultProperties?: Record<string, PropertyValue>;
+  properties?: Record<string, PropertyValue>;
 }
 
 export const CATEGORIES: Record<string, Category> = {
-  Start: { id: 1, name: 'Start', label: 'Workflow Start', icon: 'play-circle', color: 'emerald' },
+  Start: { id: 1, name: 'Start', label: 'Agent Start', icon: 'play-circle', color: 'emerald' },
   Guardrails: {
     id: 2,
     name: 'Guardrails',
@@ -61,7 +62,7 @@ export const CATEGORIES: Record<string, Category> = {
     color: 'emerald',
   },
   Trigger: { id: 7, name: 'Trigger', label: 'Event Trigger', icon: 'play-circle', color: 'blue' },
-  End: { id: 8, name: 'End', label: 'Workflow End', icon: 'check-circle', color: 'gray' },
+  End: { id: 8, name: 'End', label: 'Agent End', icon: 'check-circle', color: 'gray' },
   Data: { id: 9, name: 'Data', label: 'Data Operations', icon: 'database', color: 'cyan' },
   Agent: { id: 10, name: 'Agent', label: 'AI Agent', icon: 'message-square', color: 'gray' },
   Custom: { id: 11, name: 'Custom', label: 'Custom Node', icon: 'message-square', color: 'gray' },
@@ -84,7 +85,7 @@ export const fetchNodeDetails = async (nodeName: string): Promise<Partial<AgentD
       ...data,
       description: data.description,
       propertySchema: data.propertySchema || data.property_schema,
-      defaultProperties: data.defaultProperties || data.properties,
+      properties: data.defaultProperties || data.properties,
       label: data.label,
       category: data.category,
     };

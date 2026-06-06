@@ -75,6 +75,11 @@ export default function CustomNode({ data, selected }: NodeProps) {
   const Icon = iconMap[data.icon as string] || iconMap[category.icon] || Bot;
   const colors = getCategoryColors(category.color);
   const categoryName = category?.name || String(data.category || data.group || '');
+  const isTrigger = 
+    data.node_type.toUpperCase() === 'TRIGGER' ||
+    data.nodeType === 'trigger' ||
+    categoryName === 'Trigger' || 
+    data.name === 'Start';
 
   return (
     <div
@@ -83,14 +88,14 @@ export default function CustomNode({ data, selected }: NodeProps) {
     >
       <div className="flex items-start gap-1">
         <div className={`rounded-md p-1 ${colors.bg}`}>
-          <Icon className={`h-5 w-5 ${colors.text}`} title={category.label} />
+          <Icon className={`h-5 w-5 ${colors.text}`} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-gray-900 text-[15px] leading-tight truncate">
-            {data.name || data.label}
+            {data.label}
           </div>
           <div className="mt-1 flex items-center gap-1">
-            <div className={`text-xs font-medium ${colors.text}`}>{category.name}</div>
+            <div className={`text-xs font-medium ${colors.text}`}>{data.node_type}</div>
             {data.executionStatus && (
               <div
                 className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
@@ -108,7 +113,7 @@ export default function CustomNode({ data, selected }: NodeProps) {
         </div>
       </div>
 
-      {categoryName !== 'Start' && data.name !== 'Start' && (
+      {!isTrigger && (
         <Handle
           type="target"
           position={Position.Left}

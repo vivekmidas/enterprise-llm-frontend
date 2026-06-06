@@ -95,9 +95,18 @@ const buildExecutionSequence = (
   nodes: Node[],
   edges: { source?: string | null; target?: string | null }[],
 ) => {
-  const startNodes = nodes.filter((node) => (node.data?.category || node.data?.group) === 'Start');
-  if (startNodes.length !== 1) {
-    return { sequence: [] as Node[], error: 'Agent must have exactly one Start node.' };
+  // Find nodes that are either explicit "Start" nodes or "Trigger" nodes
+  const startNodes = nodes.filter(
+    (node) => 
+      node.data?.node_type?.toUpperCase() === 'TRIGGER'
+      
+  );
+
+  if (startNodes.length === 0) {
+    return { sequence: [] as Node[], error: 'Agent must have at least one Trigger or Start node.' };
+  }
+  if (startNodes.length > 1) {
+    return { sequence: [] as Node[], error: 'Agent can only have one entry point (Trigger or Start).' };
   }
 
   const byId = new Map<string, Node>(nodes.map((node) => [node.id, node]));
@@ -252,37 +261,14 @@ const updateSchedulerAgentSchema = (node: Node, agentNames: string[]): Node => {
   return { ...node, data: { ...node.data, propertySchema: updatedPropertySchema } };
 };
 
-const initialNodes: Node[] = [
-  {
-    id: 'start',
-    type: 'custom',
-    position: { x: 150, y: 150 },
-    data: {
-      label: 'Start',
-      name: 'Start',
-      description: 'Entry point for every workflow run',
-      group: 'Start',
-      category: 'Start',
-      icon: 'play-circle',
-      propertySchema: [
-        {
-          key: 'enabled',
-          label: 'Enabled',
-          type: 'boolean',
-        },
-      ],
-      properties: {
-        enabled: true,
-      },
-    },
-  },
-];
+const initialNodes: Node[] = [];
 
 function AgentBuilderContent() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [agentId, setAgentId] = useState('email_channel');
+  const [agentId, setAgentId] = useState('');
+  const [isAgentEnabled, setIsAgentEnabled] = useState(true);
   const [agentName, setAgentName] = useState('Email Channel');
   const [agentCategory, setAgentCategory] = useState('default');
   const [availableCategories, setAvailableCategories] = useState<any[]>(['default']);
@@ -323,25 +309,23 @@ function AgentBuilderContent() {
       setEdges((eds) => {
         const source = nodes.find((node) => node.id === params.source);
         const target = nodes.find((node) => node.id === params.target);
+        const isTargetTrigger = 
+          target?.data?.properties?.node_type === 'trigger' ||
+          target?.data?.nodeType === 'trigger' ||
+          (target?.data?.category || target?.data?.group) === 'Trigger';
+
         const isCondition = (source?.data?.category || source?.data?.group) === 'Condition';
 
         if (
-          (target?.data?.category || target?.data?.group) === 'Start' ||
+          (target?.data?.category || target?.data?.group) === 'Start' || isTargetTrigger ||
           (source?.data?.category || source?.data?.group) === 'End'
         ) {
-          setStatus('Start cannot have incoming edges and End cannot have outgoing edges.');
+          setStatus('Entry points (Start/Trigger) cannot have incoming edges and End nodes cannot have outgoing edges.');
           return eds;
         }
 
         // Enforce output connection limits
         const existingSourceEdges = eds.filter((e) => e.source === params.source);
-
-        if (!isCondition && existingSourceEdges.length >= 1) {
-          setStatus(
-            `${source?.data?.name || 'Agent'} already has an output connection. Standard agents support only one output.`,
-          );
-          return eds;
-        }
 
         if (isCondition) {
           // Ensure success/failure branches are unique
@@ -404,25 +388,14 @@ function AgentBuilderContent() {
               position: nodePosition,
               data: {
                 ...fullAgent,
-                properties: fullAgent.properties || fullAgent.defaultProperties || {},
-                propertySchema: fullAgent.property_schema || fullAgent.propertySchema || [],
+                properties: fullAgent.properties ||  {},
+                propertySchema: fullAgent.propertySchema || [],
                 executionStatus: 'idle' as ExecutionStatus,
               },
             };
 
-            setNodes((nds) => {
-              const nextNodes = nds.concat(newNode);
-              // Immediately associate this node with the workflow in the backend
-              api.saveAgent({
-                id: agentId,
-                name: agentName,
-                nodes: nextNodes,
-                edges,
-                category: agentCategory,
-              }).catch(err => console.error('Failed to auto-associate node:', err));
-              return nextNodes;
-            });
-            setStatus(`✅ Added ${fullAgent.label || fullAgent.name} and associated with workflow`);
+            setNodes((nds) => nds.concat(newNode));
+            setStatus(`✅ Added ${fullAgent.label || fullAgent.name}`);
           })
           .catch((err) => {
             console.error('normalizeAgent failed:', err);
@@ -473,13 +446,51 @@ function AgentBuilderContent() {
       return;
     }
 
+    let currentId = agentId;
+    let currentName = agentName;
+    let currentDescription = '';
+
+    // If it's a new agent, prompt for details or autogenerate
+    if (!currentId) {
+      const promptedName = window.prompt(
+        'Enter a name for this new agent (leave blank for autogenerated name):',
+        agentName === 'Email Channel' ? '' : agentName
+      );
+
+      if (promptedName === null) return; // Cancelled
+
+      if (promptedName.trim()) {
+        currentName = promptedName.trim();
+        const promptedDesc = window.prompt('Enter agent description:', '');
+        if (promptedDesc !== null) currentDescription = promptedDesc.trim();
+      } else {
+        // Autogenerate name: trigger_type + random number
+        const triggerNode = nodes.find(
+          (n) => n.data?.node_type?.toUpperCase() === 'TRIGGER'
+        );
+        const triggerType = triggerNode?.data?.name || 'agent';
+        currentName = `${triggerType}_${Math.floor(Math.random() * 10000)}`;
+        currentDescription = `Autogenerated workflow starting with ${triggerType}`;
+      }
+
+      currentId = currentName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || `workflow_${Date.now()}`;
+
+      setAgentId(currentId);
+      setAgentName(currentName);
+    }
+
     try {
       const savedAgent = await api.saveAgent({
-        id: agentId,
-        name: agentName,
+        id: currentId,
+        name: currentName,
+        description: currentDescription,
         nodes,
         edges,
         category: agentCategory,
+        is_enabled: isAgentEnabled,
       });
 
       setAgentVersion(savedAgent.version);
@@ -487,7 +498,7 @@ function AgentBuilderContent() {
     } catch {
       setStatus('Unable to save agent.');
     }
-  }, [edges, nodes, validateAgent, agentId, agentName, agentCategory]);
+  }, [edges, nodes, validateAgent, agentId, agentName, agentCategory, isAgentEnabled]);
 
   const onSaveAs = useCallback(async () => {
     const nextName = window.prompt('Save agent as', agentName);
@@ -513,6 +524,7 @@ function AgentBuilderContent() {
         nodes,
         edges,
         category: agentCategory,
+        is_enabled: isAgentEnabled,
       });
 
       setAgentId(savedAgent.id || nextId);
@@ -524,7 +536,7 @@ function AgentBuilderContent() {
     } catch {
       setStatus('Unable to save agent as new agent.');
     }
-  }, [edges, nodes, validateAgent, agentName, agentCategory]);
+  }, [edges, nodes, validateAgent, agentName, agentCategory, isAgentEnabled]);
 
   const onGet = useCallback(async () => {
     try {
@@ -547,13 +559,14 @@ function AgentBuilderContent() {
       setAgentId(latestWorkflow.id || agentId);
       setAgentName(latestWorkflow.name || latestWorkflow.id || agentName);
       setAgentCategory(latestWorkflow.category || 'default');
+      setIsAgentEnabled(latestWorkflow.is_enabled ?? true);
       setAgentVersion(latestWorkflow.version);
       setSelectedNode(null);
       setStatus(`Loaded ${workflows.length} latest agent${workflows.length === 1 ? '' : 's'}.`);
     } catch {
       setStatus('Unable to get agents or update scheduler agent schema.');
     }
-  }, [setEdges, setNodes, agentId, agentName, availableAgentNames]);
+  }, [setEdges, setNodes, agentId, agentName, availableAgentNames, setIsAgentEnabled]);
 
   const loadAgent = useCallback(
     async (id: string) => {
@@ -575,6 +588,7 @@ function AgentBuilderContent() {
         setAgentId(data.id || id);
         setAgentName(data.name || data.id || id);
         setAgentCategory(data.category || 'default');
+        setIsAgentEnabled(data.is_enabled ?? true);
         setAgentVersion(data.version);
         setSelectedNode(null);
         setExecutionTrace([]);
@@ -602,9 +616,15 @@ function AgentBuilderContent() {
    * calling runAgentNode for each and updating the execution trace.
    */
   const onExecute = useCallback(async () => {
-    const startNode = nodes.find((n) => (n.data?.category || n.data?.group) === 'Start');
+    // Look for Trigger nodes first, then fallback to Start node
+    const startNode = nodes.find(
+      (n) => 
+        n.data?.node_type.toUpperCase() === 'TRIGGER'
+       
+    );
+
     if (!startNode) {
-      setStatus('Agent must have exactly one Start node.');
+      setStatus('Agent must have a Trigger or Start node.');
       return;
     }
 
@@ -718,26 +738,21 @@ function AgentBuilderContent() {
       {/* Top Bar */}
       <div className="h-16 border-b bg-white flex items-center px-6 justify-between shadow-sm">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-semibold text-gray-900">Agent Builder</h1>
-          <div className="text-sm text-gray-500">
+          <h1 className="text-2xl font-semibold text-gray-900">AI Agent Builder</h1>
+          <div className="text-sm text-gray-500 flex items-center gap-2">
             {agentId} • v{agentVersion ?? 1} •
-            <select
-              value={agentCategory}
-              onChange={(e) => setAgentCategory(e.target.value)}
-              className="mx-1 bg-transparent border-none focus:ring-0 text-gray-500 font-medium cursor-pointer outline-none"
-            >
-              {availableCategories.map((cat, index) => (
-                <option
-                  key={
-                    typeof cat === 'string' ? `${cat}-${index}` : `${cat.name || index}-${index}`
-                  }
-                  value={typeof cat === 'string' ? cat : cat.name || cat.group}
-                >
-                  {typeof cat === 'string' ? cat : cat.label || cat.name || cat.group || index}
-                </option>
-              ))}
-            </select>
-            • Active
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isAgentEnabled}
+                onChange={(e) => setIsAgentEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
+              <span className="ms-2 text-sm font-medium text-gray-600">
+                {isAgentEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </label>
           </div>
         </div>
 
@@ -800,7 +815,7 @@ function AgentBuilderContent() {
               <div className="flex items-center justify-between p-3 border-b bg-gray-50 sticky top-0 z-10">
                 <div className="flex items-center gap-2">
                   <Clock size={16} className="text-blue-500" />
-                  <h3 className="font-semibold text-sm text-gray-700">Execution Trace Log</h3>
+                  <h3 className="font-semibold text-sm text-gray-700">Agent Execution Trace</h3>
                   <span className="text-xs bg-gray-200 px-2 py-0.5 rounded-full text-gray-600">
                     {executionTrace.length} steps
                   </span>
