@@ -404,14 +404,25 @@ function AgentBuilderContent() {
               position: nodePosition,
               data: {
                 ...fullAgent,
-                properties: fullAgent.defaultProperties || {},
-                propertySchema: fullAgent.propertySchema || [],
+                properties: fullAgent.properties || fullAgent.defaultProperties || {},
+                propertySchema: fullAgent.property_schema || fullAgent.propertySchema || [],
                 executionStatus: 'idle' as ExecutionStatus,
               },
             };
 
-            setNodes((nds) => nds.concat(newNode));
-            setStatus(`✅ Added ${fullAgent.label || fullAgent.name} to workflow`);
+            setNodes((nds) => {
+              const nextNodes = nds.concat(newNode);
+              // Immediately associate this node with the workflow in the backend
+              api.saveAgent({
+                id: agentId,
+                name: agentName,
+                nodes: nextNodes,
+                edges,
+                category: agentCategory,
+              }).catch(err => console.error('Failed to auto-associate node:', err));
+              return nextNodes;
+            });
+            setStatus(`✅ Added ${fullAgent.label || fullAgent.name} and associated with workflow`);
           })
           .catch((err) => {
             console.error('normalizeAgent failed:', err);

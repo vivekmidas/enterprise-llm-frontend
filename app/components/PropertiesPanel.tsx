@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { Node } from 'reactflow';
-import { X, Settings, Save } from 'lucide-react';
+import { X, Settings, Save, Loader2 } from 'lucide-react';
+import { api } from '@/lib/api';
 import { AgentPropertyDefinition, PropertyValue } from './component-categoriees';
 
 /** Type representing agent-specific configuration values */
@@ -35,24 +37,7 @@ export default function PropertiesPanel({
   onUpdateNode,
   onSave,
 }: PropertiesPanelProps) {
-  /** Updates a single top-level key in the node's data object */
-  const handleChange = (
-    key: string,
-    value: PropertyValue | AgentPropertyDefinition[] | NodeProperties,
-  ) => {
-    if (!selectedNode || !onUpdateNode) return;
-
-    const newData = { ...(selectedNode.data as NodeData), [key]: value };
-    onUpdateNode(selectedNode.id, newData);
-  };
-
-  /** Batch updates multiple top-level keys in the node's data object */
-  const handleChanges = (changes: NodeData) => {
-    if (!selectedNode || !onUpdateNode) return;
-
-    const newData = { ...(selectedNode.data as NodeData), ...changes };
-    onUpdateNode(selectedNode.id, newData);
-  };
+  const [isSaving, setIsSaving] = useState(false);
 
   /**
    * Updates a nested property inside the 'properties' bag.
@@ -72,6 +57,30 @@ export default function PropertiesPanel({
     };
 
     onUpdateNode(selectedNode.id, newData);
+  };
+
+  /**
+   * Saves the current node's configuration to the global registry (catalog).
+   * This updates the master definition for this node type in the database.
+   */
+  const handleSaveToRegistry = async () => {
+    if (!selectedNode) return;
+
+    setIsSaving(true);
+    try {
+      const nodeData = selectedNode.data as any;
+      // Ensure property_schema is formatted correctly for the backend
+      const payload = {
+        ...nodeData,
+        property_schema: nodeData.property_schema || nodeData.propertySchema,
+      };
+      await api.updateNode(payload);
+      if (onSave) onSave();
+    } catch (error) {
+      console.error('Failed to update node registry:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   /** Helper to safely retrieve current value or appropriate default for the field type */
@@ -199,9 +208,9 @@ export default function PropertiesPanel({
   }
 
   const localData = selectedNode.data as NodeData;
-  const propertySchema = Array.isArray(localData.propertySchema)
-    ? (localData.propertySchema as AgentPropertyDefinition[])
-    : [];
+  const propertySchema = (Array.isArray(localData.propertySchema)
+    ? localData.propertySchema
+    : (localData.property_schema as AgentPropertyDefinition[])) || [];
   const properties = (localData.properties || {}) as NodeProperties;
 
   return (
@@ -218,72 +227,28 @@ export default function PropertiesPanel({
       </div>
 
       <div className="flex-1 overflow-auto p-5 space-y-6">
-        {/* Metadata: Name */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">NAME</label>
-          <input
-            type="text"
-            value={String(localData.name || localData.label || '')}
-            onChange={(e) => handleChanges({ name: e.target.value, label: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
-          />
-        </div>
-
-        {/* Metadata: Description */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">DESCRIPTION</label>
-          <textarea
-            value={String(localData.description || '')}
-            onChange={(e) => handleChange('description', e.target.value)}
-            className="w-full h-24 border border-gray-300 rounded-lg px-4 py-3 text-sm resize-y focus:outline-none focus:border-blue-500"
-          />
-        </div>
-
-        {/* Visual Category / Group */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">CATEGORY</label>
-          <input
-            type="text"
-            value={String(localData.category || localData.group || '')}
-            onChange={(e) => handleChanges({ category: e.target.value, group: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
-          />
-        </div>
-
-        {/* Lucide Icon Reference */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">ICON</label>
-          <input
-            type="text"
-            value={String(localData.icon || '')}
-            onChange={(e) => handleChange('icon', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
-          />
-        </div>
-
-        {/* Dynamic Configuration Fields */}
-        <div>
-          <h4 className="font-medium text-gray-900 mb-3">Configuration</h4>
-
-          {propertySchema.length > 0 ? (
-            <div className="space-y-5">
-              {propertySchema.map((field) => renderPropertyField(field, properties))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">No configurable properties for this node.</p>
-          )}
-        </div>
+        {propertySchema.length > 0 ? (
+          <div className="space-y-5">
+            {propertySchema.map((field) => renderPropertyField(field, properties))}
+          </div>
+        ) : (
+          <div className="text-center py-10 text-gray-400">
+            <Settings className="w-8 h-8 mx-auto mb-3 opacity-20" />
+            <p className="text-sm">No configurable properties for this node.</p>
+          </div>
+        )}
       </div>
 
       {/* Footer - Save Button */}
-      {onSave && (
+      {(onSave || selectedNode) && (
         <div className="p-4 border-t bg-gray-50 shrink-0">
           <button
-            onClick={() => onSave()}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
+            onClick={handleSaveToRegistry}
+            disabled={isSaving}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
           >
-            <Save className="w-4 h-4" />
-            Save Properties
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {isSaving ? 'Updating Registry...' : 'Save Properties'}
           </button>
         </div>
       )}
