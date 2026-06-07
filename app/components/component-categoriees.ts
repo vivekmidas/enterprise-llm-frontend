@@ -24,6 +24,7 @@ export interface AgentDefinition {
   name: string;
   label?: string;
   description: string;
+  version?: string;
   category: number | string; // Renamed from group
   nodeType?: 'trigger' | 'tool' | 'default';
   icon: string;

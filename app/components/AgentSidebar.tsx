@@ -33,7 +33,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { AgentDefinition, CATEGORIES, getCategory, normalizeAgent } from './component-categoriees';
+import { CATEGORIES, getCategory, normalizeAgent } from './component-categoriees';
 
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   shield: Shield,
@@ -87,7 +87,7 @@ interface AgentSidebarProps {
 }
 
 export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: AgentSidebarProps) {
-  const [agents, setAgents] = useState<AgentDefinition[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
   const [savedAgents, setSavedAgents] = useState<any[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [activeGroup, setActiveGroup] = useState<number>(1);
@@ -101,11 +101,11 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
       api.getWorkflowCategories().catch(() => ({ categories: [] })),
     ] as const) // Use 'as const' for tuple type inference
       .then(([agentData, agentListData, categoryData]) => {
-        const fetchedAgents = Array.isArray(agentData) ? agentData : agentData.agents || [];
+        const fetchedAgents = Array.isArray(agentData) ? agentData : (agentData as any).nodes || (agentData as any).agents || [];
         setAgents(fetchedAgents);
         const agentsArray = Array.isArray(agentListData)
           ? agentListData
-          : agentListData.workflows || [];
+          : (agentListData as any).workflows || [];
         setSavedAgents(agentsArray);
 
         const fetchedCats = Array.isArray(categoryData)
@@ -148,7 +148,7 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
     setActiveGroup(category_id);
     try {
       const agentData = await api.getNodesForCategories(category_id);
-      const fetchedAgents = Array.isArray(agentData) ? agentData : agentData.nodes || [];
+      const fetchedAgents = Array.isArray(agentData) ? agentData : (agentData as any).nodes || (agentData as any).agents || [];
       setAgents(fetchedAgents);
     } catch (error) {
       console.error('Failed to refresh latest nodes from registry:', error);
@@ -165,7 +165,7 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
       return `${agent.name} ${agent.description} ${agent.name}`.toLowerCase().includes(query);
     });
 
-  const onDragStart = (event: DragEvent<HTMLDivElement>, agent: AgentDefinition) => {
+  const onDragStart = (event: DragEvent<HTMLDivElement>, agent: any) => {
     event.dataTransfer.setData('application/reactflow-agent', JSON.stringify(agent));
     event.dataTransfer.effectAllowed = 'move';
     // Add a visual indicator to the element being dragged

@@ -105,7 +105,7 @@ export default function AdminPage() {
         ]);
 
         // The backend returns { "nodes": [...] } for /nodes and { "categories": [...] } for /nodes/categories
-        setAgents(agentsRes.nodes || agentsRes.agents || []);
+        setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
 
         const cats = Array.isArray(catsRes) ? catsRes : catsRes.categories || [];
         const normalizedCats = cats.map((cat: any) =>
@@ -163,7 +163,7 @@ export default function AdminPage() {
       // @ts-ignore - updateNode added to api.ts
       await api.updateNode(editingAgent);
       const agentsRes = await api.getAgents();
-      setAgents(agentsRes.nodes || agentsRes.agents || []);
+      setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
       setEditingAgent(null);
     } catch (error) {
       console.error('Failed to save node:', error);

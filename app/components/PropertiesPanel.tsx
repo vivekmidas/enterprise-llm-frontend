@@ -208,9 +208,11 @@ export default function PropertiesPanel({
   }
 
   const localData = selectedNode.data as NodeData;
-  const propertySchema = (Array.isArray(localData.propertySchema)
-    ? localData.propertySchema
-    : (localData.property_schema as AgentPropertyDefinition[])) || [];
+  const rawSchema = (localData.propertySchema || localData.property_schema) as any;
+  const propertySchema: AgentPropertyDefinition[] = (
+    Array.isArray(rawSchema) ? rawSchema : []
+  ).filter((f: any) => typeof f === 'object' && f !== null);
+
   const properties = (localData.properties || {}) as NodeProperties;
 
   return (
