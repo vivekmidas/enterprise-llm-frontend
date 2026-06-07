@@ -54,12 +54,12 @@ export const api = {
     return res.json();
   },
 
-    /** Fetches the full graph data (nodes/edges) for a specific agent ID */
+  /** Fetches the full graph data (nodes/edges) for a specific agent ID */
   getWorkflowById: async (agentId: string = 'default') => {
     const res = await fetch(`${BACKEND_URL}/workflows/${agentId}`);
     return res.json();
   },
-  
+
   /** Lists all saved workflows stored in the database */
   getSavedAgents: async () => {
     const res = await fetch(`${BACKEND_URL}/workflows`);

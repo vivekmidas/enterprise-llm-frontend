@@ -101,7 +101,9 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
       api.getWorkflowCategories().catch(() => ({ categories: [] })),
     ] as const) // Use 'as const' for tuple type inference
       .then(([agentData, agentListData, categoryData]) => {
-        const fetchedAgents = Array.isArray(agentData) ? agentData : (agentData as any).nodes || (agentData as any).agents || [];
+        const fetchedAgents = Array.isArray(agentData)
+          ? agentData
+          : (agentData as any).nodes || (agentData as any).agents || [];
         setAgents(fetchedAgents);
         const agentsArray = Array.isArray(agentListData)
           ? agentListData
@@ -148,7 +150,9 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
     setActiveGroup(category_id);
     try {
       const agentData = await api.getNodesForCategories(category_id);
-      const fetchedAgents = Array.isArray(agentData) ? agentData : (agentData as any).nodes || (agentData as any).agents || [];
+      const fetchedAgents = Array.isArray(agentData)
+        ? agentData
+        : (agentData as any).nodes || (agentData as any).agents || [];
       setAgents(fetchedAgents);
     } catch (error) {
       console.error('Failed to refresh latest nodes from registry:', error);

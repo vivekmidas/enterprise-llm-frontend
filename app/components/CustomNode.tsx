@@ -75,10 +75,10 @@ export default function CustomNode({ data, selected }: NodeProps) {
   const Icon = iconMap[data.icon as string] || iconMap[category.icon] || Bot;
   const colors = getCategoryColors(category.color);
   const categoryName = category?.name || String(data.category || data.group || '');
-  const isTrigger = 
+  const isTrigger =
     data.node_type.toUpperCase() === 'TRIGGER' ||
     data.nodeType === 'trigger' ||
-    categoryName === 'Trigger' || 
+    categoryName === 'Trigger' ||
     data.name === 'Start';
 
   return (
