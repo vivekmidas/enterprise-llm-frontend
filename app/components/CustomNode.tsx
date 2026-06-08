@@ -75,15 +75,30 @@ export default function CustomNode({ data, selected }: NodeProps) {
   const Icon = iconMap[data.icon as string] || iconMap[category.icon] || Bot;
 
   const customColor = data.color as string | undefined;
-  const isKnownColor = customColor && ['emerald', 'red', 'amber', 'blue', 'purple', 'gray', 'cyan', 'indigo', 'orange', 'yellow'].includes(customColor);
-  
+  const isKnownColor =
+    customColor &&
+    [
+      'emerald',
+      'red',
+      'amber',
+      'blue',
+      'purple',
+      'gray',
+      'cyan',
+      'indigo',
+      'orange',
+      'yellow',
+    ].includes(customColor);
+
   const resolvedCategoryColor = isKnownColor ? customColor : category.color;
   const colors = getCategoryColors(resolvedCategoryColor);
-  
+
   const isCustomStyle = customColor && !isKnownColor;
-  
+
   const borderStyle = isCustomStyle ? { borderColor: customColor } : {};
-  const iconBgStyle = isCustomStyle ? { backgroundColor: `color-mix(in srgb, ${customColor} 10%, transparent)` } : {};
+  const iconBgStyle = isCustomStyle
+    ? { backgroundColor: `color-mix(in srgb, ${customColor} 10%, transparent)` }
+    : {};
   const iconStyle = isCustomStyle ? { color: customColor } : {};
   const textStyle = isCustomStyle ? { color: customColor } : {};
 
@@ -100,21 +115,15 @@ export default function CustomNode({ data, selected }: NodeProps) {
       style={{ cursor: 'grab', ...borderStyle }} // Visual feedback
     >
       <div className="flex items-start gap-1">
-        <div 
-          className={`rounded-md p-1 ${isCustomStyle ? '' : colors.bg}`}
-          style={iconBgStyle}
-        >
-          <Icon 
-            className={`h-5 w-5 ${isCustomStyle ? '' : colors.text}`} 
-            style={iconStyle}
-          />
+        <div className={`rounded-md p-1 ${isCustomStyle ? '' : colors.bg}`} style={iconBgStyle}>
+          <Icon className={`h-5 w-5 ${isCustomStyle ? '' : colors.text}`} style={iconStyle} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-gray-900 text-[15px] leading-tight truncate">
             {data.label}
           </div>
           <div className="mt-1 flex items-center gap-1">
-            <div 
+            <div
               className={`text-xs font-medium ${isCustomStyle ? '' : colors.text}`}
               style={textStyle}
             >

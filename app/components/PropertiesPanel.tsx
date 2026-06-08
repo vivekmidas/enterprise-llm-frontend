@@ -145,7 +145,9 @@ export default function PropertiesPanel({
           <label className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
           <select
             value={String(value)}
-            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => handlePropertyChange(field.key, event.target.value)}
+            onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+              handlePropertyChange(field.key, event.target.value)
+            }
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
           >
             {(field.options || []).map((option) => (
@@ -166,7 +168,9 @@ export default function PropertiesPanel({
           <textarea
             value={String(value)}
             placeholder={field.placeholder}
-            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => handlePropertyChange(field.key, event.target.value)}
+            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
+              handlePropertyChange(field.key, event.target.value)
+            }
             className="h-28 w-full resize-y rounded-lg border border-gray-300 px-4 py-2.5 font-mono text-sm bg-white text-gray-900 focus:outline-none focus:border-blue-500"
           />
         </div>

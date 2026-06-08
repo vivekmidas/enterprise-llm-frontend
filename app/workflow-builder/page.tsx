@@ -800,9 +800,8 @@ function AgentBuilderContent() {
               markerEnd: {
                 type: MarkerType.ArrowClosed,
                 color: '#981a04ff',
-                height:20,
-                width:20
-              
+                height: 20,
+                width: 20,
               },
             }}
             connectionLineType={ConnectionLineType.Straight}
