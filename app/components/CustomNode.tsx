@@ -73,7 +73,20 @@ const getCategoryColors = (color: string) => {
 export default function CustomNode({ data, selected }: NodeProps) {
   const category = getCategory(data.category || data.group);
   const Icon = iconMap[data.icon as string] || iconMap[category.icon] || Bot;
-  const colors = getCategoryColors(category.color);
+
+  const customColor = data.color as string | undefined;
+  const isKnownColor = customColor && ['emerald', 'red', 'amber', 'blue', 'purple', 'gray', 'cyan', 'indigo', 'orange', 'yellow'].includes(customColor);
+  
+  const resolvedCategoryColor = isKnownColor ? customColor : category.color;
+  const colors = getCategoryColors(resolvedCategoryColor);
+  
+  const isCustomStyle = customColor && !isKnownColor;
+  
+  const borderStyle = isCustomStyle ? { borderColor: customColor } : {};
+  const iconBgStyle = isCustomStyle ? { backgroundColor: `color-mix(in srgb, ${customColor} 10%, transparent)` } : {};
+  const iconStyle = isCustomStyle ? { color: customColor } : {};
+  const textStyle = isCustomStyle ? { color: customColor } : {};
+
   const categoryName = category?.name || String(data.category || data.group || '');
   const isTrigger =
     data.node_type.toUpperCase() === 'TRIGGER' ||
@@ -83,19 +96,30 @@ export default function CustomNode({ data, selected }: NodeProps) {
 
   return (
     <div
-      className={`bg-white border-2 shadow-sm hover:shadow-md transition-all rounded-lg p-2 min-w-[140px] max-w-52 select-none ${colors.border} ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
-      style={{ cursor: 'grab' }} // Visual feedback
+      className={`bg-white border-2 shadow-sm hover:shadow-md transition-all rounded-lg p-2 min-w-[140px] max-w-52 select-none ${isCustomStyle ? '' : colors.border} ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+      style={{ cursor: 'grab', ...borderStyle }} // Visual feedback
     >
       <div className="flex items-start gap-1">
-        <div className={`rounded-md p-1 ${colors.bg}`}>
-          <Icon className={`h-5 w-5 ${colors.text}`} />
+        <div 
+          className={`rounded-md p-1 ${isCustomStyle ? '' : colors.bg}`}
+          style={iconBgStyle}
+        >
+          <Icon 
+            className={`h-5 w-5 ${isCustomStyle ? '' : colors.text}`} 
+            style={iconStyle}
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-gray-900 text-[15px] leading-tight truncate">
             {data.label}
           </div>
           <div className="mt-1 flex items-center gap-1">
-            <div className={`text-xs font-medium ${colors.text}`}>{data.node_type}</div>
+            <div 
+              className={`text-xs font-medium ${isCustomStyle ? '' : colors.text}`}
+              style={textStyle}
+            >
+              {data.node_type}
+            </div>
             {data.executionStatus && (
               <div
                 className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${

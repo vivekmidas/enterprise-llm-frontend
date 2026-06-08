@@ -14,6 +14,7 @@ import ReactFlow, {
   BackgroundVariant,
   ReactFlowProvider,
   useReactFlow,
+  MarkerType,
 } from 'reactflow';
 
 import 'reactflow/dist/style.css';
@@ -795,13 +796,20 @@ function AgentBuilderContent() {
             zoomOnDoubleClick={true}
             defaultEdgeOptions={{
               type: 'smoothstep',
-              animated: true,
+              animated: false,
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: '#981a04ff',
+                height:20,
+                width:20
+              
+              },
             }}
             connectionLineType={ConnectionLineType.Straight}
             defaultViewport={{ x: 0, y: 0, zoom: 1 }}
             fitView={false}
           >
-            <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
+            <Background variant={BackgroundVariant.Dots} gap={10} size={1} />
             <Controls />
             <MiniMap />
           </ReactFlow>

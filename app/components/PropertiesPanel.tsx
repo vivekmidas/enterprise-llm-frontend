@@ -123,7 +123,7 @@ export default function PropertiesPanel({
             <select
               multiple
               value={Array.isArray(value) ? value.map(String) : []}
-              onChange={(event) => {
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
                 const values = Array.from(event.target.selectedOptions, (option) => option.value);
                 handlePropertyChange(field.key, values);
               }}
@@ -145,7 +145,7 @@ export default function PropertiesPanel({
           <label className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
           <select
             value={String(value)}
-            onChange={(event) => handlePropertyChange(field.key, event.target.value)}
+            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => handlePropertyChange(field.key, event.target.value)}
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
           >
             {(field.options || []).map((option) => (
@@ -166,8 +166,8 @@ export default function PropertiesPanel({
           <textarea
             value={String(value)}
             placeholder={field.placeholder}
-            onChange={(event) => handlePropertyChange(field.key, event.target.value)}
-            className="h-28 w-full resize-y rounded-lg border border-gray-300 px-4 py-2.5 font-mono text-sm focus:outline-none focus:border-blue-500"
+            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => handlePropertyChange(field.key, event.target.value)}
+            className="h-28 w-full resize-y rounded-lg border border-gray-300 px-4 py-2.5 font-mono text-sm bg-white text-gray-900 focus:outline-none focus:border-blue-500"
           />
         </div>
       );
@@ -181,7 +181,7 @@ export default function PropertiesPanel({
           type={
             field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'
           }
-          value={String(value)}
+          value={String(value ?? '')}
           placeholder={field.placeholder}
           onChange={(event) =>
             handlePropertyChange(
@@ -189,7 +189,7 @@ export default function PropertiesPanel({
               field.type === 'number' ? Number(event.target.value) : event.target.value,
             )
           }
-          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-gray-900 focus:outline-none focus:border-blue-500"
         />
       </div>
     );
