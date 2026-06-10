@@ -619,7 +619,7 @@ function AgentBuilderContent() {
    */
   const onExecute = useCallback(async () => {
     // Look for Trigger nodes first, then fallback to Start node
-    const startNode = nodes.find((n) => n.data?.node_type.toUpperCase() === 'TRIGGER');
+    const startNode = nodes.find((n) => n.data?.node_type?.toUpperCase() === 'TRIGGER');
 
     if (!startNode) {
       setStatus('Agent must have a Trigger or Start node.');

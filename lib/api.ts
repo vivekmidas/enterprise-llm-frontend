@@ -1,10 +1,23 @@
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
+export interface NodeData {
+  label?: string;
+  properties: Record<string, any>;
+  [key: string]: any;
+}
+
+export interface Node {
+  id: string;
+  type?: string; // Make type optional to align with ReactFlow's Node definition
+  data: NodeData;
+  position?: { x: number; y: number };
+}
+
 export interface AgentPayload {
   id: string;
   name: string;
   description?: string;
-  nodes: unknown[];
+  nodes: Node[];
   edges: unknown[];
   category?: string;
   is_enabled?: boolean;
@@ -80,6 +93,16 @@ export const api = {
   updateNode: async (node: any) => {
     const res = await fetch(`${BACKEND_URL}/nodes/${node.name}`, {
       method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(node),
+    });
+    return res.json();
+  },
+
+    /** Updates a node definition in the registry (catalog) */
+  createNode: async (node: any) => {
+    const res = await fetch(`${BACKEND_URL}/nodes`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(node),
     });

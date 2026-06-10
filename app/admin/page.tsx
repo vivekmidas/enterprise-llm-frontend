@@ -47,6 +47,7 @@ interface NodeCategory {
 }
 
 interface AgentNode {
+  id?: number | string;
   name: string;
   label: string;
   description: string;
@@ -160,15 +161,23 @@ export default function AdminPage() {
   const handleSaveNode = async () => {
     if (!editingAgent) return;
     try {
-      // @ts-ignore - updateNode added to api.ts
-      await api.updateNode(editingAgent);
+      if (editingAgent.id) {
+        // @ts-ignore - updateNode added to api.ts
+        await api.updateNode(editingAgent);
+      } else {
+        // @ts-ignore - createNode added to api.ts
+        await api.createNode(editingAgent);
+      }
       const agentsRes = await api.getAgents();
       setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
       setEditingAgent(null);
     } catch (error) {
-      console.error('Failed to save node:', error);
+      const isUpdate = !!editingAgent.id;
+      console.error(`Failed to ${isUpdate ? 'save' : 'create'} node:`, error);
       alert(
-        'Failed to save node changes. Ensure the backend endpoint PUT /nodes/:name is implemented.',
+        `Failed to ${isUpdate ? 'save' : 'create'} node. Ensure the backend endpoint ${
+          isUpdate ? 'PUT /nodes/:name' : 'POST /nodes'
+        } is implemented.`,
       );
     }
   };
@@ -388,9 +397,33 @@ export default function AdminPage() {
 
         {/* Agents/Nodes Section */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Box className="h-5 w-5 text-gray-400" />
-            <h2 className="text-xl font-semibold text-gray-800">Available Nodes & Registry</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Box className="h-5 w-5 text-gray-400" />
+              <h2 className="text-xl font-semibold text-gray-800">Available Nodes & Registry</h2>
+            </div>
+            <button
+              onClick={() =>
+                setEditingAgent({
+                  name: '',
+                  label: '',
+                  description: '',
+                  node_type: 'default',
+                  version: '1.0.0',
+                  category: '',
+                  group: '',
+                  icon: 'bot',
+                  color: '#5E0CEC',
+                  badge: 'Node',
+                  sub_label: '',
+                  properties: {},
+                  property_schema: [],
+                })
+              }
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+            >
+              <Plus className="h-4 w-4" /> Add Node Type
+            </button>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <table className="w-full text-left">
@@ -434,7 +467,7 @@ export default function AdminPage() {
                               </span>
                               {agent.badge && (
                                 <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 border border-amber-100">
-                                  {agent.badge}
+                                  {agent.node_type}
                                 </span>
                               )}
                             </div>
@@ -498,9 +531,13 @@ export default function AdminPage() {
             <div className="flex h-[90vh] w-full flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
               <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Edit Node Registry</h3>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {editingAgent.id ? 'Edit Node Registry' : 'Create New Node Type'}
+                  </h3>
                   <p className="text-xs text-gray-500 font-mono uppercase">
-                    {editingAgent.name} v{editingAgent.version}
+                    {editingAgent.id
+                      ? `${editingAgent.name} v${editingAgent.version}`
+                      : 'New Registry Entry'}
                   </p>
                 </div>
                 <button
@@ -522,6 +559,30 @@ export default function AdminPage() {
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.label || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, label: e.target.value })}
+                      placeholder="e.g. My Custom Agent"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                      System Name (Unique ID)
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={editingAgent.name || ''}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, name: e.target.value })}
+                      placeholder="e.g. custom_llm_agent"
+                      disabled={!!editingAgent.id}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                      Version
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={editingAgent.version || '1.0.0'}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, version: e.target.value })}
+                      placeholder="1.0.0"
                     />
                   </div>
                   <div className="space-y-2">
@@ -535,9 +596,9 @@ export default function AdminPage() {
                         setEditingAgent({ ...editingAgent, category: e.target.value })
                       }
                     >
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.label}
+                      {categories.map((cat, index) => (
+                        <option key={cat.id || cat.name || `opt-${index}`} value={cat.name}>
+                          {cat.label || cat.name}
                         </option>
                       ))}
                     </select>
@@ -659,7 +720,7 @@ export default function AdminPage() {
                       </thead>
                       <tbody className="divide-y divide-gray-100 bg-white">
                         {(editingAgent.property_schema || []).map((field, idx) => (
-                          <tr key={idx} className="group hover:bg-gray-50 transition-colors">
+                          <tr key={field.key || idx} className="group hover:bg-gray-50 transition-colors">
                             <td className="px-4 py-3">
                               <input
                                 className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 font-mono text-xs text-gray-900"
@@ -732,13 +793,13 @@ export default function AdminPage() {
                   onClick={() => setEditingAgent(null)}
                   className="rounded-lg px-6 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
                 >
-                  Cancel
+                   Cancel
                 </button>
                 <button
                   onClick={handleSaveNode}
                   className="flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-2 text-sm font-bold text-white hover:bg-blue-700 shadow-md transition-all"
                 >
-                  <Save className="h-4 w-4" /> Update Registry
+                  <Save className="h-4 w-4" /> {editingAgent.id ? 'Update Registry' : 'Create Node Type'}
                 </button>
               </div>
             </div>

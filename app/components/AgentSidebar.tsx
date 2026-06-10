@@ -113,8 +113,8 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
         const fetchedCats = Array.isArray(categoryData)
           ? categoryData
           : categoryData.categories || [];
-        const mappedCategories: CategoryItem[] = fetchedCats.map((cat: any) => {
-          const id = typeof cat === 'object' ? Number(cat.id || 1) : 1;
+        const mappedCategories: CategoryItem[] = fetchedCats.map((cat: any, index: number) => {
+          const id = typeof cat === 'object' ? Number(cat.id || index + 1) : index + 1;
           const label = typeof cat === 'object' ? cat.label || cat.name || 'default' : String(cat);
 
           return {
@@ -267,7 +267,7 @@ export default function AgentSidebar({ onSelectAgent, onAllAgentsLoaded }: Agent
 
                 return (
                   <div
-                    key={`${agent.category}-${agent.name}`}
+                    key={agent.id || agent.name}
                     draggable
                     onDragStart={(event) => onDragStart(event, agent)}
                     onDragEnd={onDragEnd}

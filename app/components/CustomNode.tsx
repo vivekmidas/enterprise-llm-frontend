@@ -104,7 +104,7 @@ export default function CustomNode({ data, selected }: NodeProps) {
 
   const categoryName = category?.name || String(data.category || data.group || '');
   const isTrigger =
-    data.node_type.toUpperCase() === 'TRIGGER' ||
+    data.node_type?.toUpperCase() === 'TRIGGER' ||
     data.nodeType === 'trigger' ||
     categoryName === 'Trigger' ||
     data.name === 'Start';
