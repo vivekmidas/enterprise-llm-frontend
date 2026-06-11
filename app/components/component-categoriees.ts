@@ -1,4 +1,5 @@
 import { api } from '../../lib/api';
+import type { ComponentType } from 'react';
 
 export interface Category {
   id: number;
@@ -35,6 +36,76 @@ export interface AgentDefinition {
   outcome?: string;
   propertySchema?: AgentPropertyDefinition[];
   properties?: Record<string, PropertyValue>;
+}
+
+
+export interface CategoryItem {
+  group: number;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  color: string;
+  description?: string;
+  id: number;
+}
+
+export interface AgentSidebarProps {
+  onSelectAgent?: (id: string) => void;
+  onNewAgent?: () => void;
+  onAllAgentsLoaded?: (agentNames: string[]) => void;
+}
+
+
+
+
+export interface NodeCategory {
+  id?: number;
+  name: string;
+  group?: string;
+  label?: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+}
+
+export interface AgentNode {
+  id?: number | string;
+  name: string;
+  label: string;
+  description: string;
+  node_type: string;
+  version: string;
+  category: string;
+  group: string;
+  icon?: string;
+  color?: string;
+  badge?: string;
+  sub_label?: string;
+  properties: Record<string, any>;
+  property_schema: any[];
+}
+
+
+export interface NodeData {
+  label?: string;
+  properties: Record<string, any>;
+  [key: string]: any;
+}
+
+export interface Node {
+  id: string;
+  type?: string; // Make type optional to align with ReactFlow's Node definition
+  data: NodeData;
+  position?: { x: number; y: number };
+}
+
+export interface AgentPayload {
+  id: string;
+  name: string;
+  description?: string;
+  nodes: Node[];
+  edges: unknown[];
+  category?: string;
+  is_enabled?: boolean;
 }
 
 export const CATEGORIES: Record<string, Category> = {
@@ -78,7 +149,7 @@ export const getCategory = (name?: number): Category => {
 // retrieve node details from the backend api /nodes
 export const fetchNodeDetails = async (nodeName: string): Promise<Partial<AgentDefinition>> => {
   try {
-    const response = await api.getAgentByName(nodeName);
+    const response = await api.getNodesByName(nodeName);
 
     const data = response.node;
     // Return the full data object to ensure properties like icon, category, and label are available

@@ -5,7 +5,7 @@
  */
 'use client';
 
-import type { ComponentType } from 'react';
+import type { ComponentType, CSSProperties } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import {
   Shield,
@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { getCategory } from './component-categoriees';
 
-const iconMap: Record<string, ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, ComponentType<{ className?: string; style?: CSSProperties }>> = {
   shield: Shield,
   brain: Brain,
   cloud: Cloud,

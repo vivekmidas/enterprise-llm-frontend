@@ -36,32 +36,6 @@ import {
   UserCog,
 } from 'lucide-react';
 
-interface NodeCategory {
-  id?: number;
-  name: string;
-  group?: string;
-  label?: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-}
-
-interface AgentNode {
-  id?: number | string;
-  name: string;
-  label: string;
-  description: string;
-  node_type: string;
-  version: string;
-  category: string;
-  group: string;
-  icon?: string;
-  color?: string;
-  badge?: string;
-  sub_label?: string;
-  properties: Record<string, any>;
-  property_schema: any[];
-}
 
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   shield: Shield,
@@ -88,12 +62,14 @@ const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   megaphone: Megaphone,
   network: Network,
 };
+import { AgentNode, NodeCategory } from "@components/component-categoriees"
 
 export default function AdminPage() {
   const [agents, setAgents] = useState<AgentNode[]>([]);
   const [categories, setCategories] = useState<NodeCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingAgent, setEditingAgent] = useState<AgentNode | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<NodeCategory | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
@@ -101,8 +77,8 @@ export default function AdminPage() {
     async function loadAdminData() {
       try {
         const [agentsRes, catsRes] = await Promise.all([
-          api.getAgents(),
-          api.getWorkflowCategories(),
+          api.getNodes(),
+          api.getNodesCategories(),
         ]);
 
         // The backend returns { "nodes": [...] } for /nodes and { "categories": [...] } for /nodes/categories
@@ -113,6 +89,9 @@ export default function AdminPage() {
           typeof cat === 'string' ? { name: cat } : cat,
         );
         setCategories(normalizedCats);
+        if (normalizedCats.length > 0) {
+          setActiveCategory(normalizedCats[0].name);
+        }
       } catch (error) {
         console.error('Failed to load admin data:', error);
       } finally {
@@ -132,7 +111,7 @@ export default function AdminPage() {
         // @ts-ignore
         await api.createCategory(editingCategory);
       }
-      const catsRes = await api.getWorkflowCategories();
+      const catsRes = await api.getNodesCategories();
       const cats = Array.isArray(catsRes) ? catsRes : catsRes.categories || [];
       const normalizedCats = cats.map((cat: any) =>
         typeof cat === 'string' ? { name: cat } : cat,
@@ -150,7 +129,7 @@ export default function AdminPage() {
     try {
       // @ts-ignore
       await api.deleteCategory(id);
-      const catsRes = await api.getWorkflowCategories();
+      const catsRes = await api.getNodesCategories();
       const cats = Array.isArray(catsRes) ? catsRes : catsRes.categories || [];
       setCategories(cats.map((cat: any) => (typeof cat === 'string' ? { name: cat } : cat)));
     } catch (error) {
@@ -168,7 +147,7 @@ export default function AdminPage() {
         // @ts-ignore - createNode added to api.ts
         await api.createNode(editingAgent);
       }
-      const agentsRes = await api.getAgents();
+      const agentsRes = await api.getNodes();
       setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
       setEditingAgent(null);
     } catch (error) {
@@ -244,7 +223,7 @@ export default function AdminPage() {
     if (field.type === 'boolean') {
       return (
         <select
-          className={commonClasses}
+          className={`${commonClasses} text-gray-900`}
           value={String(value ?? false)}
           onChange={(e) => handleValChange(e.target.value === 'true')}
         >
@@ -258,7 +237,7 @@ export default function AdminPage() {
       return (
         <input
           type="number"
-          className={commonClasses}
+          className={`${commonClasses} text-gray-900`}
           value={value ?? 0}
           onChange={(e) => handleValChange(Number(e.target.value))}
         />
@@ -268,7 +247,7 @@ export default function AdminPage() {
     if (field.type === 'textarea') {
       return (
         <textarea
-          className={`${commonClasses} min-h-[60px] resize-y`}
+          className={`${commonClasses} text-gray-900 min-h-[60px] resize-y`}
           value={String(value ?? '')}
           placeholder="Multiline content..."
           onChange={(e) => handleValChange(e.target.value)}
@@ -279,7 +258,7 @@ export default function AdminPage() {
     if (field.multiple || field.type === 'list') {
       return (
         <input
-          className={commonClasses}
+          className={`${commonClasses} text-gray-900`}
           value={Array.isArray(value) ? value.join(', ') : String(value ?? '')}
           placeholder="val1, val2, val3..."
           onChange={(e) =>
@@ -296,7 +275,7 @@ export default function AdminPage() {
 
     return (
       <input
-        className={commonClasses}
+        className={`${commonClasses} text-gray-900`}
         value={typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')}
         placeholder="Enter value..."
         onChange={(e) => handleValChange(e.target.value)}
@@ -314,6 +293,10 @@ export default function AdminPage() {
       </div>
     );
   }
+
+  const filteredAgents = activeCategory 
+    ? agents.filter(a => a.category === activeCategory)
+    : agents;
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -359,7 +342,8 @@ export default function AdminPage() {
             {categories.map((cat) => (
               <div
                 key={cat.name}
-                className="group flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-all"
+                onClick={() => setActiveCategory(cat.name)}
+                className={`group cursor-pointer flex items-center justify-between rounded-xl border p-4 shadow-sm hover:shadow-md transition-all ${activeCategory === cat.name ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 bg-white'}`}
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -400,7 +384,7 @@ export default function AdminPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Box className="h-5 w-5 text-gray-400" />
-              <h2 className="text-xl font-semibold text-gray-800">Available Nodes & Registry</h2>
+              <h2 className="text-xl font-semibold text-gray-800">Nodes in {categories.find(c => c.name === activeCategory)?.label || activeCategory || 'Category'}</h2>
             </div>
             <button
               onClick={() =>
@@ -444,7 +428,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {agents.map((agent) => {
+                {filteredAgents.map((agent) => {
                   const AgentIcon = (agent.icon && iconMap[agent.icon.toLowerCase()]) || Box;
                   return (
                     <tr key={agent.name} className="hover:bg-gray-50 transition-colors">
@@ -763,7 +747,7 @@ export default function AdminPage() {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 text-xs text-gray-400 italic"
+                                className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 text-xs text-gray-700 italic"
                                 value={String(field.default ?? '')}
                                 placeholder="Hardcoded..."
                                 onChange={(e) => updateSchema(idx, 'default', e.target.value)}

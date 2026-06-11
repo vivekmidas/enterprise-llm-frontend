@@ -1,36 +1,14 @@
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-
-export interface NodeData {
-  label?: string;
-  properties: Record<string, any>;
-  [key: string]: any;
-}
-
-export interface Node {
-  id: string;
-  type?: string; // Make type optional to align with ReactFlow's Node definition
-  data: NodeData;
-  position?: { x: number; y: number };
-}
-
-export interface AgentPayload {
-  id: string;
-  name: string;
-  description?: string;
-  nodes: Node[];
-  edges: unknown[];
-  category?: string;
-  is_enabled?: boolean;
-}
+import { CategoryItem, AgentPayload } from "@/app/components/component-categoriees";
 
 export const api = {
   /** Fetches all available agent definitions that can be used as components */
-  getAgents: async (): Promise<{ agents: any[] }> => {
+  getNodes: async (): Promise<{ agents: any[] }> => {
     const res = await fetch(`${BACKEND_URL}/nodes`);
     return res.json();
   },
 
-  getAgentByName: async (name: string): Promise<any> => {
+  getNodesByName: async (name: string): Promise<any> => {
     const res = await fetch(`${BACKEND_URL}/nodes/${name}`);
     return res.json();
   },
@@ -40,17 +18,22 @@ export const api = {
     return res.json();
   },
 
-  getNodesForCategories: async (category_id: number): Promise<{ nodes: string[] }> => {
+  getNodesForCategories: async (category_id: number): Promise<{ nodes: CategoryItem[] }> => {
     const res = await fetch(`${BACKEND_URL}/nodes/categories/${category_id}`);
     return res.json();
   },
 
   /** Retrieves defined categories to organize workflows in the UI */
-  getWorkflowCategories: async (): Promise<string[] | { categories: string[] }> => {
+  getNodesCategories: async (): Promise<string[] | { categories: string[] }> => {
     const res = await fetch(`${BACKEND_URL}/categories`);
     return res.json();
   },
 
+  getCategory: async (category_id: number): Promise<{category:CategoryItem}> => {
+    const res = await fetch(`${BACKEND_URL}/categories/${category_id}`);
+    return res.json();
+  },
+  
   /** Triggers a workflow execution by sending a message to the backend */
   executeChat: async (message: string, agentId: string = 'default') => {
     const res = await fetch(`${BACKEND_URL}/api/chat`, {
@@ -67,9 +50,27 @@ export const api = {
     return res.json();
   },
 
-  /** Fetches the full graph data (nodes/edges) for a specific agent ID */
-  getWorkflowById: async (agentId: string = 'default') => {
-    const res = await fetch(`${BACKEND_URL}/workflows/${agentId}`);
+
+
+  /** Reads persisted properties for one node instance inside a workflow */
+  getAgentNodeProperties: async (agentId: string, nodeId: string) => {
+    const res = await fetch(`${BACKEND_URL}/agents/${agentId}/nodes/${nodeId}/properties`);
+    if (!res.ok) throw new Error('Failed to load workflow node properties');
+    return res.json();
+  },
+
+  /** Writes persisted properties for one node instance inside a workflow */
+  updateAgentNodeProperties: async (
+    agentId: string,
+    nodeId: string,
+    properties: Record<string, any>,
+  ) => {
+    const res = await fetch(`${BACKEND_URL}/agent/${agentId}/nodes/${nodeId}/properties`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(properties),
+    });
+    if (!res.ok) throw new Error('Failed to update workflow node properties');
     return res.json();
   },
 

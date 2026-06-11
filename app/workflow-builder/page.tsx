@@ -32,6 +32,16 @@ import {
 } from '../components/component-categoriees';
 
 const nodeTypes = { custom: CustomNode };
+const defaultEdgeOptions = {
+  type: 'smoothstep',
+  animated: false,
+  markerEnd: {
+    type: MarkerType.ArrowClosed,
+    color: '#981a04ff',
+    height: 20,
+    width: 20,
+  },
+};
 type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
 type NodeProperties = Record<string, PropertyValue>;
 type WorkflowNodeData = Record<
@@ -263,6 +273,17 @@ const updateSchedulerAgentSchema = (node: Node, agentNames: string[]): Node => {
 
 const initialNodes: Node[] = [];
 
+type WorkflowGraphPayload = {
+  nodes?: Node[];
+  nodes_structure?: Node[];
+  edges?: any[];
+};
+
+const getWorkflowNodes = (workflow: WorkflowGraphPayload | null | undefined): Node[] => {
+  if (!workflow) return initialNodes;
+  return workflow.nodes || workflow.nodes_structure || initialNodes;
+};
+
 function AgentBuilderContent() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -278,7 +299,8 @@ function AgentBuilderContent() {
   const [availableAgentNames, setAvailableAgentNames] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const { screenToFlowPosition } = useReactFlow();
+  const [shouldFitLoadedWorkflow, setShouldFitLoadedWorkflow] = useState(false);
+  const { screenToFlowPosition, getNodes, fitView } = useReactFlow();
 
   useEffect(() => {
     setIsMounted(true);
@@ -292,8 +314,15 @@ function AgentBuilderContent() {
   }, [availableAgentNames, setNodes, isMounted]);
 
   useEffect(() => {
+    if (!shouldFitLoadedWorkflow || nodes.length === 0) return;
+
+    window.requestAnimationFrame(() => fitView({ padding: 0.2, duration: 300 }));
+    setShouldFitLoadedWorkflow(false);
+  }, [fitView, nodes.length, shouldFitLoadedWorkflow]);
+
+  useEffect(() => {
     api
-      .getWorkflowCategories()
+      .getNodesCategories()
       .then((data) => {
         const cats = Array.isArray(data) ? data : data.categories || [];
         if (cats.length > 0) {
@@ -307,8 +336,9 @@ function AgentBuilderContent() {
   const onConnect = useCallback(
     (params: Connection) =>
       setEdges((eds) => {
-        const source = nodes.find((node) => node.id === params.source);
-        const target = nodes.find((node) => node.id === params.target);
+        const currentNodes = getNodes();
+        const source = currentNodes.find((node) => node.id === params.source);
+        const target = currentNodes.find((node) => node.id === params.target);
         const isTargetTrigger =
           target?.data?.properties?.node_type === 'trigger' ||
           target?.data?.nodeType === 'trigger' ||
@@ -345,10 +375,34 @@ function AgentBuilderContent() {
 
         return addEdge(params, eds);
       }),
-    [nodes, setEdges],
+    [getNodes, setEdges],
   );
 
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => setSelectedNode(node), []);
+  const onNodeClick = useCallback(
+    async (_: React.MouseEvent, node: Node) => {
+      setSelectedNode(node);
+      if (!agentId) return;
+
+      try {
+        const properties = await api.getAgentNodeProperties(agentId, node.id);
+        if (!properties) return;
+
+        const updatedNode = {
+          ...node,
+          data: {
+            ...node.data,
+            properties,
+          },
+        };
+
+        setNodes((nds) => nds.map((item) => (item.id === node.id ? updatedNode : item)));
+        setSelectedNode(updatedNode);
+      } catch {
+        setStatus('Unable to load node properties.');
+      }
+    },
+    [agentId, setNodes],
+  );
   const onPaneClick = () => setSelectedNode(null);
 
   /** React Flow DND: Allow the drop by preventing default browser behavior */
@@ -426,8 +480,18 @@ function AgentBuilderContent() {
         nds.map((node) => (node.id === nodeId ? { ...node, data: newData } : node)),
       );
       setSelectedNode((node) => (node?.id === nodeId ? { ...node, data: newData } : node));
+
+      if (agentId && newData.properties && typeof newData.properties === 'object') {
+        api
+          .updateAgentNodeProperties(
+            agentId,
+            nodeId,
+            newData.properties as Record<string, PropertyValue>,
+          )
+          .catch(() => setStatus('Unable to update node properties.'));
+      }
     },
-    [setNodes],
+    [agentId, setNodes],
   );
 
   const validateAgent = useCallback(() => {
@@ -553,7 +617,7 @@ function AgentBuilderContent() {
       }
 
       setNodes(
-        (latestWorkflow.nodes || initialNodes).map((node: Node) =>
+        getWorkflowNodes(latestWorkflow).map((node: Node) =>
           updateSchedulerAgentSchema(node, availableAgentNames),
         ),
       );
@@ -564,6 +628,7 @@ function AgentBuilderContent() {
       setIsAgentEnabled(latestWorkflow.is_enabled ?? true);
       setAgentVersion(latestWorkflow.version);
       setSelectedNode(null);
+      setShouldFitLoadedWorkflow(true);
       setStatus(`Loaded ${workflows.length} latest agent${workflows.length === 1 ? '' : 's'}.`);
     } catch {
       setStatus('Unable to get agents or update scheduler agent schema.');
@@ -582,7 +647,7 @@ function AgentBuilderContent() {
         }
 
         setNodes(
-          (data.nodes || initialNodes).map((node: Node) =>
+          getWorkflowNodes(data).map((node: Node) =>
             updateSchedulerAgentSchema(node, availableAgentNames),
           ),
         );
@@ -594,6 +659,7 @@ function AgentBuilderContent() {
         setAgentVersion(data.version);
         setSelectedNode(null);
         setExecutionTrace([]);
+        setShouldFitLoadedWorkflow(true);
         setStatus(`Loaded ${data.name || id}.`);
       } catch (e) {
         setStatus(`Unable to load agent ${id}.`);
@@ -601,6 +667,22 @@ function AgentBuilderContent() {
     },
     [setEdges, setNodes, availableAgentNames],
   );
+
+  const handleNewAgent = useCallback(() => {
+    if (nodes.length > 0 && !window.confirm('Clear current board and start a new agent?')) {
+      return;
+    }
+    setNodes([]);
+    setEdges([]);
+    setAgentId('');
+    setAgentName('New Agent');
+    setAgentCategory('default');
+    setIsAgentEnabled(true);
+    setAgentVersion(null);
+    setSelectedNode(null);
+    setExecutionTrace([]);
+    setStatus('Started new agent.');
+  }, [nodes.length, setNodes, setEdges]);
 
   const setNodeExecutionStatus = useCallback(
     (nodeId: string, executionStatus: ExecutionStatus) => {
@@ -767,7 +849,7 @@ function AgentBuilderContent() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar - Pass onAllAgentsLoaded callback */}
-        <AgentSidebar onSelectAgent={loadAgent} onAllAgentsLoaded={setAvailableAgentNames} />
+        <AgentSidebar onSelectAgent={loadAgent} onNewAgent={handleNewAgent} onAllAgentsLoaded={setAvailableAgentNames} />
 
         {/* Main Canvas */}
         {/* Canvas Container */}
@@ -794,18 +876,9 @@ function AgentBuilderContent() {
             panOnScroll={true}
             zoomOnScroll={true}
             zoomOnDoubleClick={true}
-            defaultEdgeOptions={{
-              type: 'smoothstep',
-              animated: false,
-              markerEnd: {
-                type: MarkerType.ArrowClosed,
-                color: '#981a04ff',
-                height: 20,
-                width: 20,
-              },
-            }}
+            defaultEdgeOptions={defaultEdgeOptions}
             connectionLineType={ConnectionLineType.Straight}
-            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+            defaultViewport={{ x: 0, y: 0, zoom: 1}}
             fitView={false}
           >
             <Background variant={BackgroundVariant.Dots} gap={10} size={1} />
