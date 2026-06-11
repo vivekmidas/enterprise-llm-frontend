@@ -1,5 +1,6 @@
 import { api } from '../../lib/api';
 import type { ComponentType } from 'react';
+import type { CSSProperties } from 'react';
 
 export interface Category {
   id: number;
@@ -42,7 +43,7 @@ export interface AgentDefinition {
 export interface CategoryItem {
   group: number;
   label: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string; style?: CSSProperties }>;
   color: string;
   description?: string;
   id: number;

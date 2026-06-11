@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DragEvent } from 'react';
-import type { ComponentType } from 'react';
+import type { DragEvent, ComponentType, CSSProperties } from 'react';
 import {
   AlertTriangle,
   AlertCircle,
@@ -35,7 +34,7 @@ import {
 import { api } from '@/lib/api';
 import { CATEGORIES, getCategory, normalizeAgent , AgentSidebarProps, CategoryItem} from './component-categoriees';
 
-const iconMap: Record<string, ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, ComponentType<{ className?: string; style?: CSSProperties }>> = {
   shield: Shield,
   'alert-triangle': AlertTriangle,
   'user-cog': UserCog,
@@ -58,7 +57,7 @@ const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   network: Network,
 };
 
-const componentIconMap: Record<string, ComponentType<{ className?: string }>> = {
+const componentIconMap: Record<string, ComponentType<{ className?: string; style?: CSSProperties }>> = {
   WhatsApp: MessageCircle,
   Email: Mail,
   Tweet: Send,

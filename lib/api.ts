@@ -137,4 +137,33 @@ export const api = {
     });
     return res.ok;
   },
+
+  // Admin Trigger Management
+  getTriggerInstances: async (): Promise<any[]> => {
+    const res = await fetch(`${BACKEND_URL}/admin/triggers`);
+    return res.json();
+  },
+
+  activateTrigger: async (nodeName: string, agentNodeId: string, workflowConfig: any) => {
+    const res = await fetch(`${BACKEND_URL}/admin/triggers/${nodeName}/activate?agent_node_id=${agentNodeId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(workflowConfig),
+    });
+    return res.json();
+  },
+
+  deactivateTrigger: async (nodeName: string, agentNodeId: string) => {
+    const res = await fetch(`${BACKEND_URL}/admin/triggers/${nodeName}/deactivate?agent_node_id=${agentNodeId}`, {
+      method: 'POST',
+    });
+    return res.json();
+  },
+
+  stopAllTriggers: async (nodeName: string) => {
+    const res = await fetch(`${BACKEND_URL}/admin/triggers/${nodeName}/stop_all`, {
+      method: 'POST',
+    });
+    return res.json();
+  },
 };
