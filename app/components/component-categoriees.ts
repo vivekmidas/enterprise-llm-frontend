@@ -39,7 +39,6 @@ export interface AgentDefinition {
   properties?: Record<string, PropertyValue>;
 }
 
-
 export interface CategoryItem {
   group: number;
   label: string;
@@ -54,9 +53,6 @@ export interface AgentSidebarProps {
   onNewAgent?: () => void;
   onAllAgentsLoaded?: (agentNames: string[]) => void;
 }
-
-
-
 
 export interface NodeCategory {
   id?: number;
@@ -84,7 +80,6 @@ export interface AgentNode {
   properties: Record<string, any>;
   property_schema: any[];
 }
-
 
 export interface NodeData {
   label?: string;

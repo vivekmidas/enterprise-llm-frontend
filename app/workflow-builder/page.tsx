@@ -849,7 +849,11 @@ function AgentBuilderContent() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar - Pass onAllAgentsLoaded callback */}
-        <AgentSidebar onSelectAgent={loadAgent} onNewAgent={handleNewAgent} onAllAgentsLoaded={setAvailableAgentNames} />
+        <AgentSidebar
+          onSelectAgent={loadAgent}
+          onNewAgent={handleNewAgent}
+          onAllAgentsLoaded={setAvailableAgentNames}
+        />
 
         {/* Main Canvas */}
         {/* Canvas Container */}
@@ -878,7 +882,7 @@ function AgentBuilderContent() {
             zoomOnDoubleClick={true}
             defaultEdgeOptions={defaultEdgeOptions}
             connectionLineType={ConnectionLineType.Straight}
-            defaultViewport={{ x: 0, y: 0, zoom: 1}}
+            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
             fitView={false}
           >
             <Background variant={BackgroundVariant.Dots} gap={10} size={1} />

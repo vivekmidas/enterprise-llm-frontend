@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, type ComponentType } from 'react';
+import Link from 'next/link';
+
 import { api } from '@/lib/api';
 import {
   Shield,
@@ -9,6 +11,7 @@ import {
   Box,
   Info,
   Code2,
+Zap,
   Edit2,
   Save,
   Plus,
@@ -36,7 +39,6 @@ import {
   UserCog,
 } from 'lucide-react';
 
-
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   shield: Shield,
   'alert-triangle': AlertTriangle,
@@ -54,6 +56,7 @@ const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   user: User,
   info: Info,
   code: Code2,
+  zap: Zap,
   brain: Brain,
   'brain-circuit': BrainCircuit,
   cloud: Cloud,
@@ -62,24 +65,23 @@ const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   megaphone: Megaphone,
   network: Network,
 };
-import { AgentNode, NodeCategory } from "@components/component-categoriees"
+import { AgentNode, NodeCategory } from '@components/component-categoriees';
 
 export default function AdminPage() {
   const [agents, setAgents] = useState<AgentNode[]>([]);
   const [categories, setCategories] = useState<NodeCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AgentNode | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<NodeCategory | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     async function loadAdminData() {
       try {
-        const [agentsRes, catsRes] = await Promise.all([
-          api.getNodes(),
-          api.getNodesCategories(),
-        ]);
+        const [agentsRes, catsRes] = await Promise.all([api.getNodes(), api.getNodesCategories()]);
 
         // The backend returns { "nodes": [...] } for /nodes and { "categories": [...] } for /nodes/categories
         setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
@@ -100,6 +102,10 @@ export default function AdminPage() {
     }
     loadAdminData();
   }, []);
+
+  if (!isMounted) {
+    return null;
+  }
 
   const handleSaveCategory = async () => {
     if (!editingCategory) return;
@@ -294,8 +300,8 @@ export default function AdminPage() {
     );
   }
 
-  const filteredAgents = activeCategory 
-    ? agents.filter(a => a.category === activeCategory)
+  const filteredAgents = activeCategory
+    ? agents.filter((a) => a.category === activeCategory)
     : agents;
 
   return (
@@ -313,6 +319,13 @@ export default function AdminPage() {
             <span className="text-sm font-semibold text-gray-700">Admin Console</span>
           </div>
         </header>
+
+        <Link
+          href="/oauth/gmail"
+          className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm border border-gray-200 hover:bg-gray-50 transition-all w-fit"
+        >
+          <Zap className="h-4 w-4 text-blue-600" /> Connect Google
+        </Link>
 
         {/* Categories Section */}
         <section className="space-y-4">
@@ -339,9 +352,9 @@ export default function AdminPage() {
             </button>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {categories.map((cat) => (
+            {categories.map((cat, idx) => (
               <div
-                key={cat.name}
+                key={cat.id || `cat-${cat.name}-${idx}`}
                 onClick={() => setActiveCategory(cat.name)}
                 className={`group cursor-pointer flex items-center justify-between rounded-xl border p-4 shadow-sm hover:shadow-md transition-all ${activeCategory === cat.name ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 bg-white'}`}
               >
@@ -384,7 +397,12 @@ export default function AdminPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Box className="h-5 w-5 text-gray-400" />
-              <h2 className="text-xl font-semibold text-gray-800">Nodes in {categories.find(c => c.name === activeCategory)?.label || activeCategory || 'Category'}</h2>
+              <h2 className="text-xl font-semibold text-gray-800">
+                Nodes in{' '}
+                {categories.find((c) => c.name === activeCategory)?.label ||
+                  activeCategory ||
+                  'Category'}
+              </h2>
             </div>
             <button
               onClick={() =>
@@ -428,10 +446,10 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredAgents.map((agent) => {
+                {filteredAgents.map((agent, idx) => {
                   const AgentIcon = (agent.icon && iconMap[agent.icon.toLowerCase()]) || Box;
                   return (
-                    <tr key={agent.name} className="hover:bg-gray-50 transition-colors">
+                    <tr key={agent.id ? `node-${agent.id}` : `node-${agent.name}-${idx}`} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-start gap-3">
                           <div
@@ -480,6 +498,14 @@ export default function AdminPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
+                        <div>
+                           <button
+                          onClick={() => setEditingAgent({ ...agent })}
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-sm"
+                        >
+                          <Edit2 className="h-4 w-4" /> Edit
+                        </button>
+                        </div>
                         <div className="max-h-48 w-full overflow-auto rounded-lg bg-gray-950 p-4 text-[11px] font-mono text-emerald-400 shadow-inner">
                           <pre>
                             {JSON.stringify(
@@ -494,12 +520,7 @@ export default function AdminPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => setEditingAgent({ ...agent })}
-                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-sm"
-                        >
-                          <Edit2 className="h-4 w-4" /> Edit
-                        </button>
+                       
                       </td>
                     </tr>
                   );
@@ -565,7 +586,9 @@ export default function AdminPage() {
                     <input
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.version || '1.0.0'}
-                      onChange={(e) => setEditingAgent({ ...editingAgent, version: e.target.value })}
+                      onChange={(e) =>
+                        setEditingAgent({ ...editingAgent, version: e.target.value })
+                      }
                       placeholder="1.0.0"
                     />
                   </div>
@@ -580,8 +603,8 @@ export default function AdminPage() {
                         setEditingAgent({ ...editingAgent, category: e.target.value })
                       }
                     >
-                      {categories.map((cat, index) => (
-                        <option key={cat.id || cat.name || `opt-${index}`} value={cat.name}>
+                        {categories.map((cat, idx) => (
+                          <option key={`opt-${cat.id || cat.name || idx}`} value={cat.name}>
                           {cat.label || cat.name}
                         </option>
                       ))}
@@ -704,7 +727,10 @@ export default function AdminPage() {
                       </thead>
                       <tbody className="divide-y divide-gray-100 bg-white">
                         {(editingAgent.property_schema || []).map((field, idx) => (
-                          <tr key={field.key || idx} className="group hover:bg-gray-50 transition-colors">
+                          <tr
+                            key={field.key || idx}
+                            className="group hover:bg-gray-50 transition-colors"
+                          >
                             <td className="px-4 py-3">
                               <input
                                 className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 font-mono text-xs text-gray-900"
@@ -777,13 +803,14 @@ export default function AdminPage() {
                   onClick={() => setEditingAgent(null)}
                   className="rounded-lg px-6 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
                 >
-                   Cancel
+                  Cancel
                 </button>
                 <button
                   onClick={handleSaveNode}
                   className="flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-2 text-sm font-bold text-white hover:bg-blue-700 shadow-md transition-all"
                 >
-                  <Save className="h-4 w-4" /> {editingAgent.id ? 'Update Registry' : 'Create Node Type'}
+                  <Save className="h-4 w-4" />{' '}
+                  {editingAgent.id ? 'Update Registry' : 'Create Node Type'}
                 </button>
               </div>
             </div>

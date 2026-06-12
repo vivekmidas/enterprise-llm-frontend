@@ -32,7 +32,13 @@ import {
   Zap,
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { CATEGORIES, getCategory, normalizeAgent , AgentSidebarProps, CategoryItem} from './component-categoriees';
+import {
+  CATEGORIES,
+  getCategory,
+  normalizeAgent,
+  AgentSidebarProps,
+  CategoryItem,
+} from './component-categoriees';
 
 const iconMap: Record<string, ComponentType<{ className?: string; style?: CSSProperties }>> = {
   shield: Shield,
@@ -57,7 +63,10 @@ const iconMap: Record<string, ComponentType<{ className?: string; style?: CSSPro
   network: Network,
 };
 
-const componentIconMap: Record<string, ComponentType<{ className?: string; style?: CSSProperties }>> = {
+const componentIconMap: Record<
+  string,
+  ComponentType<{ className?: string; style?: CSSProperties }>
+> = {
   WhatsApp: MessageCircle,
   Email: Mail,
   Tweet: Send,
@@ -71,7 +80,11 @@ const componentIconMap: Record<string, ComponentType<{ className?: string; style
   'Scheduler Agent': Clock,
 };
 
-export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoaded }: AgentSidebarProps) {
+export default function AgentSidebar({
+  onSelectAgent,
+  onNewAgent,
+  onAllAgentsLoaded,
+}: AgentSidebarProps) {
   const [categoryNodes, setCategoryNodes] = useState<any[]>([]);
   const [triggers, setTriggers] = useState<any[]>([]);
   const [logic, setLogic] = useState<any[]>([]);
@@ -84,11 +97,11 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
   const [selectedCategoryNodes, setSelectedCategoryNodes] = useState<CategoryItem[]>([]);
 
   const isTrigger = (n: any) => n.node_type?.toUpperCase() === 'TRIGGER';
-  
-  const isLogic = (n: any) => 
-    n.node_type?.toUpperCase() === 'CONDITION' || 
+
+  const isLogic = (n: any) =>
+    n.node_type?.toUpperCase() === 'CONDITION' ||
     n.node_type?.toUpperCase() === 'LOGIC' ||
-    n.name?.toLowerCase().includes('condition') || 
+    n.name?.toLowerCase().includes('condition') ||
     n.category?.toLowerCase().includes('condition');
 
   useEffect(() => {
@@ -102,13 +115,15 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
         const fetchedAgents = Array.isArray(nodesData)
           ? nodesData
           : (nodesData as any).nodes || (nodesData as any).agents || [];
-        
+
         // Separate global components from category-specific ones
         setTriggers(fetchedAgents.filter(isTrigger));
         setLogic(fetchedAgents.filter(isLogic));
-        setCategoryNodes(fetchedAgents.filter((n: any) => 
-          Number(n.category) === activeGroup && !isTrigger(n) && !isLogic(n)
-        ));
+        setCategoryNodes(
+          fetchedAgents.filter(
+            (n: any) => Number(n.category) === activeGroup && !isTrigger(n) && !isLogic(n),
+          ),
+        );
 
         const agentsArray = Array.isArray(agentListData)
           ? agentListData
@@ -130,10 +145,9 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
             id,
           };
         });
-        
+
         setSelectedCategory(selectedCategory);
         setCategories(mappedCategories);
-        
 
         if (mappedCategories.length > 0 && !mappedCategories.some((c) => c.id === activeGroup)) {
           setActiveGroup(mappedCategories[0].id);
@@ -162,7 +176,7 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
       const fetchedNodes = Array.isArray(nodesData)
         ? nodesData
         : (nodesData as any).nodes || (nodesData as any).agents || [];
-      
+
       // Filter out triggers/logic so they don't appear in the Actions section twice
       setCategoryNodes(fetchedNodes.filter((n: any) => !isTrigger(n) && !isLogic(n)));
       const fetchedCategory = await api.getCategory(category_id);
@@ -175,7 +189,9 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
   const searchFilter = (node: any) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
-    return `${node.label || ''} ${node.name || ''} ${node.description || ''}`.toLowerCase().includes(query);
+    return `${node.label || ''} ${node.name || ''} ${node.description || ''}`
+      .toLowerCase()
+      .includes(query);
   };
 
   // Filter nodes into specialized sections
@@ -183,9 +199,7 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
   const logicNodes = logic.filter(searchFilter);
 
   const actionNodes = categoryNodes.filter(
-    (n) =>
-      Number(n.category) === activeGroup &&
-      searchFilter(n)
+    (n) => Number(n.category) === activeGroup && searchFilter(n),
   );
 
   const onDragStart = (event: DragEvent<HTMLDivElement>, agent: any) => {
@@ -202,11 +216,7 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
 
   const renderNodeItem = (node: any) => {
     const category = getCategory(node.id);
-    const Icon =
-      componentIconMap[node.icon] ||
-      iconMap[node.icon] ||
-      iconMap[category.icon] ||
-      Bot;
+    const Icon = componentIconMap[node.icon] || iconMap[node.icon] || iconMap[category.icon] || Bot;
 
     return (
       <div
@@ -247,7 +257,10 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
 
   return (
     <div className="w-[320px] shrink-0 overflow-auto border-r border-sky-200 bg-white px-5 py-6">
-      <button onClick={onNewAgent} className="mb-7 flex w-full items-center gap-2 rounded-lg bg-blue-50 px-5 py-1 text-left text-sm font-medium text-blue-600 transition-colors hover:bg-blue-100">
+      <button
+        onClick={onNewAgent}
+        className="mb-7 flex w-full items-center gap-2 rounded-lg bg-blue-50 px-5 py-1 text-left text-sm font-medium text-blue-600 transition-colors hover:bg-blue-100"
+      >
         <Plus className="h-6 w-6" />
         <span>New Agent</span>
       </button>
@@ -269,7 +282,9 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
 
       <div className="my-2 border-t-2 border-stone-200" />
 
-      <h2 className="mb-5 text-sm font-semibold text-slate-800 uppercase tracking-wider">Triggers</h2>
+      <h2 className="mb-5 text-sm font-semibold text-slate-800 uppercase tracking-wider">
+        Triggers
+      </h2>
       {/* Trigger Section */}
       <div className="flex gap-2">
         <div className="flex w-8 shrink-0 flex-col items-center gap-2">
@@ -286,7 +301,9 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
           <div className="space-y-6">
             {triggerNodes.length > 0 && (
               <div>
-                <h4 className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Entry Points</h4>
+                <h4 className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Entry Points
+                </h4>
                 <div className="space-y-2">{triggerNodes.map(renderNodeItem)}</div>
               </div>
             )}
@@ -294,16 +311,16 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
             {/* Logic/Condition Section */}
             {logicNodes.length > 0 && (
               <div>
-                <h4 className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Flow Logic</h4>
+                <h4 className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Flow Logic
+                </h4>
                 <div className="space-y-2">{logicNodes.map(renderNodeItem)}</div>
               </div>
             )}
           </div>
         </div>
       </div>
-      <h2 className="mb-5 text-sm font-semibold text-slate-800 uppercase tracking-wider">
-        Nodes
-      </h2>
+      <h2 className="mb-5 text-sm font-semibold text-slate-800 uppercase tracking-wider">Nodes</h2>
 
       <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-1 text-gray-400 shadow-sm">
         <Search className="h-5 w-5 shrink-0" />
@@ -329,9 +346,7 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
                 aria-label={category.label}
                 onClick={() => handleCategoryClick(category.id)}
                 className={`flex h-8 w-8 items-center justify-center rounded-lg border bg-white transition-all hover:border-blue-300 hover:bg-blue-50 ${
-                  isActive
-                    ? 'border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-300'
-                    : ''
+                  isActive ? 'border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-300' : ''
                 }`}
               >
                 <Icon className="h-5 w-5" style={{ color: category.color }} />
@@ -342,24 +357,25 @@ export default function AgentSidebar({ onSelectAgent, onNewAgent, onAllAgentsLoa
 
         <div className="min-w-0 flex-1 border-l border-stone-200 pl-4">
           <h3 className="mb-5 text-lg font-semibold text-slate-800">
-            {selectedCategory?.label || 
-            ""}
+            {selectedCategory?.label || ''}
           </h3>
 
           {loading ? (
             <p className="text-gray-500">Loading components...</p>
           ) : (
             <div className="space-y-6">
-             
-
               {/* Actions Section (Filtered by Category) */}
               <div>
                 <h4 className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                   {selectedCategory?.label || 'Actions'}
                 </h4>
                 <div className="space-y-2">
-                  {actionNodes.length > 0 ? actionNodes.map(renderNodeItem) : (
-                    <p className="text-xs text-gray-400 italic">No actions available in this category.</p>
+                  {actionNodes.length > 0 ? (
+                    actionNodes.map(renderNodeItem)
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">
+                      No actions available in this category.
+                    </p>
                   )}
                 </div>
               </div>
