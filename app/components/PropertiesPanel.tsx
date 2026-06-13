@@ -1,10 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Node } from 'reactflow';
 import { X, Settings, Save, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { AgentPropertyDefinition, PropertyValue } from './component-categoriees';
+// Assuming AgentPropertyDefinition and PropertyValue are defined in component-categoriees.ts
+// If not, you would define them here:
+// export type PropertyValue = string | number | boolean | string[] | undefined;
+// export interface AgentPropertyDefinition {
+//   key: string;
+//   label: string;
+//   type: 'string' | 'number' | 'boolean' | 'choice' | 'textarea' | 'password' | 'credential';
+//   placeholder?: string;
+//   default?: PropertyValue;
+//   options?: string[]; // For 'choice' type
+//   multiple?: boolean; // For 'choice' type
+//   description?: string;
+//   credentialType?: string; // New field for 'credential' type
+// }
 
 /** Type representing agent-specific configuration values */
 type NodeProperties = Record<string, PropertyValue>;
@@ -23,6 +37,8 @@ interface PropertiesPanelProps {
   onUpdateNode?: (nodeId: string, newData: NodeData) => void;
   /** Callback for global save action */
   onSave?: () => void;
+  /** The ID of the current workflow (agent) */
+  workflowId?: string;
 }
 
 /**
@@ -36,8 +52,58 @@ export default function PropertiesPanel({
   onClose,
   onUpdateNode,
   onSave,
+  workflowId,
 }: PropertiesPanelProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const [credentials, setCredentials] = useState<any[]>([]);
+  const [providers, setProviders] = useState<any[]>([]);
+  const [showAuthForm, setShowAuthForm] = useState<string | null>(null);
+  const [newConn, setNewConn] = useState({ name: '', clientId: '', clientSecret: '' });
+  const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<string>('');
+
+  useEffect(() => {
+    const fetchProviders = async () => {
+      try {
+        const data = await api.getProviders();
+        setProviders(data);
+      } catch (err) {
+        console.error('Failed to load OAuth providers', err);
+      }
+    };
+    fetchProviders();
+  }, []);
+
+  const handleStartAuth = (provider: string) => {
+    const providerKey = provider || selectedProvider;
+    const url = `/auth/${providerKey}/connect/?client_id=${newConn.clientId}&client_secret=${newConn.clientSecret}&name=${encodeURIComponent(newConn.name)}`;
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    window.open(url, 'auth-popup', `width=${width},height=${height},left=${left},top=${top}`);
+  };
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'CREDENTIAL_CREATED') {
+        const { credentialId, credentialName } = event.data;
+        setCredentials((prev) => [
+          ...prev,
+          { id: credentialId, name: credentialName, type: showAuthForm },
+        ]);
+        if (activeFieldKey) {
+          handlePropertyChange(activeFieldKey, credentialId);
+        }
+        setShowAuthForm(null);
+        setSelectedProvider('');
+        setNewConn({ name: '', clientId: '', clientSecret: '' });
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [showAuthForm, activeFieldKey]);
 
   /**
    * Updates a nested property inside the 'properties' bag.
@@ -100,9 +166,9 @@ export default function PropertiesPanel({
       return (
         <label
           key={field.key}
-          className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-4 py-3 text-sm"
+          className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-4 py-3 text-sm text-black"
         >
-          <span className="font-medium text-gray-700">{field.label}</span>
+          <span className="font-medium">{field.label}</span>
           <input
             type="checkbox"
             checked={Boolean(value)}
@@ -110,6 +176,119 @@ export default function PropertiesPanel({
             className="h-4 w-4 accent-blue-600"
           />
         </label>
+      );
+    }
+
+    // OAuth Configuration and Connection Flow
+    if (field.type === 'oauth') {
+      const clientIdKey = `${field.key}_client_id`;
+      const clientSecretKey = `${field.key}_client_secret`;
+      const credentialId = String(value || '');
+
+      const clientId = String(properties[clientIdKey] || '');
+      const clientSecret = String(properties[clientSecretKey] || '');
+
+      return (
+        <div
+          key={field.key}
+          className="space-y-4 p-4 border rounded-xl bg-slate-50 shadow-sm transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              {field.label}
+            </label>
+            {credentialId && (
+              <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                CONNECTED
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {providers.length > 0 && (
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
+                  Provider
+                </label>
+                <select
+                  value={selectedProvider || (properties[`${field.key}_provider`] as string) || ''}
+                  onChange={(e) => setSelectedProvider(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all disabled:bg-gray-100"
+                >
+                  <option value="">Choose OAuth Provider...</option>
+                  {providers.map((p: any) => (
+                    <option key={p.id} value={p.name}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
+                  Client ID
+                </label>
+                <input
+                  type="text"
+                  value={clientId}
+                  onChange={(e) => handlePropertyChange(clientIdKey, e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="e.g. 8234-abc..."
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
+                  Client Secret
+                </label>
+                <input
+                  type="password"
+                  value={clientSecret}
+                  onChange={(e) => handlePropertyChange(clientSecretKey, e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="••••••••••••"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              disabled={!clientId || !clientSecret || !selectedProvider}
+              onClick={() => {
+                setActiveFieldKey(field.key);
+                const providerKey = selectedProvider;
+                const url = `/api/oauth/google/connect?client_id=${clientId}&client_secret=${clientSecret}&workflow_id=${workflowId}&node_id=${selectedNode?.id}`;
+
+                const width = 600;
+                const height = 700;
+                const left = window.screenX + (window.outerWidth - width) / 2;
+                const top = window.screenY + (window.outerHeight - height) / 2;
+                window.open(
+                  url,
+                  'auth-popup',
+                  `width=${width},height=${height},left=${left},top=${top}`,
+                );
+              }}
+              className={`w-full py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 ${
+                credentialId
+                  ? 'bg-white border border-blue-200 text-blue-600 hover:bg-blue-50'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none'
+              }`}
+            >
+              {credentialId ? 'Reconnect Account' : 'Authenticate & Connect'}
+            </button>
+          </div>
+
+          {/* {field.description && (
+            <p className="text-[10px] text-slate-400 leading-tight bg-slate-100 p-2 rounded-md border border-slate-200 italic">
+              {field.description}
+            </p>
+          )} */}
+        </div>
       );
     }
 
@@ -171,7 +350,7 @@ export default function PropertiesPanel({
             onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
               handlePropertyChange(field.key, event.target.value)
             }
-            className="h-28 w-full resize-y rounded-lg border border-gray-300 px-4 py-2.5 font-mono text-sm bg-white text-gray-900 focus:outline-none focus:border-blue-500"
+            className="h-28 w-full resize-y rounded-lg border border-gray-300 px-4 py-2.5 font-mono text-sm bg-white text-black focus:outline-none focus:border-blue-500"
           />
         </div>
       );
@@ -193,7 +372,7 @@ export default function PropertiesPanel({
               field.type === 'number' ? Number(event.target.value) : event.target.value,
             )
           }
-          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-gray-900 focus:outline-none focus:border-blue-500"
+          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500"
         />
       </div>
     );
@@ -223,7 +402,7 @@ export default function PropertiesPanel({
     <div className="w-80 border-l border-gray-200 bg-white flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b bg-gray-50 flex items-center justify-between shrink-0">
-        <div className="font-semibold text-gray-900 flex items-center gap-2">
+        <div className="font-semibold text-black flex items-center gap-2">
           <Settings className="w-4 h-4" />
           Node Properties
         </div>

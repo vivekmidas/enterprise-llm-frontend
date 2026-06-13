@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = request.nextUrl;
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state'); // Expected format: "workflow_id|node_id"
 
-  if (!code) {
-    return NextResponse.json({ error: 'Missing authorization code' }, { status: 400 });
+  if (!code || !state) {
+    return NextResponse.json({ error: 'Missing code or state' }, { status: 400 });
   }
 
-  // Extract context from state (Google returns the state exactly as provided)
-  const [workflow_id, node_id] = (state || '').split('|');
-
-  if (!workflow_id || !node_id) {
-    return NextResponse.json({ error: 'Missing workflow or node identity in state' }, { status: 400 });
-  }
+  const [workflow_id, node_id] = state.split('|');
 
   try {
     // 1. Exchange the authorization code for tokens
@@ -22,10 +17,10 @@ export async function GET(request: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        code: code as string,
+        code,
         client_id: process.env.GOOGLE_CLIENT_ID || '',
         client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/oauth/google/callback`,
+        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
         grant_type: 'authorization_code',
       }),
     });

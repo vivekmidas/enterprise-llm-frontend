@@ -11,7 +11,7 @@ import {
   Box,
   Info,
   Code2,
-Zap,
+  Zap,
   Edit2,
   Save,
   Plus,
@@ -76,12 +76,19 @@ export default function AdminPage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<NodeCategory | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'nodes' | 'providers'>('nodes');
+  const [providers, setProviders] = useState<any[]>([]);
+  const [editingProvider, setEditingProvider] = useState<any | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
     async function loadAdminData() {
       try {
-        const [agentsRes, catsRes] = await Promise.all([api.getNodes(), api.getNodesCategories()]);
+        const [agentsRes, catsRes, providersRes] = await Promise.all([
+          api.getNodes(),
+          api.getNodesCategories(),
+          api.getProviders(),
+        ]);
 
         // The backend returns { "nodes": [...] } for /nodes and { "categories": [...] } for /nodes/categories
         setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
@@ -94,6 +101,7 @@ export default function AdminPage() {
         if (normalizedCats.length > 0) {
           setActiveCategory(normalizedCats[0].name);
         }
+        setProviders(providersRes || []);
       } catch (error) {
         console.error('Failed to load admin data:', error);
       } finally {
@@ -140,6 +148,18 @@ export default function AdminPage() {
       setCategories(cats.map((cat: any) => (typeof cat === 'string' ? { name: cat } : cat)));
     } catch (error) {
       console.error('Failed to delete category:', error);
+    }
+  };
+
+  const handleSaveProvider = async () => {
+    if (!editingProvider) return;
+    try {
+      await api.createProvider(editingProvider);
+      const providersRes = await api.getProviders();
+      setProviders(providersRes || []);
+      setEditingProvider(null);
+    } catch (error) {
+      console.error('Failed to save provider:', error);
     }
   };
 
@@ -224,12 +244,12 @@ export default function AdminPage() {
   const renderValueInput = (field: any, value: any) => {
     const handleValChange = (v: any) => updateProperty(field.key, v);
     const commonClasses =
-      'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-gray-900';
+      'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
 
     if (field.type === 'boolean') {
       return (
         <select
-          className={`${commonClasses} text-gray-900`}
+          className={`${commonClasses} text-black`}
           value={String(value ?? false)}
           onChange={(e) => handleValChange(e.target.value === 'true')}
         >
@@ -243,7 +263,7 @@ export default function AdminPage() {
       return (
         <input
           type="number"
-          className={`${commonClasses} text-gray-900`}
+          className={`${commonClasses} text-black`}
           value={value ?? 0}
           onChange={(e) => handleValChange(Number(e.target.value))}
         />
@@ -253,7 +273,7 @@ export default function AdminPage() {
     if (field.type === 'textarea') {
       return (
         <textarea
-          className={`${commonClasses} text-gray-900 min-h-[60px] resize-y`}
+          className={`${commonClasses} text-black min-h-[60px] resize-y`}
           value={String(value ?? '')}
           placeholder="Multiline content..."
           onChange={(e) => handleValChange(e.target.value)}
@@ -264,7 +284,7 @@ export default function AdminPage() {
     if (field.multiple || field.type === 'list') {
       return (
         <input
-          className={`${commonClasses} text-gray-900`}
+          className={`${commonClasses} text-black`}
           value={Array.isArray(value) ? value.join(', ') : String(value ?? '')}
           placeholder="val1, val2, val3..."
           onChange={(e) =>
@@ -281,7 +301,7 @@ export default function AdminPage() {
 
     return (
       <input
-        className={`${commonClasses} text-gray-900`}
+        className={`${commonClasses} text-black`}
         value={typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')}
         placeholder="Enter value..."
         onChange={(e) => handleValChange(e.target.value)}
@@ -309,226 +329,425 @@ export default function AdminPage() {
       <div className="mx-auto max-w-7xl space-y-8">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">System Registry</h1>
+            <h1 className="text-3xl font-bold text-black">System Registry</h1>
             <p className="mt-1 text-gray-500">
               Live view of discovered nodes, categories, and their underlying properties.
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-gray-200">
             <Shield className="h-5 w-5 text-blue-600" />
-            <span className="text-sm font-semibold text-gray-700">Admin Console</span>
+            <span className="text-sm font-semibold text-black">Admin Console</span>
           </div>
         </header>
 
         <Link
           href="/oauth/gmail"
-          className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm border border-gray-200 hover:bg-gray-50 transition-all w-fit"
+          className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black shadow-sm border border-gray-200 hover:bg-gray-50 transition-all w-fit"
         >
           <Zap className="h-4 w-4 text-blue-600" /> Connect Google
         </Link>
 
-        {/* Categories Section */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Tag className="h-5 w-5 text-gray-400" />
-              <h2 className="text-xl font-semibold text-gray-800">Node Categories</h2>
-            </div>
-            <button
-              onClick={() => {
-                setEditingCategory({
-                  name: '',
-                  group: '',
-                  label: '',
-                  description: '',
-                  icon: 'box',
-                  color: '#1DA1F2',
-                });
-                setIsCategoryModalOpen(true);
-              }}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
-            >
-              <Plus className="h-4 w-4" /> Add Category
-            </button>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {categories.map((cat, idx) => (
-              <div
-                key={cat.id || `cat-${cat.name}-${idx}`}
-                onClick={() => setActiveCategory(cat.name)}
-                className={`group cursor-pointer flex items-center justify-between rounded-xl border p-4 shadow-sm hover:shadow-md transition-all ${activeCategory === cat.name ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 bg-white'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: cat.color || '#3b82f6' }}
-                  />
-                  <div className="flex flex-col">
-                    <span className="font-medium text-gray-700">{cat.label || cat.name}</span>
-                    <span className="text-[10px] text-gray-400 font-mono">{cat.name}</span>
-                  </div>
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('nodes')}
+            className={`px-6 py-3 text-sm font-bold uppercase tracking-wider transition-all ${activeTab === 'nodes' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Nodes & Categories
+          </button>
+          <button
+            onClick={() => setActiveTab('providers')}
+            className={`px-6 py-3 text-sm font-bold uppercase tracking-wider transition-all ${activeTab === 'providers' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            OAuth Providers
+          </button>
+        </div>
+
+        {activeTab === 'nodes' ? (
+          <>
+            {/* Categories Section */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Tag className="h-5 w-5 text-gray-400" />
+                  <h2 className="text-xl font-semibold text-black">Node Categories</h2>
                 </div>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => {
-                      setEditingCategory(cat);
-                      setIsCategoryModalOpen(true);
-                    }}
-                    className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                <button
+                  onClick={() => {
+                    setEditingCategory({
+                      name: '',
+                      group: '',
+                      label: '',
+                      description: '',
+                      icon: 'box',
+                      color: '#1DA1F2',
+                    });
+                    setIsCategoryModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                >
+                  <Plus className="h-4 w-4" /> Add Category
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {categories.map((cat, idx) => (
+                  <div
+                    key={cat.id || `cat-${cat.name}-${idx}`}
+                    onClick={() => setActiveCategory(cat.name)}
+                    className={`group cursor-pointer flex items-center justify-between rounded-xl border p-4 shadow-sm hover:shadow-md transition-all ${activeCategory === cat.name ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 bg-white'}`}
                   >
-                    <Edit2 className="h-4 w-4" />
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-3 w-3 rounded-full"
+                        style={{ backgroundColor: cat.color || '#3b82f6' }}
+                      />
+                      <div className="flex flex-col">
+                        <span className="font-medium text-black">{cat.label || cat.name}</span>
+                        <span className="text-[10px] text-gray-400 font-mono">{cat.name}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => {
+                          setEditingCategory(cat);
+                          setIsCategoryModalOpen(true);
+                        }}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      {cat.id && (
+                        <button
+                          onClick={() => handleDeleteCategory(cat.id!)}
+                          className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Agents/Nodes Section */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Box className="h-5 w-5 text-gray-400" />
+                  <h2 className="text-xl font-semibold text-black">
+                    Nodes in{' '}
+                    {categories.find((c) => c.name === activeCategory)?.label ||
+                      activeCategory ||
+                      'Category'}
+                  </h2>
+                </div>
+                <button
+                  onClick={() =>
+                    setEditingAgent({
+                      name: '',
+                      label: '',
+                      description: '',
+                      node_type: 'default',
+                      version: '1.0.0',
+                      category: '',
+                      group: '',
+                      icon: 'bot',
+                      color: '#5E0CEC',
+                      badge: 'Node',
+                      sub_label: '',
+                      properties: {},
+                      property_schema: [],
+                    })
+                  }
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                >
+                  <Plus className="h-4 w-4" /> Add Node Type
+                </button>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Node Details
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Classification
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        JSON Definition
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredAgents.map((agent, idx) => {
+                      const AgentIcon = (agent.icon && iconMap[agent.icon.toLowerCase()]) || Box;
+                      return (
+                        <tr
+                          key={agent.id ? `node-${agent.id}` : `node-${agent.name}-${idx}`}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-start gap-3">
+                              <div
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-sm"
+                                style={{
+                                  borderColor: agent.color ? `${agent.color}40` : '#e5e7eb',
+                                  backgroundColor: agent.color ? `${agent.color}10` : '#f9fafb',
+                                  color: agent.color || '#6b7280',
+                                }}
+                              >
+                                <AgentIcon className="h-5 w-5" />
+                              </div>
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-black">
+                                    {agent.label || agent.name}
+                                  </span>
+                                  {agent.badge && (
+                                    <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 border border-amber-100">
+                                      {agent.node_type}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-gray-400 font-mono mt-0.5">
+                                  {agent.name} v{agent.version}{' '}
+                                  {agent.icon && `• icon: ${agent.icon}`}
+                                </span>
+                                {agent.sub_label && (
+                                  <span className="text-xs text-blue-600 font-medium mt-0.5">
+                                    {agent.sub_label}
+                                  </span>
+                                )}
+                                <p className="mt-2 text-sm text-gray-600 max-w-xs line-clamp-2">
+                                  {agent.description}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 border border-blue-100 uppercase">
+                                {agent.category}
+                              </span>
+                              <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-bold text-gray-600 border border-gray-100 uppercase">
+                                {agent.group}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div>
+                              <button
+                                onClick={() => setEditingAgent({ ...agent })}
+                                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-sm"
+                              >
+                                <Edit2 className="h-4 w-4" /> Edit
+                              </button>
+                            </div>
+                            <div className="max-h-48 w-full overflow-auto rounded-lg bg-gray-950 p-4 text-[11px] font-mono text-emerald-400 shadow-inner">
+                              <pre>
+                                {JSON.stringify(
+                                  {
+                                    properties: agent.properties,
+                                    property_schema: agent.property_schema,
+                                  },
+                                  null,
+                                  2,
+                                )}
+                              </pre>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right"></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        ) : (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Network className="h-5 w-5 text-gray-400" />
+                <h2 className="text-xl font-semibold text-black">OAuth Providers</h2>
+              </div>
+              <button
+                onClick={() =>
+                  setEditingProvider({
+                    name: '',
+                    label: '',
+                    auth_url: '',
+                    token_url: '',
+                    callback_url: '',
+                    default_scopes: '',
+                    icon: 'box',
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+              >
+                <Plus className="h-4 w-4" /> Add Provider
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {providers?.map((provider) => (
+                <div
+                  key={provider.id}
+                  className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    {/* <div className="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                      {iconMap[provider.icon] ? React.createElement(iconMap[provider.icon], { className: 'h-6 w-6' }) : <Box className="h-6 w-6" />}
+                    </div> */}
+                    <div>
+                      <h3 className="font-bold text-black">{provider.label}</h3>
+                      <p className="text-xs text-gray-400 font-mono">{provider.name}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 mb-6">
+                    <div className="text-[10px] uppercase font-bold text-gray-400">
+                      Default Scopes
+                    </div>
+                    <div className="text-xs text-gray-600 break-all bg-gray-50 p-2 rounded">
+                      {provider.default_scopes}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEditingProvider(provider)}
+                    className="w-full py-2 text-sm font-semibold text-blue-600 border border-blue-100 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    Configure
                   </button>
-                  {cat.id && (
-                    <button
-                      onClick={() => handleDeleteCategory(cat.id!)}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Provider Modal */}
+        {editingProvider && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
+                <h3 className="text-xl font-bold text-black">
+                  {editingProvider.id ? 'Edit Provider' : 'New Provider'}
+                </h3>
+                <button
+                  onClick={() => setEditingProvider(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="p-6 grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">
+                    Provider Name (ID)
+                  </label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black"
+                    value={editingProvider.name}
+                    onChange={(e) =>
+                      setEditingProvider({ ...editingProvider, name: e.target.value })
+                    }
+                    placeholder="gmail"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">
+                    Display Label
+                  </label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black"
+                    value={editingProvider.label}
+                    onChange={(e) =>
+                      setEditingProvider({ ...editingProvider, label: e.target.value })
+                    }
+                    placeholder="Google Gmail"
+                  />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">
+                    Authorization URL
+                  </label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black"
+                    value={editingProvider.auth_url}
+                    onChange={(e) =>
+                      setEditingProvider({ ...editingProvider, auth_url: e.target.value })
+                    }
+                    placeholder="https://accounts.google.com/o/oauth2/v2/auth"
+                  />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Token URL</label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black"
+                    value={editingProvider.token_url}
+                    onChange={(e) =>
+                      setEditingProvider({ ...editingProvider, token_url: e.target.value })
+                    }
+                    placeholder="https://oauth2.googleapis.com/token"
+                  />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">
+                    Callback URL
+                  </label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black"
+                    value={editingProvider.callback_url}
+                    onChange={(e) =>
+                      setEditingProvider({ ...editingProvider, callback_url: e.target.value })
+                    }
+                    placeholder="http://localhost:8000/api/auth/callback/gmail"
+                  />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">
+                    Default Scopes
+                  </label>
+                  <textarea
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm h-20 text-black"
+                    value={editingProvider.default_scopes}
+                    onChange={(e) =>
+                      setEditingProvider({ ...editingProvider, default_scopes: e.target.value })
+                    }
+                    placeholder="https://www.googleapis.com/auth/gmail.readonly"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Icon Name</label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black"
+                    value={editingProvider.icon}
+                    onChange={(e) =>
+                      setEditingProvider({ ...editingProvider, icon: e.target.value })
+                    }
+                  />
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Agents/Nodes Section */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Box className="h-5 w-5 text-gray-400" />
-              <h2 className="text-xl font-semibold text-gray-800">
-                Nodes in{' '}
-                {categories.find((c) => c.name === activeCategory)?.label ||
-                  activeCategory ||
-                  'Category'}
-              </h2>
+              <div className="border-t bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                <button
+                  onClick={() => setEditingProvider(null)}
+                  className="px-4 py-2 text-sm font-semibold text-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveProvider}
+                  className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all"
+                >
+                  {editingProvider.id ? 'Update Provider' : 'Create Provider'}
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() =>
-                setEditingAgent({
-                  name: '',
-                  label: '',
-                  description: '',
-                  node_type: 'default',
-                  version: '1.0.0',
-                  category: '',
-                  group: '',
-                  icon: 'bot',
-                  color: '#5E0CEC',
-                  badge: 'Node',
-                  sub_label: '',
-                  properties: {},
-                  property_schema: [],
-                })
-              }
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
-            >
-              <Plus className="h-4 w-4" /> Add Node Type
-            </button>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Node Details
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Classification
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    JSON Definition
-                  </th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredAgents.map((agent, idx) => {
-                  const AgentIcon = (agent.icon && iconMap[agent.icon.toLowerCase()]) || Box;
-                  return (
-                    <tr key={agent.id ? `node-${agent.id}` : `node-${agent.name}-${idx}`} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-start gap-3">
-                          <div
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-sm"
-                            style={{
-                              borderColor: agent.color ? `${agent.color}40` : '#e5e7eb',
-                              backgroundColor: agent.color ? `${agent.color}10` : '#f9fafb',
-                              color: agent.color || '#6b7280',
-                            }}
-                          >
-                            <AgentIcon className="h-5 w-5" />
-                          </div>
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-gray-900">
-                                {agent.label || agent.name}
-                              </span>
-                              {agent.badge && (
-                                <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 border border-amber-100">
-                                  {agent.node_type}
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-gray-400 font-mono mt-0.5">
-                              {agent.name} v{agent.version} {agent.icon && `• icon: ${agent.icon}`}
-                            </span>
-                            {agent.sub_label && (
-                              <span className="text-xs text-blue-600 font-medium mt-0.5">
-                                {agent.sub_label}
-                              </span>
-                            )}
-                            <p className="mt-2 text-sm text-gray-600 max-w-xs line-clamp-2">
-                              {agent.description}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 align-top">
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 border border-blue-100 uppercase">
-                            {agent.category}
-                          </span>
-                          <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-bold text-gray-600 border border-gray-100 uppercase">
-                            {agent.group}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div>
-                           <button
-                          onClick={() => setEditingAgent({ ...agent })}
-                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-sm"
-                        >
-                          <Edit2 className="h-4 w-4" /> Edit
-                        </button>
-                        </div>
-                        <div className="max-h-48 w-full overflow-auto rounded-lg bg-gray-950 p-4 text-[11px] font-mono text-emerald-400 shadow-inner">
-                          <pre>
-                            {JSON.stringify(
-                              {
-                                properties: agent.properties,
-                                property_schema: agent.property_schema,
-                              },
-                              null,
-                              2,
-                            )}
-                          </pre>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                       
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        )}
 
         {/* Edit Modal */}
         {editingAgent && (
@@ -536,7 +755,7 @@ export default function AdminPage() {
             <div className="flex h-[90vh] w-full flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
               <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">
+                  <h3 className="text-xl font-bold text-black">
                     {editingAgent.id ? 'Edit Node Registry' : 'Create New Node Type'}
                   </h3>
                   <p className="text-xs text-gray-500 font-mono uppercase">
@@ -561,7 +780,7 @@ export default function AdminPage() {
                       Display Label
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.label || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, label: e.target.value })}
                       placeholder="e.g. My Custom Agent"
@@ -572,7 +791,7 @@ export default function AdminPage() {
                       System Name (Unique ID)
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.name || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, name: e.target.value })}
                       placeholder="e.g. custom_llm_agent"
@@ -584,7 +803,7 @@ export default function AdminPage() {
                       Version
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.version || '1.0.0'}
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, version: e.target.value })
@@ -597,14 +816,14 @@ export default function AdminPage() {
                       Node Category
                     </label>
                     <select
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.category || ''}
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, category: e.target.value })
                       }
                     >
-                        {categories.map((cat, idx) => (
-                          <option key={`opt-${cat.id || cat.name || idx}`} value={cat.name}>
+                      {categories.map((cat, idx) => (
+                        <option key={`opt-${cat.id || cat.name || idx}`} value={cat.name}>
                           {cat.label || cat.name}
                         </option>
                       ))}
@@ -615,7 +834,7 @@ export default function AdminPage() {
                       Sub Label
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.sub_label || ''}
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, sub_label: e.target.value })
@@ -627,7 +846,7 @@ export default function AdminPage() {
                       Node Type (e.g. trigger, tool)
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.node_type || ''}
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, node_type: e.target.value })
@@ -639,7 +858,7 @@ export default function AdminPage() {
                       UI Group
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.group || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, group: e.target.value })}
                     />
@@ -649,7 +868,7 @@ export default function AdminPage() {
                       Badge
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.badge || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, badge: e.target.value })}
                     />
@@ -659,7 +878,7 @@ export default function AdminPage() {
                       Icon Name (Lucide)
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.icon || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, icon: e.target.value })}
                     />
@@ -670,7 +889,7 @@ export default function AdminPage() {
                     </label>
                     <div className="flex gap-2">
                       <input
-                        className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={editingAgent.color || ''}
                         onChange={(e) =>
                           setEditingAgent({ ...editingAgent, color: e.target.value })
@@ -687,7 +906,7 @@ export default function AdminPage() {
                       Description
                     </label>
                     <textarea
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 h-20 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 h-20 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.description || ''}
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, description: e.target.value })
@@ -700,7 +919,7 @@ export default function AdminPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                     <div>
-                      <h4 className="font-bold text-gray-800">Properties & Registry Values</h4>
+                      <h4 className="font-bold text-black">Properties & Registry Values</h4>
                       <p className="text-xs text-gray-500">
                         Define the schema and set the global default values for this node type.
                       </p>
@@ -733,14 +952,14 @@ export default function AdminPage() {
                           >
                             <td className="px-4 py-3">
                               <input
-                                className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 font-mono text-xs text-gray-900"
+                                className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 font-mono text-xs text-black"
                                 value={field.key}
                                 onChange={(e) => updateSchema(idx, 'key', e.target.value)}
                               />
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 text-gray-900"
+                                className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 text-black"
                                 value={field.label}
                                 onChange={(e) => updateSchema(idx, 'label', e.target.value)}
                               />
@@ -758,6 +977,7 @@ export default function AdminPage() {
                                   <option value="choice">Choice</option>
                                   <option value="textarea">Textarea</option>
                                   <option value="password">Password</option>
+                                  <option value="oauth">oAuth</option>
                                 </select>
                                 <label className="flex items-center gap-1 text-[10px] text-gray-500">
                                   <input
@@ -822,7 +1042,7 @@ export default function AdminPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
               <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
-                <h3 className="text-xl font-bold text-gray-900">
+                <h3 className="text-xl font-bold text-black">
                   {editingCategory.id ? 'Edit Category' : 'Add New Category'}
                 </h3>
                 <button
@@ -839,7 +1059,7 @@ export default function AdminPage() {
                     System Name (ID)
                   </label>
                   <input
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900"
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black"
                     value={editingCategory.name || ''}
                     onChange={(e) =>
                       setEditingCategory({ ...editingCategory, name: e.target.value })
@@ -850,7 +1070,7 @@ export default function AdminPage() {
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-500 uppercase">Group</label>
                   <input
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900"
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black"
                     value={editingCategory.group || ''}
                     onChange={(e) =>
                       setEditingCategory({ ...editingCategory, group: e.target.value })
@@ -861,7 +1081,7 @@ export default function AdminPage() {
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-500 uppercase">Display Label</label>
                   <input
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900"
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black"
                     value={editingCategory.label || ''}
                     onChange={(e) =>
                       setEditingCategory({ ...editingCategory, label: e.target.value })
@@ -885,7 +1105,7 @@ export default function AdminPage() {
                     Icon Name (Lucide)
                   </label>
                   <input
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900"
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black"
                     value={editingCategory.icon || ''}
                     onChange={(e) =>
                       setEditingCategory({ ...editingCategory, icon: e.target.value })
@@ -897,7 +1117,7 @@ export default function AdminPage() {
                   <label className="text-xs font-bold text-gray-500 uppercase">Color</label>
                   <div className="flex gap-2">
                     <input
-                      className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-900"
+                      className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm text-black"
                       value={editingCategory.color || ''}
                       onChange={(e) =>
                         setEditingCategory({ ...editingCategory, color: e.target.value })

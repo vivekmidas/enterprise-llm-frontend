@@ -265,7 +265,7 @@ export default function AgentSidebar({
         <span>New Agent</span>
       </button>
 
-      <div className="space-y-3 px-4 text-sm text-gray-900">
+      <div className="space-y-3 px-4 text-sm text-black">
         {savedAgents.map((agent) => (
           <button
             key={agent.id}
@@ -282,9 +282,7 @@ export default function AgentSidebar({
 
       <div className="my-2 border-t-2 border-stone-200" />
 
-      <h2 className="mb-5 text-sm font-semibold text-slate-800 uppercase tracking-wider">
-        Triggers
-      </h2>
+      <h2 className="mb-5 text-sm font-semibold text-black uppercase tracking-wider">Triggers</h2>
       {/* Trigger Section */}
       <div className="flex gap-2">
         <div className="flex w-8 shrink-0 flex-col items-center gap-2">
@@ -320,7 +318,7 @@ export default function AgentSidebar({
           </div>
         </div>
       </div>
-      <h2 className="mb-5 text-sm font-semibold text-slate-800 uppercase tracking-wider">Nodes</h2>
+      <h2 className="mb-5 text-sm font-semibold text-black uppercase tracking-wider">Nodes</h2>
 
       <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-1 text-gray-400 shadow-sm">
         <Search className="h-5 w-5 shrink-0" />
@@ -328,7 +326,7 @@ export default function AgentSidebar({
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="Search components..."
-          className="w-full bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+          className="w-full bg-transparent text-sm text-black placeholder:text-gray-400 focus:outline-none"
         />
       </div>
 
@@ -356,9 +354,7 @@ export default function AgentSidebar({
         </div>
 
         <div className="min-w-0 flex-1 border-l border-stone-200 pl-4">
-          <h3 className="mb-5 text-lg font-semibold text-slate-800">
-            {selectedCategory?.label || ''}
-          </h3>
+          <h3 className="mb-5 text-lg font-semibold text-black">{selectedCategory?.label || ''}</h3>
 
           {loading ? (
             <p className="text-gray-500">Loading components...</p>

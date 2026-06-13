@@ -15,7 +15,7 @@ export type PropertyValue = string | number | boolean | string[];
 export interface AgentPropertyDefinition {
   key: string;
   label: string;
-  type: 'string' | 'boolean' | 'choice' | 'password' | 'textarea' | 'number';
+  type: 'string' | 'boolean' | 'choice' | 'password' | 'textarea' | 'number' | 'oauth';
   placeholder?: string;
   options?: string[];
   multiple?: boolean;

@@ -814,11 +814,11 @@ function AgentBuilderContent() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50">
+    <div className="flex h-screen flex-col bg-gray-50 text-black">
       {/* Top Bar */}
       <div className="h-16 border-b bg-white flex items-center px-6 justify-between shadow-sm">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-semibold text-gray-900">AI Agent Builder</h1>
+          <h1 className="text-2xl font-semibold text-black">AI Agent Builder</h1>
           <div className="text-sm text-gray-500 flex items-center gap-2">
             {agentId} • v{agentVersion ?? 1} •
             <label className="inline-flex items-center cursor-pointer">
@@ -921,7 +921,7 @@ function AgentBuilderContent() {
                         ) : (
                           <AlertCircle size={14} className="text-red-500" />
                         )}
-                        <span className="font-bold text-xs text-gray-800">{step.nodeName}</span>
+                        <span className="font-bold text-xs text-black">{step.nodeName}</span>
                         <span className="text-[10px] text-gray-400 uppercase font-medium">
                           {step.group}
                         </span>
@@ -948,6 +948,7 @@ function AgentBuilderContent() {
           onClose={() => setSelectedNode(null)}
           onUpdateNode={onUpdateNode}
           onSave={onSave}
+          workflowId={agentId}
         />
       </div>
     </div>

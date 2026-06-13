@@ -172,14 +172,40 @@ export const api = {
   },
 
   updateTokensInDB: async (tokens: any) => {
-    console.log("updateTokensInDB",tokens)
+    console.log('updateTokensInDB', tokens);
     const res = await fetch(`${BACKEND_URL}/webhooks/email/refresh-token`, {
       method: 'PUT',
       body: JSON.stringify(tokens),
       headers: { 'Content-Type': 'application/json' },
     });
     const result = await res.json();
-    console.log(result)
+    console.log(result);
     return result;
+  },
+
+  setCredentials: async (tokens: any) => {
+    console.log('Get Credentials', tokens);
+    const res = await fetch(`${BACKEND_URL}/webhooks/email/refresh-token`, {
+      method: 'PUT',
+      body: JSON.stringify(tokens),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const result = await res.json();
+    console.log(result);
+    return result;
+  },
+
+  getProviders: async () => {
+    const res = await fetch(`${BACKEND_URL}/admin/auth/providers`);
+    return res.json();
+  },
+
+  createProvider: async (provider: any) => {
+    const res = await fetch(`${BACKEND_URL}/auth/providers`, {
+      method: 'POST',
+      body: JSON.stringify(provider),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return res.json();
   },
 };
