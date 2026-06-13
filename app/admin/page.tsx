@@ -67,6 +67,24 @@ const iconMap: Record<string, ComponentType<{ className?: string }>> = {
 };
 import { AgentNode, NodeCategory } from '@components/component-categoriees';
 
+/** Mask sensitive values for display in the JSON preview */
+const maskSecrets = (value: any): any => {
+  if (Array.isArray(value)) return value.map(maskSecrets);
+  if (!value || typeof value !== 'object') return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, fieldValue]) => {
+      const normalizedKey = key.toLowerCase();
+      if (
+        ['password', 'token', 'apikey', 'secret', 'key'].some(s => normalizedKey.includes(s))
+      ) {
+        return [key, fieldValue ? '••••••••' : ''];
+      }
+      return [key, maskSecrets(fieldValue)];
+    }),
+  );
+};
+
 export default function AdminPage() {
   const [agents, setAgents] = useState<AgentNode[]>([]);
   const [categories, setCategories] = useState<NodeCategory[]>([]);
@@ -245,6 +263,19 @@ export default function AdminPage() {
     const handleValChange = (v: any) => updateProperty(field.key, v);
     const commonClasses =
       'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
+
+    if (field.type === 'password') {
+      return (
+        <input
+          type="password"
+          className={`${commonClasses} text-black`}
+          value={String(value ?? '')}
+          placeholder="••••••••"
+          autoComplete="new-password"
+          onChange={(e) => handleValChange(e.target.value)}
+        />
+      );
+    }
 
     if (field.type === 'boolean') {
       return (
@@ -551,8 +582,8 @@ export default function AdminPage() {
                               <pre>
                                 {JSON.stringify(
                                   {
-                                    properties: agent.properties,
-                                    property_schema: agent.property_schema,
+                                    properties: maskSecrets(agent.properties),
+                                    property_schema: maskSecrets(agent.property_schema),
                                   },
                                   null,
                                   2,

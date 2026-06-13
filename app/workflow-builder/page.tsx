@@ -37,7 +37,7 @@ const defaultEdgeOptions = {
   animated: false,
   markerEnd: {
     type: MarkerType.ArrowClosed,
-    color: '#981a04ff',
+    color: '#981a04',
     height: 20,
     width: 20,
   },
@@ -79,7 +79,9 @@ const maskSecrets = (value: unknown): unknown => {
       if (
         normalizedKey.includes('password') ||
         normalizedKey.includes('apikey') ||
-        normalizedKey.includes('token')
+        normalizedKey.includes('token') ||
+        normalizedKey.includes('secret') ||
+        normalizedKey.includes('key')
       ) {
         return [key, fieldValue ? '••••••••' : ''];
       }
