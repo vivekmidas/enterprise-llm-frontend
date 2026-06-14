@@ -4,6 +4,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const code = searchParams.get('code');
   const state = searchParams.get('state'); // Expected format: "workflow_id|node_id"
+  console.log(searchParams)
 
   if (!code) {
     return NextResponse.json({ error: 'Missing authorization code' }, { status: 400 });
@@ -44,6 +45,8 @@ export async function GET(request: NextRequest) {
       body: JSON.stringify({
         workflow_id,
         node_id,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
       }),
