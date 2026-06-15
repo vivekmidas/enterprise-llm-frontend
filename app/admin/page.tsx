@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, type ComponentType } from 'react';
+import React, { useEffect, useState, type ComponentType } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { api } from '@/lib/api';
 import {
@@ -9,6 +10,7 @@ import {
   User,
   Tag,
   Box,
+  Power,
   Info,
   Code2,
   Zap,
@@ -37,6 +39,9 @@ import {
   Megaphone,
   Network,
   UserCog,
+  Users,
+  Lock,
+  LogOut,
 } from 'lucide-react';
 
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
@@ -64,6 +69,7 @@ const iconMap: Record<string, ComponentType<{ className?: string }>> = {
   mail: Mail,
   megaphone: Megaphone,
   network: Network,
+  users: Users,
 };
 import { AgentNode, NodeCategory } from '@components/component-categoriees';
 
@@ -75,9 +81,7 @@ const maskSecrets = (value: any): any => {
   return Object.fromEntries(
     Object.entries(value).map(([key, fieldValue]) => {
       const normalizedKey = key.toLowerCase();
-      if (
-        ['password', 'token', 'apikey', 'secret', 'key'].some(s => normalizedKey.includes(s))
-      ) {
+      if (['password', 'token', 'apikey', 'secret', 'key'].some((s) => normalizedKey.includes(s))) {
         return [key, fieldValue ? '••••••••' : ''];
       }
       return [key, maskSecrets(fieldValue)];
@@ -86,6 +90,7 @@ const maskSecrets = (value: any): any => {
 };
 
 export default function AdminPage() {
+  const router = useRouter();
   const [agents, setAgents] = useState<AgentNode[]>([]);
   const [categories, setCategories] = useState<NodeCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,18 +99,44 @@ export default function AdminPage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<NodeCategory | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'nodes' | 'providers'>('nodes');
+  const [activeTab, setActiveTab] = useState<'nodes' | 'workflows' | 'users' | 'oauth' | 'logs'>('nodes');
+  const [users, setUsers] = useState<any[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [providers, setProviders] = useState<any[]>([]);
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [jsonExpandedState, setJsonExpandedState] = useState<Record<string, boolean>>({});
   const [editingProvider, setEditingProvider] = useState<any | null>(null);
+
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
+    const token = localStorage.getItem('admin_token');
+    const role = localStorage.getItem('user_role');
+    if (token) {
+      if (role !== 'admin') {
+        router.push('/workflow-builder');
+        return;
+      }
+      setIsAuthenticated(true);
+      setUserRole(role);
+      setUserEmail(localStorage.getItem('user_email'));
+    }
+
     async function loadAdminData() {
       try {
-        const [agentsRes, catsRes, providersRes] = await Promise.all([
+        const [agentsRes, catsRes, providersRes, workflowsRes, usersRes] = await Promise.all([
           api.getNodes(),
           api.getNodesCategories(),
           api.getProviders(),
+          api.getSavedAgents(),
+          api.getUsers().catch(() => []),
         ]);
 
         // The backend returns { "nodes": [...] } for /nodes and { "categories": [...] } for /nodes/categories
@@ -120,14 +151,76 @@ export default function AdminPage() {
           setActiveCategory(normalizedCats[0].name);
         }
         setProviders(providersRes || []);
+        setWorkflows(workflowsRes || []);
+        setUsers(usersRes || []);
       } catch (error) {
         console.error('Failed to load admin data:', error);
       } finally {
         setLoading(false);
       }
     }
-    loadAdminData();
-  }, []);
+
+    if (isAuthenticated) {
+      loadAdminData();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (isRegistering) {
+        await api.register({
+          username: loginUsername, 
+          email: loginEmail, 
+          password: loginPassword,
+          name: "",
+          lastname:""
+        });
+        alert('Registration successful! Please login.');
+        setIsRegistering(false);
+      } else {
+        const data = await api.login({ email: loginEmail, password: loginPassword });
+        localStorage.setItem('admin_token', data.token);
+        localStorage.setItem('user_role', data.role);
+        localStorage.setItem('user_email', loginEmail);
+
+        // Set the cookie for the middleware
+        document.cookie = `admin_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+
+        if (data.role === 'admin') {
+          setUserRole(data.role);
+          setUserEmail(loginEmail);
+          setIsAuthenticated(true);
+        } else {
+          router.push('/workflow-builder');
+        }
+      }
+    } catch (err) {
+      alert('Authentication failed. Check your credentials.');
+    }
+  };
+
+  const handleToggleWorkflow = async (id: string) => {
+    await api.toggleWorkflowStatus(id);
+    const workflowsRes = await api.getSavedAgents();
+    setWorkflows(workflowsRes || []);
+  };
+
+  const handleDeleteWorkflow = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this workflow?')) return;
+    await api.deleteWorkflow(id);
+    const workflowsRes = await api.getSavedAgents();
+    setWorkflows(workflowsRes || []);
+  };
+
+  const toggleJsonExpanded = (agentId: string) => {
+    setJsonExpandedState((prev) => ({
+      ...prev,
+      [agentId]: !prev[agentId],
+    }));
+  };
 
   if (!isMounted) {
     return null;
@@ -202,6 +295,24 @@ export default function AdminPage() {
           isUpdate ? 'PUT /nodes/:name' : 'POST /nodes'
         } is implemented.`,
       );
+    }
+  };
+
+  const handleDeleteNode = async (nodeName: string) => {
+    if (!confirm(`Are you sure you want to delete the node type "${nodeName}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      // Assuming an API endpoint for deleting nodes by name
+      // This API call needs to be implemented in your backend (e.g., DELETE /nodes/:name)
+      // and added to lib/api.ts
+      // Example: await api.deleteNode(nodeName);
+      alert(`Node type "${nodeName}" deleted successfully. (Requires backend implementation)`);
+      const agentsRes = await api.getNodes();
+      setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
+    } catch (error) {
+      console.error('Failed to delete node:', error);
+      alert(`Failed to delete node type "${nodeName}". Ensure the backend endpoint DELETE /nodes/:name is implemented.`);
     }
   };
 
@@ -340,6 +451,82 @@ export default function AdminPage() {
     );
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-100 px-4">
+        <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl border border-gray-200">
+          <div className="text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
+              <Shield className="h-8 w-8 text-blue-600" />
+            </div>
+            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+              {isRegistering ? 'Create Account' : 'Admin Portal'}
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              {isRegistering ? 'Join the gateway system' : 'Please sign in to manage the gateway'}
+            </p>
+          </div>
+          <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+            <div className="space-y-4 rounded-md shadow-sm">
+              {isRegistering && (
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase">Username</label>
+                  <input
+                    type="text"
+                    required
+                    className="relative block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                    placeholder="jdoe"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  className="relative block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                  placeholder="admin@gateway.com"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Password</label>
+                <input
+                  type="password"
+                  required
+                  className="relative block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                  placeholder="••••••••"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="group relative flex w-full justify-center rounded-lg border border-transparent bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all shadow-lg"
+            >
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                <Lock className="h-5 w-5 text-blue-500 group-hover:text-blue-400" />
+              </span>
+              {isRegistering ? 'Register' : 'Access Console'}
+            </button>
+          </form>
+          <div className="text-center mt-4">
+            <button
+              onClick={() => setIsRegistering(!isRegistering)}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              {isRegistering ? 'Already have an account? Login' : 'Need an account? Register'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -365,32 +552,51 @@ export default function AdminPage() {
               Live view of discovered nodes, categories, and their underlying properties.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-gray-200">
-            <Shield className="h-5 w-5 text-blue-600" />
-            <span className="text-sm font-semibold text-black">Admin Console</span>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-gray-200">
+              <Shield className="h-5 w-5 text-blue-600" />
+              <span className="text-sm font-semibold text-black">Admin Console</span>
+            </div>
           </div>
         </header>
 
-        <Link
-          href="/oauth/gmail"
-          className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black shadow-sm border border-gray-200 hover:bg-gray-50 transition-all w-fit"
-        >
-          <Zap className="h-4 w-4 text-blue-600" /> Connect Google
-        </Link>
-
         <div className="flex border-b border-gray-200">
+          {userRole === 'admin' && (
+            <button
+              onClick={() => setActiveTab('nodes')}
+              className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'nodes' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Node Management
+            </button>
+          )}
           <button
-            onClick={() => setActiveTab('nodes')}
-            className={`px-6 py-3 text-sm font-bold uppercase tracking-wider transition-all ${activeTab === 'nodes' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setActiveTab('workflows')}
+            className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'workflows' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            Nodes & Categories
+            Workflow Management
           </button>
-          <button
-            onClick={() => setActiveTab('providers')}
-            className={`px-6 py-3 text-sm font-bold uppercase tracking-wider transition-all ${activeTab === 'providers' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            OAuth Providers
-          </button>
+          {userRole === 'admin' && (
+            <>
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                User Management
+              </button>
+              <button
+                onClick={() => setActiveTab('oauth')}
+                className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'oauth' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                OAuth Management
+              </button>
+              <button
+                onClick={() => setActiveTab('logs')}
+                className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'logs' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                System Logs
+              </button>
+            </>
+          )}
         </div>
 
         {activeTab === 'nodes' ? (
@@ -466,10 +672,10 @@ export default function AdminPage() {
                 <div className="flex items-center gap-2">
                   <Box className="h-5 w-5 text-gray-400" />
                   <h2 className="text-xl font-semibold text-black">
-                    Nodes in{' '}
-                    {categories.find((c) => c.name === activeCategory)?.label ||
+                    Nodes
+                    {/* {categories.find((c) => c.name === activeCategory)?.label ||
                       activeCategory ||
-                      'Category'}
+                      'Category'} */}
                   </h2>
                 </div>
                 <button
@@ -492,46 +698,59 @@ export default function AdminPage() {
                   }
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
                 >
-                  <Plus className="h-4 w-4" /> Add Node Type
+                  <Plus className="h-4 w-4" /> Add New Node
                 </button>
               </div>
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
                 <table className="w-full text-left">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Node Details
+                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Label
                       </th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Classification
+                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Name (ID) / Version
                       </th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Type
+                      </th>
+                      {/* <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Category
+                      </th> */}
+                      {/* <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Group
+                      </th> */}
+                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
                         JSON Definition
                       </th>
-                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">
+                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredAgents.map((agent, idx) => {
-                      const AgentIcon = (agent.icon && iconMap[agent.icon.toLowerCase()]) || Box;
+                      const AgentIcon = (agent.icon && iconMap[agent.icon.toLowerCase()]) || Box; // Fallback to Box icon
                       return (
                         <tr
                           key={agent.id ? `node-${agent.id}` : `node-${agent.name}-${idx}`}
                           className="hover:bg-gray-50 transition-colors"
                         >
-                          <td className="px-6 py-4">
-                            <div className="flex items-start gap-3">
+                          {/* Label / Icon */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
                               <div
-                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-sm"
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border shadow-sm"
                                 style={{
                                   borderColor: agent.color ? `${agent.color}40` : '#e5e7eb',
                                   backgroundColor: agent.color ? `${agent.color}10` : '#f9fafb',
                                   color: agent.color || '#6b7280',
                                 }}
                               >
-                                <AgentIcon className="h-5 w-5" />
+                                <AgentIcon className="h-4 w-4" />
                               </div>
                               <div className="flex flex-col">
                                 <div className="flex items-center gap-2">
@@ -539,47 +758,94 @@ export default function AdminPage() {
                                     {agent.label || agent.name}
                                   </span>
                                   {agent.badge && (
-                                    <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 border border-amber-100">
-                                      {agent.node_type}
-                                    </span>
+                                    // <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 border border-amber-100">
+                                    //   {agent.node_type}
+                                    // </span>
+                                    <></> // Badge is now part of Type column
                                   )}
                                 </div>
-                                <span className="text-[10px] text-gray-400 font-mono mt-0.5">
-                                  {agent.name} v{agent.version}{' '}
-                                  {agent.icon && `• icon: ${agent.icon}`}
-                                </span>
                                 {agent.sub_label && (
                                   <span className="text-xs text-blue-600 font-medium mt-0.5">
                                     {agent.sub_label}
                                   </span>
                                 )}
-                                <p className="mt-2 text-sm text-gray-600 max-w-xs line-clamp-2">
-                                  {agent.description}
-                                </p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 align-top">
-                            <div className="flex flex-wrap gap-2 pt-1">
+
+                          {/* Name (ID) / Version */}
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-700 font-mono">{agent.name}</span>
+                              <span className="text-[10px] text-gray-400 font-mono mt-0.5">
+                                v{agent.version}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Type */}
+                          <td className="px-4 py-3">
+                            <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 border border-amber-100">
+                              {agent.node_type}
+                            </span>
+                          </td>
+
+                          {/* Category
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 border border-blue-100 uppercase">
+                              {agent.category}
+                            </span>
+                          </td> */}
+
+                          {/* Group */}
+                          {/* <td className="px-4 py-3">
+                            <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-bold text-gray-600 border border-gray-100 uppercase">
+                              {agent.group}
+                            </span>
+                          </td> */}
+
+                          {/* Description */}
+                          <td className="px-4 py-3">
+                            <p className="text-sm text-gray-600 max-w-[200px] line-clamp-2">
+                              {agent.description || 'No description.'}
+                            </p>
+                            {/* Original Classification badges, now moved to their own columns */}
+                            {/* <div className="flex flex-wrap gap-2 pt-1">
                               <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 border border-blue-100 uppercase">
                                 {agent.category}
                               </span>
                               <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-bold text-gray-600 border border-gray-100 uppercase">
                                 {agent.group}
                               </span>
-                            </div>
+                            </div> */}
                           </td>
-                          <td className="px-6 py-4">
+
+                          {/* JSON Definition (Collapsible) */}
+                          <td className="px-4 py-3">
                             <div>
                               <button
-                                onClick={() => setEditingAgent({ ...agent })}
-                                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                onClick={() => toggleJsonExpanded(agent.id || agent.name)}
+                                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-xs whitespace-nowrap"
                               >
-                                <Edit2 className="h-4 w-4" /> Edit
+                                {jsonExpandedState[agent.id || agent.name] ? (
+                                  <>
+                                    <Code2 className="h-3.5 w-3.5" /> Hide Definition
+                                  </>
+                                ) : (
+                                  <>
+                                    <Code2 className="h-3.5 w-3.5" /> Show Definition
+                                  </>
+                                )}
                               </button>
                             </div>
-                            <div className="max-h-48 w-full overflow-auto rounded-lg bg-gray-950 p-4 text-[11px] font-mono text-emerald-400 shadow-inner">
-                              <pre>
+                            <div
+                              className={`w-full max-w-xs overflow-hidden rounded-lg bg-gray-950 font-mono text-emerald-400 shadow-inner transition-all duration-300 ${
+                                jsonExpandedState[agent.id || agent.name]
+                                  ? 'max-h-64 p-3 mt-2 overflow-auto opacity-100'
+                                  : 'max-h-0 p-0 opacity-0'
+                              }`}
+                            >
+                              <pre className="text-[10px]">
                                 {JSON.stringify(
                                   {
                                     properties: maskSecrets(agent.properties),
@@ -591,7 +857,22 @@ export default function AdminPage() {
                               </pre>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-right"></td>
+
+                          {/* Actions */}
+                          <td className="px-4 py-3 text-right min-w-[100px]">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => setEditingAgent({ ...agent })}
+                                className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                title="Edit Node Type"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button onClick={() => handleDeleteNode(agent.name)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete Node Type">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -600,12 +881,161 @@ export default function AdminPage() {
               </div>
             </section>
           </>
+        ) : activeTab === 'workflows' ? (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Workflow className="h-5 w-5 text-gray-400" />
+                <h2 className="text-xl font-semibold text-black">Workflow Catalog</h2>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {workflows.map((wf) => (
+                <div
+                  key={wf.id}
+                  className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100">
+                        <Workflow className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-black">{wf.name}</h3>
+                        <p className="text-[10px] text-gray-400 font-mono">{wf.id}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border ${wf.is_enabled !== false ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}
+                      >
+                        {wf.is_enabled !== false ? 'Active' : 'Disabled'}
+                      </span>
+                      <div className="flex gap-1">
+                        {userRole === 'admin' && (
+                          <button
+                            onClick={() => handleToggleWorkflow(wf.id)}
+                            className={`p-1 rounded transition-colors ${wf.is_enabled !== false ? 'text-gray-400 hover:text-red-500' : 'text-gray-400 hover:text-green-500'}`}
+                            title={wf.is_enabled !== false ? 'Disable' : 'Enable'}
+                          >
+                            <Power className="h-4 w-4" />
+                          </button>
+                        )}
+                        {userRole !== 'admin' && (
+                          <button
+                            onClick={() => handleDeleteWorkflow(wf.id)}
+                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    <p className="text-sm text-gray-600 line-clamp-2">
+                      {wf.description || 'No description provided.'}
+                    </p>
+                    <div className="flex items-center gap-4 pt-4 border-t border-gray-50">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-gray-400 uppercase font-bold">Nodes</span>
+                        <span className="text-sm font-semibold text-black">
+                          {wf.graph?.nodes?.length || 0}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-gray-400 uppercase font-bold">Edges</span>
+                        <span className="text-sm font-semibold text-black">
+                          {wf.graph?.edges?.length || 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {workflows.length === 0 && (
+                <div className="col-span-full py-12 text-center rounded-xl border-2 border-dashed border-gray-200">
+                  <Workflow className="mx-auto h-12 w-12 text-gray-300" />
+                  <h3 className="mt-2 text-sm font-semibold text-gray-900">No workflows found</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Get started by creating a new workflow in the builder.
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+        ) : activeTab === 'users' ? (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-gray-400" />
+                <h2 className="text-xl font-semibold text-black">User Management</h2>
+              </div>
+              <button className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all opacity-50 cursor-not-allowed">
+                <Plus className="h-4 w-4" /> Add User
+              </button>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Username</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Email</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Role</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {users.map((u, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm text-black font-medium">{u.username}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{u.email_id}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-bold uppercase ${u.role === 'admin' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}
+                        >
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-sm font-medium ${u.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                          {u.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-8 flex justify-center gap-4">
+              <div className="rounded-lg bg-gray-50 px-4 py-2 text-left border border-gray-100">
+                <div className="text-[10px] font-bold text-gray-400 uppercase">Current Session</div>
+                <div className="text-sm font-bold text-black">{loginEmail}</div>
+              </div>
+              <div className="rounded-lg bg-gray-50 px-4 py-2 text-left border border-gray-100">
+                <div className="text-[10px] font-bold text-gray-400 uppercase">Account Status</div>
+                <div className="text-sm font-bold text-green-600">Verified</div>
+              </div>
+            </div>
+          </section>
+        ) : activeTab === 'logs' ? (
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-gray-400" />
+              <h2 className="text-xl font-semibold text-black">System Activity Logs</h2>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden p-8 text-center">
+              <Activity className="mx-auto h-12 w-12 text-gray-200 mb-4" />
+              <p className="text-gray-500 text-sm">Real-time system logs will appear here after the next gateway restart.</p>
+            </div>
+          </section>
         ) : (
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Network className="h-5 w-5 text-gray-400" />
-                <h2 className="text-xl font-semibold text-black">OAuth Providers</h2>
+                <h2 className="text-xl font-semibold text-black">OAuth Configuration</h2>
               </div>
               <button
                 onClick={() =>

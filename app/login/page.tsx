@@ -1,9 +1,44 @@
 'use client';
 
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Cpu, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = await api.login({ email, password });
+      localStorage.setItem('admin_token', data.token);
+      localStorage.setItem('user_role', data.role);
+      localStorage.setItem('user_email', email);
+      
+      // Set a cookie so the middleware can access the token
+      // path=/ ensures the cookie is available for all routes
+      // max-age is set to 7 days (60s * 60m * 24h * 7d)
+      document.cookie = `admin_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+
+      if (data.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/workflow-builder');
+      }
+    } catch (err) {
+      
+      alert('Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
       <div className="mb-8 flex flex-col items-center gap-2">
@@ -16,10 +51,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-8">
         <form
           className="space-y-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            window.location.href = '/admin';
-          }}
+          onSubmit={handleLogin}
         >
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -30,6 +62,8 @@ export default function LoginPage() {
               required
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 bg-gray-50/50"
               placeholder="name@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
@@ -47,14 +81,17 @@ export default function LoginPage() {
               required
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 bg-gray-50/50"
               placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-200"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-200 disabled:opacity-50"
           >
-            Log in to Console <ArrowRight className="h-4 w-4" />
+            {loading ? 'Logging in...' : 'Log in to Console'} <ArrowRight className="h-4 w-4" />
           </button>
         </form>
 

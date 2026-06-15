@@ -1,38 +1,38 @@
 'use client';
 
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Bot, Workflow, Zap, Shield, Activity, ArrowRight, Github, Cpu } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+import {
+  Bot,
+  Workflow,
+  Zap,
+  Shield,
+  Activity,
+  ArrowRight,
+  Github,
+  Cpu,
+  LogOut,
+  User,
+} from 'lucide-react';
 
 export default function LandingPage() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('admin_token');
+    const email = localStorage.getItem('user_email');
+    if (token) {
+      setIsAuthenticated(true);
+      setUserEmail(email);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
-      {/* Navigation */}
-      <nav className="flex items-center justify-between px-8 py-6 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="bg-blue-600 p-1.5 rounded-lg">
-            <Cpu className="h-6 w-6 text-white" />
-          </div>
-          <span className="text-xl font-bold tracking-tight">Enterprise LLM Gateway</span>
-        </div>
-        <div className="flex items-center gap-6">
-          <Link
-            href="https://github.com"
-            className="text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            <Github className="h-5 w-5" />
-          </Link>
-          <Link href="/login" className="text-sm font-semibold text-gray-600 hover:text-gray-900">
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition-all shadow-sm"
-          >
-            Sign up
-          </Link>
-        </div>
-      </nav>
-
       {/* Hero Section */}
       <main>
         <section className="px-8 pt-20 pb-32 max-w-7xl mx-auto text-center">
@@ -132,9 +132,9 @@ export default function LandingPage() {
             <Link href="#" className="hover:text-blue-600">
               Terms of Service
             </Link>
-            <Link href="https://github.com" className="hover:text-blue-600">
+            {/* <Link href="https://github.com" className="hover:text-blue-600">
               GitHub
-            </Link>
+            </Link> */}
           </div>
           <p className="text-sm text-gray-400">
             &copy; {new Date().getFullYear()} Enterprise LLM Gateway. MIT Licensed.

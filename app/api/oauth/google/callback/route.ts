@@ -4,7 +4,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const code = searchParams.get('code');
   const state = searchParams.get('state'); // Expected format: "workflow_id|node_id"
-  console.log(searchParams)
+  console.log(searchParams);
 
   if (!code) {
     return NextResponse.json({ error: 'Missing authorization code' }, { status: 400 });
@@ -14,7 +14,10 @@ export async function GET(request: NextRequest) {
   const [workflow_id, node_id] = (state || '').split('|');
 
   if (!workflow_id || !node_id) {
-    return NextResponse.json({ error: 'Missing workflow or node identity in state' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Missing workflow or node identity in state' },
+      { status: 400 },
+    );
   }
 
   try {
@@ -26,7 +29,9 @@ export async function GET(request: NextRequest) {
         code: code as string,
         client_id: process.env.GOOGLE_CLIENT_ID || '',
         client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/oauth/google/callback`,
+        redirect_uri:
+          process.env.GOOGLE_REDIRECT_URI ||
+          `${process.env.NEXT_PUBLIC_APP_URL}/api/oauth/google/callback`,
         grant_type: 'authorization_code',
       }),
     });

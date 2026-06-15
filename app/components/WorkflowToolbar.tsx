@@ -30,12 +30,12 @@ export default function WorkflowToolbar({
       >
         <CheckCircle className="w-4 h-4" /> Validate
       </button>
-      <button
+      {/* <button
         onClick={onGet}
         className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-800 rounded-lg text-sm font-medium text-white"
       >
         <Download className="w-4 h-4" /> Get
-      </button>
+      </button> */}
       <button
         onClick={onSaveAs}
         className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-lg text-sm font-medium text-white"
@@ -48,13 +48,13 @@ export default function WorkflowToolbar({
       >
         <Save className="w-4 h-4" /> Save
       </button>
-      <button
+      {/* <button
         onClick={onExecute}
         disabled={isExecuting}
         className="flex items-center gap-2 px-6 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300 rounded-lg text-sm font-medium text-white"
       >
         <Play className="w-4 h-4" /> {isExecuting ? 'Running' : 'Execute'}
-      </button>
+      </button> */}
     </div>
   );
 }
