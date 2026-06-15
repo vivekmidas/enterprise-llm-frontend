@@ -85,6 +85,25 @@ export default function PropertiesPanel({
     window.open(url, 'auth-popup', `width=${width},height=${height},left=${left},top=${top}`);
   };
 
+  // Add this useEffect to PropertiesPanel.tsx
+useEffect(() => {
+  console.log('PropertiesPanel: selectedNode changed', selectedNode);
+  if (selectedNode) {
+    const localData = selectedNode.data as NodeData;
+    const rawSchema = (localData.propertySchema || localData.property_schema);
+    const properties = localData.properties;
+    console.log('PropertiesPanel: selectedNode.data', localData);
+    console.log('PropertiesPanel: rawSchema (before filter)', rawSchema);
+    console.log('PropertiesPanel: properties (values)', properties);
+    if (!Array.isArray(rawSchema) || rawSchema.length === 0) {
+      console.warn('PropertiesPanel: propertySchema is empty or not an array!');
+    }
+  } else {
+    console.log('PropertiesPanel: No node selected.');
+  }
+}, [selectedNode]);
+
+
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'CREDENTIAL_CREATED') {

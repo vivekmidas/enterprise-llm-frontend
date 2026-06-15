@@ -78,6 +78,8 @@ export interface AgentNode {
   badge?: string;
   sub_label?: string;
   properties: Record<string, any>;
+  input_contract: Record<string, any>;
+  output_contract: Record<string, any>;
   property_schema: any[];
 }
 
