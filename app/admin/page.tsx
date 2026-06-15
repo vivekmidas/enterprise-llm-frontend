@@ -824,7 +824,7 @@ export default function AdminPage() {
                           <td className="px-4 py-3">
                             <div>
                               <button
-                                onClick={() => toggleJsonExpanded(agent.id || agent.name)}
+                                onClick={() => toggleJsonExpanded( agent.name)}
                                 className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-xs whitespace-nowrap"
                               >
                                 {jsonExpandedState[agent.id || agent.name] ? (

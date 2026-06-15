@@ -1,3 +1,6 @@
+import { LoginPayload, RegisterPayload } from '@/lib/types/login';
+
+
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 import { CategoryItem, AgentPayload } from '@/app/components/component-categoriees';
 
@@ -9,21 +12,7 @@ const getHeaders = (headers: Record<string, string> = {}) => {
   };
 };
 
-export interface RegisterPayload {
-  name: string;
-  lastname: string;
-  email: string;
-  username: string;
-  password: string;
-}
 
-export interface LoginPayload {
-  email: string;
-  password: string;
-}
-export interface LogoutPayload {
-  email: string;
-}
 
 export const api = {
   /** Authentication */

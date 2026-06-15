@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Shield } from 'lucide-react';
+import { RegisterPayload } from '@/lib/types/login';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -20,7 +21,8 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.register(formData);
+      await api.register(formData as RegisterPayload
+      );
       alert('Registration successful! Please login.');
       router.push('/admin');
     } catch (err) {
