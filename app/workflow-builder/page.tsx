@@ -1,55 +1,57 @@
 'use client';
 
 import { useCallback, useState, useEffect } from 'react';
-import ReactFlow, {
-  Node,
-  addEdge,
-  Connection,
+import {
+  ReactFlow,
+  MiniMap,
+  Controls,
+  Background,
   useNodesState,
   useEdgesState,
-  Background,
-  Controls,
-  MiniMap,
-  ConnectionLineType,
+  MarkerType,
+  type Node,
+  type Edge,
+  type Connection,
+  type NodeTypes,
+  useReactFlow,
   BackgroundVariant,
   ReactFlowProvider,
-  useReactFlow,
-  MarkerType,
-} from 'reactflow';
+  addEdge,
+} from '@xyflow/react';
 
-import 'reactflow/dist/style.css';
+import '@xyflow/react/dist/style.css';
 
 import { X, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
 import AgentSidebar from '../components/AgentSidebar';
 import WorkflowToolbar from '../components/WorkflowToolbar';
 import PropertiesPanel from '../components/PropertiesPanel';
-import CustomNode from '../components/CustomNode';
+import {CustomNode} from '@components/reactflow/CustomNode';
+
 import {
   AgentPropertyDefinition,
   PropertyValue,
+  AgentDefinition,
   normalizeAgent,
 } from '../components/component-categoriees';
 
 const nodeTypes = { custom: CustomNode };
-const defaultEdgeOptions = {
-  type: 'smoothstep',
-  animated: false,
-  markerEnd: {
-    type: MarkerType.ArrowClosed,
-    color: '#981a04',
-    height: 20,
-    width: 20,
-  },
-};
 
 
 type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
 type NodeProperties = Record<string, PropertyValue>;
-type WorkflowNodeData = Record<
-  string,
-  PropertyValue | AgentPropertyDefinition[] | NodeProperties | ExecutionStatus | undefined
->;
+
+/** 
+ * Data structure for the custom node, extending AgentDefinition 
+ * with runtime fields expected by CustomNode and the builder logic.
+ */
+interface WorkflowNodeData extends Partial<AgentDefinition> {
+  executionStatus?: ExecutionStatus;
+  variant?: string;
+  model?: string;
+  subIcon?: string;
+  [key: string]: any;
+}
 
 interface WorkflowTraceStep {
   id: string;
@@ -94,7 +96,7 @@ const maskSecrets = (value: unknown): unknown => {
 };
 
 /** Extracts the 'properties' object from a ReactFlow node's data */
-const toProperties = (node: Node): NodeProperties => {
+const toProperties = (node: Node<WorkflowNodeData>): NodeProperties => {
   const properties = node.data?.properties;
   return properties && typeof properties === 'object' && !Array.isArray(properties)
     ? (properties as NodeProperties)
@@ -107,23 +109,23 @@ const toProperties = (node: Node): NodeProperties => {
  * checks for disconnected components or invalid graph structures.
  */
 const buildExecutionSequence = (
-  nodes: Node[],
-  edges: { source?: string | null; target?: string | null }[],
+  nodes: Node<WorkflowNodeData>[],
+  edges: Edge[],
 ) => {
   // Find nodes that are either explicit "Start" nodes or "Trigger" nodes
   const startNodes = nodes.filter((node) => node.data?.node_type?.toUpperCase() === 'TRIGGER');
 
   if (startNodes.length === 0) {
-    return { sequence: [] as Node[], error: 'Agent must have at least one Trigger or Start node.' };
+    return { sequence: [] as Node<WorkflowNodeData>[], error: 'Agent must have at least one Trigger or Start node.' };
   }
   if (startNodes.length > 1) {
     return {
-      sequence: [] as Node[],
+      sequence: [] as Node<WorkflowNodeData>[],
       error: 'Agent can only have one entry point (Trigger or Start).',
     };
   }
 
-  const byId = new Map<string, Node>(nodes.map((node) => [node.id, node]));
+  const byId = new Map<string, Node<WorkflowNodeData>>(nodes.map((node) => [node.id, node]));
   const outgoing = new Map<string, string[]>();
   const incoming = new Map<string, number>();
 
@@ -134,12 +136,12 @@ const buildExecutionSequence = (
   });
 
   if ((incoming.get(startNodes[0].id) || 0) > 0) {
-    return { sequence: [] as Node[], error: 'Start node cannot have incoming edges.' };
+    return { sequence: [] as Node<WorkflowNodeData>[], error: 'Start node cannot have incoming edges.' };
   }
 
   const visited = new Set<string>();
   const stack = [startNodes[0].id];
-  const sequence: Node[] = [];
+  const sequence: Node<WorkflowNodeData>[] = [];
 
   while (stack.length > 0) {
     const nodeId = stack.pop()!;
@@ -153,7 +155,7 @@ const buildExecutionSequence = (
 
   if (sequence.length < 2) {
     return {
-      sequence: [] as Node[],
+      sequence: [] as Node<WorkflowNodeData>[],
       error: 'Connect Start to at least one component before executing.',
     };
   }
@@ -161,7 +163,7 @@ const buildExecutionSequence = (
   const unreachable = nodes.filter((node) => !visited.has(node.id));
   if (unreachable.length > 0) {
     return {
-      sequence: [] as Node[],
+      sequence: [] as Node<WorkflowNodeData>[],
       error: `Every node must be connected in the execution sequence. Unconnected: ${unreachable[0].data?.name || unreachable[0].id}.`,
     };
   }
@@ -173,7 +175,7 @@ const buildExecutionSequence = (
  * Simulates the execution of a single agent node.
  * Handles specific behavior for Start, End, and Condition nodes.
  */
-const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
+const runAgentNode = async (node: Node<WorkflowNodeData>, input: Record<string, unknown>) => {
   const data = node.data || {};
   const properties = toProperties(node);
   const name = String(data.name || data.label || node.id);
@@ -246,7 +248,7 @@ const runAgentNode = async (node: Node, input: Record<string, unknown>) => {
  * Dynamically updates the 'targetAgent' dropdown options within a node's schema.
  * Used specifically by the Scheduler Agent to let users pick from available workflows.
  */
-const updateSchedulerAgentSchema = (node: Node, agentNames: string[]): Node => {
+const updateSchedulerAgentSchema = (node: Node<WorkflowNodeData>, agentNames: string[]): Node<WorkflowNodeData> => {
   if (node.data?.name !== 'Scheduler Agent') return node;
 
   const currentSchema = (node.data.propertySchema || []) as AgentPropertyDefinition[];
@@ -275,23 +277,33 @@ const updateSchedulerAgentSchema = (node: Node, agentNames: string[]): Node => {
   return { ...node, data: { ...node.data, propertySchema: updatedPropertySchema } };
 };
 
-const initialNodes: Node[] = [];
+const defaultEdgeOptions = {
+  style: { strokeWidth: 2, stroke: '#94a3b8' },
+  markerEnd: {
+    type: MarkerType.ArrowClosed,
+    width: 20,
+    height: 20,
+    color: '#94a3b8',
+  },
+};
+
+const initialNodes: Node<WorkflowNodeData>[] = [];
 
 type WorkflowGraphPayload = {
-  nodes?: Node[];
-  nodes_structure?: Node[];
+  nodes?: Node<WorkflowNodeData>[];
+  nodes_structure?: Node<WorkflowNodeData>[];
   edges?: any[];
 };
 
-const getWorkflowNodes = (workflow: WorkflowGraphPayload | null | undefined): Node[] => {
+const getWorkflowNodes = (workflow: WorkflowGraphPayload | null | undefined): Node<WorkflowNodeData>[] => {
   if (!workflow) return initialNodes;
   return workflow.nodes || workflow.nodes_structure || initialNodes;
 };
 
 function AgentBuilderContent() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [selectedNode, setSelectedNode] = useState<Node<WorkflowNodeData> | null>(null);
   const [agentId, setAgentId] = useState('');
   const [isAgentEnabled, setIsAgentEnabled] = useState(true);
   const [agentName, setAgentName] = useState('Email Channel');
@@ -369,12 +381,12 @@ function AgentBuilderContent() {
           }
         }
 
-        return addEdge(params, eds);
+        return addEdge({ ...params, ...defaultEdgeOptions }, eds);
       }),
     [getNodes, setEdges],
   );
 
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node<WorkflowNodeData>) => {
     setSelectedNode(node);
   }, []);
 
@@ -392,7 +404,7 @@ function AgentBuilderContent() {
         const fetchedSchema = response.property_schema || response.propertySchema;
 
         setNodes((nds) =>
-          nds.map((n) => {
+          nds.map((n: Node<WorkflowNodeData>) => {
             if (n.id === selectedNode.id) {
               const updatedNode = {
                 ...n,
@@ -454,7 +466,7 @@ function AgentBuilderContent() {
 
         normalizeAgent(agentData.name)
           .then((fullAgent) => {
-            const newNode: Node = {
+            const newNode: Node<WorkflowNodeData> = {
               id: `${fullAgent.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`,
               type: 'custom',
               position: nodePosition,
@@ -463,6 +475,9 @@ function AgentBuilderContent() {
                 properties: fullAgent.properties || {},
                 propertySchema: fullAgent.propertySchema || [],
                 executionStatus: 'idle' as ExecutionStatus,
+                variant: fullAgent.category?.toString().toLowerCase(),
+                subIcon: fullAgent.icon,
+                model: (fullAgent.properties?.model as string) || '',
               },
             };
 
@@ -482,7 +497,7 @@ function AgentBuilderContent() {
   );
 
   /** React Flow equivalent of 'ondragstop' for nodes already on the canvas */
-  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node<WorkflowNodeData>) => {
     setStatus(
       `Moved ${node.data?.name || node.id} to [${Math.round(node.position.x)}, ${Math.round(node.position.y)}]`,
     );
@@ -632,7 +647,7 @@ function AgentBuilderContent() {
       }
 
       setNodes(
-        getWorkflowNodes(latestWorkflow).map((node: Node) =>
+        getWorkflowNodes(latestWorkflow).map((node: Node<WorkflowNodeData>) =>
           updateSchedulerAgentSchema(node, availableAgentNames),
         ),
       );
@@ -661,7 +676,7 @@ function AgentBuilderContent() {
         }
 
         setNodes(
-          getWorkflowNodes(data).map((node: Node) =>
+          getWorkflowNodes(data).map((node: Node<WorkflowNodeData>) =>
             updateSchedulerAgentSchema(node, availableAgentNames),
           ),
         );
@@ -738,12 +753,12 @@ function AgentBuilderContent() {
       startedBy: 'manual',
     };
 
-    let currentNode: Node | undefined = startNode;
+    let currentNode: Node<WorkflowNodeData> | undefined = startNode;
     const visited = new Set<string>();
     let stepCount = 0;
 
     while (currentNode) {
-      const activeNode: Node = currentNode;
+      const activeNode: Node<WorkflowNodeData> = currentNode;
 
       if (
         visited.has(activeNode.id) &&
@@ -895,15 +910,12 @@ function AgentBuilderContent() {
             panOnScroll={true}
             zoomOnScroll={true}
             zoomOnDoubleClick={true}
-          
-            connectionLineType={ConnectionLineType.SimpleBezier}
-            defaultEdgeOptions={{
-                type: "smoothstep",
-                animated: true,
-              }}
-              defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-          
+            minZoom={0.1}
+            maxZoom={2.0}
+            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+            defaultEdgeOptions={defaultEdgeOptions}
             fitView
+            fitViewOptions={{ maxZoom: 1, padding: 0.2 }}
           >
             <Background variant={BackgroundVariant.Dots} gap={10} size={1} />
             <Controls />
