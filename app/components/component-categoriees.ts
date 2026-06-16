@@ -36,6 +36,8 @@ export interface AgentDefinition {
   triggerType?: string;
   outcome?: string;
   propertySchema?: AgentPropertyDefinition[];
+  input_contract?: Record<string, any>;
+  output_contract?: Record<string, any>;
   properties?: Record<string, PropertyValue>;
 }
 
@@ -102,6 +104,7 @@ export interface AgentPayload {
   description?: string;
   nodes: Node[];
   edges: unknown[];
+  user_id: string;
   category?: string;
   is_enabled?: boolean;
 }

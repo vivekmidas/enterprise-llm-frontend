@@ -36,7 +36,8 @@ import {
 } from '../components/component-categoriees';
 
 const nodeTypes = { custom: CustomNode };
-
+//get value of userid from localstorage
+const userId:string=localStorage.getItem('user_id')|| "1";
 
 type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
 type NodeProperties = Record<string, PropertyValue>;
@@ -585,6 +586,7 @@ function AgentBuilderContent() {
         description: currentDescription,
         nodes,
         edges,
+        user_id: userId,
         category: agentCategory,
         is_enabled: isAgentEnabled,
       });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Node } from 'reactflow';
+import { Node } from '@xyflow/react';
 import { X, Settings, Save, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { AgentPropertyDefinition, PropertyValue } from './component-categoriees';
@@ -61,6 +61,11 @@ export default function PropertiesPanel({
   const [newConn, setNewConn] = useState({ name: '', clientId: '', clientSecret: '' });
   const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'config' | 'contract'>('config');
+  
+  // Local state for contracts fetched via API
+  const [inputContract, setInputContract] = useState<any>(null);
+  const [outputContract, setOutputContract] = useState<any>(null);
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -90,18 +95,20 @@ useEffect(() => {
   console.log('PropertiesPanel: selectedNode changed', selectedNode);
   if (selectedNode) {
     const localData = selectedNode.data as NodeData;
-    const rawSchema = (localData.propertySchema || localData.property_schema);
-    const properties = localData.properties;
-    console.log('PropertiesPanel: selectedNode.data', localData);
-    console.log('PropertiesPanel: rawSchema (before filter)', rawSchema);
-    console.log('PropertiesPanel: properties (values)', properties);
-    if (!Array.isArray(rawSchema) || rawSchema.length === 0) {
-      console.warn('PropertiesPanel: propertySchema is empty or not an array!');
-    }
+      
+      // Fetch full details including contracts from the API
+      api.getAgentNodeProperties(workflowId || '', selectedNode.id)
+        .then(res => {
+          setInputContract(res.input_contract);
+          setOutputContract(res.output_contract);
+        })
+        .catch(err => console.error("Failed to fetch node contracts", err));
+
   } else {
-    console.log('PropertiesPanel: No node selected.');
+      setInputContract(null);
+      setOutputContract(null);
   }
-}, [selectedNode]);
+  }, [selectedNode, workflowId]);
 
 
   useEffect(() => {
@@ -430,15 +437,51 @@ useEffect(() => {
         </button>
       </div>
 
+      {/* Tab Switcher */}
+      <div className="flex border-b text-xs font-semibold uppercase tracking-wider text-gray-500">
+        <button 
+          onClick={() => setViewMode('config')}
+          className={`flex-1 py-3 text-center transition-colors ${viewMode === 'config' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'bg-gray-50 hover:bg-gray-100'}`}
+        >
+          Config
+        </button>
+        <button 
+          onClick={() => setViewMode('contract')}
+          className={`flex-1 py-3 text-center transition-colors ${viewMode === 'contract' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'bg-gray-50 hover:bg-gray-100'}`}
+        >
+          Data Contract
+        </button>
+      </div>
+
       <div className="flex-1 overflow-auto p-5 space-y-6">
-        {propertySchema.length > 0 ? (
+        {viewMode === 'config' ? (
           <div className="space-y-5">
             {propertySchema.map((field) => renderPropertyField(field, properties))}
+            {propertySchema.length === 0 && (
+               <div className="text-center py-10 text-gray-400">
+                 <Settings className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                 <p className="text-sm">No configurable properties.</p>
+               </div>
+            )}
           </div>
         ) : (
-          <div className="text-center py-10 text-gray-400">
-            <Settings className="w-8 h-8 mx-auto mb-3 opacity-20" />
-            <p className="text-sm">No configurable properties for this node.</p>
+          <div className="space-y-6">
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase">Input Contract</label>
+              <pre className="mt-2 p-3 bg-gray-900 text-green-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
+                {JSON.stringify(inputContract || {}, null, 2)}
+              </pre>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase">Output Contract</label>
+              <pre className="mt-2 p-3 bg-gray-900 text-blue-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
+                {JSON.stringify(outputContract || {}, null, 2)}
+              </pre>
+            </div>
+            <p className="text-[10px] text-gray-400 italic leading-relaxed">
+              Mapping can be achieved by referencing upstream nodes in your config using 
+              <code className="bg-gray-100 px-1 rounded">{"{{ node_id.output_key }}"}</code>.
+            </p>
           </div>
         )}
       </div>
