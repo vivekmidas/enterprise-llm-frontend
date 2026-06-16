@@ -26,7 +26,7 @@ import { api } from '@/lib/api';
 import AgentSidebar from '../components/AgentSidebar';
 import WorkflowToolbar from '../components/WorkflowToolbar';
 import PropertiesPanel from '../components/PropertiesPanel';
-import {CustomNode} from '@components/reactflow/CustomNode';
+import { CustomNode } from '@components/reactflow/CustomNode';
 
 import {
   AgentPropertyDefinition,
@@ -37,13 +37,13 @@ import {
 
 const nodeTypes = { custom: CustomNode };
 //get value of userid from localstorage
-const userId:string=localStorage.getItem('user_id')|| "1";
+const userId: string = localStorage.getItem('user_id') || '1';
 
 type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
 type NodeProperties = Record<string, PropertyValue>;
 
-/** 
- * Data structure for the custom node, extending AgentDefinition 
+/**
+ * Data structure for the custom node, extending AgentDefinition
  * with runtime fields expected by CustomNode and the builder logic.
  */
 interface WorkflowNodeData extends Partial<AgentDefinition> {
@@ -109,15 +109,15 @@ const toProperties = (node: Node<WorkflowNodeData>): NodeProperties => {
  * Performs a graph traversal starting from the 'Start' node and
  * checks for disconnected components or invalid graph structures.
  */
-const buildExecutionSequence = (
-  nodes: Node<WorkflowNodeData>[],
-  edges: Edge[],
-) => {
+const buildExecutionSequence = (nodes: Node<WorkflowNodeData>[], edges: Edge[]) => {
   // Find nodes that are either explicit "Start" nodes or "Trigger" nodes
   const startNodes = nodes.filter((node) => node.data?.node_type?.toUpperCase() === 'TRIGGER');
 
   if (startNodes.length === 0) {
-    return { sequence: [] as Node<WorkflowNodeData>[], error: 'Agent must have at least one Trigger or Start node.' };
+    return {
+      sequence: [] as Node<WorkflowNodeData>[],
+      error: 'Agent must have at least one Trigger or Start node.',
+    };
   }
   if (startNodes.length > 1) {
     return {
@@ -137,7 +137,10 @@ const buildExecutionSequence = (
   });
 
   if ((incoming.get(startNodes[0].id) || 0) > 0) {
-    return { sequence: [] as Node<WorkflowNodeData>[], error: 'Start node cannot have incoming edges.' };
+    return {
+      sequence: [] as Node<WorkflowNodeData>[],
+      error: 'Start node cannot have incoming edges.',
+    };
   }
 
   const visited = new Set<string>();
@@ -249,7 +252,10 @@ const runAgentNode = async (node: Node<WorkflowNodeData>, input: Record<string, 
  * Dynamically updates the 'targetAgent' dropdown options within a node's schema.
  * Used specifically by the Scheduler Agent to let users pick from available workflows.
  */
-const updateSchedulerAgentSchema = (node: Node<WorkflowNodeData>, agentNames: string[]): Node<WorkflowNodeData> => {
+const updateSchedulerAgentSchema = (
+  node: Node<WorkflowNodeData>,
+  agentNames: string[],
+): Node<WorkflowNodeData> => {
   if (node.data?.name !== 'Scheduler Agent') return node;
 
   const currentSchema = (node.data.propertySchema || []) as AgentPropertyDefinition[];
@@ -296,7 +302,9 @@ type WorkflowGraphPayload = {
   edges?: any[];
 };
 
-const getWorkflowNodes = (workflow: WorkflowGraphPayload | null | undefined): Node<WorkflowNodeData>[] => {
+const getWorkflowNodes = (
+  workflow: WorkflowGraphPayload | null | undefined,
+): Node<WorkflowNodeData>[] => {
   if (!workflow) return initialNodes;
   return workflow.nodes || workflow.nodes_structure || initialNodes;
 };
@@ -413,7 +421,8 @@ function AgentBuilderContent() {
                   ...n.data,
                   properties: { ...(n.data.properties || {}), ...fetchedProperties },
                   // Ensure we preserve or update the schema required for rendering
-                  propertySchema: fetchedSchema || n.data.propertySchema || n.data.property_schema || [],
+                  propertySchema:
+                    fetchedSchema || n.data.propertySchema || n.data.property_schema || [],
                 },
               };
               // Sync the selectedNode state with the newly fetched data
@@ -421,7 +430,7 @@ function AgentBuilderContent() {
               return updatedNode;
             }
             return n;
-          })
+          }),
         );
       } catch (err) {
         console.error('Failed to sync node properties:', err);
@@ -886,9 +895,9 @@ function AgentBuilderContent() {
         />
 
         {/* Main Canvas */}
-        
+
         {/* Canvas Container */}
-        
+
         <div
           className="flex-1 relative bg-gray-50 overflow-hidden"
           onDragOver={onDragOver}

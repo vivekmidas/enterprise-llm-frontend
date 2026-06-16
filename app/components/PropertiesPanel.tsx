@@ -62,7 +62,7 @@ export default function PropertiesPanel({
   const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [viewMode, setViewMode] = useState<'config' | 'contract'>('config');
-  
+
   // Local state for contracts fetched via API
   const [inputContract, setInputContract] = useState<any>(null);
   const [outputContract, setOutputContract] = useState<any>(null);
@@ -91,25 +91,24 @@ export default function PropertiesPanel({
   };
 
   // Add this useEffect to PropertiesPanel.tsx
-useEffect(() => {
-  console.log('PropertiesPanel: selectedNode changed', selectedNode);
-  if (selectedNode) {
-    const localData = selectedNode.data as NodeData;
-      
+  useEffect(() => {
+    console.log('PropertiesPanel: selectedNode changed', selectedNode);
+    if (selectedNode) {
+      const localData = selectedNode.data as NodeData;
+
       // Fetch full details including contracts from the API
-      api.getAgentNodeProperties(workflowId || '', selectedNode.id)
-        .then(res => {
+      api
+        .getAgentNodeProperties(workflowId || '', selectedNode.id)
+        .then((res) => {
           setInputContract(res.input_contract);
           setOutputContract(res.output_contract);
         })
-        .catch(err => console.error("Failed to fetch node contracts", err));
-
-  } else {
+        .catch((err) => console.error('Failed to fetch node contracts', err));
+    } else {
       setInputContract(null);
       setOutputContract(null);
-  }
+    }
   }, [selectedNode, workflowId]);
-
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -439,13 +438,13 @@ useEffect(() => {
 
       {/* Tab Switcher */}
       <div className="flex border-b text-xs font-semibold uppercase tracking-wider text-gray-500">
-        <button 
+        <button
           onClick={() => setViewMode('config')}
           className={`flex-1 py-3 text-center transition-colors ${viewMode === 'config' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'bg-gray-50 hover:bg-gray-100'}`}
         >
           Config
         </button>
-        <button 
+        <button
           onClick={() => setViewMode('contract')}
           className={`flex-1 py-3 text-center transition-colors ${viewMode === 'contract' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'bg-gray-50 hover:bg-gray-100'}`}
         >
@@ -458,29 +457,33 @@ useEffect(() => {
           <div className="space-y-5">
             {propertySchema.map((field) => renderPropertyField(field, properties))}
             {propertySchema.length === 0 && (
-               <div className="text-center py-10 text-gray-400">
-                 <Settings className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                 <p className="text-sm">No configurable properties.</p>
-               </div>
+              <div className="text-center py-10 text-gray-400">
+                <Settings className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                <p className="text-sm">No configurable properties.</p>
+              </div>
             )}
           </div>
         ) : (
           <div className="space-y-6">
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase">Input Contract</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase">
+                Input Contract
+              </label>
               <pre className="mt-2 p-3 bg-gray-900 text-green-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
                 {JSON.stringify(inputContract || {}, null, 2)}
               </pre>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase">Output Contract</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase">
+                Output Contract
+              </label>
               <pre className="mt-2 p-3 bg-gray-900 text-blue-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
                 {JSON.stringify(outputContract || {}, null, 2)}
               </pre>
             </div>
             <p className="text-[10px] text-gray-400 italic leading-relaxed">
-              Mapping can be achieved by referencing upstream nodes in your config using 
-              <code className="bg-gray-100 px-1 rounded">{"{{ node_id.output_key }}"}</code>.
+              Mapping can be achieved by referencing upstream nodes in your config using
+              <code className="bg-gray-100 px-1 rounded">{'{{ node_id.output_key }}'}</code>.
             </p>
           </div>
         )}

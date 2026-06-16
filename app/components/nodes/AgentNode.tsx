@@ -2,8 +2,6 @@ import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Play, Bot, MessageSquare } from 'lucide-react';
 
-
-
 // ✅ Only define the DATA shape (this is what you had before)
 export type CustomNodeData = {
   label: string;
@@ -39,7 +37,9 @@ const CustomNode = ({ data, selected }: NodeProps<CustomNodeData>) => {
             <div className="text-white font-medium text-lg">{label}</div>
             {model && (
               <div className="flex items-center gap-1.5 mt-1">
-                <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-bold">A</div>
+                <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-bold">
+                  A
+                </div>
                 <span className="text-blue-400 text-sm font-medium">{model}</span>
               </div>
             )}
@@ -47,7 +47,12 @@ const CustomNode = ({ data, selected }: NodeProps<CustomNodeData>) => {
         </div>
         <Handle type="target" position={Position.Left} className="w-3 h-3 bg-pink-400" />
         <Handle type="source" position={Position.Right} className="w-3 h-3 bg-pink-400" id="0" />
-        <Handle type="source" position={Position.Right} className="w-3 h-3 bg-pink-400 -mt-6" id="1" />
+        <Handle
+          type="source"
+          position={Position.Right}
+          className="w-3 h-3 bg-pink-400 -mt-6"
+          id="1"
+        />
       </div>
     );
   }
@@ -66,7 +71,7 @@ const CustomNode = ({ data, selected }: NodeProps<CustomNodeData>) => {
       {/* Model Info */}
       <div className="p-4 flex items-center gap-3">
         {subIcon && <div className="text-2xl">{subIcon}</div>}
-        
+
         {model && (
           <div className="bg-zinc-800 text-white text-sm px-3 py-1.5 rounded-2xl flex items-center gap-2">
             {model}

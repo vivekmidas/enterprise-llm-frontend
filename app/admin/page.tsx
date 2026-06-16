@@ -276,13 +276,40 @@ export default function AdminPage() {
 
   const handleSaveNode = async () => {
     if (!editingAgent) return;
+    
+    const finalAgent = { ...editingAgent };
+
+    // Validate and parse Input Contract
     try {
-      if (editingAgent.id) {
+      if (typeof finalAgent.input_contract === 'string' && finalAgent.input_contract.trim() !== '') {
+        finalAgent.input_contract = JSON.parse(finalAgent.input_contract);
+      } else if (typeof finalAgent.input_contract === 'string') {
+        finalAgent.input_contract = {};
+      }
+    } catch (e) {
+      alert('Invalid JSON in Input Contract field.');
+      return;
+    }
+
+    // Validate and parse Output Contract
+    try {
+      if (typeof finalAgent.output_contract === 'string' && finalAgent.output_contract.trim() !== '') {
+        finalAgent.output_contract = JSON.parse(finalAgent.output_contract);
+      } else if (typeof finalAgent.output_contract === 'string') {
+        finalAgent.output_contract = {};
+      }
+    } catch (e) {
+      alert('Invalid JSON in Output Contract field.');
+      return;
+    }
+
+    try {
+      if (finalAgent.id) {
         // @ts-ignore - updateNode added to api.ts
-        await api.updateNode(editingAgent);
+        await api.updateNode(finalAgent);
       } else {
         // @ts-ignore - createNode added to api.ts
-        await api.createNode(editingAgent);
+        await api.createNode(finalAgent);
       }
       const agentsRes = await api.getNodes();
       setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
@@ -694,6 +721,8 @@ export default function AdminPage() {
                       sub_label: '',
                       properties: {},
                       property_schema: [],
+                      input_contract: {},
+                      output_contract: {},
                     })
                   }
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
@@ -850,6 +879,8 @@ export default function AdminPage() {
                                   {
                                     properties: maskSecrets(agent.properties),
                                     property_schema: maskSecrets(agent.property_schema),
+                                    input_contract: agent.input_contract,
+                                    output_contract: agent.output_contract,
                                   },
                                   null,
                                   2,
@@ -1372,6 +1403,28 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, description: e.target.value })
                       }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                      Input Contract (JSON)
+                    </label>
+                    <textarea
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={typeof editingAgent.input_contract === 'string' ? editingAgent.input_contract : JSON.stringify(editingAgent.input_contract || {}, null, 2)}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, input_contract: e.target.value })}
+                      placeholder='{ "properties": { "message": "string" } }'
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                      Output Contract (JSON)
+                    </label>
+                    <textarea
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={typeof editingAgent.output_contract === 'string' ? editingAgent.output_contract : JSON.stringify(editingAgent.output_contract || {}, null, 2)}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, output_contract: e.target.value })}
+                      placeholder='{ "properties": { "result": "string" } }'
                     />
                   </div>
                 </div>

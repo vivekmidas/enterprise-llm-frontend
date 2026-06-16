@@ -21,8 +21,7 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.register(formData as RegisterPayload
-      );
+      await api.register(formData as RegisterPayload);
       alert('Registration successful! Please login.');
       router.push('/admin');
     } catch (err) {

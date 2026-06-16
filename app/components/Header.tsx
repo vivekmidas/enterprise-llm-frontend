@@ -9,9 +9,9 @@ import { api } from '@/lib/api'; // Assuming api.logout() clears the cookie
 // Helper to get a cookie value by name
 const getCookie = (name: string) => {
   if (typeof document === 'undefined') return null; // Ensure this runs only on the client-side
-  const nameEQ = name + "=";
+  const nameEQ = name + '=';
   const ca = document.cookie.split(';');
-  for(let i=0; i < ca.length; i++) {
+  for (let i = 0; i < ca.length; i++) {
     let c = ca[i];
     while (c.charAt(0) === ' ') c = c.substring(1, c.length);
     if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
@@ -49,7 +49,7 @@ export default function Header() {
     api.logout();
     setIsAuthenticated(false);
     // Clear auth-related items from cookie and localStorage on logout
-    document.cookie = "admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+    document.cookie = 'admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
     localStorage.removeItem('user_email');
     localStorage.removeItem('user_role');
     localStorage.removeItem('user_id');
@@ -59,9 +59,9 @@ export default function Header() {
     router.push('/login');
   };
 
-  // Don't show header on login/signup pages if preferred, 
+  // Don't show header on login/signup pages if preferred,
   // but following instructions to add to layout.
-  
+
   return (
     <nav className="flex items-center justify-between px-8 py-4 bg-white border-b border-gray-100 sticky top-0 z-50">
       <div className="flex items-center gap-2">
@@ -83,7 +83,9 @@ export default function Header() {
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
               <User className="h-4 w-4 text-gray-400" />
               <span className="text-sm font-medium text-gray-600">{userEmail}</span>
-              {userRole && <span className="text-xs font-medium text-gray-500 ml-2">({userRole})</span>}
+              {userRole && (
+                <span className="text-xs font-medium text-gray-500 ml-2">({userRole})</span>
+              )}
               {userId && (
                 <span className="text-xs font-medium text-gray-500 ml-2">ID: {userId}</span>
               )}
@@ -100,8 +102,15 @@ export default function Header() {
           </div>
         ) : (
           <div className="flex items-center gap-4">
-            <Link href="/login" className="text-sm font-semibold text-gray-600 hover:text-gray-900">Log in</Link>
-            <Link href="/signup" className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition-all shadow-sm">Sign up</Link>
+            <Link href="/login" className="text-sm font-semibold text-gray-600 hover:text-gray-900">
+              Log in
+            </Link>
+            <Link
+              href="/signup"
+              className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition-all shadow-sm"
+            >
+              Sign up
+            </Link>
           </div>
         )}
       </div>

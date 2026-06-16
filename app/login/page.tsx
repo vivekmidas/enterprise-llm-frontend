@@ -20,7 +20,7 @@ export default function LoginPage() {
       localStorage.setItem('admin_token', data.token);
       localStorage.setItem('user_role', data.role);
       localStorage.setItem('user_email', email);
-      
+
       // Set a cookie so the middleware can access the token
       // path=/ ensures the cookie is available for all routes
       // max-age is set to 7 days (60s * 60m * 24h * 7d)
@@ -32,7 +32,6 @@ export default function LoginPage() {
         router.push('/workflow-builder');
       }
     } catch (err) {
-      
       alert('Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
@@ -49,10 +48,7 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-8">
-        <form
-          className="space-y-6"
-          onSubmit={handleLogin}
-        >
+        <form className="space-y-6" onSubmit={handleLogin}>
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
               Work Email

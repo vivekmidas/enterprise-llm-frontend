@@ -4,10 +4,10 @@ import { Node, NodeProps } from '@xyflow/react';
 export type CustomNodeData = {
   label: string;
   model?: string;
-  name?:string;
-  node_type:string;
-  color:string;
-sub_label:string;
+  name?: string;
+  node_type: string;
+  color: string;
+  sub_label: string;
   icon?: string | React.ReactNode;
   variant?: 'start' | 'detector' | 'agent';
 };

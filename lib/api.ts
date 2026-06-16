@@ -1,6 +1,5 @@
 import { LoginPayload, RegisterPayload } from '@/lib/types/login';
 
-
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 import { CategoryItem, AgentPayload } from '@/app/components/component-categoriees';
 
