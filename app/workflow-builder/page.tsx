@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import ReactFlow, {
   Node,
   addEdge,
@@ -302,6 +302,7 @@ function AgentBuilderContent() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [shouldFitLoadedWorkflow, setShouldFitLoadedWorkflow] = useState(false);
+  const [expandedTraceSteps, setExpandedTraceSteps] = useState<Set<string>>(new Set());
   const { screenToFlowPosition, getNodes, fitView } = useReactFlow();
 
   useEffect(() => {
@@ -333,6 +334,15 @@ function AgentBuilderContent() {
       })
       .catch(() => console.error('Failed to load categories'));
   }, []);
+
+  /** Nodes that connect directly into the currently selected node */
+  const upstreamNodes = useMemo(() => {
+    if (!selectedNode) return [];
+    return edges
+      .filter((e) => e.target === selectedNode.id)
+      .map((e) => nodes.find((n) => n.id === e.source))
+      .filter(Boolean) as Node[];
+  }, [selectedNode, edges, nodes]);
 
   /** Validates connections to prevent cycles and enforce port logic */
   const onConnect = useCallback(
@@ -712,6 +722,7 @@ function AgentBuilderContent() {
 
     setIsExecuting(true);
     setExecutionTrace([]);
+    setExpandedTraceSteps(new Set());
     setStatus(`Executing agent...`);
     setNodes((currentNodes) =>
       currentNodes.map((node) => ({
@@ -894,14 +905,15 @@ function AgentBuilderContent() {
 
           {/* Trace Panel - Fixed z-index & pointer events */}
           {executionTrace.length > 0 && (
-            <div className="absolute bottom-4 left-4 right-4 z-20 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl pointer-events-auto flex flex-col">
+            <div className="absolute bottom-4 left-4 right-4 z-20 max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl pointer-events-auto flex flex-col">
               <div className="flex items-center justify-between p-3 border-b bg-gray-50 sticky top-0 z-10">
                 <div className="flex items-center gap-2">
                   <Clock size={16} className="text-blue-500" />
-                  <h3 className="font-semibold text-sm text-gray-700">Agent Execution Trace</h3>
+                  <h3 className="font-semibold text-sm text-gray-700">Execution Trace</h3>
                   <span className="text-xs bg-gray-200 px-2 py-0.5 rounded-full text-gray-600">
                     {executionTrace.length} steps
                   </span>
+                  <span className="text-[10px] text-gray-400">— click a step to inspect data</span>
                 </div>
                 <button
                   onClick={() => setExecutionTrace([])}
@@ -911,34 +923,81 @@ function AgentBuilderContent() {
                 </button>
               </div>
               <div className="p-2 space-y-1">
-                {executionTrace.map((step) => (
-                  <div
-                    key={step.id}
-                    className="group p-2 hover:bg-gray-50 rounded border border-transparent hover:border-gray-100 transition-all"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {step.status === 'success' ? (
-                          <CheckCircle size={14} className="text-green-500" />
-                        ) : (
-                          <AlertCircle size={14} className="text-red-500" />
-                        )}
-                        <span className="font-bold text-xs text-black">{step.nodeName}</span>
-                        <span className="text-[10px] text-gray-400 uppercase font-medium">
-                          {step.group}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono text-gray-400">
-                        {step.durationMs}ms
-                      </span>
+                {executionTrace.map((step) => {
+                  const isExpanded = expandedTraceSteps.has(step.id);
+                  return (
+                    <div
+                      key={step.id}
+                      className={`rounded border transition-all ${
+                        isExpanded
+                          ? 'border-blue-200 bg-blue-50/30'
+                          : 'border-transparent hover:border-gray-100 hover:bg-gray-50'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="w-full p-2 flex items-center justify-between text-left"
+                        onClick={() =>
+                          setExpandedTraceSteps((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(step.id)) next.delete(step.id);
+                            else next.add(step.id);
+                            return next;
+                          })
+                        }
+                      >
+                        <div className="flex items-center gap-2">
+                          {step.status === 'success' ? (
+                            <CheckCircle size={14} className="text-green-500 shrink-0" />
+                          ) : (
+                            <AlertCircle size={14} className="text-red-500 shrink-0" />
+                          )}
+                          <span className="font-bold text-xs text-black">{step.nodeName}</span>
+                          <span className="text-[10px] text-gray-400 uppercase font-medium">
+                            {step.group}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] font-mono text-gray-400">
+                            {step.durationMs}ms
+                          </span>
+                          <span
+                            className={`text-[10px] text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                          >
+                            ▶
+                          </span>
+                        </div>
+                      </button>
+                      {step.error && (
+                        <p className="mx-2 mb-2 text-[11px] text-red-600 bg-red-50 p-1.5 rounded border border-red-100">
+                          {step.error}
+                        </p>
+                      )}
+                      {isExpanded && (
+                        <div className="mx-2 mb-2 grid grid-cols-2 gap-2">
+                          <div>
+                            <div className="text-[10px] font-bold text-gray-500 uppercase mb-1">
+                              Input
+                            </div>
+                            <pre className="text-[9px] font-mono bg-white border border-gray-200 rounded p-2 overflow-auto max-h-32 text-gray-700 leading-relaxed">
+                              {JSON.stringify(step.input, null, 2)}
+                            </pre>
+                          </div>
+                          {step.output && (
+                            <div>
+                              <div className="text-[10px] font-bold text-gray-500 uppercase mb-1">
+                                Output
+                              </div>
+                              <pre className="text-[9px] font-mono bg-white border border-gray-200 rounded p-2 overflow-auto max-h-32 text-gray-700 leading-relaxed">
+                                {JSON.stringify(step.output, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {step.error && (
-                      <p className="mt-1 text-[11px] text-red-600 bg-red-50 p-1 rounded border border-red-100">
-                        {step.error}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -951,6 +1010,7 @@ function AgentBuilderContent() {
           onUpdateNode={onUpdateNode}
           onSave={onSave}
           workflowId={agentId}
+          upstreamNodes={upstreamNodes}
         />
       </div>
     </div>
