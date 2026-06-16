@@ -63,15 +63,17 @@ export default function PropertiesPanel({
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [viewMode, setViewMode] = useState<'config' | 'contract'>('config');
 
-  // Local state for contracts fetched via API
-  const [inputContract, setInputContract] = useState<any>(null);
-  const [outputContract, setOutputContract] = useState<any>(null);
+  // Local state for fetched contracts and properties from API
+  const [inputContract, setInputContract] = useState<any>({});
+  const [outputContract, setOutputContract] = useState<any>({});
+  const [propertySchema, setPropertySchema] = useState<AgentPropertyDefinition[]>([]);
+  const [properties, setProperties] = useState<NodeProperties>({});
 
   useEffect(() => {
     const fetchProviders = async () => {
       try {
         const data = await api.getProviders();
-        setProviders(data);
+        setProviders(data || []);
       } catch (err) {
         console.error('Failed to load OAuth providers', err);
       }
@@ -100,15 +102,21 @@ export default function PropertiesPanel({
       api
         .getAgentNodeProperties(workflowId || '', selectedNode.id)
         .then((res) => {
-          setInputContract(res.input_contract);
-          setOutputContract(res.output_contract);
+          if (!res) return;
+          // Ensure that state variables are set to objects/arrays even if API returns null/undefined
+          setInputContract(res?.input_contract || {});
+          setOutputContract(res?.output_contract || {});
+          setPropertySchema(res?.property_schema || []);
+          setProperties(res?.properties || {});
         })
         .catch((err) => console.error('Failed to fetch node contracts', err));
     } else {
-      setInputContract(null);
-      setOutputContract(null);
+      setInputContract({});
+      setOutputContract({});
+      setPropertySchema([]);
+      setProperties({});
     }
-  }, [selectedNode, workflowId]);
+  }, [selectedNode?.id, workflowId]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -231,13 +239,13 @@ export default function PropertiesPanel({
           </div>
 
           <div className="space-y-3">
-            {providers.length > 0 && (
+            {providers && Array.isArray(providers) && providers.length > 0 && (
               <div>
                 <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
                   Provider
                 </label>
                 <select
-                  value={selectedProvider || (properties[`${field.key}_provider`] as string) || ''}
+                  value={selectedProvider || (properties?.[`${field.key}_provider`] as string) || ''}
                   onChange={(e) => setSelectedProvider(e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all disabled:bg-gray-100"
                 >
@@ -417,12 +425,7 @@ export default function PropertiesPanel({
 
   const localData = selectedNode.data as NodeData;
   const rawSchema = (localData.propertySchema || localData.property_schema) as any;
-  const propertySchema: AgentPropertyDefinition[] = (
-    Array.isArray(rawSchema) ? rawSchema : []
-  ).filter((f: any) => typeof f === 'object' && f !== null);
-
-  const properties = (localData.properties || {}) as NodeProperties;
-
+ 
   return (
     <div className="w-80 border-l border-gray-200 bg-white flex flex-col h-full">
       {/* Header */}
@@ -455,8 +458,8 @@ export default function PropertiesPanel({
       <div className="flex-1 overflow-auto p-5 space-y-6">
         {viewMode === 'config' ? (
           <div className="space-y-5">
-            {propertySchema.map((field) => renderPropertyField(field, properties))}
-            {propertySchema.length === 0 && (
+            {propertySchema && Array.isArray(propertySchema) && propertySchema.map((field) => field && renderPropertyField(field, properties))}
+            {(!propertySchema || propertySchema.length === 0) && (
               <div className="text-center py-10 text-gray-400">
                 <Settings className="w-8 h-8 mx-auto mb-3 opacity-20" />
                 <p className="text-sm">No configurable properties.</p>

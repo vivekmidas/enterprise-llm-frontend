@@ -19,6 +19,7 @@ import {
   addEdge,
 } from '@xyflow/react';
 
+
 import '@xyflow/react/dist/style.css';
 
 import { X, CheckCircle, AlertCircle, Clock } from 'lucide-react';
@@ -36,8 +37,6 @@ import {
 } from '../components/component-categoriees';
 
 const nodeTypes = { custom: CustomNode };
-//get value of userid from localstorage
-const userId: string = localStorage.getItem('user_id') || '1';
 
 type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
 type NodeProperties = Record<string, PropertyValue>;
@@ -324,10 +323,13 @@ function AgentBuilderContent() {
   const [availableAgentNames, setAvailableAgentNames] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [userId, setUserId] = useState<string>('1');
   const { screenToFlowPosition, getNodes, fitView } = useReactFlow();
 
   useEffect(() => {
     setIsMounted(true);
+    const storedUserId = localStorage.getItem('user_id');
+    if (storedUserId) setUserId(storedUserId);
   }, []);
 
   // Sync all existing nodes on the canvas if the list of available agents refreshes
@@ -605,7 +607,7 @@ function AgentBuilderContent() {
     } catch {
       setStatus('Unable to save agent.');
     }
-  }, [edges, nodes, validateAgent, agentId, agentName, agentCategory, isAgentEnabled]);
+  }, [edges, nodes, validateAgent, agentId, agentName, agentCategory, isAgentEnabled, userId]);
 
   const onSaveAs = useCallback(async () => {
     const nextName = window.prompt('Save agent as', agentName);

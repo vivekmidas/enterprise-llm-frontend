@@ -877,8 +877,8 @@ export default function AdminPage() {
                               <pre className="text-[10px]">
                                 {JSON.stringify(
                                   {
-                                    properties: maskSecrets(agent.properties),
-                                    property_schema: maskSecrets(agent.property_schema),
+                                    properties: agent.properties,
+                                    property_schema: agent.property_schema,
                                     input_contract: agent.input_contract,
                                     output_contract: agent.output_contract,
                                   },
@@ -1461,7 +1461,7 @@ export default function AdminPage() {
                       <tbody className="divide-y divide-gray-100 bg-white">
                         {(editingAgent.property_schema || []).map((field, idx) => (
                           <tr
-                            key={field.key || idx}
+                            key={`property-schema-row-${idx}`}
                             className="group hover:bg-gray-50 transition-colors"
                           >
                             <td className="px-4 py-3">

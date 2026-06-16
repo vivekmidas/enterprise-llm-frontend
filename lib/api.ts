@@ -101,7 +101,7 @@ export const api = {
 
   /** Reads persisted properties for one node instance inside a workflow */
   getAgentNodeProperties: async (agentId: string, nodeId: string) => {
-    const res = await fetch(`${BACKEND_URL}/workflows/${agentId}/nodes/${nodeId}/properties`, {
+    const res =await fetch(`${BACKEND_URL}/workflows/${agentId}/nodes/${nodeId}/properties`, {
       headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to load workflow node properties');
