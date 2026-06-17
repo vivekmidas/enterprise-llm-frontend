@@ -522,18 +522,26 @@ function AgentBuilderContent() {
         nds.map((node) => (node.id === nodeId ? { ...node, data: newData } : node)),
       );
       setSelectedNode((node) => (node?.id === nodeId ? { ...node, data: newData } : node));
+    },
+    [setNodes],
+  );
 
-      if (agentId && newData.properties && typeof newData.properties === 'object') {
-        api
-          .updateAgentNodeProperties(
-            agentId,
-            nodeId,
-            newData.properties as Record<string, PropertyValue>,
-          )
-          .catch(() => setStatus('Unable to update node properties.'));
+  /** Explicitly saves instance properties to the backend */
+  const onSaveInstanceProperties = useCallback(
+    async (nodeId: string, properties: NodeProperties) => {
+      if (!agentId) {
+        setStatus('❌ Save the workflow first before saving node properties.');
+        return;
+      }
+      try {
+        await api.updateAgentNodeProperties(agentId, nodeId, properties);
+        setStatus('✅ Node instance properties saved.');
+      } catch (error) {
+        setStatus('❌ Unable to save node instance properties.');
+        throw error;
       }
     },
-    [agentId, setNodes],
+    [agentId],
   );
 
   const validateAgent = useCallback(() => {
@@ -992,6 +1000,7 @@ function AgentBuilderContent() {
           selectedNode={selectedNode}
           onClose={() => setSelectedNode(null)}
           onUpdateNode={onUpdateNode}
+          onSaveInstanceProperties={onSaveInstanceProperties}
           onSave={onSave}
           workflowId={agentId}
         />

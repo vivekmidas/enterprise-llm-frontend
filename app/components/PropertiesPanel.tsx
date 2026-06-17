@@ -31,14 +31,16 @@ type NodeData = Record<
 interface PropertiesPanelProps {
   /** The ReactFlow node currently selected on the canvas */
   selectedNode: Node | null;
-  /** Callback fired when the close button is clicked */
-  onClose?: () => void;
-  /** Callback to propagate data changes back to the workflow state */
-  onUpdateNode?: (nodeId: string, newData: NodeData) => void;
+  /** Callback fired when the close button is clicked (non-optional) */
+  onClose: () => void;
+  /** Callback to propagate data changes back to the workflow state (local ReactFlow update only) */
+  onUpdateNode: (nodeId: string, newData: NodeData) => void;
   /** Callback for global save action */
   onSave?: () => void;
   /** The ID of the current workflow (agent) */
   workflowId?: string;
+  /** Callback to explicitly save instance-specific properties to the backend */
+  onSaveInstanceProperties: (nodeId: string, properties: NodeProperties) => Promise<void>;
 }
 
 /**
@@ -50,7 +52,8 @@ interface PropertiesPanelProps {
 export default function PropertiesPanel({
   selectedNode,
   onClose,
-  onUpdateNode,
+  onUpdateNode, // Keep original name, but its behavior is now just local state update
+  onSaveInstanceProperties, // New prop for explicit instance property saving
   onSave,
   workflowId,
 }: PropertiesPanelProps) {
@@ -145,12 +148,18 @@ export default function PropertiesPanel({
   const handlePropertyChange = (key: string, value: PropertyValue) => {
     if (!selectedNode || !onUpdateNode) return;
 
+    // Update local state for immediate UI feedback so fields are editable
+    setProperties((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+
     const nodeData = selectedNode.data as NodeData;
-    const properties = (nodeData.properties || {}) as NodeProperties;
+    const currentProps = (nodeData.properties || {}) as NodeProperties;
     const newData = {
       ...nodeData,
       properties: {
-        ...properties,
+        ...currentProps,
         [key]: value,
       },
     };
@@ -164,7 +173,7 @@ export default function PropertiesPanel({
    */
   const handleSaveToRegistry = async () => {
     if (!selectedNode) return;
-
+    // This function remains for saving the node type definition to the global registry
     setIsSaving(true);
     try {
       const nodeData = selectedNode.data as any;
@@ -172,11 +181,41 @@ export default function PropertiesPanel({
       const payload = {
         ...nodeData,
         property_schema: nodeData.property_schema || nodeData.propertySchema,
+        // Ensure properties are included for the registry update
+        properties: nodeData.properties,
+        input_contract: nodeData.input_contract,
+        output_contract: nodeData.output_contract,
+        // Also include other top-level fields that might be edited in AdminPage
+        name: nodeData.name,
+        label: nodeData.label,
+        description: nodeData.description,
+        node_type: nodeData.node_type,
+        version: nodeData.version,
+        category: nodeData.category,
+        group: nodeData.group,
+        icon: nodeData.icon,
+        color: nodeData.color,
       };
       await api.updateNode(payload);
       if (onSave) onSave();
     } catch (error) {
       console.error('Failed to update node registry:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /**
+   * Saves the current node's instance-specific configuration to the backend.
+   * This updates the properties for this specific node within the current workflow.
+   */
+  const handleSaveInstanceProperties = async () => {
+    if (!selectedNode || !onSaveInstanceProperties) return;
+    setIsSaving(true);
+    try {
+      await onSaveInstanceProperties(selectedNode.id, properties);
+    } catch (error) {
+      console.error('Failed to save node instance properties:', error);
     } finally {
       setIsSaving(false);
     }
@@ -494,15 +533,23 @@ export default function PropertiesPanel({
 
       {/* Footer - Save Button */}
       {(onSave || selectedNode) && (
-        <div className="p-4 border-t bg-gray-50 shrink-0">
+        <div className="p-4 border-t bg-gray-50 shrink-0 flex gap-2">
           <button
-            onClick={handleSaveToRegistry}
+            onClick={handleSaveInstanceProperties}
             disabled={isSaving}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {isSaving ? 'Updating Registry...' : 'Save Properties'}
+            {isSaving ? 'Saving...' : 'Save Properties'}
           </button>
+          {/* <button
+            onClick={handleSaveToRegistry}
+            disabled={isSaving}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {isSaving ? 'Updating...' : 'Save Type'}
+          </button> */}
         </div>
       )}
     </div>
