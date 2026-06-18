@@ -22,7 +22,7 @@ import {
 
 import '@xyflow/react/dist/style.css';
 
-import { X, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, Clock, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import AgentSidebar from '../components/AgentSidebar';
 import WorkflowToolbar from '../components/WorkflowToolbar';
@@ -326,6 +326,9 @@ function AgentBuilderContent() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [userId, setUserId] = useState<string>('1');
+  const [userRole, setUserRole] = useState<string>('');
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [workflowOwnerId, setWorkflowOwnerId] = useState<string | null>(null);
   const { screenToFlowPosition, getNodes, fitView } = useReactFlow();
 
   const [isMapperOpen, setIsMapperOpen] = useState(false);
@@ -336,6 +339,10 @@ function AgentBuilderContent() {
     setIsMounted(true);
     const storedUserId = localStorage.getItem('user_id');
     if (storedUserId) setUserId(storedUserId);
+    const storedRole = localStorage.getItem('user_role');
+    if (storedRole) setUserRole(storedRole || '');
+     const storedEmail = localStorage.getItem('user_email');
+    if (storedRole) setUserEmail(storedEmail || '');
   }, []);
 
   // Sync all existing nodes on the canvas if the list of available agents refreshes
@@ -617,6 +624,7 @@ function AgentBuilderContent() {
 
       setAgentId(currentId);
       setAgentName(currentName);
+      setWorkflowOwnerId(userId);
     }
 
     try {
@@ -668,6 +676,7 @@ function AgentBuilderContent() {
       setAgentId(savedAgent.id || nextId);
       setAgentName(savedAgent.name || nextName.trim());
       setAgentVersion(savedAgent.version ?? 1);
+      setWorkflowOwnerId(userId);
       setStatus(
         `Saved new agent ${savedAgent.name || nextName.trim()} v${savedAgent.version ?? 1}.`,
       );
@@ -698,6 +707,7 @@ function AgentBuilderContent() {
       setAgentName(latestWorkflow.name || latestWorkflow.id || agentName);
       setAgentCategory(latestWorkflow.category || 'default');
       setIsAgentEnabled(latestWorkflow.is_enabled ?? true);
+      setWorkflowOwnerId(latestWorkflow.user_id || null);
       setAgentVersion(latestWorkflow.version);
       setSelectedNode(null);
       setStatus(`Loaded ${workflows.length} latest agent${workflows.length === 1 ? '' : 's'}.`);
@@ -727,6 +737,7 @@ function AgentBuilderContent() {
         setAgentName(data.name || data.id || id);
         setAgentCategory(data.category || 'default');
         setIsAgentEnabled(data.is_enabled ?? true);
+        setWorkflowOwnerId(data.user_id || null);
         setAgentVersion(data.version);
         setSelectedNode(null);
         setExecutionTrace([]);
@@ -748,11 +759,34 @@ function AgentBuilderContent() {
     setAgentName('New Agent');
     setAgentCategory('default');
     setIsAgentEnabled(true);
+    setWorkflowOwnerId(userId);
     setAgentVersion(null);
     setSelectedNode(null);
     setExecutionTrace([]);
     setStatus('Started new agent.');
-  }, [nodes.length, setNodes, setEdges]);
+  }, [nodes.length, setNodes, setEdges, userId]);
+
+  const onDelete = useCallback(async () => {
+    if (!agentId) return;
+
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this workflow? This action is permanent and all associated data will be lost."
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const success = await api.deleteWorkflow(agentId, { id: userId, role: userRole, email:userEmail });
+      if (success) {
+        setStatus('✅ Workflow deleted successfully.');
+        handleNewAgent();
+      } else {
+        setStatus('❌ Failed to delete workflow.');
+      }
+    } catch (err: any) {
+      setStatus(`❌ Error deleting workflow: ${err.message}`);
+    }
+  }, [agentId, handleNewAgent, setStatus, userId, userRole]);
 
   const setNodeExecutionStatus = useCallback(
     (nodeId: string, executionStatus: ExecutionStatus) => {
@@ -903,6 +937,17 @@ function AgentBuilderContent() {
                 {isAgentEnabled ? 'Enabled' : 'Disabled'}
               </span>
             </label>
+            
+            {agentId && (userRole === 'admin' || userId === workflowOwnerId) && (
+              <button
+                onClick={onDelete}
+                className="ml-4 flex items-center gap-1.5 text-red-500 hover:text-red-700 transition-colors px-2 py-1 rounded hover:bg-red-50"
+                title="Delete Workflow"
+              >
+                <Trash2 size={16} />
+                <span className="font-medium">Delete</span>
+              </button>
+            )}
           </div>
         </div>
 

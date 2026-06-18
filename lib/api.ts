@@ -154,10 +154,11 @@ export const api = {
   },
 
   /** Deletes a workflow */
-  deleteWorkflow: async (workflowId: string) => {
+  deleteWorkflow: async (workflowId: string, user: { id: string; role: string, email:string }) => {
     const res = await fetch(`${BACKEND_URL}/workflows/${workflowId}`, {
       method: 'DELETE',
-      headers: getHeaders(),
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(user),
     });
     return res.ok;
   },
