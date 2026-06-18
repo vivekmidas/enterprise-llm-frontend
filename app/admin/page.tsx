@@ -44,25 +44,41 @@ export default function AdminPage() {
   const [jsonExpandedState, setJsonExpandedState] = useState<Record<string, boolean>>({});
   const [editingProvider, setEditingProvider] = useState<any | null>(null);
 
+  const [isEditingProp, setIsEditingProp] = useState(false);
+  // New Property Modal State
+  const [propModal, setPropModal] = useState({
+    isOpen: false,
+    target: 'user' as 'user' | 'system',
+    key: '',
+    label: '',
+    type: 'string',
+    defaultValue: '',
+    value: ''
+  });
+
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [userEmail, setUserEmail] = useState<string | null>(null);
-
+   const [userId, setUserId] = useState<string | null>(null);
+    
   useEffect(() => {
     setIsMounted(true);
     const token = localStorage.getItem('admin_token');
     const role = localStorage.getItem('user_role');
+   
+
     if (token) {
       if (role !== 'admin') {
         router.push('/workflow-builder');
         return;
       }
       setIsAuthenticated(true);
-      setUserRole(role);
+      setUserRole(localStorage.getItem('user_role'));
       setUserEmail(localStorage.getItem('user_email'));
+      setUserId(localStorage.getItem('user_id'));
     }
 
     async function loadAdminData() {
@@ -144,9 +160,9 @@ export default function AdminPage() {
     setWorkflows(workflowsRes || []);
   };
 
-  const handleDeleteWorkflow = async (id: string) => {
+  const handleDeleteWorkflow = async (workflowId: string) => {
     if (!confirm('Are you sure you want to delete this workflow?')) return;
-    await api.deleteWorkflow(id);
+    await api.deleteWorkflow(workflowId, {"id":userId, "role":userEmail, "email":userRole});
     const workflowsRes = await api.getSavedAgents();
     setWorkflows(workflowsRes || []);
   };
@@ -211,6 +227,73 @@ export default function AdminPage() {
     }
   };
 
+  const openPropModal = (field?: any, isSystem?: boolean) => {
+    if (field) {
+      const isUser = !isSystem;
+      const props = isUser ? 
+        (typeof editingAgent?.user_properties === 'string' ? JSON.parse(editingAgent.user_properties || '{}') : (editingAgent?.user_properties || {})) :
+        (typeof editingAgent?.system_properties === 'string' ? JSON.parse(editingAgent.system_properties || '{}') : (editingAgent?.system_properties || {}));
+
+      setPropModal({
+        isOpen: true,
+        target: isUser ? 'user' : 'system',
+        key: field.key,
+        label: field.label || field.key,
+        type: field.type || 'string',
+        defaultValue: field.default || '',
+        value: props[field.key] || ''
+      });
+      setIsEditingProp(true);
+    } else {
+      setPropModal({ isOpen: true, target: 'user', key: '', label: '', type: 'string', defaultValue: '', value: '' });
+      setIsEditingProp(false);
+    }
+  };
+
+  const handleSavePropFromModal = () => {
+    if (!propModal.key || !editingAgent) return;
+    
+    setEditingAgent(prev => {
+      if (!prev) return null;
+      
+      const isUser = propModal.target === 'user';
+      const userProps = { ...(typeof prev.user_properties === 'string' ? JSON.parse(prev.user_properties || '{}') : (prev.user_properties || {})) };
+      const sysProps = { ...(typeof prev.system_properties === 'string' ? JSON.parse(prev.system_properties || '{}') : (prev.system_properties || {})) };
+      let schema = [...(prev.property_schema || [])];
+
+      if (isUser) {
+        userProps[propModal.key] = propModal.value;
+        const newEntry = {
+          key: propModal.key,
+          label: propModal.label || propModal.key,
+          type: propModal.type,
+          default: propModal.defaultValue
+        };
+        const existingIdx = schema.findIndex(f => f.key === propModal.key);
+        if (existingIdx >= 0) schema[existingIdx] = newEntry;
+        else schema.push(newEntry);
+        
+        // Ensure it doesn't exist in system if moved to user
+        delete sysProps[propModal.key];
+      } else {
+        sysProps[propModal.key] = propModal.value;
+        // Remove from UI schema if it's now a system property
+        schema = schema.filter(f => f.key !== propModal.key);
+        delete userProps[propModal.key];
+      }
+
+      return {
+        ...prev,
+        user_properties: userProps,
+        system_properties: sysProps,
+        property_schema: schema,
+        // Also sync the legacy properties bag for compatibility
+        properties: isUser ? userProps : prev.properties
+      };
+    });
+    setPropModal(prev => ({ ...prev, isOpen: false }));
+  };
+
   const handleSaveNode = async () => {
     if (!editingAgent) return;
     
@@ -237,6 +320,30 @@ export default function AdminPage() {
       }
     } catch (e) {
       alert('Invalid JSON in Output Contract field.');
+      return;
+    }
+
+    // Validate and parse User Properties
+    try {
+      if (typeof finalAgent.user_properties === 'string' && finalAgent.user_properties.trim() !== '') {
+        finalAgent.user_properties = JSON.parse(finalAgent.user_properties);
+      } else if (typeof finalAgent.user_properties === 'string') {
+        finalAgent.user_properties = {};
+      }
+    } catch (e) {
+      alert('Invalid JSON in User Properties field.');
+      return;
+    }
+
+    // Validate and parse System Properties
+    try {
+      if (typeof finalAgent.system_properties === 'string' && finalAgent.system_properties.trim() !== '') {
+        finalAgent.system_properties = JSON.parse(finalAgent.system_properties);
+      } else if (typeof finalAgent.system_properties === 'string') {
+        finalAgent.system_properties = {};
+      }
+    } catch (e) {
+      alert('Invalid JSON in System Properties field.');
       return;
     }
 
@@ -657,6 +764,7 @@ export default function AdminPage() {
                       badge: 'Node',
                       sub_label: '',
                       properties: {},
+                      user_properties: {},
                       property_schema: [],
                       input_contract: {},
                       output_contract: {},
@@ -816,7 +924,8 @@ export default function AdminPage() {
                               <pre className="text-[10px]">
                                 {JSON.stringify(
                                   {
-                                    properties: agent.properties,
+                                    properties: agent.user_properties,
+                                    system_properties: agent.system_properties,
                                     property_schema: agent.property_schema,
                                     input_contract: agent.input_contract,
                                     output_contract: agent.output_contract,
@@ -1344,42 +1453,18 @@ export default function AdminPage() {
                       }
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
-                      Input Contract (JSON)
-                    </label>
-                    <textarea
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={typeof editingAgent.input_contract === 'string' ? editingAgent.input_contract : JSON.stringify(editingAgent.input_contract || {}, null, 2)}
-                      onChange={(e) => setEditingAgent({ ...editingAgent, input_contract: e.target.value })}
-                      placeholder='{ "properties": { "message": "string" } }'
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
-                      Output Contract (JSON)
-                    </label>
-                    <textarea
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={typeof editingAgent.output_contract === 'string' ? editingAgent.output_contract : JSON.stringify(editingAgent.output_contract || {}, null, 2)}
-                      onChange={(e) => setEditingAgent({ ...editingAgent, output_contract: e.target.value })}
-                      placeholder='{ "properties": { "result": "string" } }'
-                    />
-                  </div>
                 </div>
 
-                {/* Unified Properties Section */}
+                {/* Unified Property Registry */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                     <div>
-                      <h4 className="font-bold text-black">Properties & Registry Values</h4>
-                      <p className="text-xs text-gray-500">
-                        Define the schema and set the global default values for this node type.
-                      </p>
+                      <h4 className="font-bold text-black">Property Registry</h4>
+                      <p className="text-xs text-gray-500">Configure User (UI-visible) and System (Internal) properties.</p>
                     </div>
                     <button
-                      onClick={addSchemaField}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 uppercase"
+                      onClick={() => openPropModal()}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100"
                     >
                       <IconMap.Plus className="h-4 w-4" /> Add Property
                     </button>
@@ -1389,84 +1474,79 @@ export default function AdminPage() {
                     <table className="w-full text-left text-sm">
                       <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-[10px] font-bold">
                         <tr>
+                          <th className="px-4 py-3">Category</th>
                           <th className="px-4 py-3">Property Name (Key)</th>
                           <th className="px-4 py-3">UI Label</th>
-                          <th className="px-4 py-3">Type / Meta</th>
-                          <th className="px-4 py-3">Default Value</th>
+                          <th className="px-4 py-3">Type</th>
                           <th className="px-4 py-3">Registry (Active)</th>
                           <th className="px-4 py-3 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 bg-white">
-                        {(editingAgent.property_schema || []).map((field, idx) => (
-                          <tr
-                            key={`property-schema-row-${idx}`}
-                            className="group hover:bg-gray-50 transition-colors"
-                          >
-                            <td className="px-4 py-3">
-                              <input
-                                className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 font-mono text-xs text-black"
-                                value={field.key}
-                                onChange={(e) => updateSchema(idx, 'key', e.target.value)}
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 text-black"
-                                value={field.label}
-                                onChange={(e) => updateSchema(idx, 'label', e.target.value)}
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-col gap-1">
-                                <select
-                                  className="bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 text-xs text-gray-900 border border-gray-100"
-                                  value={field.type}
-                                  onChange={(e) => updateSchema(idx, 'type', e.target.value)}
+                        {(() => {
+                          const schema = editingAgent.property_schema || [];
+                          const userProps = typeof editingAgent.user_properties === 'string' ? JSON.parse(editingAgent.user_properties || '{}') : (editingAgent.user_properties || {});
+                          const sysProps = typeof editingAgent.system_properties === 'string' ? JSON.parse(editingAgent.system_properties || '{}') : (editingAgent.system_properties || {});
+
+                          const rows: any[] = schema.map((s, idx) => ({ ...s, category: 'user', value: userProps[s.key], schemaIdx: idx }));
+                          Object.keys(sysProps).forEach(key => {
+                            if (!rows.find(r => r.key === key)) {
+                              rows.push({ key, label: '-', type: 'string', category: 'system', value: sysProps[key], default: '' });
+                            }
+                          });
+
+                          return rows.map((row, idx) => (
+                            <tr key={`unified-row-${idx}`} className="group hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openPropModal(row, row.category === 'system')}>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${row.category === 'user' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                                  {row.category}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 font-mono text-xs text-black">{row.key}</td>
+                              <td className="px-4 py-3 text-gray-600">{row.label}</td>
+                              <td className="px-4 py-3">
+                                <span className="text-[10px] font-mono text-gray-400">{row.type}</span>
+                              </td>
+                              <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                {renderValueInput(row, row.value)}
+                              </td>
+                              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={() => row.category === 'user' ? removeSchemaField(row.schemaIdx) : setEditingAgent(prev => {
+                                    const s = { ...(typeof prev!.system_properties === 'string' ? JSON.parse(prev!.system_properties || '{}') : (prev!.system_properties || {})) };
+                                    delete s[row.key];
+                                    return { ...prev!, system_properties: s };
+                                  })}
+                                  className="text-gray-400 hover:text-red-500 transition-colors"
                                 >
-                                  <option value="string">String</option>
-                                  <option value="boolean">Boolean</option>
-                                  <option value="number">Number</option>
-                                  <option value="choice">Choice</option>
-                                  <option value="textarea">Textarea</option>
-                                  <option value="password">Password</option>
-                                  <option value="oauth">oAuth</option>
-                                </select>
-                                <label className="flex items-center gap-1 text-[10px] text-gray-500">
-                                  <input
-                                    type="checkbox"
-                                    checked={field.multiple || false}
-                                    onChange={(e) =>
-                                      updateSchema(idx, 'multiple', e.target.checked)
-                                    }
-                                  />{' '}
-                                  Multi
-                                </label>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                className="w-full bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 text-xs text-gray-700 italic"
-                                value={String(field.default ?? '')}
-                                placeholder="Hardcoded..."
-                                onChange={(e) => updateSchema(idx, 'default', e.target.value)}
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              {renderValueInput(field, editingAgent.properties[field.key])}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() => removeSchemaField(idx)}
-                                className="text-gray-400 hover:text-red-500 transition-colors"
-                              >
-                                <IconMap.Trash2 className="h-4 w-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                                  <IconMap.Trash2 className="h-4 w-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ));
+                        })()}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+
+                {/* Contract Section */}
+                <div className="grid grid-cols-2 gap-6 pt-4 border-t">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Input Contract (JSON)</label>
+                    <textarea
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={typeof editingAgent.input_contract === 'string' ? editingAgent.input_contract : JSON.stringify(editingAgent.input_contract || {}, null, 2)}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, input_contract: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Output Contract (JSON)</label>
+                    <textarea
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={typeof editingAgent.output_contract === 'string' ? editingAgent.output_contract : JSON.stringify(editingAgent.output_contract || {}, null, 2)}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, output_contract: e.target.value })}
+                    />
                   </div>
                 </div>
               </div>
@@ -1484,6 +1564,102 @@ export default function AdminPage() {
                 >
                   <IconMap.Save className="h-4 w-4" />{' '}
                   {editingAgent.id ? 'Update Registry' : 'Create Node Type'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Property Modal */}
+        {propModal.isOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-200">
+              <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
+                <h3 className="text-lg font-bold text-black flex items-center gap-2">
+                  <IconMap.settings className="h-5 w-5 text-blue-600" />
+                  {isEditingProp ? 'Edit Property' : 'Add Property'}
+                </h3>
+                <button onClick={() => setPropModal({ ...propModal, isOpen: false })} className="text-gray-400 hover:text-gray-600">
+                  <IconMap.x className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                  <button 
+                    onClick={() => setPropModal({...propModal, target: 'user'})}
+                    className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${propModal.target === 'user' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}
+                  >
+                    User Property
+                  </button>
+                  <button 
+                    onClick={() => setPropModal({...propModal, target: 'system'})}
+                    className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${propModal.target === 'system' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}
+                  >
+                    System Property
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Property Key (ID)</label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                    value={propModal.key}
+                    onChange={(e) => setPropModal({ ...propModal, key: e.target.value })}
+                    placeholder="e.g. api_timeout"
+                  />
+                </div>
+
+                {propModal.target === 'user' && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">UI Label</label>
+                    <input
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={propModal.label}
+                      onChange={(e) => setPropModal({ ...propModal, label: e.target.value })}
+                      placeholder="e.g. API Timeout (ms)"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Field Type</label>
+                    <select
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={propModal.type}
+                      onChange={(e) => setPropModal({ ...propModal, type: e.target.value })}
+                    >
+                      <option value="string">String</option>
+                      <option value="number">Number</option>
+                      <option value="boolean">Boolean</option>
+                      <option value="password">Password</option>
+                      <option value="textarea">Textarea</option>
+                      <option value="choice">Choice</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Value (In Catalog)</label>
+                    <input
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={propModal.value}
+                      onChange={(e) => setPropModal({ ...propModal, value: e.target.value })}
+                      placeholder="Registry value"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="border-t bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                <button
+                  onClick={() => setPropModal({ ...propModal, isOpen: false })}
+                  className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSavePropFromModal}
+                  className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all"
+                >
+                  Save Property
                 </button>
               </div>
             </div>

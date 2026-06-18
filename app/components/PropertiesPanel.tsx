@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Node, Edge } from '@xyflow/react';
-import { X, Settings, Save, Loader2, ArrowRightLeft, Wand2, Info } from 'lucide-react';
+import { X, Settings, Save, Loader2, ArrowRightLeft, Wand2, Info, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { AgentPropertyDefinition, PropertyValue } from './component-categoriees';
+import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
 // Assuming AgentPropertyDefinition and PropertyValue are defined in component-categoriees.ts
 // If not, you would define them here:
 // export type PropertyValue = string | number | boolean | string[] | undefined;
@@ -132,7 +132,7 @@ type NodeProperties = Record<string, PropertyValue>;
 /** Type for the generic node data object stored in ReactFlow */
 type NodeData = Record<
   string,
-  PropertyValue | AgentPropertyDefinition[] | NodeProperties | undefined
+  PropertyValue | NodePropertyDefinition[] | NodeProperties | undefined
 >;
 
 interface PropertiesPanelProps {
@@ -148,6 +148,8 @@ interface PropertiesPanelProps {
   workflowId?: string;
   /** Callback to explicitly save instance-specific properties to the backend */
   onSaveInstanceProperties: (nodeId: string, properties: NodeProperties) => Promise<void>;
+  /** Callback to delete node from canvas */
+  onDeleteNode?: (nodeId: string) => void;
 }
 
 /**
@@ -163,6 +165,7 @@ export default function PropertiesPanel({
   onSaveInstanceProperties, // New prop for explicit instance property saving
   onSave,
   workflowId,
+  onDeleteNode,
 }: PropertiesPanelProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [credentials, setCredentials] = useState<any[]>([]);
@@ -176,8 +179,8 @@ export default function PropertiesPanel({
   // Local state for fetched contracts and properties from API
   const [inputContract, setInputContract] = useState<any>({});
   const [outputContract, setOutputContract] = useState<any>({});
-  const [propertySchema, setPropertySchema] = useState<AgentPropertyDefinition[]>([]);
-  const [properties, setProperties] = useState<NodeProperties>({});
+  const [propertySchema, setPropertySchema] = useState<NodePropertyDefinition[]>([]);
+  const [user_properties, setUserProperties] = useState<NodeProperties>({});
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -217,14 +220,14 @@ export default function PropertiesPanel({
           setInputContract(res?.input_contract || {});
           setOutputContract(res?.output_contract || {});
           setPropertySchema(res?.property_schema || []);
-          setProperties(res?.properties || {});
+          setUserProperties(res?.user_properties || {});
         })
         .catch((err) => console.error('Failed to fetch node contracts', err));
     } else {
       setInputContract({});
       setOutputContract({});
       setPropertySchema([]);
-      setProperties({});
+      setUserProperties({});
     }
   }, [selectedNode?.id, workflowId]);
 
@@ -256,16 +259,16 @@ export default function PropertiesPanel({
     if (!selectedNode || !onUpdateNode) return;
 
     // Update local state for immediate UI feedback so fields are editable
-    setProperties((prev) => ({
+    setUserProperties((prev) => ({
       ...prev,
       [key]: value,
     }));
 
     const nodeData = selectedNode.data as NodeData;
-    const currentProps = (nodeData.properties || {}) as NodeProperties;
+    const currentProps = (nodeData.user_properties || {}) as NodeProperties;
     const newData = {
       ...nodeData,
-      properties: {
+      user_properties: {
         ...currentProps,
         [key]: value,
       },
@@ -320,7 +323,7 @@ export default function PropertiesPanel({
     if (!selectedNode || !onSaveInstanceProperties) return;
     setIsSaving(true);
     try {
-      await onSaveInstanceProperties(selectedNode.id, properties);
+      await onSaveInstanceProperties(selectedNode.id, user_properties);
     } catch (error) {
       console.error('Failed to save node instance properties:', error);
     } finally {
@@ -329,7 +332,7 @@ export default function PropertiesPanel({
   };
 
   /** Helper to safely retrieve current value or appropriate default for the field type */
-  const getPropertyValue = (properties: NodeProperties, field: AgentPropertyDefinition) => {
+  const getPropertyValue = (properties: NodeProperties, field: NodePropertyDefinition) => {
     if (properties[field.key] !== undefined) return properties[field.key];
     if (field.type === 'boolean') return false;
     if (field.multiple) return [];
@@ -337,7 +340,7 @@ export default function PropertiesPanel({
   };
 
   /** Renders the appropriate UI input based on the field definition from the agent schema */
-  const renderPropertyField = (field: AgentPropertyDefinition, properties: NodeProperties) => {
+  const renderPropertyField = (field: NodePropertyDefinition, properties: NodeProperties) => {
     const value = getPropertyValue(properties, field);
 
     // Boolean Toggle
@@ -585,6 +588,51 @@ export default function PropertiesPanel({
         </button>
       </div>
 
+      {/* Node Metadata (Label & Color) */}
+      <div className="p-4 border-b space-y-3 shrink-0 bg-white shadow-sm">
+        <div>
+          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+            Node Label
+          </label>
+          <input
+            type="text"
+            value={String((selectedNode.data as any).label || (selectedNode.data as any).name || '')}
+            onChange={(e) => {
+              const val = e.target.value;
+              onUpdateNode(selectedNode.id, {
+                ...(selectedNode.data as any),
+                label: val,
+              });
+            }}
+            placeholder="e.g. LLM Node"
+            className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white text-black focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+          />
+        </div>
+        <div className="flex gap-2 items-center">
+          <div className="flex-1">
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              Node Color
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={String((selectedNode.data as any).color || '#10b981')}
+                onChange={(e) => {
+                  onUpdateNode(selectedNode.id, {
+                    ...(selectedNode.data as any),
+                    color: e.target.value,
+                  });
+                }}
+                className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200 p-0"
+              />
+              <span className="text-xs font-mono text-gray-500 uppercase">
+                {String((selectedNode.data as any).color || '#10b981')}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Tab Switcher */}
       <div className="flex border-b text-xs font-semibold uppercase tracking-wider text-gray-500">
         <button
@@ -604,7 +652,7 @@ export default function PropertiesPanel({
       <div className="flex-1 overflow-auto p-5 space-y-6">
         {viewMode === 'config' ? (
           <div className="space-y-5">
-            {propertySchema && Array.isArray(propertySchema) && propertySchema.map((field) => field && renderPropertyField(field, properties))}
+            {propertySchema && Array.isArray(propertySchema) && propertySchema.map((field) => field && renderPropertyField(field, user_properties))}
             {(!propertySchema || propertySchema.length === 0) && (
               <div className="text-center py-10 text-gray-400">
                 <Settings className="w-8 h-8 mx-auto mb-3 opacity-20" />
@@ -638,25 +686,31 @@ export default function PropertiesPanel({
         )}
       </div>
 
-      {/* Footer - Save Button */}
+      {/* Footer - Save & Delete Buttons */}
       {(onSave || selectedNode) && (
-        <div className="p-4 border-t bg-gray-50 shrink-0 flex gap-2">
+        <div className="p-4 border-t bg-gray-50 shrink-0 flex flex-col gap-2">
           <button
             onClick={handleSaveInstanceProperties}
             disabled={isSaving}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {isSaving ? 'Saving...' : 'Save Properties'}
           </button>
-          {/* <button
-            onClick={handleSaveToRegistry}
-            disabled={isSaving}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {isSaving ? 'Updating...' : 'Save Type'}
-          </button> */}
+          {onDeleteNode && (
+            <button
+              onClick={() => {
+                const nodeName = (selectedNode.data as any).label || (selectedNode.data as any).name || selectedNode.id;
+                if (window.confirm(`Are you sure you want to delete the node "${nodeName}"?`)) {
+                  onDeleteNode(selectedNode.id);
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-lg text-sm font-medium transition-colors shadow-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Node
+            </button>
+          )}
         </div>
       )}
     </div>

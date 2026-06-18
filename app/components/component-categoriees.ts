@@ -12,7 +12,7 @@ export interface Category {
 
 export type PropertyValue = string | number | boolean | string[];
 
-export interface AgentPropertyDefinition {
+export interface NodePropertyDefinition {
   key: string;
   label: string;
   type: 'string' | 'boolean' | 'choice' | 'password' | 'textarea' | 'number' | 'oauth';
@@ -21,7 +21,7 @@ export interface AgentPropertyDefinition {
   multiple?: boolean;
 }
 
-export interface AgentDefinition {
+export interface NodeDefinition {
   id: number;
   name: string;
   label?: string;
@@ -35,10 +35,12 @@ export interface AgentDefinition {
   subLabel?: string;
   triggerType?: string;
   outcome?: string;
-  propertySchema?: AgentPropertyDefinition[];
+  propertySchema?: NodePropertyDefinition[];
   input_contract?: Record<string, any>;
   output_contract?: Record<string, any>;
-  properties?: Record<string, PropertyValue>;
+  user_properties?: Record<string, PropertyValue>;
+  system_properties?: Record<string, PropertyValue>;
+  
 }
 
 export interface CategoryItem {
@@ -50,7 +52,7 @@ export interface CategoryItem {
   id: number;
 }
 
-export interface AgentSidebarProps {
+export interface NodeSidebarProps {
   onSelectAgent?: (id: string) => void;
   onNewAgent?: () => void;
   onAllAgentsLoaded?: (agentNames: string[]) => void;
@@ -79,7 +81,8 @@ export interface AgentNode {
   color?: string;
   badge?: string;
   sub_label?: string;
-  properties: Record<string, any>;
+  user_properties: Record<string, any>;
+  system_properties: Record<string, any>;
   input_contract: Record<string, any>;
   output_contract: Record<string, any>;
   property_schema: any[];
@@ -148,7 +151,7 @@ export const getCategory = (name?: number): Category => {
 };
 
 // retrieve node details from the backend api /nodes
-export const fetchNodeDetails = async (nodeName: string): Promise<Partial<AgentDefinition>> => {
+export const fetchNodeDetails = async (nodeName: string): Promise<Partial<NodeDefinition>> => {
   try {
     const response = await api.getNodesByName(nodeName);
 
@@ -178,7 +181,7 @@ const toDisplayName = (name: string) =>
 /**
  * Normalizes a node by fetching its full definition from the registry based on its name.
  */
-export const normalizeAgent = async (name: string): Promise<AgentDefinition> => {
+export const normalizeAgent = async (name: string): Promise<NodeDefinition> => {
   const details = await fetchNodeDetails(name);
   return {
     name,
@@ -187,5 +190,5 @@ export const normalizeAgent = async (name: string): Promise<AgentDefinition> => 
     category: details.category ?? 1,
     icon: details.icon || 'bot',
     ...details,
-  } as AgentDefinition;
+  } as NodeDefinition;
 };

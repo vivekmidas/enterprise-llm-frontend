@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, Play, Save, SaveAll, CheckCircle } from 'lucide-react';
+import { Download, Play, Save, SaveAll, CheckCircle, Loader2 } from 'lucide-react';
 
 interface WorkflowToolbarProps {
   onValidate: () => void;
@@ -26,7 +26,7 @@ export default function WorkflowToolbar({
       {status && <div className="max-w-72 truncate text-sm text-gray-600">{status}</div>}
       <button
         onClick={onValidate}
-        className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg text-sm font-medium text-white"
+        className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg text-sm font-medium text-white transition-colors"
       >
         <CheckCircle className="w-4 h-4" /> Validate
       </button>
@@ -38,23 +38,28 @@ export default function WorkflowToolbar({
       </button> */}
       <button
         onClick={onSaveAs}
-        className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-lg text-sm font-medium text-white"
+        className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-lg text-sm font-medium text-white transition-colors"
       >
         <SaveAll className="w-4 h-4" /> Save As...
       </button>
       <button
         onClick={onSave}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium text-white"
+        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium text-white transition-colors"
       >
         <Save className="w-4 h-4" /> Save
       </button>
-      {/* <button
+      <button
         onClick={onExecute}
         disabled={isExecuting}
-        className="flex items-center gap-2 px-6 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300 rounded-lg text-sm font-medium text-white"
+        className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-400 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
       >
-        <Play className="w-4 h-4" /> {isExecuting ? 'Running' : 'Execute'}
-      </button> */}
+        {isExecuting ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Play className="w-4 h-4" />
+        )}
+        {isExecuting ? 'Executing...' : 'Run Workflow'}
+      </button>
     </div>
   );
 }

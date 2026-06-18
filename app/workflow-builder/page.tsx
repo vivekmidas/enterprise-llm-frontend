@@ -22,7 +22,7 @@ import {
 
 import '@xyflow/react/dist/style.css';
 
-import { X, CheckCircle, AlertCircle, Clock, Trash2 } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, Clock, Trash2, Edit2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import AgentSidebar from '../components/AgentSidebar';
 import WorkflowToolbar from '../components/WorkflowToolbar';
@@ -32,9 +32,9 @@ import FieldMapperModal from '../components/FieldMapperModal';
 import { ArrowRightLeft } from 'lucide-react';
 
 import {
-  AgentPropertyDefinition,
+  NodePropertyDefinition,
   PropertyValue,
-  AgentDefinition,
+  NodeDefinition,
   normalizeAgent,
 } from '../components/component-categoriees';
 
@@ -45,14 +45,14 @@ type NodeProperties = Record<string, PropertyValue>;
 
 /**
  * Data structure for the custom node, extending AgentDefinition
- * with runtime fields expected by CustomNode and the builder logic.
+ * with runtime fields. Only contains user_properties (properties).
  */
-interface WorkflowNodeData extends Partial<AgentDefinition> {
+interface WorkflowNodeData extends Partial<NodeDefinition>, Record<string, unknown> {
+  user_properties: NodeProperties;
   executionStatus?: ExecutionStatus;
   variant?: string;
   model?: string;
   subIcon?: string;
-  [key: string]: any;
 }
 
 interface WorkflowTraceStep {
@@ -98,8 +98,8 @@ const maskSecrets = (value: unknown): unknown => {
 };
 
 /** Extracts the 'properties' object from a ReactFlow node's data */
-const toProperties = (node: Node<WorkflowNodeData>): NodeProperties => {
-  const properties = node.data?.properties;
+const toUserProperties = (node: Node<WorkflowNodeData>): NodeProperties => {
+  const properties = node.data?.user_properties;
   return properties && typeof properties === 'object' && !Array.isArray(properties)
     ? (properties as NodeProperties)
     : {};
@@ -112,7 +112,7 @@ const toProperties = (node: Node<WorkflowNodeData>): NodeProperties => {
  */
 const buildExecutionSequence = (nodes: Node<WorkflowNodeData>[], edges: Edge[]) => {
   // Find nodes that are either explicit "Start" nodes or "Trigger" nodes
-  const startNodes = nodes.filter((node) => node.data?.node_type?.toUpperCase() === 'TRIGGER');
+  const startNodes = nodes.filter((node) => (node.data as any)?.node_type?.toUpperCase() === 'TRIGGER');
 
   if (startNodes.length === 0) {
     return {
@@ -182,7 +182,7 @@ const buildExecutionSequence = (nodes: Node<WorkflowNodeData>[], edges: Edge[]) 
  */
 const runAgentNode = async (node: Node<WorkflowNodeData>, input: Record<string, unknown>) => {
   const data = node.data || {};
-  const properties = toProperties(node);
+  const properties = toUserProperties(node);
   const name = String(data.name || data.label || node.id);
   const category = String(data.category || data.group || 'Agent');
   const normalizedName = name.toLowerCase();
@@ -259,7 +259,7 @@ const updateSchedulerAgentSchema = (
 ): Node<WorkflowNodeData> => {
   if (node.data?.name !== 'Scheduler Agent') return node;
 
-  const currentSchema = (node.data.propertySchema || []) as AgentPropertyDefinition[];
+  const currentSchema = (node.data.propertySchema || []) as NodePropertyDefinition[];
   const targetProp = currentSchema.find((p) => p.key === 'targetAgent');
   const sortedAgentNames = [...new Set(['', ...agentNames])].sort();
 
@@ -271,7 +271,7 @@ const updateSchedulerAgentSchema = (
     return node;
   }
 
-  const updatedPropertySchema = currentSchema.map((prop: AgentPropertyDefinition) => {
+  const updatedPropertySchema = currentSchema.map((prop: NodePropertyDefinition) => {
     if (prop.key === 'targetAgent') {
       return {
         ...prop,
@@ -329,6 +329,8 @@ function AgentBuilderContent() {
   const [userRole, setUserRole] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
   const [workflowOwnerId, setWorkflowOwnerId] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
   const { screenToFlowPosition, getNodes, fitView } = useReactFlow();
 
   const [isMapperOpen, setIsMapperOpen] = useState(false);
@@ -364,6 +366,34 @@ function AgentBuilderContent() {
       .catch(() => console.error('Failed to load categories'));
   }, []);
 
+  const onNodesChangeWrapper = useCallback((changes: any) => {
+    onNodesChange(changes);
+    const hasModifyingChange = changes.some(
+      (c: any) => c.type === 'position' || c.type === 'remove' || c.type === 'add'
+    );
+    if (hasModifyingChange) {
+      setIsDirty(true);
+    }
+  }, [onNodesChange]);
+
+  const onEdgesChangeWrapper = useCallback((changes: any) => {
+    onEdgesChange(changes);
+    const hasModifyingChange = changes.some(
+      (c: any) => c.type === 'remove' || c.type === 'add'
+    );
+    if (hasModifyingChange) {
+      setIsDirty(true);
+    }
+  }, [onEdgesChange]);
+
+  const onDeleteNode = useCallback((nodeId: string) => {
+    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    setSelectedNode(null);
+    setIsDirty(true);
+    setStatus('Node deleted.');
+  }, [setNodes, setEdges]);
+
   /** Validates connections to prevent cycles and enforce port logic */
   const onConnect = useCallback(
     (params: Connection) =>
@@ -372,9 +402,9 @@ function AgentBuilderContent() {
         const source = currentNodes.find((node) => node.id === params.source);
         const target = currentNodes.find((node) => node.id === params.target);
         const isTargetTrigger =
-          target?.data?.properties?.node_type === 'trigger' ||
-          target?.data?.nodeType === 'trigger' ||
-          (target?.data?.category || target?.data?.group) === 'Trigger';
+          (target?.data as any)?.properties?.node_type === 'trigger' ||
+          (target?.data as any)?.nodeType === 'trigger' ||
+          ((target?.data as any)?.category || (target?.data as any)?.group) === 'Trigger';
 
         const isCondition = (source?.data?.category || source?.data?.group) === 'Condition';
 
@@ -405,6 +435,7 @@ function AgentBuilderContent() {
           }
         }
 
+        setIsDirty(true);
         return addEdge({ ...params, ...defaultEdgeOptions }, eds);
       }),
     [getNodes, setEdges],
@@ -512,16 +543,17 @@ function AgentBuilderContent() {
               position: nodePosition,
               data: {
                 ...fullAgent,
-                properties: fullAgent.properties || {},
+                user_properties: fullAgent.user_properties || {},
                 propertySchema: fullAgent.propertySchema || [],
                 executionStatus: 'idle' as ExecutionStatus,
                 variant: fullAgent.category?.toString().toLowerCase(),
                 subIcon: fullAgent.icon,
-                model: (fullAgent.properties?.model as string) || '',
+                model: ((fullAgent as any).properties?.model as string) || '',
               },
             };
 
             setNodes((nds) => nds.concat(newNode));
+            setIsDirty(true);
             setStatus(`✅ Added ${fullAgent.label || fullAgent.name}`);
           })
           .catch((err) => {
@@ -537,7 +569,7 @@ function AgentBuilderContent() {
   );
 
   /** React Flow equivalent of 'ondragstop' for nodes already on the canvas */
-  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node<WorkflowNodeData>) => {
+  const onNodeDragStop = useCallback((event: any, node: Node<WorkflowNodeData>) => {
     setStatus(
       `Moved ${node.data?.name || node.id} to [${Math.round(node.position.x)}, ${Math.round(node.position.y)}]`,
     );
@@ -545,11 +577,12 @@ function AgentBuilderContent() {
 
   /** Updates node data when edited in the PropertiesPanel */
   const onUpdateNode = useCallback(
-    (nodeId: string, newData: WorkflowNodeData) => {
+    (nodeId: string, newData: any) => {
       setNodes((nds) =>
         nds.map((node) => (node.id === nodeId ? { ...node, data: newData } : node)),
       );
       setSelectedNode((node) => (node?.id === nodeId ? { ...node, data: newData } : node));
+      setIsDirty(true);
     },
     [setNodes],
   );
@@ -632,7 +665,7 @@ function AgentBuilderContent() {
         id: currentId,
         name: currentName,
         description: currentDescription,
-        nodes,
+        nodes: nodes as any,
         edges,
         user_id: userId,
         category: agentCategory,
@@ -641,6 +674,7 @@ function AgentBuilderContent() {
 
       setAgentVersion(savedAgent.version);
       setStatus(`Saved ${savedAgent.name} v${savedAgent.version}.`);
+      setIsDirty(false);
     } catch {
       setStatus('Unable to save agent.');
     }
@@ -667,7 +701,7 @@ function AgentBuilderContent() {
       const savedAgent = await api.saveAgent({
         id: nextId,
         name: nextName.trim(),
-        nodes,
+        nodes: nodes as any,
         edges,
         category: agentCategory,
         is_enabled: isAgentEnabled,
@@ -677,6 +711,7 @@ function AgentBuilderContent() {
       setAgentName(savedAgent.name || nextName.trim());
       setAgentVersion(savedAgent.version ?? 1);
       setWorkflowOwnerId(userId);
+      setIsDirty(false);
       setStatus(
         `Saved new agent ${savedAgent.name || nextName.trim()} v${savedAgent.version ?? 1}.`,
       );
@@ -710,6 +745,7 @@ function AgentBuilderContent() {
       setWorkflowOwnerId(latestWorkflow.user_id || null);
       setAgentVersion(latestWorkflow.version);
       setSelectedNode(null);
+      setIsDirty(false);
       setStatus(`Loaded ${workflows.length} latest agent${workflows.length === 1 ? '' : 's'}.`);
     } catch {
       setStatus('Unable to get agents or update scheduler agent schema.');
@@ -741,6 +777,7 @@ function AgentBuilderContent() {
         setAgentVersion(data.version);
         setSelectedNode(null);
         setExecutionTrace([]);
+        setIsDirty(false);
         setStatus(`Loaded ${data.name || id}.`);
       } catch (e) {
         setStatus(`Unable to load agent ${id}.`);
@@ -763,6 +800,7 @@ function AgentBuilderContent() {
     setAgentVersion(null);
     setSelectedNode(null);
     setExecutionTrace([]);
+    setIsDirty(false);
     setStatus('Started new agent.');
   }, [nodes.length, setNodes, setEdges, userId]);
 
@@ -922,14 +960,66 @@ function AgentBuilderContent() {
       {/* Top Bar */}
       <div className="h-16 border-b bg-white flex items-center px-6 justify-between shadow-sm">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-semibold text-black">AI Agent Builder</h1>
-          <div className="text-sm text-gray-500 flex items-center gap-2">
-            {agentId} • v{agentVersion ?? 1} •
+          {/* Editable Workflow Title */}
+          <div className="flex items-center gap-2">
+            {isEditingName ? (
+              <input
+                type="text"
+                value={agentName}
+                onChange={(e) => {
+                  setAgentName(e.target.value);
+                  setIsDirty(true);
+                }}
+                onBlur={() => setIsEditingName(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setIsEditingName(false);
+                }}
+                autoFocus
+                className="text-2xl font-semibold text-black border-b-2 border-blue-500 focus:outline-none bg-transparent py-0.5 px-1 max-w-[250px]"
+              />
+            ) : (
+              <div
+                onClick={() => setIsEditingName(true)}
+                className="flex items-center gap-2 cursor-pointer group hover:bg-gray-50 rounded-lg py-1 px-2 transition-all -ml-2"
+                title="Click to rename workflow"
+              >
+                <h1 className="text-2xl font-semibold text-black">
+                  {agentName || 'Unnamed Workflow'}
+                </h1>
+                <Edit2 size={16} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
+          </div>
+
+          <div className="text-sm text-gray-500 flex items-center gap-3">
+            {agentId && <span className="font-mono text-gray-400">{agentId}</span>}
+            <span className="text-gray-300">•</span>
+            <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-mono text-xs">v{agentVersion ?? 1}</span>
+            <span className="text-gray-300">•</span>
+
+            {/* Dirty State / Save Status Badge */}
+            {isDirty ? (
+              <span className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 font-medium animate-pulse">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                Unsaved changes
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-2.5 py-1 rounded-full border border-green-200 font-medium">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                Saved
+              </span>
+            )}
+
+            <span className="text-gray-300">•</span>
+
             <label className="inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
                 checked={isAgentEnabled}
-                onChange={(e) => setIsAgentEnabled(e.target.checked)}
+                onChange={(e) => {
+                  setIsAgentEnabled(e.target.checked);
+                  setIsDirty(true);
+                }}
                 className="sr-only peer"
               />
               <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
@@ -939,14 +1029,17 @@ function AgentBuilderContent() {
             </label>
             
             {agentId && (userRole === 'admin' || userId === workflowOwnerId) && (
-              <button
-                onClick={onDelete}
-                className="ml-4 flex items-center gap-1.5 text-red-500 hover:text-red-700 transition-colors px-2 py-1 rounded hover:bg-red-50"
-                title="Delete Workflow"
-              >
-                <Trash2 size={16} />
-                <span className="font-medium">Delete</span>
-              </button>
+              <>
+                <span className="text-gray-300">•</span>
+                <button
+                  onClick={onDelete}
+                  className="flex items-center gap-1.5 text-red-500 hover:text-red-700 transition-colors px-2 py-1 rounded hover:bg-red-50"
+                  title="Delete Workflow"
+                >
+                  <Trash2 size={16} />
+                  <span className="font-medium">Delete</span>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -982,8 +1075,8 @@ function AgentBuilderContent() {
           <ReactFlow
             nodes={nodes}
             edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            onNodesChange={onNodesChangeWrapper}
+            onEdgesChange={onEdgesChangeWrapper}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             onPaneClick={onPaneClick}
@@ -1082,32 +1175,33 @@ function AgentBuilderContent() {
           onSaveInstanceProperties={onSaveInstanceProperties}
           onSave={onSave}
           workflowId={agentId}
+          onDeleteNode={onDeleteNode}
         />
 
         {/* Global Field Mapper Modal */}
         <FieldMapperModal
           isOpen={isMapperOpen}
           onClose={() => setIsMapperOpen(false)}
-          sourceNodeName={nodes.find(n => n.id === edges.find(e => e.target === selectedNode?.id)?.source)?.data?.name}
-          targetNodeName={nodes.find(n => n.id === edges.find(e => e.source === selectedNode?.id)?.target)?.data?.name}
+          sourceNodeName={(nodes.find(n => n.id === edges.find(e => e.target === selectedNode?.id)?.source)?.data as any)?.name}
+          targetNodeName={(nodes.find(n => n.id === edges.find(e => e.source === selectedNode?.id)?.target)?.data as any)?.name}
           sourceContract={prevNodeContract}
           targetContract={nextNodeContract}
           currentMapping={(() => {
             try {
-              const val = selectedNode?.data?.properties?.mapping_template;
+              const val = (selectedNode?.data as any)?.properties?.mapping_template;
               return typeof val === 'string' ? JSON.parse(val) : val || {};
             } catch { return {}; }
           })()}
           onSaveMapping={async (newMap) => {
             const mappingStr = JSON.stringify(newMap, null, 2);
             const updatedProperties = {
-              ...((selectedNode!.data.properties as any) || {}),
+              ...(((selectedNode!.data as any).properties as any) || {}),
               mapping_template: mappingStr
             };
 
             // 1. Update local React Flow state for immediate UI feedback
             onUpdateNode(selectedNode!.id, {
-              ...selectedNode!.data,
+              ...(selectedNode!.data as any),
               properties: updatedProperties
             });
 
