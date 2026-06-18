@@ -2,35 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import type { DragEvent, ComponentType, CSSProperties } from 'react';
-import {
-  AlertTriangle,
-  AlertCircle,
-  Bot,
-  Brain,
-  BrainCircuit,
-  CheckCircle,
-  Clock,
-  Cloud,
-  Fence,
-  Database,
-  KeyRound,
-  Mail,
-  Megaphone,
-  MessageCircle,
-  MessageSquare,
-  Network,
-  PhoneCall,
-  PlayCircle,
-  Plus,
-  Search,
-  Send,
-  Settings,
-  Shield,
-  UserCog,
-  Workflow,
-  XCircle,
-  Zap,
-} from 'lucide-react';
+import { Plus } from 'lucide-react';
+
 import { api } from '@/lib/api';
 import {
   CATEGORIES,
@@ -40,46 +13,7 @@ import {
   CategoryItem,
 } from './component-categoriees';
 
-const iconMap: Record<string, ComponentType<{ className?: string; style?: CSSProperties }>> = {
-  shield: Shield,
-  'alert-triangle': AlertTriangle,
-  'user-cog': UserCog,
-  'check-circle': CheckCircle,
-  'play-circle': PlayCircle,
-  'message-square': MessageSquare,
-  'x-circle': XCircle,
-  database: Database,
-  workflow: Workflow,
-  clock: Clock,
-  fence: Fence,
-  'alert-circle': AlertCircle,
-  bot: Bot,
-  brain: Brain,
-  'brain-circuit': BrainCircuit,
-  cloud: Cloud,
-  key: KeyRound,
-  mail: Mail,
-  megaphone: Megaphone,
-  network: Network,
-};
-
-const componentIconMap: Record<
-  string,
-  ComponentType<{ className?: string; style?: CSSProperties }>
-> = {
-  WhatsApp: MessageCircle,
-  Email: Mail,
-  Tweet: Send,
-  Clock: Clock,
-  Workflow: Workflow,
-  SMS: MessageSquare,
-  'SMTP Agent': Mail,
-  API: Network,
-  Call: PhoneCall,
-  Schedule: Clock,
-  'Scheduler Agent': Clock,
-};
-
+import {IconMap} from "@/lib/icons"
 export default function AgentSidebar({
   onSelectAgent,
   onNewAgent,
@@ -140,7 +74,7 @@ export default function AgentSidebar({
           return {
             group: id,
             label,
-            icon: iconMap[cat.icon?.toLowerCase()] || Settings,
+            icon: IconMap[cat.icon?.toLowerCase()] || IconMap.settings,
             color: typeof cat === 'object' ? cat.color || 'black' : 'black',
             id,
           };
@@ -216,7 +150,7 @@ export default function AgentSidebar({
 
   const renderNodeItem = (node: any) => {
     const category = getCategory(node.id);
-    const Icon = componentIconMap[node.icon] || iconMap[node.icon] || iconMap[category.icon] || Bot;
+    const Icon = IconMap[node.icon?.toLowerCase()] || IconMap[category.icon?.toLowerCase()] || IconMap.bot;
 
     return (
       <div
@@ -287,7 +221,7 @@ export default function AgentSidebar({
       <div className="flex gap-2">
         <div className="flex w-8 shrink-0 flex-col items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-300">
-            <Zap className="h-5 w-5 text-blue-600" />
+            <IconMap.zap className="h-5 w-5 text-blue-600" />
           </div>
         </div>
 
@@ -321,7 +255,7 @@ export default function AgentSidebar({
       <h2 className="mb-5 text-sm font-semibold text-black uppercase tracking-wider">Nodes</h2>
 
       <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-1 text-gray-400 shadow-sm">
-        <Search className="h-5 w-5 shrink-0" />
+        <IconMap.search className="h-5 w-5 shrink-0" />
         <input
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}

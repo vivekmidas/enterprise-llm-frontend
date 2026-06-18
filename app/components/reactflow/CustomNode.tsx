@@ -1,44 +1,7 @@
 import { type NodeProps, type Node, Handle, Position } from '@xyflow/react';
 import { CustomNodeData } from './CustomNodeData';
-import {
-  Zap,
-  Bot,
-  Database,
-  Mail,
-  Globe,
-  Shield,
-  MessageSquare,
-  Workflow,
-  Clock,
-  AlertTriangle,
-  Settings,
-  PhoneCall,
-  Send,
-  MessageCircle,
-  PlayCircle,
-  CheckCircle,
-  XCircle,
-} from 'lucide-react';
-
-const iconMap: Record<string, any> = {
-  'play-circle': PlayCircle,
-  zap: Zap,
-  'message-square': MessageSquare,
-  database: Database,
-  mail: Mail,
-  globe: Globe,
-  shield: Shield,
-  workflow: Workflow,
-  clock: Clock,
-  'alert-triangle': AlertTriangle,
-  settings: Settings,
-  'phone-call': PhoneCall,
-  send: Send,
-  'message-circle': MessageCircle,
-  'check-circle': CheckCircle,
-  'x-circle': XCircle,
-  bot: Bot,
-};
+import icons, { IconMap } from "@/lib/icons";
+import { Bot } from 'lucide-react';
 
 export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) => {
   const { label, name, model, node_type, icon, color } = data;
@@ -52,7 +15,7 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
       return <span className="text-xl">{icon}</span>;
     }
 
-    const IconComponent = iconMap[icon.toLowerCase()] || Bot;
+    const IconComponent = IconMap[icon.toLowerCase()] || Bot;
     return <IconComponent size={20} />;
   };
 

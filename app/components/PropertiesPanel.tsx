@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Node } from '@xyflow/react';
-import { X, Settings, Save, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Node, Edge } from '@xyflow/react';
+import { X, Settings, Save, Loader2, ArrowRightLeft, Wand2, Info } from 'lucide-react';
 import { api } from '@/lib/api';
 import { AgentPropertyDefinition, PropertyValue } from './component-categoriees';
 // Assuming AgentPropertyDefinition and PropertyValue are defined in component-categoriees.ts
@@ -19,6 +19,113 @@ import { AgentPropertyDefinition, PropertyValue } from './component-categoriees'
 //   description?: string;
 //   credentialType?: string; // New field for 'credential' type
 // }
+
+/** Modal for visual field mapping between source and target nodes */
+function FieldMapperModal({
+  isOpen,
+  onClose,
+  sourceContract,
+  targetContract,
+  currentMapping,
+  onSaveMapping,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  sourceContract: any;
+  targetContract: any;
+  currentMapping: Record<string, string>;
+  onSaveMapping: (mapping: Record<string, string>) => void;
+}) {
+  const [mapping, setMapping] = useState<Record<string, string>>(currentMapping);
+
+  const sourceFields = useMemo(() => {
+    const props = sourceContract?.properties || sourceContract || {};
+    return Object.keys(props);
+  }, [sourceContract]);
+
+  const targetFields = useMemo(() => {
+    const props = targetContract?.properties || targetContract || {};
+    return Object.keys(props);
+  }, [targetContract]);
+
+  const handleAutoMap = () => {
+    const newMapping = { ...mapping };
+    targetFields.forEach((target) => {
+      // Simple case-insensitive match
+      const match = sourceFields.find((s) => s.toLowerCase() === target.toLowerCase());
+      if (match) {
+        newMapping[target] = `{{ input_data.${match} }}`;
+      }
+    });
+    setMapping(newMapping);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[80vh]">
+        <div className="p-4 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-bold text-gray-800">Field Mapper</h2>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-4 bg-blue-50 border-b flex items-center justify-between">
+          <p className="text-xs text-blue-700 flex items-center gap-2">
+            <Info size={14} />
+            Map fields from the previous node's output to the next node's input.
+          </p>
+          <button
+            onClick={handleAutoMap}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
+          >
+            <Wand2 size={14} />
+            Auto-map Fields
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-4">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-400 border-b">
+                <th className="pb-2 font-semibold">Target Field (Input)</th>
+                <th className="pb-2 font-semibold text-center">→</th>
+                <th className="pb-2 font-semibold">Source Data (Jinja2)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {targetFields.map((field) => (
+                <tr key={field} className="group">
+                  <td className="py-3 font-medium text-gray-700">{field}</td>
+                  <td className="py-3 text-center text-gray-300">→</td>
+                  <td className="py-3">
+                    <input
+                      type="text"
+                      value={mapping[field] || ''}
+                      onChange={(e) => setMapping({ ...mapping, [field]: e.target.value })}
+                      placeholder="{{ input_data.field_name }}"
+                      className="w-full border rounded-lg px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
+          <button onClick={() => onSaveMapping(mapping)} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg">Apply Mapping</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Type representing agent-specific configuration values */
 type NodeProperties = Record<string, PropertyValue>;

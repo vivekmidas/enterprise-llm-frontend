@@ -28,6 +28,8 @@ import AgentSidebar from '../components/AgentSidebar';
 import WorkflowToolbar from '../components/WorkflowToolbar';
 import PropertiesPanel from '../components/PropertiesPanel';
 import { CustomNode } from '@components/reactflow/CustomNode';
+import FieldMapperModal from '../components/FieldMapperModal';
+import { ArrowRightLeft } from 'lucide-react';
 
 import {
   AgentPropertyDefinition,
@@ -326,6 +328,10 @@ function AgentBuilderContent() {
   const [userId, setUserId] = useState<string>('1');
   const { screenToFlowPosition, getNodes, fitView } = useReactFlow();
 
+  const [isMapperOpen, setIsMapperOpen] = useState(false);
+  const [prevNodeContract, setPrevNodeContract] = useState<any>(null);
+  const [nextNodeContract, setNextNodeContract] = useState<any>(null);
+
   useEffect(() => {
     setIsMounted(true);
     const storedUserId = localStorage.getItem('user_id');
@@ -440,6 +446,21 @@ function AgentBuilderContent() {
     };
 
     fetchNodeData();
+
+    // Fetch neighbor contracts for Transform Node mapping
+    if (selectedNode?.data?.name === 'transform_node') {
+      const incomingEdge = edges.find((e) => e.target === selectedNode.id);
+      const outgoingEdge = edges.find((e) => e.source === selectedNode.id);
+
+      if (incomingEdge) {
+        api.getAgentNodeProperties(agentId, incomingEdge.source)
+           .then(res => setPrevNodeContract(res?.output_contract || {}));
+      }
+      if (outgoingEdge) {
+        api.getAgentNodeProperties(agentId, outgoingEdge.target)
+           .then(res => setNextNodeContract(res?.input_contract || {}));
+      }
+    }
   }, [selectedNode?.id, agentId, setNodes]);
 
   const onPaneClick = useCallback(() => setSelectedNode(null), []);
@@ -943,6 +964,19 @@ function AgentBuilderContent() {
             <MiniMap />
           </ReactFlow>
 
+          {/* Contextual Mapping Trigger */}
+          {(selectedNode?.data?.name === 'transform_node' || selectedNode?.data?.node_type?.toUpperCase() === 'TRANSFORM') && (
+            <div className="absolute top-4 right-84 z-10 animate-in fade-in slide-in-from-right-4 duration-300">
+              <button
+                onClick={() => setIsMapperOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xl  transition-all transform hover:scale-105 active:scale-95 border border-blue-400"
+              >
+                <ArrowRightLeft size={12} />
+                Configure Data Mapping
+              </button>
+            </div>
+          )}
+
           {/* Trace Panel - Fixed z-index & pointer events */}
           {executionTrace.length > 0 && (
             <div className="absolute bottom-4 left-4 right-4 z-20 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl pointer-events-auto flex flex-col">
@@ -1003,6 +1037,40 @@ function AgentBuilderContent() {
           onSaveInstanceProperties={onSaveInstanceProperties}
           onSave={onSave}
           workflowId={agentId}
+        />
+
+        {/* Global Field Mapper Modal */}
+        <FieldMapperModal
+          isOpen={isMapperOpen}
+          onClose={() => setIsMapperOpen(false)}
+          sourceNodeName={nodes.find(n => n.id === edges.find(e => e.target === selectedNode?.id)?.source)?.data?.name}
+          targetNodeName={nodes.find(n => n.id === edges.find(e => e.source === selectedNode?.id)?.target)?.data?.name}
+          sourceContract={prevNodeContract}
+          targetContract={nextNodeContract}
+          currentMapping={(() => {
+            try {
+              const val = selectedNode?.data?.properties?.mapping_template;
+              return typeof val === 'string' ? JSON.parse(val) : val || {};
+            } catch { return {}; }
+          })()}
+          onSaveMapping={async (newMap) => {
+            const mappingStr = JSON.stringify(newMap, null, 2);
+            const updatedProperties = {
+              ...((selectedNode!.data.properties as any) || {}),
+              mapping_template: mappingStr
+            };
+
+            // 1. Update local React Flow state for immediate UI feedback
+            onUpdateNode(selectedNode!.id, {
+              ...selectedNode!.data,
+              properties: updatedProperties
+            });
+
+            // 2. Persist the updated properties to the SQLite database
+            await onSaveInstanceProperties(selectedNode!.id, updatedProperties);
+            
+            setIsMapperOpen(false);
+          }}
         />
       </div>
     </div>

@@ -5,72 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { api } from '@/lib/api';
-import {
-  Shield,
-  User,
-  Tag,
-  Box,
-  Power,
-  Info,
-  Code2,
-  Zap,
-  Edit2,
-  Save,
-  Plus,
-  Trash2,
-  X,
-  Activity,
-  Bot,
-  Brain,
-  BrainCircuit,
-  Database,
-  Workflow,
-  Clock,
-  Fence,
-  AlertCircle,
-  AlertTriangle,
-  CheckCircle,
-  PlayCircle,
-  MessageSquare,
-  XCircle,
-  Cloud,
-  KeyRound,
-  Mail,
-  Megaphone,
-  Network,
-  UserCog,
-  Users,
-  Lock,
-  LogOut,
-} from 'lucide-react';
-
-const iconMap: Record<string, ComponentType<{ className?: string }>> = {
-  shield: Shield,
-  'alert-triangle': AlertTriangle,
-  'user-cog': UserCog,
-  'check-circle': CheckCircle,
-  'play-circle': PlayCircle,
-  'message-square': MessageSquare,
-  'x-circle': XCircle,
-  database: Database,
-  workflow: Workflow,
-  clock: Clock,
-  fence: Fence,
-  'alert-circle': AlertCircle,
-  bot: Bot,
-  user: User,
-  info: Info,
-  code: Code2,
-  zap: Zap,
-  brain: Brain,
-  'brain-circuit': BrainCircuit,
-  cloud: Cloud,
-  key: KeyRound,
-  mail: Mail,
-  megaphone: Megaphone,
-  network: Network,
-  users: Users,
-};
+import { Workflow } from 'lucide-react';
+import {IconMap } from '@/lib/icons';
 import { AgentNode, NodeCategory } from '@components/component-categoriees';
 
 /** Mask sensitive values for display in the JSON preview */
@@ -215,10 +151,11 @@ export default function AdminPage() {
     setWorkflows(workflowsRes || []);
   };
 
-  const toggleJsonExpanded = (agentId: string) => {
+  const toggleJsonExpanded = (agent: AgentNode) => {
+    const agentKey = agent.id?.toString() || agent.name;
     setJsonExpandedState((prev) => ({
       ...prev,
-      [agentId]: !prev[agentId],
+      [agentKey]: !prev[agentKey],
     }));
   };
 
@@ -484,7 +421,7 @@ export default function AdminPage() {
         <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl border border-gray-200">
           <div className="text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-              <Shield className="h-8 w-8 text-blue-600" />
+              <IconMap.shield className="h-8 w-8 text-blue-600" />
             </div>
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
               {isRegistering ? 'Create Account' : 'Admin Portal'}
@@ -536,7 +473,7 @@ export default function AdminPage() {
               className="group relative flex w-full justify-center rounded-lg border border-transparent bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all shadow-lg"
             >
               <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                <Lock className="h-5 w-5 text-blue-500 group-hover:text-blue-400" />
+                <IconMap.lock className="h-5 w-5 text-blue-500 group-hover:text-blue-400" />
               </span>
               {isRegistering ? 'Register' : 'Access Console'}
             </button>
@@ -558,7 +495,7 @@ export default function AdminPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-2">
-          <Activity className="h-8 w-8 animate-spin text-blue-600" />
+          <IconMap.activity className="h-8 w-8 animate-spin text-blue-600" />
           <p className="text-sm font-medium text-gray-500">Loading system registry...</p>
         </div>
       </div>
@@ -581,7 +518,7 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-gray-200">
-              <Shield className="h-5 w-5 text-blue-600" />
+     
               <span className="text-sm font-semibold text-black">Admin Console</span>
             </div>
           </div>
@@ -632,7 +569,7 @@ export default function AdminPage() {
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Tag className="h-5 w-5 text-gray-400" />
+                  <IconMap.tag className="h-5 w-5 text-gray-400" />
                   <h2 className="text-xl font-semibold text-black">Node Categories</h2>
                 </div>
                 <button
@@ -649,7 +586,7 @@ export default function AdminPage() {
                   }}
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
                 >
-                  <Plus className="h-4 w-4" /> Add Category
+                  <IconMap.plus className="h-4 w-4" /> Add Category
                 </button>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -677,14 +614,14 @@ export default function AdminPage() {
                         }}
                         className="p-1 text-blue-600 hover:bg-blue-50 rounded"
                       >
-                        <Edit2 className="h-4 w-4" />
+                        <IconMap.edit2 className="h-4 w-4" />
                       </button>
                       {cat.id && (
                         <button
                           onClick={() => handleDeleteCategory(cat.id!)}
                           className="p-1 text-red-600 hover:bg-red-50 rounded"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <IconMap.trash2 className="h-4 w-4" />
                         </button>
                       )}
                     </div>
@@ -697,7 +634,7 @@ export default function AdminPage() {
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Box className="h-5 w-5 text-gray-400" />
+                  <IconMap.box className="h-5 w-5 text-gray-400" />
                   <h2 className="text-xl font-semibold text-black">
                     Nodes
                     {/* {categories.find((c) => c.name === activeCategory)?.label ||
@@ -727,7 +664,7 @@ export default function AdminPage() {
                   }
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
                 >
-                  <Plus className="h-4 w-4" /> Add New Node
+                  <IconMap.plus className="h-4 w-4" /> Add New Node
                 </button>
               </div>
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -762,7 +699,9 @@ export default function AdminPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredAgents.map((agent, idx) => {
-                      const AgentIcon = (agent.icon && iconMap[agent.icon.toLowerCase()]) || Box; // Fallback to Box icon
+                      const agentKey = agent.id?.toString() || agent.name;
+                      const AgentIcon = (agent.icon && IconMap[agent.icon.toLowerCase()]) || IconMap.box || IconMap.bot;
+                      
                       return (
                         <tr
                           key={agent.id ? `node-${agent.id}` : `node-${agent.name}-${idx}`}
@@ -774,8 +713,8 @@ export default function AdminPage() {
                               <div
                                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border shadow-sm"
                                 style={{
-                                  borderColor: agent.color ? `${agent.color}40` : '#e5e7eb',
-                                  backgroundColor: agent.color ? `${agent.color}10` : '#f9fafb',
+                                  borderColor: agent.color && agent.color.length === 7 ? `${agent.color}40` : '#e5e7eb',
+                                  backgroundColor: agent.color && agent.color.length === 7 ? `${agent.color}10` : '#f9fafb',
                                   color: agent.color || '#6b7280',
                                 }}
                               >
@@ -853,23 +792,23 @@ export default function AdminPage() {
                           <td className="px-4 py-3">
                             <div>
                               <button
-                                onClick={() => toggleJsonExpanded( agent.name)}
+                                onClick={() => toggleJsonExpanded(agent)}
                                 className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-xs whitespace-nowrap"
                               >
-                                {jsonExpandedState[agent.id || agent.name] ? (
+                                {jsonExpandedState[agentKey] ? (
                                   <>
-                                    <Code2 className="h-3.5 w-3.5" /> Hide Definition
+                                    <IconMap.code2 className="h-3.5 w-3.5" /> Hide Definition
                                   </>
                                 ) : (
                                   <>
-                                    <Code2 className="h-3.5 w-3.5" /> Show Definition
+                                    <IconMap.code2 className="h-3.5 w-3.5" /> Show Definition
                                   </>
                                 )}
                               </button>
                             </div>
                             <div
                               className={`w-full max-w-xs overflow-hidden rounded-lg bg-gray-950 font-mono text-emerald-400 shadow-inner transition-all duration-300 ${
-                                jsonExpandedState[agent.id || agent.name]
+                                jsonExpandedState[agentKey]
                                   ? 'max-h-64 p-3 mt-2 overflow-auto opacity-100'
                                   : 'max-h-0 p-0 opacity-0'
                               }`}
@@ -897,10 +836,10 @@ export default function AdminPage() {
                                 className="p-1 text-blue-600 hover:bg-blue-50 rounded"
                                 title="Edit Node Type"
                               >
-                                <Edit2 className="h-4 w-4" />
+                                  <IconMap.edit2 className="h-4 w-4" />
                               </button>
                               <button onClick={() => handleDeleteNode(agent.name)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete Node Type">
-                                <Trash2 className="h-4 w-4" />
+                                  <IconMap.trash2 className="h-4 w-4" />
                               </button>
                             </div>
                           </td>
@@ -949,7 +888,7 @@ export default function AdminPage() {
                             className={`p-1 rounded transition-colors ${wf.is_enabled !== false ? 'text-gray-400 hover:text-red-500' : 'text-gray-400 hover:text-green-500'}`}
                             title={wf.is_enabled !== false ? 'Disable' : 'Enable'}
                           >
-                            <Power className="h-4 w-4" />
+                            <IconMap.power className="h-4 w-4" />
                           </button>
                         )}
                         {userRole !== 'admin' && (
@@ -958,7 +897,7 @@ export default function AdminPage() {
                             className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                             title="Delete"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <IconMap.trash2 className="h-4 w-4" />
                           </button>
                         )}
                       </div>
@@ -987,7 +926,7 @@ export default function AdminPage() {
               ))}
               {workflows.length === 0 && (
                 <div className="col-span-full py-12 text-center rounded-xl border-2 border-dashed border-gray-200">
-                  <Workflow className="mx-auto h-12 w-12 text-gray-300" />
+                  <IconMap.Workflow className="mx-auto h-12 w-12 text-gray-300" />
                   <h3 className="mt-2 text-sm font-semibold text-gray-900">No workflows found</h3>
                   <p className="mt-1 text-sm text-gray-500">
                     Get started by creating a new workflow in the builder.
@@ -1000,11 +939,11 @@ export default function AdminPage() {
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-gray-400" />
+                <IconMap.users className="h-5 w-5 text-gray-400" />
                 <h2 className="text-xl font-semibold text-black">User Management</h2>
               </div>
               <button className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all opacity-50 cursor-not-allowed">
-                <Plus className="h-4 w-4" /> Add User
+                <IconMap.plus className="h-4 w-4" /> Add User
               </button>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -1053,11 +992,11 @@ export default function AdminPage() {
         ) : activeTab === 'logs' ? (
           <section className="space-y-4">
             <div className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-gray-400" />
+              <IconMap.activity className="h-5 w-5 text-gray-400" />
               <h2 className="text-xl font-semibold text-black">System Activity Logs</h2>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden p-8 text-center">
-              <Activity className="mx-auto h-12 w-12 text-gray-200 mb-4" />
+              <IconMap.activity className="mx-auto h-12 w-12 text-gray-200 mb-4" />
               <p className="text-gray-500 text-sm">Real-time system logs will appear here after the next gateway restart.</p>
             </div>
           </section>
@@ -1065,7 +1004,7 @@ export default function AdminPage() {
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Network className="h-5 w-5 text-gray-400" />
+                  <IconMap.network className="h-5 w-5 text-gray-400" />
                 <h2 className="text-xl font-semibold text-black">OAuth Configuration</h2>
               </div>
               <button
@@ -1082,7 +1021,7 @@ export default function AdminPage() {
                 }
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
               >
-                <Plus className="h-4 w-4" /> Add Provider
+                  <IconMap.plus className="h-4 w-4" /> Add Provider
               </button>
             </div>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -1093,7 +1032,7 @@ export default function AdminPage() {
                 >
                   <div className="flex items-center gap-4 mb-4">
                     {/* <div className="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-                      {iconMap[provider.icon] ? React.createElement(iconMap[provider.icon], { className: 'h-6 w-6' }) : <Box className="h-6 w-6" />}
+                      {IconMap[provider.icon] ? React.createElement(IconMap[provider.icon], { className: 'h-6 w-6' }) : <Box className="h-6 w-6" />}
                     </div> */}
                     <div>
                       <h3 className="font-bold text-black">{provider.label}</h3>
@@ -1132,7 +1071,7 @@ export default function AdminPage() {
                   onClick={() => setEditingProvider(null)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <X className="h-6 w-6" />
+                  <IconMap.X className="h-6 w-6" />
                 </button>
               </div>
               <div className="p-6 grid grid-cols-2 gap-4">
@@ -1260,7 +1199,7 @@ export default function AdminPage() {
                   onClick={() => setEditingAgent(null)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <X className="h-6 w-6" />
+                  <IconMap.x className="h-6 w-6" />
                 </button>
               </div>
 
@@ -1442,7 +1381,7 @@ export default function AdminPage() {
                       onClick={addSchemaField}
                       className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 uppercase"
                     >
-                      <Plus className="h-4 w-4" /> Add Property
+                      <IconMap.Plus className="h-4 w-4" /> Add Property
                     </button>
                   </div>
 
@@ -1521,7 +1460,7 @@ export default function AdminPage() {
                                 onClick={() => removeSchemaField(idx)}
                                 className="text-gray-400 hover:text-red-500 transition-colors"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <IconMap.Trash2 className="h-4 w-4" />
                               </button>
                             </td>
                           </tr>
@@ -1543,7 +1482,7 @@ export default function AdminPage() {
                   onClick={handleSaveNode}
                   className="flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-2 text-sm font-bold text-white hover:bg-blue-700 shadow-md transition-all"
                 >
-                  <Save className="h-4 w-4" />{' '}
+                  <IconMap.Save className="h-4 w-4" />{' '}
                   {editingAgent.id ? 'Update Registry' : 'Create Node Type'}
                 </button>
               </div>
@@ -1563,7 +1502,7 @@ export default function AdminPage() {
                   onClick={() => setIsCategoryModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <X className="h-6 w-6" />
+                  <IconMap.X className="h-6 w-6" />
                 </button>
               </div>
 
