@@ -253,37 +253,6 @@ const runAgentNode = async (node: Node<WorkflowNodeData>, input: Record<string, 
  * Dynamically updates the 'targetAgent' dropdown options within a node's schema.
  * Used specifically by the Scheduler Agent to let users pick from available workflows.
  */
-const updateSchedulerAgentSchema = (
-  node: Node<WorkflowNodeData>,
-  agentNames: string[],
-): Node<WorkflowNodeData> => {
-  if (node.data?.name !== 'Scheduler Agent') return node;
-
-  const currentSchema = (node.data.propertySchema || []) as NodePropertyDefinition[];
-  const targetProp = currentSchema.find((p) => p.key === 'targetAgent');
-  const sortedAgentNames = [...new Set(['', ...agentNames])].sort();
-
-  // Only update if options are different to avoid unnecessary state updates
-  if (
-    targetProp?.type === 'choice' &&
-    JSON.stringify(targetProp.options) === JSON.stringify(sortedAgentNames)
-  ) {
-    return node;
-  }
-
-  const updatedPropertySchema = currentSchema.map((prop: NodePropertyDefinition) => {
-    if (prop.key === 'targetAgent') {
-      return {
-        ...prop,
-        type: 'choice' as const,
-        options: sortedAgentNames,
-        multiple: false,
-      };
-    }
-    return prop;
-  });
-  return { ...node, data: { ...node.data, propertySchema: updatedPropertySchema } };
-};
 
 const defaultEdgeOptions = {
   style: { strokeWidth: 2, stroke: '#94a3b8' },
@@ -291,7 +260,7 @@ const defaultEdgeOptions = {
     type: MarkerType.ArrowClosed,
     width: 20,
     height: 20,
-    color: '#94a3b8',
+    color: '#000000',
   },
 };
 
@@ -349,9 +318,6 @@ function AgentBuilderContent() {
 
   // Sync all existing nodes on the canvas if the list of available agents refreshes
   useEffect(() => {
-    if (isMounted && availableAgentNames.length > 0) {
-      setNodes((nds) => nds.map((node) => updateSchedulerAgentSchema(node, availableAgentNames)));
-    }
   }, [availableAgentNames, setNodes, isMounted]);
 
   useEffect(() => {
@@ -456,7 +422,7 @@ function AgentBuilderContent() {
 
         // Handle cases where response might be the property bag directly or wrapped in an object
         const fetchedProperties = response.properties || response;
-        const fetchedSchema = response.property_schema || response.propertySchema;
+       
 
         setNodes((nds) =>
           nds.map((n: Node<WorkflowNodeData>) => {
@@ -466,9 +432,6 @@ function AgentBuilderContent() {
                 data: {
                   ...n.data,
                   properties: { ...(n.data.properties || {}), ...fetchedProperties },
-                  // Ensure we preserve or update the schema required for rendering
-                  propertySchema:
-                    fetchedSchema || n.data.propertySchema || n.data.property_schema || [],
                 },
               };
               // Sync the selectedNode state with the newly fetched data
@@ -544,7 +507,6 @@ function AgentBuilderContent() {
               data: {
                 ...fullAgent,
                 user_properties: fullAgent.user_properties || {},
-                propertySchema: fullAgent.propertySchema || [],
                 executionStatus: 'idle' as ExecutionStatus,
                 variant: fullAgent.category?.toString().toLowerCase(),
                 subIcon: fullAgent.icon,
@@ -732,11 +694,7 @@ function AgentBuilderContent() {
         return;
       }
 
-      setNodes(
-        getWorkflowNodes(latestWorkflow).map((node: Node<WorkflowNodeData>) =>
-          updateSchedulerAgentSchema(node, availableAgentNames),
-        ),
-      );
+      setNodes(getWorkflowNodes(latestWorkflow));
       setEdges(latestWorkflow.edges || []);
       setAgentId(latestWorkflow.id || agentId);
       setAgentName(latestWorkflow.name || latestWorkflow.id || agentName);
@@ -763,11 +721,7 @@ function AgentBuilderContent() {
           return;
         }
 
-        setNodes(
-          getWorkflowNodes(data).map((node: Node<WorkflowNodeData>) =>
-            updateSchedulerAgentSchema(node, availableAgentNames),
-          ),
-        );
+        setNodes(getWorkflowNodes(data));
         setEdges(data.edges || []);
         setAgentId(data.id || id);
         setAgentName(data.name || data.id || id);

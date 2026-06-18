@@ -132,7 +132,7 @@ type NodeProperties = Record<string, PropertyValue>;
 /** Type for the generic node data object stored in ReactFlow */
 type NodeData = Record<
   string,
-  PropertyValue | NodePropertyDefinition[] | NodeProperties | undefined
+  PropertyValue | NodeProperties | undefined
 >;
 
 interface PropertiesPanelProps {
@@ -155,7 +155,7 @@ interface PropertiesPanelProps {
 /**
  * PropertiesPanel - Sidebar component for editing agent node configurations.
  *
- * It dynamically renders form fields based on the node's `propertySchema`
+ * It dynamically renders form fields
  * and allows editing basic metadata like name and description.
  */
 export default function PropertiesPanel({
@@ -179,8 +179,8 @@ export default function PropertiesPanel({
   // Local state for fetched contracts and properties from API
   const [inputContract, setInputContract] = useState<any>({});
   const [outputContract, setOutputContract] = useState<any>({});
-  const [propertySchema, setPropertySchema] = useState<NodePropertyDefinition[]>([]);
   const [user_properties, setUserProperties] = useState<NodeProperties>({});
+  const [system_properties, setSystemProperties] = useState<NodeProperties>({});
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -219,15 +219,15 @@ export default function PropertiesPanel({
           // Ensure that state variables are set to objects/arrays even if API returns null/undefined
           setInputContract(res?.input_contract || {});
           setOutputContract(res?.output_contract || {});
-          setPropertySchema(res?.property_schema || []);
           setUserProperties(res?.user_properties || {});
+          setSystemProperties(res?.system_properties || {});
         })
         .catch((err) => console.error('Failed to fetch node contracts', err));
     } else {
       setInputContract({});
       setOutputContract({});
-      setPropertySchema([]);
       setUserProperties({});
+      setSystemProperties({});
     }
   }, [selectedNode?.id, workflowId]);
 
@@ -287,10 +287,9 @@ export default function PropertiesPanel({
     setIsSaving(true);
     try {
       const nodeData = selectedNode.data as any;
-      // Ensure property_schema is formatted correctly for the backend
       const payload = {
         ...nodeData,
-        property_schema: nodeData.property_schema || nodeData.propertySchema,
+       
         // Ensure properties are included for the registry update
         properties: nodeData.properties,
         input_contract: nodeData.input_contract,
@@ -340,9 +339,12 @@ export default function PropertiesPanel({
   };
 
   /** Renders the appropriate UI input based on the field definition from the agent schema */
-  const renderPropertyField = (field: NodePropertyDefinition, properties: NodeProperties) => {
-    const value = getPropertyValue(properties, field);
-
+  const renderPropertyField = (field: NodePropertyDefinition, userProps: NodeProperties, systemProps: NodeProperties) => {
+    const isSystem = systemProps.hasOwnProperty(field.key);
+    const value = isSystem ? systemProps[field.key] : getPropertyValue(userProps, field);
+    const isDisabled = isSystem;
+    const displayValue = (isSystem && field.type === 'password') ? '••••••••' : String(value ?? '');
+    
     // Boolean Toggle
     if (field.type === 'boolean') {
       return (
@@ -354,7 +356,8 @@ export default function PropertiesPanel({
           <input
             type="checkbox"
             checked={Boolean(value)}
-            onChange={(event) => handlePropertyChange(field.key, event.target.checked)}
+            disabled={isDisabled}
+            onChange={(event) => !isDisabled && handlePropertyChange(field.key, event.target.checked)}
             className="h-4 w-4 accent-blue-600"
           />
         </label>
@@ -367,8 +370,8 @@ export default function PropertiesPanel({
       const clientSecretKey = `${field.key}_client_secret`;
       const credentialId = String(value || '');
 
-      const clientId = String(properties[clientIdKey] || '');
-      const clientSecret = String(properties[clientSecretKey] || '');
+      const clientId = String(isSystem ? systemProps[clientIdKey] : userProps[clientIdKey] || '');
+      const clientSecret = String(isSystem ? systemProps[clientSecretKey] : userProps[clientSecretKey] || '');
 
       return (
         <div
@@ -394,7 +397,8 @@ export default function PropertiesPanel({
                   Provider
                 </label>
                 <select
-                  value={selectedProvider || (properties?.[`${field.key}_provider`] as string) || ''}
+                  value={selectedProvider || (isSystem ? systemProps[`${field.key}_provider`] : userProps[`${field.key}_provider`] as string) || ''}
+                  disabled={isDisabled}
                   onChange={(e) => setSelectedProvider(e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all disabled:bg-gray-100"
                 >
@@ -416,7 +420,8 @@ export default function PropertiesPanel({
                 <input
                   type="text"
                   value={clientId}
-                  onChange={(e) => handlePropertyChange(clientIdKey, e.target.value)}
+                  disabled={isDisabled}
+                  onChange={(e) => !isDisabled && handlePropertyChange(clientIdKey, e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="e.g. 8234-abc..."
                 />
@@ -428,7 +433,8 @@ export default function PropertiesPanel({
                 <input
                   type="password"
                   value={clientSecret}
-                  onChange={(e) => handlePropertyChange(clientSecretKey, e.target.value)}
+                  disabled={isDisabled}
+                  onChange={(e) => !isDisabled && handlePropertyChange(clientSecretKey, e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="••••••••••••"
                 />
@@ -439,7 +445,7 @@ export default function PropertiesPanel({
           <div className="pt-2">
             <button
               type="button"
-              disabled={!clientId || !clientSecret || !selectedProvider}
+              disabled={isDisabled || !clientId || !clientSecret || !selectedProvider}
               onClick={() => {
                 setActiveFieldKey(field.key);
                 const providerKey = selectedProvider;
@@ -483,10 +489,11 @@ export default function PropertiesPanel({
             <label className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
             <select
               multiple
+              disabled={isDisabled}
               value={Array.isArray(value) ? value.map(String) : []}
               onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
                 const values = Array.from(event.target.selectedOptions, (option) => option.value);
-                handlePropertyChange(field.key, values);
+                !isDisabled && handlePropertyChange(field.key, values);
               }}
               className="h-28 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
             >
@@ -505,9 +512,10 @@ export default function PropertiesPanel({
         <div key={field.key}>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
           <select
+            disabled={isDisabled}
             value={String(value)}
             onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-              handlePropertyChange(field.key, event.target.value)
+              !isDisabled && handlePropertyChange(field.key, event.target.value)
             }
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
           >
@@ -527,10 +535,11 @@ export default function PropertiesPanel({
         <div key={field.key}>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
           <textarea
+            disabled={isDisabled}
             value={String(value)}
             placeholder={field.placeholder}
             onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
-              handlePropertyChange(field.key, event.target.value)
+              !isDisabled && handlePropertyChange(field.key, event.target.value)
             }
             className="h-28 w-full resize-y rounded-lg border border-gray-300 px-4 py-2.5 font-mono text-sm bg-white text-black focus:outline-none focus:border-blue-500"
           />
@@ -546,10 +555,11 @@ export default function PropertiesPanel({
           type={
             field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'
           }
-          value={String(value ?? '')}
+          disabled={isDisabled}
+          value={displayValue}
           placeholder={field.placeholder}
           onChange={(event) =>
-            handlePropertyChange(
+            !isDisabled && handlePropertyChange(
               field.key,
               field.type === 'number' ? Number(event.target.value) : event.target.value,
             )
@@ -572,9 +582,6 @@ export default function PropertiesPanel({
     );
   }
 
-  const localData = selectedNode.data as NodeData;
-  const rawSchema = (localData.propertySchema || localData.property_schema) as any;
- 
   return (
     <div className="w-80 border-l border-gray-200 bg-white flex flex-col h-full">
       {/* Header */}
@@ -650,17 +657,6 @@ export default function PropertiesPanel({
       </div>
 
       <div className="flex-1 overflow-auto p-5 space-y-6">
-        {viewMode === 'config' ? (
-          <div className="space-y-5">
-            {propertySchema && Array.isArray(propertySchema) && propertySchema.map((field) => field && renderPropertyField(field, user_properties))}
-            {(!propertySchema || propertySchema.length === 0) && (
-              <div className="text-center py-10 text-gray-400">
-                <Settings className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                <p className="text-sm">No configurable properties.</p>
-              </div>
-            )}
-          </div>
-        ) : (
           <div className="space-y-6">
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase">
@@ -683,7 +679,7 @@ export default function PropertiesPanel({
               <code className="bg-gray-100 px-1 rounded">{'{{ node_id.output_key }}'}</code>.
             </p>
           </div>
-        )}
+        
       </div>
 
       {/* Footer - Save & Delete Buttons */}

@@ -259,26 +259,14 @@ export default function AdminPage() {
       const isUser = propModal.target === 'user';
       const userProps = { ...(typeof prev.user_properties === 'string' ? JSON.parse(prev.user_properties || '{}') : (prev.user_properties || {})) };
       const sysProps = { ...(typeof prev.system_properties === 'string' ? JSON.parse(prev.system_properties || '{}') : (prev.system_properties || {})) };
-      let schema = [...(prev.property_schema || [])];
-
+    
       if (isUser) {
         userProps[propModal.key] = propModal.value;
-        const newEntry = {
-          key: propModal.key,
-          label: propModal.label || propModal.key,
-          type: propModal.type,
-          default: propModal.defaultValue
-        };
-        const existingIdx = schema.findIndex(f => f.key === propModal.key);
-        if (existingIdx >= 0) schema[existingIdx] = newEntry;
-        else schema.push(newEntry);
         
         // Ensure it doesn't exist in system if moved to user
         delete sysProps[propModal.key];
       } else {
         sysProps[propModal.key] = propModal.value;
-        // Remove from UI schema if it's now a system property
-        schema = schema.filter(f => f.key !== propModal.key);
         delete userProps[propModal.key];
       }
 
@@ -286,9 +274,8 @@ export default function AdminPage() {
         ...prev,
         user_properties: userProps,
         system_properties: sysProps,
-        property_schema: schema,
         // Also sync the legacy properties bag for compatibility
-        properties: isUser ? userProps : prev.properties
+        //properties: isUser ? userProps : prev.properties
       };
     });
     setPropModal(prev => ({ ...prev, isOpen: false }));
@@ -393,50 +380,6 @@ export default function AdminPage() {
       return {
         ...prev,
         properties: { ...prev.properties, [key]: value },
-      };
-    });
-  };
-
-  const updateSchema = (index: number, field: string, value: any) => {
-    setEditingAgent((prev) => {
-      if (!prev) return null;
-      const newSchema = [...(prev.property_schema || [])];
-      const oldKey = newSchema[index].key;
-      newSchema[index] = { ...newSchema[index], [field]: value };
-
-      let nextProperties = { ...prev.properties };
-      // If we are renaming the 'key', migrate the value in the properties object
-      if (field === 'key' && oldKey !== value) {
-        nextProperties[value] = nextProperties[oldKey];
-        delete nextProperties[oldKey];
-      }
-
-      return { ...prev, property_schema: newSchema, properties: nextProperties };
-    });
-  };
-
-  const removeSchemaField = (index: number) => {
-    setEditingAgent((prev) => {
-      if (!prev) return null;
-      const keyToRemove = prev.property_schema[index]?.key;
-      const nextProperties = { ...prev.properties };
-      if (keyToRemove) {
-        delete nextProperties[keyToRemove];
-      }
-      const newSchema = prev.property_schema.filter((_, i) => i !== index);
-      return { ...prev, property_schema: newSchema, properties: nextProperties };
-    });
-  };
-
-  const addSchemaField = () => {
-    setEditingAgent((prev) => {
-      if (!prev) return null;
-      const key = `property_${Date.now()}`;
-      const newField = { key, label: 'New Property', type: 'string' };
-      return {
-        ...prev,
-        properties: { ...prev.properties, [key]: '' },
-        property_schema: [...(prev.property_schema || []), newField],
       };
     });
   };
@@ -763,9 +706,10 @@ export default function AdminPage() {
                       color: '#5E0CEC',
                       badge: 'Node',
                       sub_label: '',
-                      properties: {},
+                    
+                      system_properties: {},
                       user_properties: {},
-                      property_schema: [],
+                      
                       input_contract: {},
                       output_contract: {},
                     })
@@ -926,7 +870,6 @@ export default function AdminPage() {
                                   {
                                     properties: agent.user_properties,
                                     system_properties: agent.system_properties,
-                                    property_schema: agent.property_schema,
                                     input_contract: agent.input_contract,
                                     output_contract: agent.output_contract,
                                   },
@@ -1484,11 +1427,10 @@ export default function AdminPage() {
                       </thead>
                       <tbody className="divide-y divide-gray-100 bg-white">
                         {(() => {
-                          const schema = editingAgent.property_schema || [];
                           const userProps = typeof editingAgent.user_properties === 'string' ? JSON.parse(editingAgent.user_properties || '{}') : (editingAgent.user_properties || {});
                           const sysProps = typeof editingAgent.system_properties === 'string' ? JSON.parse(editingAgent.system_properties || '{}') : (editingAgent.system_properties || {});
 
-                          const rows: any[] = schema.map((s, idx) => ({ ...s, category: 'user', value: userProps[s.key], schemaIdx: idx }));
+                          const rows: any[] = [];
                           Object.keys(sysProps).forEach(key => {
                             if (!rows.find(r => r.key === key)) {
                               rows.push({ key, label: '-', type: 'string', category: 'system', value: sysProps[key], default: '' });
@@ -1508,11 +1450,11 @@ export default function AdminPage() {
                                 <span className="text-[10px] font-mono text-gray-400">{row.type}</span>
                               </td>
                               <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                {renderValueInput(row, row.value)}
+                                {row.category === 'user' ? renderValueInput(row, row.value) : <span className="text-gray-400 font-mono text-xs">{String(row.value)}</span>}
                               </td>
                               <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                                 <button
-                                  onClick={() => row.category === 'user' ? removeSchemaField(row.schemaIdx) : setEditingAgent(prev => {
+                                  onClick={() => row.category === 'system' && setEditingAgent(prev => {
                                     const s = { ...(typeof prev!.system_properties === 'string' ? JSON.parse(prev!.system_properties || '{}') : (prev!.system_properties || {})) };
                                     delete s[row.key];
                                     return { ...prev!, system_properties: s };

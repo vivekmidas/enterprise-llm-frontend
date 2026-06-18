@@ -85,7 +85,6 @@ export interface AgentNode {
   system_properties: Record<string, any>;
   input_contract: Record<string, any>;
   output_contract: Record<string, any>;
-  property_schema: any[];
 }
 
 export interface NodeData {
