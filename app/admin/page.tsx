@@ -9,6 +9,22 @@ import { Workflow } from 'lucide-react';
 import {IconMap } from '@/lib/icons';
 import { AgentNode, NodeCategory } from '@components/component-categoriees';
 
+type PropertyTarget = 'user' | 'system';
+
+type PropertyEntry = {
+  key: string;
+  label?: string;
+  type?: string;
+  value?: any;
+  default?: any;
+  multiple?: boolean;
+};
+
+type PropertyRow = PropertyEntry & {
+  category: PropertyTarget;
+  sourceIndex: number;
+};
+
 /** Mask sensitive values for display in the JSON preview */
 const maskSecrets = (value: any): any => {
   if (Array.isArray(value)) return value.map(maskSecrets);
@@ -24,6 +40,52 @@ const maskSecrets = (value: any): any => {
     }),
   );
 };
+
+const safeJsonParse = (value: string) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const propertyEntriesFromValue = (value: any): PropertyEntry[] => {
+  if (!value) return [];
+
+  if (typeof value === 'string') {
+    const parsed = safeJsonParse(value);
+    return propertyEntriesFromValue(parsed);
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === 'string' ? safeJsonParse(item) : item))
+      .filter((item): item is PropertyEntry => !!item && typeof item === 'object' && typeof item.key === 'string');
+  }
+
+  if (typeof value === 'object') {
+    return Object.entries(value).map(([key, entryValue]) => ({
+      key,
+      label: key,
+      type: Array.isArray(entryValue) ? 'list' : typeof entryValue,
+      value: entryValue,
+    }));
+  }
+
+  return [];
+};
+
+const propertyEntriesToJsonStrings = (entries: PropertyEntry[]) =>
+  entries.map((entry) =>
+    JSON.stringify({
+      ...entry,
+      key: entry.key,
+      label: entry.label || entry.key,
+      type: entry.type || 'string',
+      value: entry.value ?? '',
+      default: entry.default ?? '',
+    }),
+  );
 
 export default function AdminPage() {
   const router = useRouter();
@@ -49,6 +111,8 @@ export default function AdminPage() {
   const [propModal, setPropModal] = useState({
     isOpen: false,
     target: 'user' as 'user' | 'system',
+    originalTarget: 'user' as 'user' | 'system',
+    sourceIndex: -1,
     key: '',
     label: '',
     type: 'string',
@@ -162,7 +226,7 @@ export default function AdminPage() {
 
   const handleDeleteWorkflow = async (workflowId: string) => {
     if (!confirm('Are you sure you want to delete this workflow?')) return;
-    await api.deleteWorkflow(workflowId, {"id":userId, "role":userEmail, "email":userRole});
+    await api.deleteWorkflow(workflowId, { id: userId || '', role: userRole || '', email: userEmail || '' });
     const workflowsRes = await api.getSavedAgents();
     setWorkflows(workflowsRes || []);
   };
@@ -229,23 +293,32 @@ export default function AdminPage() {
 
   const openPropModal = (field?: any, isSystem?: boolean) => {
     if (field) {
-      const isUser = !isSystem;
-      const props = isUser ? 
-        (typeof editingAgent?.user_properties === 'string' ? JSON.parse(editingAgent.user_properties || '{}') : (editingAgent?.user_properties || {})) :
-        (typeof editingAgent?.system_properties === 'string' ? JSON.parse(editingAgent.system_properties || '{}') : (editingAgent?.system_properties || {}));
+      const target = isSystem ? 'system' : 'user';
 
       setPropModal({
         isOpen: true,
-        target: isUser ? 'user' : 'system',
+        target,
+        originalTarget: target,
+        sourceIndex: field.sourceIndex ?? -1,
         key: field.key,
         label: field.label || field.key,
         type: field.type || 'string',
         defaultValue: field.default || '',
-        value: props[field.key] || ''
+        value: field.value ?? ''
       });
       setIsEditingProp(true);
     } else {
-      setPropModal({ isOpen: true, target: 'user', key: '', label: '', type: 'string', defaultValue: '', value: '' });
+      setPropModal({
+        isOpen: true,
+        target: 'user',
+        originalTarget: 'user',
+        sourceIndex: -1,
+        key: '',
+        label: '',
+        type: 'string',
+        defaultValue: '',
+        value: '',
+      });
       setIsEditingProp(false);
     }
   };
@@ -257,25 +330,31 @@ export default function AdminPage() {
       if (!prev) return null;
       
       const isUser = propModal.target === 'user';
-      const userProps = { ...(typeof prev.user_properties === 'string' ? JSON.parse(prev.user_properties || '{}') : (prev.user_properties || {})) };
-      const sysProps = { ...(typeof prev.system_properties === 'string' ? JSON.parse(prev.system_properties || '{}') : (prev.system_properties || {})) };
+      const userProps = propertyEntriesFromValue(prev.user_properties);
+      const sysProps = propertyEntriesFromValue(prev.system_properties);
+      const nextEntry = {
+        key: propModal.key,
+        label: propModal.label || propModal.key,
+        type: propModal.type || 'string',
+        value: propModal.value,
+        default: propModal.defaultValue,
+      };
+
+      if (isEditingProp && propModal.sourceIndex >= 0) {
+        const originalProps = propModal.originalTarget === 'user' ? userProps : sysProps;
+        originalProps.splice(propModal.sourceIndex, 1);
+      }
     
       if (isUser) {
-        userProps[propModal.key] = propModal.value;
-        
-        // Ensure it doesn't exist in system if moved to user
-        delete sysProps[propModal.key];
+        userProps.push(nextEntry);
       } else {
-        sysProps[propModal.key] = propModal.value;
-        delete userProps[propModal.key];
+        sysProps.push(nextEntry);
       }
 
       return {
         ...prev,
-        user_properties: userProps,
-        system_properties: sysProps,
-        // Also sync the legacy properties bag for compatibility
-        //properties: isUser ? userProps : prev.properties
+        user_properties: propertyEntriesToJsonStrings(userProps),
+        system_properties: propertyEntriesToJsonStrings(sysProps),
       };
     });
     setPropModal(prev => ({ ...prev, isOpen: false }));
@@ -312,11 +391,7 @@ export default function AdminPage() {
 
     // Validate and parse User Properties
     try {
-      if (typeof finalAgent.user_properties === 'string' && finalAgent.user_properties.trim() !== '') {
-        finalAgent.user_properties = JSON.parse(finalAgent.user_properties);
-      } else if (typeof finalAgent.user_properties === 'string') {
-        finalAgent.user_properties = {};
-      }
+      finalAgent.user_properties = propertyEntriesToJsonStrings(propertyEntriesFromValue(finalAgent.user_properties));
     } catch (e) {
       alert('Invalid JSON in User Properties field.');
       return;
@@ -324,11 +399,7 @@ export default function AdminPage() {
 
     // Validate and parse System Properties
     try {
-      if (typeof finalAgent.system_properties === 'string' && finalAgent.system_properties.trim() !== '') {
-        finalAgent.system_properties = JSON.parse(finalAgent.system_properties);
-      } else if (typeof finalAgent.system_properties === 'string') {
-        finalAgent.system_properties = {};
-      }
+      finalAgent.system_properties = propertyEntriesToJsonStrings(propertyEntriesFromValue(finalAgent.system_properties));
     } catch (e) {
       alert('Invalid JSON in System Properties field.');
       return;
@@ -374,22 +445,30 @@ export default function AdminPage() {
     }
   };
 
-  const updateProperty = (key: string, value: any) => {
+  const updateProperty = (row: PropertyRow, value: any) => {
     setEditingAgent((prev) => {
       if (!prev) return null;
+      const userProps = propertyEntriesFromValue(prev.user_properties);
+      const sysProps = propertyEntriesFromValue(prev.system_properties);
+      const entries = row.category === 'user' ? userProps : sysProps;
+
+      if (!entries[row.sourceIndex]) return prev;
+      entries[row.sourceIndex] = { ...entries[row.sourceIndex], value };
+
       return {
         ...prev,
-        properties: { ...prev.properties, [key]: value },
+        user_properties: propertyEntriesToJsonStrings(userProps),
+        system_properties: propertyEntriesToJsonStrings(sysProps),
       };
     });
   };
 
-  const renderValueInput = (field: any, value: any) => {
-    const handleValChange = (v: any) => updateProperty(field.key, v);
+  const renderValueInput = (field: PropertyRow, value: any) => {
+    const handleValChange = (v: any) => updateProperty(field, v);
     const commonClasses =
       'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
 
-    if (field.type === 'password') {
+    if (field.type === 'password' || field.type?.toLowerCase().includes("secret")) {
       return (
         <input
           type="password"
@@ -707,8 +786,8 @@ export default function AdminPage() {
                       badge: 'Node',
                       sub_label: '',
                     
-                      system_properties: {},
-                      user_properties: {},
+                      system_properties: [],
+                      user_properties: [],
                       
                       input_contract: {},
                       output_contract: {},
@@ -1421,21 +1500,31 @@ export default function AdminPage() {
                           <th className="px-4 py-3">Property Name (Key)</th>
                           <th className="px-4 py-3">UI Label</th>
                           <th className="px-4 py-3">Type</th>
-                          <th className="px-4 py-3">Registry (Active)</th>
+                          <th className="px-4 py-3">Default Value</th>
                           <th className="px-4 py-3 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 bg-white">
                         {(() => {
-                          const userProps = typeof editingAgent.user_properties === 'string' ? JSON.parse(editingAgent.user_properties || '{}') : (editingAgent.user_properties || {});
-                          const sysProps = typeof editingAgent.system_properties === 'string' ? JSON.parse(editingAgent.system_properties || '{}') : (editingAgent.system_properties || {});
+                          const userProps = propertyEntriesFromValue(editingAgent.user_properties);
+                          const sysProps = propertyEntriesFromValue(editingAgent.system_properties);
 
-                          const rows: any[] = [];
-                          Object.keys(sysProps).forEach(key => {
-                            if (!rows.find(r => r.key === key)) {
-                              rows.push({ key, label: '-', type: 'string', category: 'system', value: sysProps[key], default: '' });
-                            }
-                          });
+                          const rows: PropertyRow[] = [
+                            ...sysProps.map((prop, sourceIndex) => ({
+                              ...prop,
+                              label: prop.label || prop.key,
+                              type: prop.type || 'string',
+                              category: 'system' as const,
+                              sourceIndex,
+                            })),
+                            ...userProps.map((prop, sourceIndex) => ({
+                              ...prop,
+                              label: prop.label || prop.key,
+                              type: prop.type || 'string',
+                              category: 'user' as const,
+                              sourceIndex,
+                            })),
+                          ];
 
                           return rows.map((row, idx) => (
                             <tr key={`unified-row-${idx}`} className="group hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openPropModal(row, row.category === 'system')}>
@@ -1454,10 +1543,17 @@ export default function AdminPage() {
                               </td>
                               <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                                 <button
-                                  onClick={() => row.category === 'system' && setEditingAgent(prev => {
-                                    const s = { ...(typeof prev!.system_properties === 'string' ? JSON.parse(prev!.system_properties || '{}') : (prev!.system_properties || {})) };
-                                    delete s[row.key];
-                                    return { ...prev!, system_properties: s };
+                                  onClick={() => setEditingAgent(prev => {
+                                    if (!prev) return null;
+                                    const userProps = propertyEntriesFromValue(prev.user_properties);
+                                    const sysProps = propertyEntriesFromValue(prev.system_properties);
+                                    const entries = row.category === 'user' ? userProps : sysProps;
+                                    entries.splice(row.sourceIndex, 1);
+                                    return {
+                                      ...prev,
+                                      user_properties: propertyEntriesToJsonStrings(userProps),
+                                      system_properties: propertyEntriesToJsonStrings(sysProps),
+                                    };
                                   })}
                                   className="text-gray-400 hover:text-red-500 transition-colors"
                                 >
@@ -1542,11 +1638,13 @@ export default function AdminPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Property Key (ID)</label>
+                  <label className="text-[12px] font-bold text-gray-500 sentencecase">Property Key (ID)</label><br/>
+                  <label className="text-[12px] font-bold text-gray-500 sentencecase">Can not contain special character or spaces</label>
+                   
                   <input
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none font-mono"
                     value={propModal.key}
-                    onChange={(e) => setPropModal({ ...propModal, key: e.target.value })}
+                    onChange={(e) => setPropModal({ ...propModal, key: e.target.value.toLowerCase().replaceAll(" ","_") })}
                     placeholder="e.g. api_timeout"
                   />
                 </div>

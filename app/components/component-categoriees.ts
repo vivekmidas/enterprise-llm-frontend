@@ -81,10 +81,10 @@ export interface AgentNode {
   color?: string;
   badge?: string;
   sub_label?: string;
-  user_properties: Record<string, any>;
-  system_properties: Record<string, any>;
-  input_contract: Record<string, any>;
-  output_contract: Record<string, any>;
+  user_properties: string[];
+  system_properties: string[];
+  input_contract: Record<string, any> | string;
+  output_contract: Record<string, any> | string;
 }
 
 export interface NodeData {
