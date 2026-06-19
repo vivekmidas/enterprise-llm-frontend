@@ -412,13 +412,13 @@ export default function PropertiesPanel({
                   Provider
                 </label>
                 <select
-                  value={
+                  value={String(
                     selectedProvider ||
-                    (isSystem
-                      ? systemProps[`${field.key}_provider`]
-                      : (userProps[`${field.key}_provider`] as string)) ||
-                    ''
-                  }
+                      (isSystem
+                        ? systemProps[`${field.key}_provider`]
+                        : (userProps[`${field.key}_provider`] as string)) ||
+                      '',
+                  )}
                   disabled={isDisabled}
                   onChange={(e) => setSelectedProvider(e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all disabled:bg-gray-100"

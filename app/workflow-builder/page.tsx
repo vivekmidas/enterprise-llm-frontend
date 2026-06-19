@@ -2,283 +2,34 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import {
-  ReactFlow,
-  MiniMap,
-  Controls,
-  Background,
   useNodesState,
   useEdgesState,
-  MarkerType,
   type Node,
   type Edge,
   type Connection,
-  type NodeTypes,
   useReactFlow,
-  BackgroundVariant,
   ReactFlowProvider,
   addEdge,
 } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
 
-import { X, CheckCircle, AlertCircle, Clock, Trash2, Edit2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import AgentSidebar from '../components/AgentSidebar';
-import WorkflowToolbar from '../components/WorkflowToolbar';
 import PropertiesPanel from '../components/PropertiesPanel';
-import { CustomNode } from '@components/reactflow/CustomNode';
-import FieldMapperModal from '../components/FieldMapperModal';
-import { ArrowRightLeft } from 'lucide-react';
-
+import { normalizeAgent } from '../components/component-categoriees';
+import FieldMappingController from './components/FieldMappingController';
+import WorkflowCanvas from './components/WorkflowCanvas';
+import WorkflowHeader from './components/WorkflowHeader';
+import type { ExecutionStatus, NodeProperties, WorkflowNodeData, WorkflowTraceStep } from './types';
 import {
-  NodePropertyDefinition,
-  PropertyValue,
-  NodeDefinition,
-  normalizeAgent,
-} from '../components/component-categoriees';
-
-const nodeTypes = { custom: CustomNode };
-
-type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
-type NodeProperties = Record<string, PropertyValue>;
-
-/**
- * Data structure for the custom node, extending AgentDefinition
- * with runtime fields. Only contains user_properties (properties).
- */
-interface WorkflowNodeData extends Partial<NodeDefinition>, Record<string, unknown> {
-  user_properties: NodeProperties;
-  executionStatus?: ExecutionStatus;
-  variant?: string;
-  model?: string;
-  subIcon?: string;
-}
-
-interface WorkflowTraceStep {
-  id: string;
-  nodeId: string;
-  nodeName: string;
-  group: string;
-  status: 'success' | 'error';
-  startedAt: string;
-  finishedAt: string;
-  durationMs: number;
-  input: Record<string, unknown>;
-  output?: Record<string, unknown>;
-  error?: string;
-}
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/**
- * Recursively redacts sensitive values (passwords, tokens, keys)
- * from metadata objects before they are displayed in the UI Trace logs.
- */
-const maskSecrets = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(maskSecrets);
-  if (!value || typeof value !== 'object') return value;
-
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([key, fieldValue]) => {
-      const normalizedKey = key.toLowerCase();
-      if (
-        normalizedKey.includes('password') ||
-        normalizedKey.includes('apikey') ||
-        normalizedKey.includes('token') ||
-        normalizedKey.includes('secret') ||
-        normalizedKey.includes('key')
-      ) {
-        return [key, fieldValue ? '••••••••' : ''];
-      }
-
-      return [key, maskSecrets(fieldValue)];
-    }),
-  );
-};
-
-/** Extracts the 'properties' object from a ReactFlow node's data */
-const toUserProperties = (node: Node<WorkflowNodeData>): NodeProperties => {
-  const properties = node.data?.user_properties;
-  return properties && typeof properties === 'object' && !Array.isArray(properties)
-    ? (properties as NodeProperties)
-    : {};
-};
-
-/**
- * Logic to determine the order of execution.
- * Performs a graph traversal starting from the 'Start' node and
- * checks for disconnected components or invalid graph structures.
- */
-const buildExecutionSequence = (nodes: Node<WorkflowNodeData>[], edges: Edge[]) => {
-  // Find nodes that are either explicit "Start" nodes or "Trigger" nodes
-  const startNodes = nodes.filter(
-    (node) => (node.data as any)?.node_type?.toUpperCase() === 'TRIGGER',
-  );
-
-  if (startNodes.length === 0) {
-    return {
-      sequence: [] as Node<WorkflowNodeData>[],
-      error: 'Agent must have at least one Trigger or Start node.',
-    };
-  }
-  if (startNodes.length > 1) {
-    return {
-      sequence: [] as Node<WorkflowNodeData>[],
-      error: 'Agent can only have one entry point (Trigger or Start).',
-    };
-  }
-
-  const byId = new Map<string, Node<WorkflowNodeData>>(nodes.map((node) => [node.id, node]));
-  const outgoing = new Map<string, string[]>();
-  const incoming = new Map<string, number>();
-
-  edges.forEach((edge) => {
-    if (!edge.source || !edge.target) return;
-    outgoing.set(edge.source, [...(outgoing.get(edge.source) || []), edge.target]);
-    incoming.set(edge.target, (incoming.get(edge.target) || 0) + 1);
-  });
-
-  if ((incoming.get(startNodes[0].id) || 0) > 0) {
-    return {
-      sequence: [] as Node<WorkflowNodeData>[],
-      error: 'Start node cannot have incoming edges.',
-    };
-  }
-
-  const visited = new Set<string>();
-  const stack = [startNodes[0].id];
-  const sequence: Node<WorkflowNodeData>[] = [];
-
-  while (stack.length > 0) {
-    const nodeId = stack.pop()!;
-    if (visited.has(nodeId)) continue;
-    visited.add(nodeId);
-    const node = byId.get(nodeId);
-    if (node) sequence.push(node);
-    const nextIds = outgoing.get(nodeId) || [];
-    stack.push(...nextIds);
-  }
-
-  if (sequence.length < 2) {
-    return {
-      sequence: [] as Node<WorkflowNodeData>[],
-      error: 'Connect Start to at least one component before executing.',
-    };
-  }
-
-  const unreachable = nodes.filter((node) => !visited.has(node.id));
-  if (unreachable.length > 0) {
-    return {
-      sequence: [] as Node<WorkflowNodeData>[],
-      error: `Every node must be connected in the execution sequence. Unconnected: ${unreachable[0].data?.name || unreachable[0].id}.`,
-    };
-  }
-
-  return { sequence, error: '' };
-};
-
-/**
- * Simulates the execution of a single agent node.
- * Handles specific behavior for Start, End, and Condition nodes.
- */
-const runAgentNode = async (node: Node<WorkflowNodeData>, input: Record<string, unknown>) => {
-  const data = node.data || {};
-  const properties = toUserProperties(node);
-  const name = String(data.name || data.label || node.id);
-  const category = String(data.category || data.group || 'Agent');
-  const normalizedName = name.toLowerCase();
-
-  await wait(350 + Math.floor(Math.random() * 250));
-
-  if (properties.enabled === false) {
-    return {
-      skipped: true,
-      message: `${name} is disabled`,
-      previous: input,
-    };
-  }
-
-  if (category === 'Start') {
-    return {
-      event: 'agent.started',
-      payload: input,
-    };
-  }
-
-  if (category === 'End') {
-    return {
-      event: data.outcome === 'failure' ? 'agent.failed' : 'agent.completed',
-      outcome: data.outcome || 'success',
-      received: input,
-    };
-  }
-
-  if (category === 'Condition') {
-    // Simulate: evaluate based on presence of violations in the current payload
-    const hasViolations =
-      input.violations && Array.isArray(input.violations) && input.violations.length > 0;
-    const status = hasViolations ? 'failure' : Math.random() > 0.4 ? 'success' : 'failure';
-
-    return {
-      status,
-      message: `Condition evaluated to ${status}.`,
-      ...input,
-    };
-  }
-
-  // Generic simulation logic for all other agents (DB, CRM, SMTP, LLM, etc.)
-  // This delinks the builder execution from hardcoded agent-specific properties.
-  return {
-    nodeId: node.id,
-    nodeName: name,
-    category,
-    status: 'success',
-    executionTime: new Date().toISOString(),
-    configuration: maskSecrets(properties),
-    input: input,
-    output: {
-      message: `Simulated execution of ${name} completed.`,
-      data: {
-        processed_at: Date.now(),
-        ...(category === 'Trigger' ? { event_type: data.triggerType || normalizedName } : {}),
-        ...(category === 'Data' ? { rows_affected: 2 } : {}),
-        ...(category === 'LLM'
-          ? { model_response: 'Simulated AI response based on provided prompt.' }
-          : {}),
-      },
-    },
-  };
-};
-
-/**
- * Dynamically updates the 'targetAgent' dropdown options within a node's schema.
- * Used specifically by the Scheduler Agent to let users pick from available workflows.
- */
-
-const defaultEdgeOptions = {
-  style: { strokeWidth: 2, stroke: '#94a3b8' },
-  markerEnd: {
-    type: MarkerType.ArrowClosed,
-    width: 20,
-    height: 20,
-    color: '#000000',
-  },
-};
-
-const initialNodes: Node<WorkflowNodeData>[] = [];
-
-type WorkflowGraphPayload = {
-  nodes?: Node<WorkflowNodeData>[];
-  nodes_structure?: Node<WorkflowNodeData>[];
-  edges?: any[];
-};
-
-const getWorkflowNodes = (
-  workflow: WorkflowGraphPayload | null | undefined,
-): Node<WorkflowNodeData>[] => {
-  if (!workflow) return initialNodes;
-  return workflow.nodes || workflow.nodes_structure || initialNodes;
-};
+  buildExecutionSequence,
+  defaultEdgeOptions,
+  getWorkflowNodes,
+  initialNodes,
+  maskSecrets,
+  runAgentNode,
+} from './workflow-helpers';
 
 function AgentBuilderContent() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>(initialNodes);
@@ -301,7 +52,7 @@ function AgentBuilderContent() {
   const [workflowOwnerId, setWorkflowOwnerId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
-  const { screenToFlowPosition, getNodes, fitView } = useReactFlow();
+  const { screenToFlowPosition, getNodes } = useReactFlow();
 
   const [isMapperOpen, setIsMapperOpen] = useState(false);
   const [prevNodeContract, setPrevNodeContract] = useState<any>(null);
@@ -613,7 +364,9 @@ function AgentBuilderContent() {
         if (promptedDesc !== null) currentDescription = promptedDesc.trim();
       } else {
         // Autogenerate name: trigger_type + random number
-        const triggerNode = nodes.find((n) => n.data?.node_type?.toUpperCase() === 'TRIGGER');
+        const triggerNode = nodes.find(
+          (n) => String(n.data?.node_type || '').toUpperCase() === 'TRIGGER',
+        );
         const triggerType = triggerNode?.data?.name || 'agent';
         currentName = `${triggerType}_${Math.floor(Math.random() * 10000)}`;
         currentDescription = `Autogenerated workflow starting with ${triggerType}`;
@@ -809,7 +562,9 @@ function AgentBuilderContent() {
    */
   const onExecute = useCallback(async () => {
     // Look for Trigger nodes first, then fallback to Start node
-    const startNode = nodes.find((n) => n.data?.node_type?.toUpperCase() === 'TRIGGER');
+    const startNode = nodes.find(
+      (n) => String(n.data?.node_type || '').toUpperCase() === 'TRIGGER',
+    );
 
     if (!startNode) {
       setStatus('Agent must have a Trigger or Start node.');
@@ -923,223 +678,52 @@ function AgentBuilderContent() {
 
   return (
     <div className="flex h-screen flex-col bg-gray-50 text-black">
-      {/* Top Bar */}
-      <div className="h-16 border-b bg-white flex items-center px-6 justify-between shadow-sm">
-        <div className="flex items-center gap-4">
-          {/* Editable Workflow Title */}
-          <div className="flex items-center gap-2">
-            {isEditingName ? (
-              <input
-                type="text"
-                value={agentName}
-                onChange={(e) => {
-                  setAgentName(e.target.value);
-                  setIsDirty(true);
-                }}
-                onBlur={() => setIsEditingName(false)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') setIsEditingName(false);
-                }}
-                autoFocus
-                className="text-2xl font-semibold text-black border-b-2 border-blue-500 focus:outline-none bg-transparent py-0.5 px-1 max-w-[250px]"
-              />
-            ) : (
-              <div
-                onClick={() => setIsEditingName(true)}
-                className="flex items-center gap-2 cursor-pointer group hover:bg-gray-50 rounded-lg py-1 px-2 transition-all -ml-2"
-                title="Click to rename workflow"
-              >
-                <h1 className="text-2xl font-semibold text-black">
-                  {agentName || 'Unnamed Workflow'}
-                </h1>
-                <Edit2
-                  size={16}
-                  className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="text-sm text-gray-500 flex items-center gap-3">
-            {agentId && <span className="font-mono text-gray-400">{agentId}</span>}
-            <span className="text-gray-300">•</span>
-            <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-mono text-xs">
-              v{agentVersion ?? 1}
-            </span>
-            <span className="text-gray-300">•</span>
-
-            {/* Dirty State / Save Status Badge */}
-            {isDirty ? (
-              <span className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 font-medium animate-pulse">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                Unsaved changes
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-2.5 py-1 rounded-full border border-green-200 font-medium">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                Saved
-              </span>
-            )}
-
-            <span className="text-gray-300">•</span>
-
-            <label className="inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isAgentEnabled}
-                onChange={(e) => {
-                  setIsAgentEnabled(e.target.checked);
-                  setIsDirty(true);
-                }}
-                className="sr-only peer"
-              />
-              <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
-              <span className="ms-2 text-sm font-medium text-gray-600">
-                {isAgentEnabled ? 'Enabled' : 'Disabled'}
-              </span>
-            </label>
-
-            {agentId && (userRole === 'admin' || userId === workflowOwnerId) && (
-              <>
-                <span className="text-gray-300">•</span>
-                <button
-                  onClick={onDelete}
-                  className="flex items-center gap-1.5 text-red-500 hover:text-red-700 transition-colors px-2 py-1 rounded hover:bg-red-50"
-                  title="Delete Workflow"
-                >
-                  <Trash2 size={16} />
-                  <span className="font-medium">Delete</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        <WorkflowToolbar
-          onValidate={onValidate}
-          onSave={onSave}
-          onSaveAs={onSaveAs}
-          onGet={onGet}
-          onExecute={onExecute}
-          isExecuting={isExecuting}
-          status={status}
-        />
-      </div>
+      <WorkflowHeader
+        agentId={agentId}
+        agentName={agentName}
+        agentVersion={agentVersion}
+        isAgentEnabled={isAgentEnabled}
+        isDirty={isDirty}
+        isEditingName={isEditingName}
+        isExecuting={isExecuting}
+        status={status}
+        canDelete={Boolean(agentId && (userRole === 'admin' || userId === workflowOwnerId))}
+        onAgentNameChange={setAgentName}
+        onAgentEnabledChange={setIsAgentEnabled}
+        onEditingNameChange={setIsEditingName}
+        onDirtyChange={setIsDirty}
+        onDelete={onDelete}
+        onValidate={onValidate}
+        onSave={onSave}
+        onSaveAs={onSaveAs}
+        onGet={onGet}
+        onExecute={onExecute}
+      />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar - Pass onAllAgentsLoaded callback */}
         <AgentSidebar
           onSelectAgent={loadAgent}
           onNewAgent={handleNewAgent}
           onAllAgentsLoaded={setAvailableAgentNames}
         />
 
-        {/* Main Canvas */}
-
-        {/* Canvas Container */}
-
-        <div
-          className="flex-1 relative bg-gray-50 overflow-hidden"
+        <WorkflowCanvas
+          nodes={nodes}
+          edges={edges}
+          selectedNode={selectedNode}
+          executionTrace={executionTrace}
           onDragOver={onDragOver}
           onDrop={onDrop}
-        >
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChangeWrapper}
-            onEdgesChange={onEdgesChangeWrapper}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onPaneClick={onPaneClick}
-            onNodeDragStop={onNodeDragStop}
-            nodeTypes={nodeTypes}
-            nodesDraggable={true}
-            nodesConnectable={true}
-            elementsSelectable={true}
-            selectNodesOnDrag={false}
-            panOnDrag={true}
-            panOnScroll={true}
-            zoomOnScroll={true}
-            zoomOnDoubleClick={true}
-            minZoom={0.1}
-            maxZoom={2.0}
-            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-            defaultEdgeOptions={defaultEdgeOptions}
-            fitView
-            fitViewOptions={{ maxZoom: 1, padding: 0.2 }}
-          >
-            <Background variant={BackgroundVariant.Dots} gap={10} size={1} />
-            <Controls />
-            <MiniMap />
-          </ReactFlow>
+          onNodesChange={onNodesChangeWrapper}
+          onEdgesChange={onEdgesChangeWrapper}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+          onNodeDragStop={onNodeDragStop}
+          onOpenMapper={() => setIsMapperOpen(true)}
+          onClearTrace={() => setExecutionTrace([])}
+        />
 
-          {/* Contextual Mapping Trigger */}
-          {(selectedNode?.data?.name === 'transform_node' ||
-            selectedNode?.data?.node_type?.toUpperCase() === 'TRANSFORM') && (
-            <div className="absolute top-4 right-84 z-10 animate-in fade-in slide-in-from-right-4 duration-300">
-              <button
-                onClick={() => setIsMapperOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xl  transition-all transform hover:scale-105 active:scale-95 border border-blue-400"
-              >
-                <ArrowRightLeft size={12} />
-                Configure Data Mapping
-              </button>
-            </div>
-          )}
-
-          {/* Trace Panel - Fixed z-index & pointer events */}
-          {executionTrace.length > 0 && (
-            <div className="absolute bottom-4 left-4 right-4 z-20 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl pointer-events-auto flex flex-col">
-              <div className="flex items-center justify-between p-3 border-b bg-gray-50 sticky top-0 z-10">
-                <div className="flex items-center gap-2">
-                  <Clock size={16} className="text-blue-500" />
-                  <h3 className="font-semibold text-sm text-gray-700">Agent Execution Trace</h3>
-                  <span className="text-xs bg-gray-200 px-2 py-0.5 rounded-full text-gray-600">
-                    {executionTrace.length} steps
-                  </span>
-                </div>
-                <button
-                  onClick={() => setExecutionTrace([])}
-                  className="p-1 hover:bg-gray-200 rounded-full transition-colors text-gray-500"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="p-2 space-y-1">
-                {executionTrace.map((step) => (
-                  <div
-                    key={step.id}
-                    className="group p-2 hover:bg-gray-50 rounded border border-transparent hover:border-gray-100 transition-all"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {step.status === 'success' ? (
-                          <CheckCircle size={14} className="text-green-500" />
-                        ) : (
-                          <AlertCircle size={14} className="text-red-500" />
-                        )}
-                        <span className="font-bold text-xs text-black">{step.nodeName}</span>
-                        <span className="text-[10px] text-gray-400 uppercase font-medium">
-                          {step.group}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono text-gray-400">
-                        {step.durationMs}ms
-                      </span>
-                    </div>
-                    {step.error && (
-                      <p className="mt-1 text-[11px] text-red-600 bg-red-50 p-1 rounded border border-red-100">
-                        {step.error}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right Panel */}
         <PropertiesPanel
           selectedNode={selectedNode}
           onClose={() => setSelectedNode(null)}
@@ -1150,50 +734,16 @@ function AgentBuilderContent() {
           onDeleteNode={onDeleteNode}
         />
 
-        {/* Global Field Mapper Modal */}
-        <FieldMapperModal
+        <FieldMappingController
           isOpen={isMapperOpen}
+          nodes={nodes}
+          edges={edges}
+          selectedNode={selectedNode}
           onClose={() => setIsMapperOpen(false)}
-          sourceNodeName={
-            (
-              nodes.find((n) => n.id === edges.find((e) => e.target === selectedNode?.id)?.source)
-                ?.data as any
-            )?.name
-          }
-          targetNodeName={
-            (
-              nodes.find((n) => n.id === edges.find((e) => e.source === selectedNode?.id)?.target)
-                ?.data as any
-            )?.name
-          }
           sourceContract={prevNodeContract}
           targetContract={nextNodeContract}
-          currentMapping={(() => {
-            try {
-              const val = (selectedNode?.data as any)?.properties?.mapping_template;
-              return typeof val === 'string' ? JSON.parse(val) : val || {};
-            } catch {
-              return {};
-            }
-          })()}
-          onSaveMapping={async (newMap) => {
-            const mappingStr = JSON.stringify(newMap, null, 2);
-            const updatedProperties = {
-              ...(((selectedNode!.data as any).properties as any) || {}),
-              mapping_template: mappingStr,
-            };
-
-            // 1. Update local React Flow state for immediate UI feedback
-            onUpdateNode(selectedNode!.id, {
-              ...(selectedNode!.data as any),
-              properties: updatedProperties,
-            });
-
-            // 2. Persist the updated properties to the SQLite database
-            await onSaveInstanceProperties(selectedNode!.id, updatedProperties);
-
-            setIsMapperOpen(false);
-          }}
+          onUpdateNode={onUpdateNode}
+          onSaveInstanceProperties={onSaveInstanceProperties}
         />
       </div>
     </div>

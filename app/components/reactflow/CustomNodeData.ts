@@ -7,6 +7,7 @@ export type CustomNodeData = {
   name?: string;
   node_type: string;
   color: string;
+  category_color?: string;
   sub_label: string;
   icon?: string | React.ReactNode;
   variant?: 'start' | 'detector' | 'agent';

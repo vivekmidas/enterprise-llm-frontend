@@ -57,6 +57,8 @@ export interface NodeSidebarProps {
   onAllAgentsLoaded?: (agentNames: string[]) => void;
 }
 
+export type AgentSidebarProps = NodeSidebarProps;
+
 export interface NodeCategory {
   id?: number;
   name: string;

@@ -1,17 +1,19 @@
 import React from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { Play, Bot, MessageSquare } from 'lucide-react';
 
 // ✅ Only define the DATA shape (this is what you had before)
 export type CustomNodeData = {
+  [key: string]: unknown;
   label: string;
   model?: string;
+  icon?: string | React.ReactNode;
   subIcon?: string | React.ReactNode;
   variant?: 'start' | 'detector' | 'agent';
 };
 
 // Custom Node Component
-const CustomNode = ({ data, selected }: NodeProps<CustomNodeData>) => {
+const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) => {
   const { label, model, icon, subIcon, variant = 'agent' } = data;
 
   if (variant === 'start') {

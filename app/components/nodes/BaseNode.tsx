@@ -1,11 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils'; // shadcn/ui utility
 
 export interface BaseNodeData {
+  [key: string]: unknown;
   label: string;
   group: string;
   description: string;
@@ -15,8 +16,7 @@ export interface BaseNodeData {
   subLabel?: string;
 }
 
-interface BaseNodeProps extends NodeProps {
-  data: BaseNodeData;
+interface BaseNodeProps extends NodeProps<Node<BaseNodeData>> {
   className?: string;
 }
 
