@@ -160,12 +160,12 @@ export default function AgentSidebar({
         onDragEnd={onDragEnd}
         className="cursor-grab rounded-lg border border-gray-200 bg-white p-2 shadow-sm transition-all hover:border-blue-300 hover:shadow-md active:cursor-grabbing"
         title={node.label || node.name}
-        style={node.color ? { borderLeft: `3px solid ${node.color}` } : {}}
+        style={category.color ? { borderLeft: `4px solid ${node.category_color}` } : {}}
       >
         <div className="flex items-start gap-2">
           <div
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-white"
-            style={node.color ? { backgroundColor: node.color } : {}}
+            style={node.category_color ? { backgroundColor: node.category_color} : {}}
           >
             <Icon className="h-5 w-5" />
           </div>
@@ -175,7 +175,7 @@ export default function AgentSidebar({
             </div>
             {node.node_type && (
               <div className="mt-1 flex items-center gap-1">
-                <div className="inline-block px-1.5 py-0.5 rounded bg-gray-100 text-[10px] text-gray-500 font-bold uppercase tracking-tighter">
+                <div className="inline-block px-1.5 py-0.5 rounded text-[10px] text-gray-500 font-bold uppercase tracking-tighter">
                   {node.node_type}
                 </div>
                 {node.version && (

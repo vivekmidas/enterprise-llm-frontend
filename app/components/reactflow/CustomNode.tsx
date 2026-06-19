@@ -26,27 +26,27 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
     (data as any).group?.toString().toLowerCase() === 'condition';
 
   // Start Node
-  if (node_type?.toLowerCase() === 'trigger') {
-    return (
-      <div
-        className="px-1 py-1 rounded-2xl shadow-xl border-2 text-black flex items-center gap-3 min-w-[150px] transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
-        style={{
+  // if (node_type?.toLowerCase() === 'trigger') {
+  //   return (
+  //     <div
+  //       className="px-1 py-1 rounded-2xl shadow-xl border-2 text-black flex items-center gap-3 min-w-[150px] transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
+  //       style={{
         
-          borderColor: color ? `${color}cc` : '#34d399',
-        }}
-      >
-        <div className="w-10 h-10 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center"
-        style={{backgroundColor: color || '#10b981', color:  '#ffffff'}}>
-          {renderIcon()}
-        </div>
-        <div className="font-normal text-m">{label}</div>
-        <Handle type="source" position={Position.Right} className="w-4 h-4 bg-white border-2 border-emerald-500 !-right-2 rounded-full" />
-      </div>
-    );
-  }
+  //         borderColor: color ? `${color}cc` : '#34d399',
+  //       }}
+  //     >
+  //       <div className="w-10 h-10 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center"
+  //       style= {{backgroundColor: `${data.color}`, color:  '#ffffff'}}>
+  //         {renderIcon()}
+  //       </div>
+  //       <div className="font-normal text-m">{label}</div>
+  //       <Handle type="source" position={Position.Right} className="w-4 h-4 bg-white border-2 border-emerald-500 !-right-2 rounded-full" />
+  //     </div>
+  //   );
+  // }
 
   // Condition / Detector Node OR Standard Node
-  if (node_type?.toLowerCase() !== 'trigger') {
+  // if (node_type?.toLowerCase() !== 'trigger') {
     return (
       <div
         className="px-1 py-1 rounded-2xl shadow-xl border text-{color} flex items-center gap-3 min-w-[150px] transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
@@ -56,12 +56,13 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
         }}
       >
            <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center"
-        style={{backgroundColor: color || '#10b981', color:  '#ffffff'}}>
+        style={{
+          backgroundColor: `${data.category_color}`, color:  '#ffffff'}}>
           {renderIcon()}
         </div>
         <div className="font-normal text-m">{label}</div>
 
-        <Handle type="target" position={Position.Left} className="w-4 h-4 bg-pink-500 border-2 border-white rounded-full !-left-2" />
+        <Handle type="target" position={Position.Left} className="w-4 h-4 bg-black-500 border-2 border-white rounded-full !-left-2" />
 
         {isConditionNode ? (
           <>
@@ -94,5 +95,5 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
         )}
       </div>
     );
-  }
+  // }
 };

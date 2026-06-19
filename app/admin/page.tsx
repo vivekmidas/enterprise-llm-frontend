@@ -1385,7 +1385,7 @@ export default function AdminPage() {
                       }
                     >
                       {categories.map((cat, idx) => (
-                        <option key={`opt-${cat.id || cat.name || idx}`} value={cat.name}>
+                        <option key={`opt-${cat.id || cat.name || idx}`} value={cat.id}>
                           {cat.label || cat.name}
                         </option>
                       ))}
