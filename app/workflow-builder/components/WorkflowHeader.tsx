@@ -8,6 +8,7 @@ type WorkflowHeaderProps = {
   agentId: string;
   agentName: string;
   agentVersion: number | null;
+  agentDescription:string;
   isAgentEnabled: boolean;
   isDirty: boolean;
   isEditingName: boolean;
@@ -36,6 +37,7 @@ export default function WorkflowHeader({
   isExecuting,
   status,
   canDelete,
+  agentDescription,
   onAgentNameChange,
   onAgentEnabledChange,
   onEditingNameChange,
@@ -48,6 +50,7 @@ export default function WorkflowHeader({
   onExecute,
 }: WorkflowHeaderProps) {
   return (
+    <>
     <div className="h-16 border-b bg-white flex items-center px-6 justify-between shadow-sm">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
@@ -67,6 +70,7 @@ export default function WorkflowHeader({
               className="text-2xl font-semibold text-black border-b-2 border-blue-500 focus:outline-none bg-transparent py-0.5 px-1 max-w-[250px]"
             />
           ) : (
+           <>
             <div
               onClick={() => onEditingNameChange(true)}
               className="flex items-center gap-2 cursor-pointer group hover:bg-gray-50 rounded-lg py-1 px-2 transition-all -ml-2"
@@ -80,6 +84,8 @@ export default function WorkflowHeader({
                 className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
               />
             </div>
+           
+            </>
           )}
         </div>
 
@@ -146,6 +152,9 @@ export default function WorkflowHeader({
         isExecuting={isExecuting}
         status={status}
       />
+      {/* <div className="text-sm ">{agentDescription}</div> */}
     </div>
+     
+     </>
   );
 }

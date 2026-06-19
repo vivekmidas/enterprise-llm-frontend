@@ -53,6 +53,7 @@ function AgentBuilderContent() {
   const [isDirty, setIsDirty] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const { screenToFlowPosition, getNodes } = useReactFlow();
+  const [description, setAgentDescription] = useState("")
 
   const [isMapperOpen, setIsMapperOpen] = useState(false);
   const [prevNodeContract, setPrevNodeContract] = useState<any>(null);
@@ -493,6 +494,7 @@ function AgentBuilderContent() {
         setSelectedNode(null);
         setExecutionTrace([]);
         setIsDirty(false);
+        setAgentDescription(data.description);
         setStatus(`Loaded ${data.name || id}.`);
       } catch (e) {
         setStatus(`Unable to load agent ${id}.`);
@@ -680,6 +682,7 @@ function AgentBuilderContent() {
     <div className="flex h-screen flex-col bg-gray-50 text-black">
       <WorkflowHeader
         agentId={agentId}
+        agentDescription={description}
         agentName={agentName}
         agentVersion={agentVersion}
         isAgentEnabled={isAgentEnabled}
