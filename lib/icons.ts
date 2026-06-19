@@ -33,9 +33,9 @@ import {
   Power,
   Search,
   Workflow,
-} from 'lucide-react' ;
+} from 'lucide-react';
 
-export  const IconMap: Record<string, any> = {
+export const IconMap: Record<string, any> = {
   'play-circle': PlayCircle,
   zap: Zap,
   lock: Lock,
@@ -70,10 +70,9 @@ export  const IconMap: Record<string, any> = {
   activity: Activity,
   network: Network,
   x: X,
-  X:X,
+  X: X,
   save: Save,
   power: Power,
   search: Search,
-  
 };
 export default IconMap;

@@ -53,11 +53,7 @@ export default function WorkflowToolbar({
         disabled={isExecuting}
         className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-400 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
       >
-        {isExecuting ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Play className="w-4 h-4" />
-        )}
+        {isExecuting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
         {isExecuting ? 'Executing...' : 'Run Workflow'}
       </button>
     </div>

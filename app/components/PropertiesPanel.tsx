@@ -119,8 +119,18 @@ function FieldMapperModal({
         </div>
 
         <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
-          <button onClick={() => onSaveMapping(mapping)} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg">Apply Mapping</button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSaveMapping(mapping)}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg"
+          >
+            Apply Mapping
+          </button>
         </div>
       </div>
     </div>
@@ -130,10 +140,7 @@ function FieldMapperModal({
 /** Type representing agent-specific configuration values */
 type NodeProperties = Record<string, PropertyValue>;
 /** Type for the generic node data object stored in ReactFlow */
-type NodeData = Record<
-  string,
-  PropertyValue | NodeProperties | undefined
->;
+type NodeData = Record<string, PropertyValue | NodeProperties | undefined>;
 
 interface PropertiesPanelProps {
   /** The ReactFlow node currently selected on the canvas */
@@ -289,7 +296,7 @@ export default function PropertiesPanel({
       const nodeData = selectedNode.data as any;
       const payload = {
         ...nodeData,
-       
+
         // Ensure properties are included for the registry update
         properties: nodeData.properties,
         input_contract: nodeData.input_contract,
@@ -339,12 +346,16 @@ export default function PropertiesPanel({
   };
 
   /** Renders the appropriate UI input based on the field definition from the agent schema */
-  const renderPropertyField = (field: NodePropertyDefinition, userProps: NodeProperties, systemProps: NodeProperties) => {
+  const renderPropertyField = (
+    field: NodePropertyDefinition,
+    userProps: NodeProperties,
+    systemProps: NodeProperties,
+  ) => {
     const isSystem = systemProps.hasOwnProperty(field.key);
     const value = isSystem ? systemProps[field.key] : getPropertyValue(userProps, field);
     const isDisabled = isSystem;
-    const displayValue = (isSystem && field.type === 'password') ? '••••••••' : String(value ?? '');
-    
+    const displayValue = isSystem && field.type === 'password' ? '••••••••' : String(value ?? '');
+
     // Boolean Toggle
     if (field.type === 'boolean') {
       return (
@@ -357,7 +368,9 @@ export default function PropertiesPanel({
             type="checkbox"
             checked={Boolean(value)}
             disabled={isDisabled}
-            onChange={(event) => !isDisabled && handlePropertyChange(field.key, event.target.checked)}
+            onChange={(event) =>
+              !isDisabled && handlePropertyChange(field.key, event.target.checked)
+            }
             className="h-4 w-4 accent-blue-600"
           />
         </label>
@@ -371,7 +384,9 @@ export default function PropertiesPanel({
       const credentialId = String(value || '');
 
       const clientId = String(isSystem ? systemProps[clientIdKey] : userProps[clientIdKey] || '');
-      const clientSecret = String(isSystem ? systemProps[clientSecretKey] : userProps[clientSecretKey] || '');
+      const clientSecret = String(
+        isSystem ? systemProps[clientSecretKey] : userProps[clientSecretKey] || '',
+      );
 
       return (
         <div
@@ -397,7 +412,13 @@ export default function PropertiesPanel({
                   Provider
                 </label>
                 <select
-                  value={selectedProvider || (isSystem ? systemProps[`${field.key}_provider`] : userProps[`${field.key}_provider`] as string) || ''}
+                  value={
+                    selectedProvider ||
+                    (isSystem
+                      ? systemProps[`${field.key}_provider`]
+                      : (userProps[`${field.key}_provider`] as string)) ||
+                    ''
+                  }
                   disabled={isDisabled}
                   onChange={(e) => setSelectedProvider(e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all disabled:bg-gray-100"
@@ -434,7 +455,9 @@ export default function PropertiesPanel({
                   type="password"
                   value={clientSecret}
                   disabled={isDisabled}
-                  onChange={(e) => !isDisabled && handlePropertyChange(clientSecretKey, e.target.value)}
+                  onChange={(e) =>
+                    !isDisabled && handlePropertyChange(clientSecretKey, e.target.value)
+                  }
                   className="w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                   placeholder="••••••••••••"
                 />
@@ -559,7 +582,8 @@ export default function PropertiesPanel({
           value={displayValue}
           placeholder={field.placeholder}
           onChange={(event) =>
-            !isDisabled && handlePropertyChange(
+            !isDisabled &&
+            handlePropertyChange(
               field.key,
               field.type === 'number' ? Number(event.target.value) : event.target.value,
             )
@@ -603,7 +627,9 @@ export default function PropertiesPanel({
           </label>
           <input
             type="text"
-            value={String((selectedNode.data as any).label || (selectedNode.data as any).name || '')}
+            value={String(
+              (selectedNode.data as any).label || (selectedNode.data as any).name || '',
+            )}
             onChange={(e) => {
               const val = e.target.value;
               onUpdateNode(selectedNode.id, {
@@ -657,29 +683,24 @@ export default function PropertiesPanel({
       </div>
 
       <div className="flex-1 overflow-auto p-5 space-y-6">
-          <div className="space-y-6">
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase">
-                Input Contract
-              </label>
-              <pre className="mt-2 p-3 bg-gray-900 text-green-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
-                {JSON.stringify(inputContract || {}, null, 2)}
-              </pre>
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase">
-                Output Contract
-              </label>
-              <pre className="mt-2 p-3 bg-gray-900 text-blue-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
-                {JSON.stringify(outputContract || {}, null, 2)}
-              </pre>
-            </div>
-            <p className="text-[10px] text-gray-400 italic leading-relaxed">
-              Mapping can be achieved by referencing upstream nodes in your config using
-              <code className="bg-gray-100 px-1 rounded">{'{{ node_id.output_key }}'}</code>.
-            </p>
+        <div className="space-y-6">
+          <div>
+            <label className="text-[10px] font-bold text-gray-400 uppercase">Input Contract</label>
+            <pre className="mt-2 p-3 bg-gray-900 text-green-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
+              {JSON.stringify(inputContract || {}, null, 2)}
+            </pre>
           </div>
-        
+          <div>
+            <label className="text-[10px] font-bold text-gray-400 uppercase">Output Contract</label>
+            <pre className="mt-2 p-3 bg-gray-900 text-blue-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
+              {JSON.stringify(outputContract || {}, null, 2)}
+            </pre>
+          </div>
+          <p className="text-[10px] text-gray-400 italic leading-relaxed">
+            Mapping can be achieved by referencing upstream nodes in your config using
+            <code className="bg-gray-100 px-1 rounded">{'{{ node_id.output_key }}'}</code>.
+          </p>
+        </div>
       </div>
 
       {/* Footer - Save & Delete Buttons */}
@@ -696,7 +717,10 @@ export default function PropertiesPanel({
           {onDeleteNode && (
             <button
               onClick={() => {
-                const nodeName = (selectedNode.data as any).label || (selectedNode.data as any).name || selectedNode.id;
+                const nodeName =
+                  (selectedNode.data as any).label ||
+                  (selectedNode.data as any).name ||
+                  selectedNode.id;
                 if (window.confirm(`Are you sure you want to delete the node "${nodeName}"?`)) {
                   onDeleteNode(selectedNode.id);
                 }

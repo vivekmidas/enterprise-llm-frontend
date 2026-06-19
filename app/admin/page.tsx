@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { api } from '@/lib/api';
 import { Workflow } from 'lucide-react';
-import {IconMap } from '@/lib/icons';
+import { IconMap } from '@/lib/icons';
 import { AgentNode, NodeCategory } from '@components/component-categoriees';
 
 type PropertyTarget = 'user' | 'system';
@@ -60,7 +60,10 @@ const propertyEntriesFromValue = (value: any): PropertyEntry[] => {
   if (Array.isArray(value)) {
     return value
       .map((item) => (typeof item === 'string' ? safeJsonParse(item) : item))
-      .filter((item): item is PropertyEntry => !!item && typeof item === 'object' && typeof item.key === 'string');
+      .filter(
+        (item): item is PropertyEntry =>
+          !!item && typeof item === 'object' && typeof item.key === 'string',
+      );
   }
 
   if (typeof value === 'object') {
@@ -97,7 +100,9 @@ export default function AdminPage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<NodeCategory | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'nodes' | 'workflows' | 'users' | 'oauth' | 'logs'>('nodes');
+  const [activeTab, setActiveTab] = useState<'nodes' | 'workflows' | 'users' | 'oauth' | 'logs'>(
+    'nodes',
+  );
   const [users, setUsers] = useState<any[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
@@ -117,7 +122,7 @@ export default function AdminPage() {
     label: '',
     type: 'string',
     defaultValue: '',
-    value: ''
+    value: '',
   });
 
   // Auth state
@@ -126,13 +131,12 @@ export default function AdminPage() {
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [userEmail, setUserEmail] = useState<string | null>(null);
-   const [userId, setUserId] = useState<string | null>(null);
-    
+  const [userId, setUserId] = useState<string | null>(null);
+
   useEffect(() => {
     setIsMounted(true);
     const token = localStorage.getItem('admin_token');
     const role = localStorage.getItem('user_role');
-   
 
     if (token) {
       if (role !== 'admin') {
@@ -188,11 +192,11 @@ export default function AdminPage() {
     try {
       if (isRegistering) {
         await api.register({
-          username: loginUsername, 
-          email: loginEmail, 
+          username: loginUsername,
+          email: loginEmail,
           password: loginPassword,
-          name: "",
-          lastname:""
+          name: '',
+          lastname: '',
         });
         alert('Registration successful! Please login.');
         setIsRegistering(false);
@@ -226,7 +230,11 @@ export default function AdminPage() {
 
   const handleDeleteWorkflow = async (workflowId: string) => {
     if (!confirm('Are you sure you want to delete this workflow?')) return;
-    await api.deleteWorkflow(workflowId, { id: userId || '', role: userRole || '', email: userEmail || '' });
+    await api.deleteWorkflow(workflowId, {
+      id: userId || '',
+      role: userRole || '',
+      email: userEmail || '',
+    });
     const workflowsRes = await api.getSavedAgents();
     setWorkflows(workflowsRes || []);
   };
@@ -304,7 +312,7 @@ export default function AdminPage() {
         label: field.label || field.key,
         type: field.type || 'string',
         defaultValue: field.default || '',
-        value: field.value ?? ''
+        value: field.value ?? '',
       });
       setIsEditingProp(true);
     } else {
@@ -325,10 +333,10 @@ export default function AdminPage() {
 
   const handleSavePropFromModal = () => {
     if (!propModal.key || !editingAgent) return;
-    
-    setEditingAgent(prev => {
+
+    setEditingAgent((prev) => {
       if (!prev) return null;
-      
+
       const isUser = propModal.target === 'user';
       const userProps = propertyEntriesFromValue(prev.user_properties);
       const sysProps = propertyEntriesFromValue(prev.system_properties);
@@ -344,7 +352,7 @@ export default function AdminPage() {
         const originalProps = propModal.originalTarget === 'user' ? userProps : sysProps;
         originalProps.splice(propModal.sourceIndex, 1);
       }
-    
+
       if (isUser) {
         userProps.push(nextEntry);
       } else {
@@ -357,17 +365,20 @@ export default function AdminPage() {
         system_properties: propertyEntriesToJsonStrings(sysProps),
       };
     });
-    setPropModal(prev => ({ ...prev, isOpen: false }));
+    setPropModal((prev) => ({ ...prev, isOpen: false }));
   };
 
   const handleSaveNode = async () => {
     if (!editingAgent) return;
-    
+
     const finalAgent = { ...editingAgent };
 
     // Validate and parse Input Contract
     try {
-      if (typeof finalAgent.input_contract === 'string' && finalAgent.input_contract.trim() !== '') {
+      if (
+        typeof finalAgent.input_contract === 'string' &&
+        finalAgent.input_contract.trim() !== ''
+      ) {
         finalAgent.input_contract = JSON.parse(finalAgent.input_contract);
       } else if (typeof finalAgent.input_contract === 'string') {
         finalAgent.input_contract = {};
@@ -379,7 +390,10 @@ export default function AdminPage() {
 
     // Validate and parse Output Contract
     try {
-      if (typeof finalAgent.output_contract === 'string' && finalAgent.output_contract.trim() !== '') {
+      if (
+        typeof finalAgent.output_contract === 'string' &&
+        finalAgent.output_contract.trim() !== ''
+      ) {
         finalAgent.output_contract = JSON.parse(finalAgent.output_contract);
       } else if (typeof finalAgent.output_contract === 'string') {
         finalAgent.output_contract = {};
@@ -391,7 +405,9 @@ export default function AdminPage() {
 
     // Validate and parse User Properties
     try {
-      finalAgent.user_properties = propertyEntriesToJsonStrings(propertyEntriesFromValue(finalAgent.user_properties));
+      finalAgent.user_properties = propertyEntriesToJsonStrings(
+        propertyEntriesFromValue(finalAgent.user_properties),
+      );
     } catch (e) {
       alert('Invalid JSON in User Properties field.');
       return;
@@ -399,7 +415,9 @@ export default function AdminPage() {
 
     // Validate and parse System Properties
     try {
-      finalAgent.system_properties = propertyEntriesToJsonStrings(propertyEntriesFromValue(finalAgent.system_properties));
+      finalAgent.system_properties = propertyEntriesToJsonStrings(
+        propertyEntriesFromValue(finalAgent.system_properties),
+      );
     } catch (e) {
       alert('Invalid JSON in System Properties field.');
       return;
@@ -428,7 +446,11 @@ export default function AdminPage() {
   };
 
   const handleDeleteNode = async (nodeName: string) => {
-    if (!confirm(`Are you sure you want to delete the node type "${nodeName}"? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete the node type "${nodeName}"? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
     try {
@@ -441,7 +463,9 @@ export default function AdminPage() {
       setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
     } catch (error) {
       console.error('Failed to delete node:', error);
-      alert(`Failed to delete node type "${nodeName}". Ensure the backend endpoint DELETE /nodes/:name is implemented.`);
+      alert(
+        `Failed to delete node type "${nodeName}". Ensure the backend endpoint DELETE /nodes/:name is implemented.`,
+      );
     }
   };
 
@@ -468,7 +492,7 @@ export default function AdminPage() {
     const commonClasses =
       'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
 
-    if (field.type === 'password' || field.type?.toLowerCase().includes("secret")) {
+    if (field.type === 'password' || field.type?.toLowerCase().includes('secret')) {
       return (
         <input
           type="password"
@@ -647,7 +671,6 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-gray-200">
-     
               <span className="text-sm font-semibold text-black">Admin Console</span>
             </div>
           </div>
@@ -785,10 +808,10 @@ export default function AdminPage() {
                       color: '#5E0CEC',
                       badge: 'Node',
                       sub_label: '',
-                    
+
                       system_properties: [],
                       user_properties: [],
-                      
+
                       input_contract: {},
                       output_contract: {},
                     })
@@ -831,8 +854,11 @@ export default function AdminPage() {
                   <tbody className="divide-y divide-gray-200">
                     {filteredAgents.map((agent, idx) => {
                       const agentKey = agent.id?.toString() || agent.name;
-                      const AgentIcon = (agent.icon && IconMap[agent.icon.toLowerCase()]) || IconMap.box || IconMap.bot;
-                      
+                      const AgentIcon =
+                        (agent.icon && IconMap[agent.icon.toLowerCase()]) ||
+                        IconMap.box ||
+                        IconMap.bot;
+
                       return (
                         <tr
                           key={agent.id ? `node-${agent.id}` : `node-${agent.name}-${idx}`}
@@ -844,8 +870,14 @@ export default function AdminPage() {
                               <div
                                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border shadow-sm"
                                 style={{
-                                  borderColor: agent.color && agent.color.length === 7 ? `${agent.color}40` : '#e5e7eb',
-                                  backgroundColor: agent.color && agent.color.length === 7 ? `${agent.color}10` : '#f9fafb',
+                                  borderColor:
+                                    agent.color && agent.color.length === 7
+                                      ? `${agent.color}40`
+                                      : '#e5e7eb',
+                                  backgroundColor:
+                                    agent.color && agent.color.length === 7
+                                      ? `${agent.color}10`
+                                      : '#f9fafb',
                                   color: agent.color || '#6b7280',
                                 }}
                               >
@@ -967,10 +999,14 @@ export default function AdminPage() {
                                 className="p-1 text-blue-600 hover:bg-blue-50 rounded"
                                 title="Edit Node Type"
                               >
-                                  <IconMap.edit2 className="h-4 w-4" />
+                                <IconMap.edit2 className="h-4 w-4" />
                               </button>
-                              <button onClick={() => handleDeleteNode(agent.name)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete Node Type">
-                                  <IconMap.trash2 className="h-4 w-4" />
+                              <button
+                                onClick={() => handleDeleteNode(agent.name)}
+                                className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                title="Delete Node Type"
+                              >
+                                <IconMap.trash2 className="h-4 w-4" />
                               </button>
                             </div>
                           </td>
@@ -1081,7 +1117,9 @@ export default function AdminPage() {
               <table className="w-full text-left">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Username</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">
+                      Username
+                    </th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Email</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Role</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
@@ -1100,7 +1138,9 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`text-sm font-medium ${u.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                        <span
+                          className={`text-sm font-medium ${u.status === 'active' ? 'text-green-600' : 'text-red-600'}`}
+                        >
                           {u.status}
                         </span>
                       </td>
@@ -1128,14 +1168,16 @@ export default function AdminPage() {
             </div>
             <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden p-8 text-center">
               <IconMap.activity className="mx-auto h-12 w-12 text-gray-200 mb-4" />
-              <p className="text-gray-500 text-sm">Real-time system logs will appear here after the next gateway restart.</p>
+              <p className="text-gray-500 text-sm">
+                Real-time system logs will appear here after the next gateway restart.
+              </p>
             </div>
           </section>
         ) : (
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                  <IconMap.network className="h-5 w-5 text-gray-400" />
+                <IconMap.network className="h-5 w-5 text-gray-400" />
                 <h2 className="text-xl font-semibold text-black">OAuth Configuration</h2>
               </div>
               <button
@@ -1152,7 +1194,7 @@ export default function AdminPage() {
                 }
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
               >
-                  <IconMap.plus className="h-4 w-4" /> Add Provider
+                <IconMap.plus className="h-4 w-4" /> Add Provider
               </button>
             </div>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -1482,7 +1524,9 @@ export default function AdminPage() {
                   <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                     <div>
                       <h4 className="font-bold text-black">Property Registry</h4>
-                      <p className="text-xs text-gray-500">Configure User (UI-visible) and System (Internal) properties.</p>
+                      <p className="text-xs text-gray-500">
+                        Configure User (UI-visible) and System (Internal) properties.
+                      </p>
                     </div>
                     <button
                       onClick={() => openPropModal()}
@@ -1527,34 +1571,58 @@ export default function AdminPage() {
                           ];
 
                           return rows.map((row, idx) => (
-                            <tr key={`unified-row-${idx}`} className="group hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => openPropModal(row, row.category === 'system')}>
+                            <tr
+                              key={`unified-row-${idx}`}
+                              className="group hover:bg-gray-50 transition-colors cursor-pointer"
+                              onClick={() => openPropModal(row, row.category === 'system')}
+                            >
                               <td className="px-4 py-3">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${row.category === 'user' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${row.category === 'user' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-gray-100 text-gray-600 border-gray-200'}`}
+                                >
                                   {row.category}
                                 </span>
                               </td>
                               <td className="px-4 py-3 font-mono text-xs text-black">{row.key}</td>
                               <td className="px-4 py-3 text-gray-600">{row.label}</td>
                               <td className="px-4 py-3">
-                                <span className="text-[10px] font-mono text-gray-400">{row.type}</span>
+                                <span className="text-[10px] font-mono text-gray-400">
+                                  {row.type}
+                                </span>
                               </td>
                               <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                {row.category === 'user' ? renderValueInput(row, row.value) : <span className="text-gray-400 font-mono text-xs">{String(row.value)}</span>}
+                                {row.category === 'user' ? (
+                                  renderValueInput(row, row.value)
+                                ) : (
+                                  <span className="text-gray-400 font-mono text-xs">
+                                    {String(row.value)}
+                                  </span>
+                                )}
                               </td>
-                              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                              <td
+                                className="px-4 py-3 text-right"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button
-                                  onClick={() => setEditingAgent(prev => {
-                                    if (!prev) return null;
-                                    const userProps = propertyEntriesFromValue(prev.user_properties);
-                                    const sysProps = propertyEntriesFromValue(prev.system_properties);
-                                    const entries = row.category === 'user' ? userProps : sysProps;
-                                    entries.splice(row.sourceIndex, 1);
-                                    return {
-                                      ...prev,
-                                      user_properties: propertyEntriesToJsonStrings(userProps),
-                                      system_properties: propertyEntriesToJsonStrings(sysProps),
-                                    };
-                                  })}
+                                  onClick={() =>
+                                    setEditingAgent((prev) => {
+                                      if (!prev) return null;
+                                      const userProps = propertyEntriesFromValue(
+                                        prev.user_properties,
+                                      );
+                                      const sysProps = propertyEntriesFromValue(
+                                        prev.system_properties,
+                                      );
+                                      const entries =
+                                        row.category === 'user' ? userProps : sysProps;
+                                      entries.splice(row.sourceIndex, 1);
+                                      return {
+                                        ...prev,
+                                        user_properties: propertyEntriesToJsonStrings(userProps),
+                                        system_properties: propertyEntriesToJsonStrings(sysProps),
+                                      };
+                                    })
+                                  }
                                   className="text-gray-400 hover:text-red-500 transition-colors"
                                 >
                                   <IconMap.Trash2 className="h-4 w-4" />
@@ -1571,19 +1639,35 @@ export default function AdminPage() {
                 {/* Contract Section */}
                 <div className="grid grid-cols-2 gap-6 pt-4 border-t">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Input Contract (JSON)</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                      Input Contract (JSON)
+                    </label>
                     <textarea
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={typeof editingAgent.input_contract === 'string' ? editingAgent.input_contract : JSON.stringify(editingAgent.input_contract || {}, null, 2)}
-                      onChange={(e) => setEditingAgent({ ...editingAgent, input_contract: e.target.value })}
+                      value={
+                        typeof editingAgent.input_contract === 'string'
+                          ? editingAgent.input_contract
+                          : JSON.stringify(editingAgent.input_contract || {}, null, 2)
+                      }
+                      onChange={(e) =>
+                        setEditingAgent({ ...editingAgent, input_contract: e.target.value })
+                      }
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Output Contract (JSON)</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                      Output Contract (JSON)
+                    </label>
                     <textarea
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={typeof editingAgent.output_contract === 'string' ? editingAgent.output_contract : JSON.stringify(editingAgent.output_contract || {}, null, 2)}
-                      onChange={(e) => setEditingAgent({ ...editingAgent, output_contract: e.target.value })}
+                      value={
+                        typeof editingAgent.output_contract === 'string'
+                          ? editingAgent.output_contract
+                          : JSON.stringify(editingAgent.output_contract || {}, null, 2)
+                      }
+                      onChange={(e) =>
+                        setEditingAgent({ ...editingAgent, output_contract: e.target.value })
+                      }
                     />
                   </div>
                 </div>
@@ -1617,20 +1701,23 @@ export default function AdminPage() {
                   <IconMap.settings className="h-5 w-5 text-blue-600" />
                   {isEditingProp ? 'Edit Property' : 'Add Property'}
                 </h3>
-                <button onClick={() => setPropModal({ ...propModal, isOpen: false })} className="text-gray-400 hover:text-gray-600">
+                <button
+                  onClick={() => setPropModal({ ...propModal, isOpen: false })}
+                  className="text-gray-400 hover:text-gray-600"
+                >
                   <IconMap.x className="h-6 w-6" />
                 </button>
               </div>
               <div className="p-6 space-y-4">
                 <div className="flex bg-gray-100 p-1 rounded-lg">
-                  <button 
-                    onClick={() => setPropModal({...propModal, target: 'user'})}
+                  <button
+                    onClick={() => setPropModal({ ...propModal, target: 'user' })}
                     className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${propModal.target === 'user' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}
                   >
                     User Property
                   </button>
-                  <button 
-                    onClick={() => setPropModal({...propModal, target: 'system'})}
+                  <button
+                    onClick={() => setPropModal({ ...propModal, target: 'system' })}
                     className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${propModal.target === 'system' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}
                   >
                     System Property
@@ -1638,20 +1725,32 @@ export default function AdminPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[12px] font-bold text-gray-500 sentencecase">Property Key (ID)</label><br/>
-                  <label className="text-[12px] font-bold text-gray-500 sentencecase">Can not contain special character or spaces</label>
-                   
+                  <label className="text-[12px] font-bold text-gray-500 sentencecase">
+                    Property Key (ID)
+                  </label>
+                  <br />
+                  <label className="text-[12px] font-bold text-gray-500 sentencecase">
+                    Can not contain special character or spaces
+                  </label>
+
                   <input
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none font-mono"
                     value={propModal.key}
-                    onChange={(e) => setPropModal({ ...propModal, key: e.target.value.toLowerCase().replaceAll(" ","_") })}
+                    onChange={(e) =>
+                      setPropModal({
+                        ...propModal,
+                        key: e.target.value.toLowerCase().replaceAll(' ', '_'),
+                      })
+                    }
                     placeholder="e.g. api_timeout"
                   />
                 </div>
 
                 {propModal.target === 'user' && (
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">UI Label</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">
+                      UI Label
+                    </label>
                     <input
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none"
                       value={propModal.label}
@@ -1663,7 +1762,9 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Field Type</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">
+                      Field Type
+                    </label>
                     <select
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none"
                       value={propModal.type}
@@ -1678,7 +1779,9 @@ export default function AdminPage() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Value (In Catalog)</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">
+                      Value (In Catalog)
+                    </label>
                     <input
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none"
                       value={propModal.value}

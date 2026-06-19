@@ -40,7 +40,6 @@ export interface NodeDefinition {
   output_contract?: Record<string, any>;
   user_properties?: Record<string, PropertyValue>;
   system_properties?: Record<string, PropertyValue>;
-  
 }
 
 export interface CategoryItem {

@@ -19,7 +19,6 @@ import {
   addEdge,
 } from '@xyflow/react';
 
-
 import '@xyflow/react/dist/style.css';
 
 import { X, CheckCircle, AlertCircle, Clock, Trash2, Edit2 } from 'lucide-react';
@@ -112,7 +111,9 @@ const toUserProperties = (node: Node<WorkflowNodeData>): NodeProperties => {
  */
 const buildExecutionSequence = (nodes: Node<WorkflowNodeData>[], edges: Edge[]) => {
   // Find nodes that are either explicit "Start" nodes or "Trigger" nodes
-  const startNodes = nodes.filter((node) => (node.data as any)?.node_type?.toUpperCase() === 'TRIGGER');
+  const startNodes = nodes.filter(
+    (node) => (node.data as any)?.node_type?.toUpperCase() === 'TRIGGER',
+  );
 
   if (startNodes.length === 0) {
     return {
@@ -312,13 +313,12 @@ function AgentBuilderContent() {
     if (storedUserId) setUserId(storedUserId);
     const storedRole = localStorage.getItem('user_role');
     if (storedRole) setUserRole(storedRole || '');
-     const storedEmail = localStorage.getItem('user_email');
+    const storedEmail = localStorage.getItem('user_email');
     if (storedRole) setUserEmail(storedEmail || '');
   }, []);
 
   // Sync all existing nodes on the canvas if the list of available agents refreshes
-  useEffect(() => {
-  }, [availableAgentNames, setNodes, isMounted]);
+  useEffect(() => {}, [availableAgentNames, setNodes, isMounted]);
 
   useEffect(() => {
     api
@@ -332,33 +332,40 @@ function AgentBuilderContent() {
       .catch(() => console.error('Failed to load categories'));
   }, []);
 
-  const onNodesChangeWrapper = useCallback((changes: any) => {
-    onNodesChange(changes);
-    const hasModifyingChange = changes.some(
-      (c: any) => c.type === 'position' || c.type === 'remove' || c.type === 'add'
-    );
-    if (hasModifyingChange) {
-      setIsDirty(true);
-    }
-  }, [onNodesChange]);
+  const onNodesChangeWrapper = useCallback(
+    (changes: any) => {
+      onNodesChange(changes);
+      const hasModifyingChange = changes.some(
+        (c: any) => c.type === 'position' || c.type === 'remove' || c.type === 'add',
+      );
+      if (hasModifyingChange) {
+        setIsDirty(true);
+      }
+    },
+    [onNodesChange],
+  );
 
-  const onEdgesChangeWrapper = useCallback((changes: any) => {
-    onEdgesChange(changes);
-    const hasModifyingChange = changes.some(
-      (c: any) => c.type === 'remove' || c.type === 'add'
-    );
-    if (hasModifyingChange) {
-      setIsDirty(true);
-    }
-  }, [onEdgesChange]);
+  const onEdgesChangeWrapper = useCallback(
+    (changes: any) => {
+      onEdgesChange(changes);
+      const hasModifyingChange = changes.some((c: any) => c.type === 'remove' || c.type === 'add');
+      if (hasModifyingChange) {
+        setIsDirty(true);
+      }
+    },
+    [onEdgesChange],
+  );
 
-  const onDeleteNode = useCallback((nodeId: string) => {
-    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-    setSelectedNode(null);
-    setIsDirty(true);
-    setStatus('Node deleted.');
-  }, [setNodes, setEdges]);
+  const onDeleteNode = useCallback(
+    (nodeId: string) => {
+      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+      setSelectedNode(null);
+      setIsDirty(true);
+      setStatus('Node deleted.');
+    },
+    [setNodes, setEdges],
+  );
 
   /** Validates connections to prevent cycles and enforce port logic */
   const onConnect = useCallback(
@@ -422,7 +429,6 @@ function AgentBuilderContent() {
 
         // Handle cases where response might be the property bag directly or wrapped in an object
         const fetchedProperties = response.properties || response;
-       
 
         setNodes((nds) =>
           nds.map((n: Node<WorkflowNodeData>) => {
@@ -454,12 +460,14 @@ function AgentBuilderContent() {
       const outgoingEdge = edges.find((e) => e.source === selectedNode.id);
 
       if (incomingEdge) {
-        api.getAgentNodeProperties(agentId, incomingEdge.source)
-           .then(res => setPrevNodeContract(res?.output_contract || {}));
+        api
+          .getAgentNodeProperties(agentId, incomingEdge.source)
+          .then((res) => setPrevNodeContract(res?.output_contract || {}));
       }
       if (outgoingEdge) {
-        api.getAgentNodeProperties(agentId, outgoingEdge.target)
-           .then(res => setNextNodeContract(res?.input_contract || {}));
+        api
+          .getAgentNodeProperties(agentId, outgoingEdge.target)
+          .then((res) => setNextNodeContract(res?.input_contract || {}));
       }
     }
   }, [selectedNode?.id, agentId, setNodes]);
@@ -762,13 +770,17 @@ function AgentBuilderContent() {
     if (!agentId) return;
 
     const confirmDelete = window.confirm(
-      "Are you sure you want to delete this workflow? This action is permanent and all associated data will be lost."
+      'Are you sure you want to delete this workflow? This action is permanent and all associated data will be lost.',
     );
 
     if (!confirmDelete) return;
 
     try {
-      const success = await api.deleteWorkflow(agentId, { id: userId, role: userRole, email:userEmail });
+      const success = await api.deleteWorkflow(agentId, {
+        id: userId,
+        role: userRole,
+        email: userEmail,
+      });
       if (success) {
         setStatus('✅ Workflow deleted successfully.');
         handleNewAgent();
@@ -940,7 +952,10 @@ function AgentBuilderContent() {
                 <h1 className="text-2xl font-semibold text-black">
                   {agentName || 'Unnamed Workflow'}
                 </h1>
-                <Edit2 size={16} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Edit2
+                  size={16}
+                  className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                />
               </div>
             )}
           </div>
@@ -948,7 +963,9 @@ function AgentBuilderContent() {
           <div className="text-sm text-gray-500 flex items-center gap-3">
             {agentId && <span className="font-mono text-gray-400">{agentId}</span>}
             <span className="text-gray-300">•</span>
-            <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-mono text-xs">v{agentVersion ?? 1}</span>
+            <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-mono text-xs">
+              v{agentVersion ?? 1}
+            </span>
             <span className="text-gray-300">•</span>
 
             {/* Dirty State / Save Status Badge */}
@@ -981,7 +998,7 @@ function AgentBuilderContent() {
                 {isAgentEnabled ? 'Enabled' : 'Disabled'}
               </span>
             </label>
-            
+
             {agentId && (userRole === 'admin' || userId === workflowOwnerId) && (
               <>
                 <span className="text-gray-300">•</span>
@@ -1057,7 +1074,8 @@ function AgentBuilderContent() {
           </ReactFlow>
 
           {/* Contextual Mapping Trigger */}
-          {(selectedNode?.data?.name === 'transform_node' || selectedNode?.data?.node_type?.toUpperCase() === 'TRANSFORM') && (
+          {(selectedNode?.data?.name === 'transform_node' ||
+            selectedNode?.data?.node_type?.toUpperCase() === 'TRANSFORM') && (
             <div className="absolute top-4 right-84 z-10 animate-in fade-in slide-in-from-right-4 duration-300">
               <button
                 onClick={() => setIsMapperOpen(true)}
@@ -1136,32 +1154,44 @@ function AgentBuilderContent() {
         <FieldMapperModal
           isOpen={isMapperOpen}
           onClose={() => setIsMapperOpen(false)}
-          sourceNodeName={(nodes.find(n => n.id === edges.find(e => e.target === selectedNode?.id)?.source)?.data as any)?.name}
-          targetNodeName={(nodes.find(n => n.id === edges.find(e => e.source === selectedNode?.id)?.target)?.data as any)?.name}
+          sourceNodeName={
+            (
+              nodes.find((n) => n.id === edges.find((e) => e.target === selectedNode?.id)?.source)
+                ?.data as any
+            )?.name
+          }
+          targetNodeName={
+            (
+              nodes.find((n) => n.id === edges.find((e) => e.source === selectedNode?.id)?.target)
+                ?.data as any
+            )?.name
+          }
           sourceContract={prevNodeContract}
           targetContract={nextNodeContract}
           currentMapping={(() => {
             try {
               const val = (selectedNode?.data as any)?.properties?.mapping_template;
               return typeof val === 'string' ? JSON.parse(val) : val || {};
-            } catch { return {}; }
+            } catch {
+              return {};
+            }
           })()}
           onSaveMapping={async (newMap) => {
             const mappingStr = JSON.stringify(newMap, null, 2);
             const updatedProperties = {
               ...(((selectedNode!.data as any).properties as any) || {}),
-              mapping_template: mappingStr
+              mapping_template: mappingStr,
             };
 
             // 1. Update local React Flow state for immediate UI feedback
             onUpdateNode(selectedNode!.id, {
               ...(selectedNode!.data as any),
-              properties: updatedProperties
+              properties: updatedProperties,
             });
 
             // 2. Persist the updated properties to the SQLite database
             await onSaveInstanceProperties(selectedNode!.id, updatedProperties);
-            
+
             setIsMapperOpen(false);
           }}
         />

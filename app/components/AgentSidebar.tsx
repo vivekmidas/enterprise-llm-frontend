@@ -13,7 +13,7 @@ import {
   CategoryItem,
 } from './component-categoriees';
 
-import {IconMap} from "@/lib/icons"
+import { IconMap } from '@/lib/icons';
 export default function AgentSidebar({
   onSelectAgent,
   onNewAgent,
@@ -150,7 +150,8 @@ export default function AgentSidebar({
 
   const renderNodeItem = (node: any) => {
     const category = getCategory(node.id);
-    const Icon = IconMap[node.icon?.toLowerCase()] || IconMap[category.icon?.toLowerCase()] || IconMap.bot;
+    const Icon =
+      IconMap[node.icon?.toLowerCase()] || IconMap[category.icon?.toLowerCase()] || IconMap.bot;
 
     return (
       <div
@@ -165,7 +166,7 @@ export default function AgentSidebar({
         <div className="flex items-start gap-2">
           <div
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-white"
-            style={node.category_color ? { backgroundColor: node.category_color} : {}}
+            style={node.category_color ? { backgroundColor: node.category_color } : {}}
           >
             <Icon className="h-5 w-5" />
           </div>

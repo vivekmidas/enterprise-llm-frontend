@@ -36,7 +36,9 @@ export default function FieldMapperModal({
     const syncContracts = async () => {
       try {
         const nodesData = await api.getNodes();
-        const nodesList = Array.isArray(nodesData) ? nodesData : (nodesData as any).nodes || (nodesData as any).agents || [];
+        const nodesList = Array.isArray(nodesData)
+          ? nodesData
+          : (nodesData as any).nodes || (nodesData as any).agents || [];
 
         if (sourceNodeName) {
           const match = nodesList.find((n: any) => n.name === sourceNodeName);
@@ -78,7 +80,7 @@ export default function FieldMapperModal({
 
       if (val && typeof val === 'object' && !Array.isArray(val)) {
         const isSchema = !!val.properties;
-        const hasMetadata = Object.keys(val).some(k => metadataKeys.includes(k.toLowerCase()));
+        const hasMetadata = Object.keys(val).some((k) => metadataKeys.includes(k.toLowerCase()));
         const isPlainObject = Object.keys(val).length > 0 && !val.type && !hasMetadata;
 
         if (isSchema || isPlainObject) {
@@ -172,13 +174,17 @@ export default function FieldMapperModal({
         {showRawContracts && (
           <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 border-b animate-in fade-in slide-in-from-top-2 duration-200">
             <div>
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Source Contract ({sourceNodeName || 'Output'})</h4>
+              <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">
+                Source Contract ({sourceNodeName || 'Output'})
+              </h4>
               <pre className="p-3 bg-gray-900 text-blue-400 text-[10px] rounded-lg border border-gray-800 font-mono max-h-48 overflow-auto shadow-inner">
                 {JSON.stringify(localSourceContract || {}, null, 2)}
               </pre>
             </div>
             <div>
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Target Contract ({targetNodeName || 'Input'})</h4>
+              <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">
+                Target Contract ({targetNodeName || 'Input'})
+              </h4>
               <pre className="p-3 bg-gray-900 text-green-400 text-[10px] rounded-lg border border-gray-800 font-mono max-h-48 overflow-auto shadow-inner">
                 {JSON.stringify(localTargetContract || {}, null, 2)}
               </pre>
@@ -198,75 +204,92 @@ export default function FieldMapperModal({
             <tbody className="divide-y">
               {targetFields.map((field) => {
                 const meta = getFieldMeta(localTargetContract, field);
-                const isRequired = 
-                  meta?.required === true || 
-                  meta?.required === 'True' || 
-                  meta?.mandatory === true || 
+                const isRequired =
+                  meta?.required === true ||
+                  meta?.required === 'True' ||
+                  meta?.mandatory === true ||
                   meta?.mandatory === 'True';
 
                 return (
                   <tr key={field} className="group hover:bg-gray-50/50 transition-colors">
                     <td className="py-3">
-                    <select
-                      value={mapping[field] || ''}
-                      onChange={(e) => setMapping({ ...mapping, [field]: e.target.value })}
-                      className={`w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all ${
-                        isRequired && !mapping[field] 
-                          ? 'border-amber-300 bg-amber-50 shadow-sm' 
-                          : 'border-gray-200 hover:border-blue-300'
-                      }`}
-                    >
-                      <option value="">-- Select Source Field --</option>
-                      {sourceFields.map((s) => {
-                        const sMeta = getFieldMeta(localSourceContract, s);
-                        const sType = sMeta?.type || 'any';
-                        return (
-                          <option key={s} value={`{{ input_data.${s} }}`}>
-                            {s} ({sType})
-                          </option>
-                        );
-                      })}
-                      {/* Preserve custom mapping if it doesn't match a source field */}
-                      {mapping[field] && !sourceFields.some(s => `{{ input_data.${s} }}` === mapping[field]) && (
-                        <option value={mapping[field]}>{mapping[field]} (Custom)</option>
-                      )}
-                    </select>
-                  </td>
-                  <td className="py-3 text-center text-gray-300">←</td>
-                  <td className="py-3">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-medium text-sm ${isRequired ? 'text-gray-900' : 'text-gray-700'}`}>
-                          {field}
-                        </span>
-                        {isRequired && (
-                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 uppercase tracking-tighter">
-                            Required
-                          </span>
-                        )}
-                      </div>
-                      {(meta?.type || meta?.description) && (
-                        <div className="mt-1 flex flex-col gap-0.5">
-                          {meta?.type && (
-                            <span className="text-[10px] text-gray-400 font-mono italic">type: {meta.type}</span>
+                      <select
+                        value={mapping[field] || ''}
+                        onChange={(e) => setMapping({ ...mapping, [field]: e.target.value })}
+                        className={`w-full border rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all ${
+                          isRequired && !mapping[field]
+                            ? 'border-amber-300 bg-amber-50 shadow-sm'
+                            : 'border-gray-200 hover:border-blue-300'
+                        }`}
+                      >
+                        <option value="">-- Select Source Field --</option>
+                        {sourceFields.map((s) => {
+                          const sMeta = getFieldMeta(localSourceContract, s);
+                          const sType = sMeta?.type || 'any';
+                          return (
+                            <option key={s} value={`{{ input_data.${s} }}`}>
+                              {s} ({sType})
+                            </option>
+                          );
+                        })}
+                        {/* Preserve custom mapping if it doesn't match a source field */}
+                        {mapping[field] &&
+                          !sourceFields.some((s) => `{{ input_data.${s} }}` === mapping[field]) && (
+                            <option value={mapping[field]}>{mapping[field]} (Custom)</option>
                           )}
-                          {meta?.description && (
-                            <p className="text-[10px] text-gray-500 line-clamp-1 italic" title={meta.description}>{meta.description}</p>
+                      </select>
+                    </td>
+                    <td className="py-3 text-center text-gray-300">←</td>
+                    <td className="py-3">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`font-medium text-sm ${isRequired ? 'text-gray-900' : 'text-gray-700'}`}
+                          >
+                            {field}
+                          </span>
+                          {isRequired && (
+                            <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 uppercase tracking-tighter">
+                              Required
+                            </span>
                           )}
                         </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
+                        {(meta?.type || meta?.description) && (
+                          <div className="mt-1 flex flex-col gap-0.5">
+                            {meta?.type && (
+                              <span className="text-[10px] text-gray-400 font-mono italic">
+                                type: {meta.type}
+                              </span>
+                            )}
+                            {meta?.description && (
+                              <p
+                                className="text-[10px] text-gray-500 line-clamp-1 italic"
+                                title={meta.description}
+                              >
+                                {meta.description}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
               })}
             </tbody>
           </table>
         </div>
 
         <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600">Cancel</button>
-          <button onClick={() => onSaveMapping(mapping)} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-sm">Apply Mapping</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600">
+            Cancel
+          </button>
+          <button
+            onClick={() => onSaveMapping(mapping)}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-sm"
+          >
+            Apply Mapping
+          </button>
         </div>
       </div>
     </div>
