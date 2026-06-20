@@ -53,11 +53,12 @@ function AgentBuilderContent() {
   const [isDirty, setIsDirty] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const { screenToFlowPosition, getNodes } = useReactFlow();
-  const [description, setAgentDescription] = useState("")
+  const [description, setAgentDescription] = useState('');
 
   const [isMapperOpen, setIsMapperOpen] = useState(false);
   const [prevNodeContract, setPrevNodeContract] = useState<any>(null);
   const [nextNodeContract, setNextNodeContract] = useState<any>(null);
+  
 
   useEffect(() => {
     setIsMounted(true);
@@ -421,12 +422,15 @@ function AgentBuilderContent() {
       return;
     }
 
+
     try {
       const savedAgent = await api.saveAgent({
         id: nextId,
         name: nextName.trim(),
+        description:"description",
         nodes: nodes as any,
         edges,
+        user_id:userId,
         category: agentCategory,
         is_enabled: isAgentEnabled,
       });

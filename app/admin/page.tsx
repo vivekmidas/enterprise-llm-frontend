@@ -25,6 +25,50 @@ type PropertyRow = PropertyEntry & {
   sourceIndex: number;
 };
 
+type ContractRule = {
+  field_name: string;
+  field_type: string;
+  required?: boolean | string;
+  description?: string;
+  min_length?: number | '';
+  max_length?: number | '';
+  min_items?: number | '';
+  max_items?: number | '';
+  minimum?: number | '';
+  maximum?: number | '';
+  allow_negative?: boolean;
+  format?: string;
+  allowed_values?: string[];
+  redact?: boolean;
+  nullable?: boolean;
+};
+
+type FlatInputContract = {
+  version: string;
+  rules: ContractRule[];
+  additional_fields?: boolean;
+};
+
+const CONTRACT_FIELD_TYPES = [
+  'string',
+  'number',
+  'integer',
+  'boolean',
+  'object',
+  'array',
+  'enum',
+  'json',
+  'email',
+  'password',
+  'phone',
+  'credit_card',
+  'url',
+  'uuid',
+  'date',
+  'datetime',
+  'ip_address',
+];
+
 /** Mask sensitive values for display in the JSON preview */
 const maskSecrets = (value: any): any => {
   if (Array.isArray(value)) return value.map(maskSecrets);
@@ -90,6 +134,136 @@ const propertyEntriesToJsonStrings = (entries: PropertyEntry[]) =>
     }),
   );
 
+const boolFromValue = (value: any) =>
+  value === true || String(value).trim().toLowerCase() === 'true';
+
+const numberOrEmpty = (value: any) => {
+  if (value === '' || value === null || value === undefined) return '';
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : '';
+};
+
+const hasNumberValue = (value: number | '' | undefined) => value !== '' && value !== undefined;
+
+const normalizeContractRule = (rule: any): ContractRule => {
+  const fieldType = rule.field_type || rule.type || 'string';
+  return {
+    field_name: rule.field_name || rule.field || rule.key || '',
+    field_type: fieldType,
+    required: boolFromValue(rule.required ?? rule.mandatory ?? false),
+    description: rule.description || '',
+    min_length: numberOrEmpty(rule.min_length ?? rule.minLength),
+    max_length: numberOrEmpty(rule.max_length ?? rule.maxLength),
+    min_items: numberOrEmpty(rule.min_items ?? rule.minItems),
+    max_items: numberOrEmpty(rule.max_items ?? rule.maxItems),
+    minimum: numberOrEmpty(rule.minimum),
+    maximum: numberOrEmpty(rule.maximum),
+    allow_negative: rule.allow_negative ?? undefined,
+    format: rule.format || '',
+    allowed_values: Array.isArray(rule.allowed_values)
+      ? rule.allowed_values
+      : Array.isArray(rule.enum)
+        ? rule.enum
+        : [],
+    redact: boolFromValue(rule.redact ?? false),
+    nullable: boolFromValue(rule.nullable ?? false),
+  };
+};
+
+const contractFromValue = (value: any): FlatInputContract => {
+  const emptyContract = { version: '1.0', rules: [], additional_fields: true };
+  if (!value) return emptyContract;
+
+  const parsed = typeof value === 'string' ? safeJsonParse(value) : value;
+  if (!parsed || typeof parsed !== 'object') return emptyContract;
+
+  if (Array.isArray(parsed.rules)) {
+    return {
+      version: parsed.version || '1.0',
+      rules: parsed.rules.map(normalizeContractRule),
+      additional_fields: parsed.additional_fields ?? parsed.additionalProperties ?? true,
+    };
+  }
+
+  const rules: ContractRule[] = [];
+  const addLegacyRule = (fieldName: string, rule: any) => {
+    if (!fieldName || fieldName === 'type' || fieldName === 'required') return;
+    if (rule && typeof rule === 'object' && !rule.type && !rule.field_type) {
+      Object.entries(rule).forEach(([childName, childRule]) => {
+        if (['required', 'mandatory', 'values'].includes(childName)) return;
+        addLegacyRule(`${fieldName}.${childName}`, childRule);
+      });
+      return;
+    }
+    rules.push(
+      normalizeContractRule({
+        field_name: fieldName,
+        field_type: rule?.type || rule?.field_type || (Array.isArray(rule?.values) ? 'array' : 'json'),
+        required: rule?.required ?? rule?.mandatory ?? false,
+        description: rule?.description || '',
+      }),
+    );
+  };
+
+  if (parsed.type === 'object' && parsed.properties && typeof parsed.properties === 'object') {
+    Object.entries(parsed.properties).forEach(([fieldName, rule]) => {
+      rules.push(
+        normalizeContractRule({
+          ...(rule as object),
+          field_name: fieldName,
+          required: Array.isArray(parsed.required) && parsed.required.includes(fieldName),
+        }),
+      );
+    });
+  } else {
+    Object.entries(parsed).forEach(([fieldName, rule]) => addLegacyRule(fieldName, rule));
+  }
+
+  return {
+    version: parsed.version || '1.0',
+    rules,
+    additional_fields: parsed.additional_fields ?? parsed.additionalProperties ?? true,
+  };
+};
+
+const cleanContractRule = (rule: ContractRule): ContractRule => {
+  const cleaned: Record<string, any> = {
+    field_name: rule.field_name.trim(),
+    field_type: rule.field_type || 'string',
+    required: boolFromValue(rule.required),
+  };
+
+  if (rule.description?.trim()) cleaned.description = rule.description.trim();
+  if (rule.field_type === 'array') {
+    if (hasNumberValue(rule.min_items)) cleaned.min_items = Number(rule.min_items);
+    if (hasNumberValue(rule.max_items)) cleaned.max_items = Number(rule.max_items);
+  } else {
+    if (hasNumberValue(rule.min_length)) cleaned.min_length = Number(rule.min_length);
+    if (hasNumberValue(rule.max_length)) cleaned.max_length = Number(rule.max_length);
+  }
+  if (hasNumberValue(rule.minimum)) cleaned.minimum = Number(rule.minimum);
+  if (hasNumberValue(rule.maximum)) cleaned.maximum = Number(rule.maximum);
+  if (rule.allow_negative !== undefined) cleaned.allow_negative = rule.allow_negative;
+  if (rule.format) cleaned.format = rule.format;
+  if (rule.allowed_values?.length) cleaned.allowed_values = rule.allowed_values;
+  if (rule.redact) cleaned.redact = true;
+  if (rule.nullable) cleaned.nullable = true;
+
+  return cleaned as ContractRule;
+};
+
+const cleanInputContract = (contract: FlatInputContract): FlatInputContract => ({
+  version: contract.version || '1.0',
+  rules: contract.rules.map(cleanContractRule),
+  additional_fields: contract.additional_fields ?? true,
+});
+
+const validateInputContract = (contract: FlatInputContract): FlatInputContract => ({
+  version: contract.version || '1.0',
+  rules: contract.rules.filter((rule) => rule.field_name.trim()).map(cleanContractRule),
+  additional_fields: contract.additional_fields ?? true,
+});
+
 export default function AdminPage() {
   const router = useRouter();
   const [agents, setAgents] = useState<AgentNode[]>([]);
@@ -110,7 +284,7 @@ export default function AdminPage() {
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [jsonExpandedState, setJsonExpandedState] = useState<Record<string, boolean>>({});
   const [editingProvider, setEditingProvider] = useState<any | null>(null);
-
+  const [selectedCategoryType, setSelectedCategoryType] = useState<string>('string');
   const [isEditingProp, setIsEditingProp] = useState(false);
   // New Property Modal State
   const [propModal, setPropModal] = useState({
@@ -368,6 +542,31 @@ export default function AdminPage() {
     setPropModal((prev) => ({ ...prev, isOpen: false }));
   };
 
+  const handleSaveInputContract = async () => {
+    if (!editingAgent) return;
+
+    try {
+      const currentContract = contractFromValue(editingAgent.input_contract);
+      const validatedContract = validateInputContract(currentContract);
+
+      if (!editingAgent.id) {
+        alert('Please create the node first before saving input contracts separately.');
+        return;
+      }
+
+      const updatedAgent = { ...editingAgent, input_contract: validatedContract };
+
+      // @ts-ignore - updateNode added to api.ts
+      await api.updateNode(updatedAgent);
+      const agentsRes = await api.getNodes();
+      setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
+      alert('Input contract saved successfully!');
+    } catch (error) {
+      console.error('Failed to save input contract:', error);
+      alert('Failed to save input contract. Please ensure the backend endpoint is implemented.');
+    }
+  };
+
   const handleSaveNode = async () => {
     if (!editingAgent) return;
 
@@ -379,9 +578,11 @@ export default function AdminPage() {
         typeof finalAgent.input_contract === 'string' &&
         finalAgent.input_contract.trim() !== ''
       ) {
-        finalAgent.input_contract = JSON.parse(finalAgent.input_contract);
+        finalAgent.input_contract = validateInputContract(contractFromValue(finalAgent.input_contract));
       } else if (typeof finalAgent.input_contract === 'string') {
-        finalAgent.input_contract = {};
+        finalAgent.input_contract = validateInputContract(contractFromValue({}));
+      } else {
+        finalAgent.input_contract = validateInputContract(contractFromValue(finalAgent.input_contract));
       }
     } catch (e) {
       alert('Invalid JSON in Input Contract field.');
@@ -485,6 +686,53 @@ export default function AdminPage() {
         system_properties: propertyEntriesToJsonStrings(sysProps),
       };
     });
+  };
+
+  const updateInputContract = (updater: (contract: FlatInputContract) => FlatInputContract) => {
+    setEditingAgent((prev) => {
+      if (!prev) return null;
+      const currentContract = contractFromValue(prev.input_contract);
+      return {
+        ...prev,
+        input_contract: cleanInputContract(updater(currentContract)),
+      };
+    });
+  };
+
+  const updateInputContractRule = (index: number, patch: Partial<ContractRule>) => {
+    updateInputContract((contract) => ({
+      ...contract,
+      rules: contract.rules.map((rule, ruleIndex) =>
+        ruleIndex === index ? { ...rule, ...patch } : rule,
+      ),
+    }));
+  };
+
+  const addInputContractRule = () => {
+    updateInputContract((contract) => ({
+      ...contract,
+      rules: [
+        ...contract.rules,
+        {
+          field_name: 'id',
+          field_type: 'string',
+          required: false,
+          description: '',
+          min_length: '',
+          max_length: '',
+          minimum: '',
+          maximum: '',
+          allowed_values: [],
+        },
+      ],
+    }));
+  };
+
+  const removeInputContractRule = (index: number) => {
+    updateInputContract((contract) => ({
+      ...contract,
+      rules: contract.rules.filter((_, ruleIndex) => ruleIndex !== index),
+    }));
   };
 
   const renderValueInput = (field: PropertyRow, value: any) => {
@@ -812,7 +1060,7 @@ export default function AdminPage() {
                       system_properties: [],
                       user_properties: [],
 
-                      input_contract: {},
+                      input_contract: { version: '1.0', rules: [], additional_fields: true },
                       output_contract: {},
                     })
                   }
@@ -1638,23 +1886,352 @@ export default function AdminPage() {
 
                 {/* Contract Section */}
                 <div className="grid grid-cols-2 gap-6 pt-4 border-t">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
-                      Input Contract (JSON)
-                    </label>
-                    <textarea
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={
-                        typeof editingAgent.input_contract === 'string'
-                          ? editingAgent.input_contract
-                          : JSON.stringify(editingAgent.input_contract || {}, null, 2)
-                      }
-                      onChange={(e) =>
-                        setEditingAgent({ ...editingAgent, input_contract: e.target.value })
-                      }
-                    />
+                  <div className="col-span-2 space-y-3">
+                    {(() => {
+                      const inputContract = contractFromValue(editingAgent.input_contract);
+                      const previewContract = cleanInputContract(inputContract);
+
+                      const showStringItemsColumn = inputContract.rules.some((rule) =>
+                        [
+                          'string',
+                          'email',
+                          'password',
+                          'phone',
+                          'credit_card',
+                          'url',
+                          'uuid',
+                          'date',
+                          'datetime',
+                          'ip_address',
+                        ].includes(rule.field_type) || rule.field_type === 'array',
+                      );
+                      const showNumberColumn = inputContract.rules.some((rule) =>
+                        ['number', 'integer'].includes(rule.field_type),
+                      );
+                      const showAllowedValuesColumn = inputContract.rules.some(
+                        (rule) => rule.field_type === 'array' || rule.field_type === 'enum',
+                      );
+                      const visibleContractColumnCount =
+                        5 + (showStringItemsColumn ? 1 : 0) + (showNumberColumn ? 1 : 0) +
+                        (showAllowedValuesColumn ? 1 : 0);
+
+                      return (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-bold text-black">Input Contract</h4>
+                              <p className="text-xs text-gray-500">
+                                Define the JSON body a node must receive before execution.
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <label className="inline-flex items-center gap-4 text-xs font-semibold text-gray-600">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  checked={inputContract.additional_fields ?? true}
+                                  onChange={(e) =>
+                                    updateInputContract((contract) => ({
+                                      ...contract,
+                                      additional_fields: e.target.checked,
+                                    }))
+                                  }
+                                />
+                                Additional fields
+                              </label>
+                              <button
+                                onClick={addInputContractRule}
+                                className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100"
+                              >
+                                <IconMap.Plus className="h-4 w-4" /> Add Rule
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="overflow-x-auto rounded-xl border border-gray-200">
+                            <table className="min-w-[1080px] w-full text-left text-sm">
+                              <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-[10px] font-bold">
+                                <tr>
+                                  <th className="px-3 py-3 w-[210px]">Field Name/ Path</th>
+                                  <th className="px-3 py-3 w-[150px]">Type</th>
+                                  <th className="px-3 py-3 w-[90px]">Required</th>
+                                  {showStringItemsColumn && (
+                                    <th className="px-3 py-3 w-[170px]">String / Items</th>
+                                  )}
+                                  {showNumberColumn && (
+                                    <th className="px-3 py-3 w-[170px]">Number</th>
+                                  )}
+                                  {showAllowedValuesColumn && (
+                                    <th className="px-3 py-3">Allowed Values</th>
+                                  )}
+                                  <th className="px-3 py-3 w-[170px]">Options</th>
+                                  <th className="px-3 py-3 w-[44px]"></th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100 bg-white">
+                                {inputContract.rules.length === 0 && (
+                                  <tr>
+                                    <td colSpan={visibleContractColumnCount} className="px-4 py-8 text-center text-sm text-gray-500">
+                                      No input rules configured.
+                                    </td>
+                                  </tr>
+                                )}
+                                {inputContract.rules.map((rule, index) => {
+                                  const isStringLike = [
+                                    'string',
+                                    'email',
+                                    'password',
+                                    'phone',
+                                    'credit_card',
+                                    'url',
+                                    'uuid',
+                                    'date',
+                                    'datetime',
+                                    'ip_address',
+                                  ].includes(rule.field_type);
+                                  const isNumeric = ['number', 'integer'].includes(rule.field_type);
+                                  const isArrayLike = rule.field_type === 'array';
+                                  const isEnumLike = rule.field_type === 'enum';
+
+                                  const showStringItems = isStringLike || isArrayLike;
+                                  const showNumber = isNumeric;
+                                  const showAllowedValues = isArrayLike || isEnumLike;
+
+                                  return (
+                                    <tr key={`input-contract-rule-${index}`}>
+                                      <td className="px-3 py-3 align-top">
+                                        <input
+                                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                                          value={rule.field_name}
+                                          onChange={(e) =>
+                                            updateInputContractRule(index, {
+                                              field_name: e.target.value.replaceAll(' ', '_'),
+                                            })
+                                          }
+                                          placeholder="data.user_id"
+                                        />
+                                        <input
+                                          className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                                          value={rule.description || ''}
+                                          onChange={(e) =>
+                                            updateInputContractRule(index, {
+                                              description: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Description"
+                                        />
+                                      </td>
+                                      <td className="px-3 py-3 align-top">
+                                        <select
+                                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                          value={rule.field_type}
+                                          onChange={(e) => {
+                                            updateInputContractRule(index, {
+                                              field_type: e.target.value,
+                                              format: '',
+                                            });
+                                            setSelectedCategoryType(e.target.value);
+                                          }}
+                                        >
+                                          {CONTRACT_FIELD_TYPES.map((fieldType) => (
+                                            <option key={fieldType} value={fieldType}>
+                                              {fieldType}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </td>
+                                      <td className="px-3 py-3 align-top">
+                                        <input
+                                          type="checkbox"
+                                          className="mt-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                          checked={boolFromValue(rule.required)}
+                                          onChange={(e) =>
+                                            updateInputContractRule(index, {
+                                              required: e.target.checked,
+                                            })
+                                          }
+                                        />
+                                      </td>
+                                      {showStringItemsColumn && (
+                                        <td className="px-3 py-3 align-top">
+                                          {showStringItems ? (
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <input
+                                                type="number"
+                                                className="w-full rounded-lg border border-gray-200 px-2 py-2 text-xs text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={
+                                                  isArrayLike ? (rule.min_items ?? '') : (rule.min_length ?? '')
+                                                }
+                                                onChange={(e) =>
+                                                  updateInputContractRule(index, {
+                                                    ...(isArrayLike
+                                                      ? { min_items: numberOrEmpty(e.target.value) }
+                                                      : { min_length: numberOrEmpty(e.target.value) }),
+                                                  })
+                                                }
+                                                placeholder={isArrayLike ? 'Min items' : 'Min len'}
+                                              />
+                                              <input
+                                                type="number"
+                                                className="w-full rounded-lg border border-gray-200 px-2 py-2 text-xs text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={
+                                                  isArrayLike ? (rule.max_items ?? '') : (rule.max_length ?? '')
+                                                }
+                                                onChange={(e) =>
+                                                  updateInputContractRule(index, {
+                                                    ...(isArrayLike
+                                                      ? { max_items: numberOrEmpty(e.target.value) }
+                                                      : { max_length: numberOrEmpty(e.target.value) }),
+                                                  })
+                                                }
+                                                placeholder={isArrayLike ? 'Max items' : 'Max len'}
+                                              />
+                                            </div>
+                                          ) : (
+                                            <span className="text-xs text-gray-400">-</span>
+                                          )}
+                                        </td>
+                                      )}
+                                      {showNumberColumn && (
+                                        <td className="px-3 py-3 align-top">
+                                          {showNumber ? (
+                                            <div className="space-y-2">
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <input
+                                                  type="number"
+                                                  className="w-full rounded-lg border border-gray-200 px-2 py-2 text-xs text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                                                  value={rule.minimum ?? ''}
+                                                  onChange={(e) =>
+                                                    updateInputContractRule(index, {
+                                                      minimum: numberOrEmpty(e.target.value),
+                                                    })
+                                                  }
+                                                  placeholder="Min"
+                                                />
+                                                <input
+                                                  type="number"
+                                                  className="w-full rounded-lg border border-gray-200 px-2 py-2 text-xs text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                                                  value={rule.maximum ?? ''}
+                                                  onChange={(e) =>
+                                                    updateInputContractRule(index, {
+                                                      maximum: numberOrEmpty(e.target.value),
+                                                    })
+                                                  }
+                                                  placeholder="Max"
+                                                />
+                                              </div>
+                                              <label className="inline-flex items-center gap-2 text-[11px] text-gray-600">
+                                                <input
+                                                  type="checkbox"
+                                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                  checked={rule.allow_negative ?? true}
+                                                  onChange={(e) =>
+                                                    updateInputContractRule(index, {
+                                                      allow_negative: e.target.checked,
+                                                    })
+                                                  }
+                                                />
+                                                Allow negative
+                                              </label>
+                                            </div>
+                                          ) : (
+                                            <span className="text-xs text-gray-400">-</span>
+                                          )}
+                                        </td>
+                                      )}
+                                      {showAllowedValuesColumn && (
+                                        <td className="px-3 py-3 align-top">
+                                          {showAllowedValues ? (
+                                            <input
+                                              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                                              value={(rule.allowed_values || []).join(', ')}
+                                              onChange={(e) =>
+                                                updateInputContractRule(index, {
+                                                  allowed_values: e.target.value
+                                                    .split(',')
+                                                    .map((item) => item.trim())
+                                                    .filter(Boolean),
+                                                })
+                                              }
+                                              placeholder="active, inactive"
+                                            />
+                                          ) : (
+                                            <span className="text-xs text-gray-400">-</span>
+                                          )}
+                                        </td>
+                                      )}
+                                      <td className="px-3 py-3 align-top">
+                                        {['object', 'json'].includes(rule.field_type) ? (
+                                          <span className="text-xs text-gray-400">-</span>
+                                        ) : (
+                                          <div className="space-y-2">
+                                            <label className="inline-flex items-center gap-2 text-[11px] text-gray-600 mr-7">
+                                              <input
+                                                type="checkbox"
+                                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                checked={rule.nullable ?? false}
+                                                onChange={(e) =>
+                                                  updateInputContractRule(index, {
+                                                    nullable: e.target.checked,
+                                                  })
+                                                }
+                                              />
+                                              Nullable
+                                            </label>
+                                            <label className="inline-flex items-center gap-2 text-[11px] text-gray-600">
+                                              <input
+                                                type="checkbox"
+                                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                checked={rule.redact ?? false}
+                                                onChange={(e) =>
+                                                  updateInputContractRule(index, {
+                                                    redact: e.target.checked,
+                                                  })
+                                                }
+                                              />
+                                              Redact
+                                            </label>
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-3 align-top">
+                                        <button
+                                          onClick={() => removeInputContractRule(index)}
+                                          className="mt-2 text-gray-400 hover:text-red-500 transition-colors"
+                                        >
+                                          <IconMap.Trash2 className="h-4 w-4" />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="flex gap-3 items-start">
+                            <details className="flex-1 rounded-xl border border-gray-200 bg-gray-50">
+                              <summary className="cursor-pointer px-4 py-3 text-xs font-bold uppercase text-gray-500">
+                                JSON Preview
+                              </summary>
+                              <pre className="max-h-64 overflow-auto border-t border-gray-200 p-4 text-xs text-gray-700">
+                                {JSON.stringify(previewContract, null, 2)}
+                              </pre>
+                            </details>
+                            {editingAgent.id && (
+                              <button
+                                onClick={handleSaveInputContract}
+                                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 shadow-md transition-all whitespace-nowrap h-fit mt-1"
+                              >
+                                <IconMap.Save className="h-4 w-4" /> Save Contract
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
-                  <div className="space-y-2">
+                  <div className="col-span-2 space-y-2">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
                       Output Contract (JSON)
                     </label>
