@@ -281,7 +281,37 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AgentNode | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
+
+  const nodeTypes = React.useMemo(() => {
+    const types = new Set<string>();
+    agents.forEach((agent) => {
+      if (agent.node_type) {
+        types.add(agent.node_type.toUpperCase());
+      }
+    });
+    return Array.from(types).sort();
+  }, [agents]);
+
+  const filteredAgents = React.useMemo(() => {
+    return agents.filter((agent) => {
+      // Filter by Category (tabs or dropdown)
+      if (filterCategory !== 'all') {
+        const catObj = categories.find((c) => String(c.id) === filterCategory);
+        const matchesCategory =
+          String(agent.category) === filterCategory ||
+          (catObj && (agent.category === catObj.name || agent.category === catObj.group));
+        if (!matchesCategory) return false;
+      }
+      // Filter by Type (dropdown)
+      if (filterType !== 'all') {
+        if (agent.node_type?.toLowerCase() !== filterType.toLowerCase()) return false;
+      }
+      return true;
+    });
+  }, [agents, categories, filterCategory, filterType]);
+
   const [editingCategory, setEditingCategory] = useState<NodeCategory | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'nodes' | 'workflows' | 'users' | 'oauth' | 'logs'>(
@@ -348,11 +378,13 @@ export default function AdminPage() {
 
         const cats = Array.isArray(catsRes) ? catsRes : catsRes.categories || [];
         const normalizedCats = cats.map((cat: any) =>
-          typeof cat === 'string' ? { name: cat } : cat,
+          typeof cat === 'string'
+            ? { name: cat, label: cat }
+            : { ...cat, name: cat.group || cat.name },
         );
         setCategories(normalizedCats);
         if (normalizedCats.length > 0) {
-          setActiveCategory(normalizedCats[0].name);
+          setFilterCategory('all');
         }
         setProviders(providersRes || []);
         setWorkflows(workflowsRes || []);
@@ -448,7 +480,9 @@ export default function AdminPage() {
       const catsRes = await api.getNodesCategories();
       const cats = Array.isArray(catsRes) ? catsRes : catsRes.categories || [];
       const normalizedCats = cats.map((cat: any) =>
-        typeof cat === 'string' ? { name: cat } : cat,
+        typeof cat === 'string'
+          ? { name: cat, label: cat }
+          : { ...cat, name: cat.group || cat.name },
       );
       setCategories(normalizedCats);
       setIsCategoryModalOpen(false);
@@ -465,7 +499,13 @@ export default function AdminPage() {
       await api.deleteCategory(id);
       const catsRes = await api.getNodesCategories();
       const cats = Array.isArray(catsRes) ? catsRes : catsRes.categories || [];
-      setCategories(cats.map((cat: any) => (typeof cat === 'string' ? { name: cat } : cat)));
+      setCategories(
+        cats.map((cat: any) =>
+          typeof cat === 'string'
+            ? { name: cat, label: cat }
+            : { ...cat, name: cat.group || cat.name },
+        ),
+      );
     } catch (error) {
       console.error('Failed to delete category:', error);
     }
@@ -636,6 +676,22 @@ export default function AdminPage() {
     } catch (e) {
       alert('Invalid JSON in System Properties field.');
       return;
+    }
+
+    // Enforce that category is saved as the ID from the categorydb
+    if (finalAgent.category) {
+      const matchingCat = categories.find(
+        (cat) =>
+          String(cat.id) === String(finalAgent.category) ||
+          cat.name === finalAgent.category ||
+          cat.group === finalAgent.category ||
+          cat.label === finalAgent.category,
+      );
+      if (matchingCat && matchingCat.id !== undefined) {
+        finalAgent.category = String(matchingCat.id);
+      }
+    } else if (categories.length > 0) {
+      finalAgent.category = String(categories[0].id);
     }
 
     try {
@@ -917,9 +973,7 @@ export default function AdminPage() {
     );
   }
 
-  const filteredAgents = activeCategory
-    ? agents.filter((a) => a.category === activeCategory)
-    : agents;
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -1004,84 +1058,140 @@ export default function AdminPage() {
                 </button>
               </div>
               <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-6">
-                {categories.map((cat, idx) => (
-                  <div
-                    key={cat.id || `cat-${cat.name}-${idx}`}
-                    onClick={() => setActiveCategory(cat.name)}
-                    className={`group cursor-pointer flex items-center justify-between rounded-xl border p-1 shadow-sm hover:shadow-md transition-all ${activeCategory === cat.name ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 bg-white'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: cat.color || '#3b82f6' }}
-                      />
-                      <div className="flex flex-col">
-                        <span className="font-medium text-black">{cat.label || cat.name}</span>
-                        <span className="text-[10px] text-gray-400 font-mono">{cat.name}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => {
-                          setEditingCategory(cat);
-                          setIsCategoryModalOpen(true);
-                        }}
-                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                      >
-                        <IconMap.edit2 className="h-4 w-4" />
-                      </button>
-                      {cat.id && (
-                        <button
-                          onClick={() => handleDeleteCategory(cat.id!)}
-                          className="p-1 text-red-600 hover:bg-red-50 rounded"
-                        >
-                          <IconMap.trash2 className="h-4 w-4" />
-                        </button>
-                      )}
+                <div
+                  onClick={() => setFilterCategory('all')}
+                  className={`group cursor-pointer flex items-center justify-between rounded-xl border p-1 shadow-sm hover:shadow-md transition-all ${filterCategory === 'all' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 bg-white'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-gray-400" />
+                    <div className="flex flex-col">
+                      <span className="font-medium text-black">All Categories</span>
+                      <span className="text-[10px] text-gray-400 font-mono">all</span>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {categories.map((cat, idx) => {
+                  const catIdStr = cat.id ? String(cat.id) : cat.name;
+                  const isActive = filterCategory === catIdStr;
+                  return (
+                    <div
+                      key={cat.id || `cat-${cat.name}-${idx}`}
+                      onClick={() => setFilterCategory(catIdStr)}
+                      className={`group cursor-pointer flex items-center justify-between rounded-xl border p-1 shadow-sm hover:shadow-md transition-all ${isActive ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 bg-white'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="h-3 w-3 rounded-full"
+                          style={{ backgroundColor: cat.color || '#3b82f6' }}
+                        />
+                        <div className="flex flex-col">
+                          <span className="font-medium text-black">{cat.label || cat.name}</span>
+                          <span className="text-[10px] text-gray-400 font-mono">{cat.name}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingCategory(cat);
+                            setIsCategoryModalOpen(true);
+                          }}
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        >
+                          <IconMap.edit2 className="h-4 w-4" />
+                        </button>
+                        {cat.id && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCategory(cat.id!);
+                            }}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded"
+                          >
+                            <IconMap.trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
             {/* Agents/Nodes Section */}
             <section className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <IconMap.box className="h-5 w-5 text-gray-400" />
-                  <h2 className="text-xl font-semibold text-black">
-                    Nodes
-                    {/* {categories.find((c) => c.name === activeCategory)?.label ||
-                      activeCategory ||
-                      'Category'} */}
-                  </h2>
+                  <h2 className="text-xl font-semibold text-black">Nodes</h2>
                 </div>
-                <button
-                  onClick={() =>
-                    setEditingAgent({
-                      name: '',
-                      label: '',
-                      description: '',
-                      node_type: 'default',
-                      version: '1.0.0',
-                      category: '',
-                      group: '',
-                      icon: 'bot',
-                      color: '#5E0CEC',
-                      badge: 'Node',
-                      sub_label: '',
 
-                      system_properties: [],
-                      user_properties: [],
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Category Dropdown Filter */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-500 uppercase">Category:</span>
+                    <select
+                      value={filterCategory}
+                      onChange={(e) => setFilterCategory(e.target.value)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-black focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                    >
+                      <option value="all">All Categories</option>
+                      {categories.map((cat, idx) => (
+                        <option key={`filter-cat-${cat.id || idx}`} value={cat.id ? String(cat.id) : cat.name}>
+                          {cat.label || cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                      input_contract: { version: '1.0', rules: [], additional_fields: true },
-                      output_contract: {},
-                    })
-                  }
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
-                >
-                  <IconMap.plus className="h-4 w-4" /> Add New Node
-                </button>
+                  {/* Type Dropdown Filter */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-500 uppercase">Type:</span>
+                    <select
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-black focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                    >
+                      <option value="all">All Types</option>
+                      <option value="default">Default</option>
+                      <option value="trigger">Trigger</option>
+                      <option value="tool">Tool</option>
+                      <option value="node">Node</option>
+                      {nodeTypes.filter(t => !['DEFAULT', 'TRIGGER', 'TOOL', 'NODE'].includes(t)).map(t => (
+                        <option key={`filter-type-${t}`} value={t.toLowerCase()}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setEditingAgent({
+                        name: '',
+                        label: '',
+                        description: '',
+                        node_type: 'default',
+                        version: '1.0.0',
+                        category: categories[0]?.id?.toString() || '',
+                        group: '',
+                        icon: 'bot',
+                        color: '#5E0CEC',
+                        badge: 'Node',
+                        sub_label: '',
+
+                        system_properties: [],
+                        user_properties: [],
+
+                        input_contract: { version: '1.0', rules: [], additional_fields: true },
+                        output_contract: {},
+                      })
+                    }
+                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                  >
+                    <IconMap.plus className="h-4 w-4" /> Add New Node
+                  </button>
+                </div>
               </div>
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
                 <table className="w-full text-left">
