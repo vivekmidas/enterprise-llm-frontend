@@ -24,6 +24,7 @@ type WorkflowCanvasProps = {
   nodes: Node<WorkflowNodeData>[];
   edges: Edge[];
   selectedNode: Node<WorkflowNodeData> | null;
+  selectedEdge?: Edge | null;
   executionTrace: WorkflowTraceStep[];
   onDragOver: (event: React.DragEvent) => void;
   onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -31,6 +32,7 @@ type WorkflowCanvasProps = {
   onEdgesChange: (changes: any) => void;
   onConnect: (params: Connection) => void;
   onNodeClick: (event: React.MouseEvent, node: Node<WorkflowNodeData>) => void;
+  onEdgeClick?: (edge: Edge) => void;
   onPaneClick: () => void;
   onNodeDragStop: (event: any, node: Node<WorkflowNodeData>) => void;
   onOpenMapper: () => void;
@@ -48,6 +50,7 @@ export default function WorkflowCanvas({
   onEdgesChange,
   onConnect,
   onNodeClick,
+  onEdgeClick,
   onPaneClick,
   onNodeDragStop,
   onOpenMapper,
@@ -69,6 +72,7 @@ export default function WorkflowCanvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onEdgeClick={(_, edge) => onEdgeClick && onEdgeClick(edge)}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         onNodeDragStop={onNodeDragStop}

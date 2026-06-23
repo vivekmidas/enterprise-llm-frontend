@@ -35,6 +35,7 @@ function AgentBuilderContent() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<WorkflowNodeData>>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<Node<WorkflowNodeData> | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [agentId, setAgentId] = useState('');
   const [isAgentEnabled, setIsAgentEnabled] = useState(true);
   const [agentName, setAgentName] = useState('Email Channel');
@@ -58,7 +59,6 @@ function AgentBuilderContent() {
   const [isMapperOpen, setIsMapperOpen] = useState(false);
   const [prevNodeContract, setPrevNodeContract] = useState<any>(null);
   const [nextNodeContract, setNextNodeContract] = useState<any>(null);
-  
 
   useEffect(() => {
     setIsMounted(true);
@@ -171,6 +171,11 @@ function AgentBuilderContent() {
     setSelectedNode(node);
   }, []);
 
+  const onEdgeClick = useCallback((edge: Edge) => {
+    setSelectedEdge(edge);
+    setSelectedNode(null);
+  }, []);
+
   // Fetch node properties automatically whenever a node is selected
   useEffect(() => {
     if (!selectedNode || !agentId) return;
@@ -226,6 +231,11 @@ function AgentBuilderContent() {
   }, [selectedNode?.id, agentId, setNodes]);
 
   const onPaneClick = useCallback(() => setSelectedNode(null), []);
+  // Clear selections for both nodes and edges when clicking on the pane
+  const onPaneClickWrapper = useCallback(() => {
+    setSelectedNode(null);
+    setSelectedEdge(null);
+  }, []);
 
   /** React Flow DND: Allow the drop by preventing default browser behavior */
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -422,15 +432,14 @@ function AgentBuilderContent() {
       return;
     }
 
-
     try {
       const savedAgent = await api.saveAgent({
         id: nextId,
         name: nextName.trim(),
-        description:"description",
+        description: 'description',
         nodes: nodes as any,
         edges,
-        user_id:userId,
+        user_id: userId,
         category: agentCategory,
         is_enabled: isAgentEnabled,
       });
@@ -718,6 +727,7 @@ function AgentBuilderContent() {
           nodes={nodes}
           edges={edges}
           selectedNode={selectedNode}
+          selectedEdge={selectedEdge}
           executionTrace={executionTrace}
           onDragOver={onDragOver}
           onDrop={onDrop}
@@ -725,7 +735,8 @@ function AgentBuilderContent() {
           onEdgesChange={onEdgesChangeWrapper}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
-          onPaneClick={onPaneClick}
+          onEdgeClick={onEdgeClick}
+          onPaneClick={onPaneClickWrapper}
           onNodeDragStop={onNodeDragStop}
           onOpenMapper={() => setIsMapperOpen(true)}
           onClearTrace={() => setExecutionTrace([])}
@@ -733,8 +744,17 @@ function AgentBuilderContent() {
 
         <PropertiesPanel
           selectedNode={selectedNode}
-          onClose={() => setSelectedNode(null)}
+          selectedEdge={selectedEdge}
+          onClose={() => {
+            setSelectedNode(null);
+            setSelectedEdge(null);
+          }}
           onUpdateNode={onUpdateNode}
+          onUpdateEdge={(edgeId, newEdge) => {
+            setEdges((eds) => eds.map((e) => (e.id === edgeId ? { ...e, ...newEdge } : e)));
+            setSelectedEdge((e) => (e && e.id === edgeId ? { ...e, ...newEdge } : e));
+            setIsDirty(true);
+          }}
           onSaveInstanceProperties={onSaveInstanceProperties}
           onSave={onSave}
           workflowId={agentId}

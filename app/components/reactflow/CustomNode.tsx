@@ -8,15 +8,15 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
   const title = label || name || 'Untitled Node';
 
   const renderIcon = () => {
-    if (!icon) return <Bot size={20} />;
+    if (!icon) return <Bot size={18} />;
 
     // Handle emoji icons (some built-in nodes use emojis)
     if (typeof icon === 'string' && icon.length <= 2 && /\p{Emoji}/u.test(icon)) {
-      return <span className="text-xl">{icon}</span>;
+      return <span className="text-m">{icon}</span>;
     }
 
     const IconComponent = typeof icon === 'string' ? IconMap[icon.toLowerCase()] || Bot : Bot;
-    return <IconComponent size={20} />;
+    return <IconComponent size={24} />;
   };
 
   const isConditionNode =
@@ -49,7 +49,8 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
   // if (node_type?.toLowerCase() !== 'trigger') {
   return (
     <div
-      className="px-1 py-1 rounded-2xl shadow-xl border text-{color} flex items-center gap-3 min-w-[150px] transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
+      className="px-1 py-1 rounded-2xl shadow-xl border text-{color} 
+      flex items-center gap-3 min-w-[150px] transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
       style={{
         borderColor: color ? `${color}cc` : '#34d399',
       }}
@@ -63,7 +64,9 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
       >
         {renderIcon()}
       </div>
-      <div className="font-normal text-m">{label}</div>
+      <div className="font-normal" style={{
+        fontSize: "14px"
+      }} >{label}</div>
 
       <Handle
         type="target"

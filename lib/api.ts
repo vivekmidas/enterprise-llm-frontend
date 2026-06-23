@@ -114,7 +114,7 @@ export const api = {
     nodeId: string,
     properties: Record<string, any>,
   ) => {
-    const res = await fetch(`${BACKEND_URL}/agent/${agentId}/nodes/${nodeId}/properties`, {
+    const res = await fetch(`${BACKEND_URL}/workflows/${agentId}/nodes/${nodeId}/properties`, {
       method: 'PUT',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(properties),

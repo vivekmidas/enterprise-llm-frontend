@@ -69,6 +69,15 @@ const CONTRACT_FIELD_TYPES = [
   'ip_address',
 ];
 
+const IS_PII = [
+  
+  'email',
+  'password',
+  'phone',
+  'credit_card'
+];
+
+
 /** Mask sensitive values for display in the JSON preview */
 const maskSecrets = (value: any): any => {
   if (Array.isArray(value)) return value.map(maskSecrets);
@@ -165,7 +174,7 @@ const normalizeContractRule = (rule: any): ContractRule => {
       : Array.isArray(rule.enum)
         ? rule.enum
         : [],
-    redact: boolFromValue(rule.redact ?? false),
+    redact: boolFromValue(rule.redact ?? (IS_PII.includes(fieldType) ? true : false)),
     nullable: boolFromValue(rule.nullable ?? false),
   };
 };
@@ -198,7 +207,8 @@ const contractFromValue = (value: any): FlatInputContract => {
     rules.push(
       normalizeContractRule({
         field_name: fieldName,
-        field_type: rule?.type || rule?.field_type || (Array.isArray(rule?.values) ? 'array' : 'json'),
+        field_type:
+          rule?.type || rule?.field_type || (Array.isArray(rule?.values) ? 'array' : 'json'),
         required: rule?.required ?? rule?.mandatory ?? false,
         description: rule?.description || '',
       }),
@@ -578,11 +588,15 @@ export default function AdminPage() {
         typeof finalAgent.input_contract === 'string' &&
         finalAgent.input_contract.trim() !== ''
       ) {
-        finalAgent.input_contract = validateInputContract(contractFromValue(finalAgent.input_contract));
+        finalAgent.input_contract = validateInputContract(
+          contractFromValue(finalAgent.input_contract),
+        );
       } else if (typeof finalAgent.input_contract === 'string') {
         finalAgent.input_contract = validateInputContract(contractFromValue({}));
       } else {
-        finalAgent.input_contract = validateInputContract(contractFromValue(finalAgent.input_contract));
+        finalAgent.input_contract = validateInputContract(
+          contractFromValue(finalAgent.input_contract),
+        );
       }
     } catch (e) {
       alert('Invalid JSON in Input Contract field.');
@@ -966,7 +980,7 @@ export default function AdminPage() {
         {activeTab === 'nodes' ? (
           <>
             {/* Categories Section */}
-            <section className="space-y-4">
+            <section className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <IconMap.tag className="h-5 w-5 text-gray-400" />
@@ -989,12 +1003,12 @@ export default function AdminPage() {
                   <IconMap.plus className="h-4 w-4" /> Add Category
                 </button>
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-6">
                 {categories.map((cat, idx) => (
                   <div
                     key={cat.id || `cat-${cat.name}-${idx}`}
                     onClick={() => setActiveCategory(cat.name)}
-                    className={`group cursor-pointer flex items-center justify-between rounded-xl border p-4 shadow-sm hover:shadow-md transition-all ${activeCategory === cat.name ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 bg-white'}`}
+                    className={`group cursor-pointer flex items-center justify-between rounded-xl border p-1 shadow-sm hover:shadow-md transition-all ${activeCategory === cat.name ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 bg-white'}`}
                   >
                     <div className="flex items-center gap-3">
                       <div
@@ -1891,19 +1905,20 @@ export default function AdminPage() {
                       const inputContract = contractFromValue(editingAgent.input_contract);
                       const previewContract = cleanInputContract(inputContract);
 
-                      const showStringItemsColumn = inputContract.rules.some((rule) =>
-                        [
-                          'string',
-                          'email',
-                          'password',
-                          'phone',
-                          'credit_card',
-                          'url',
-                          'uuid',
-                          'date',
-                          'datetime',
-                          'ip_address',
-                        ].includes(rule.field_type) || rule.field_type === 'array',
+                      const showStringItemsColumn = inputContract.rules.some(
+                        (rule) =>
+                          [
+                            'string',
+                            'email',
+                            'password',
+                            'phone',
+                            'credit_card',
+                            'url',
+                            'uuid',
+                            'date',
+                            'datetime',
+                            'ip_address',
+                          ].includes(rule.field_type) || rule.field_type === 'array',
                       );
                       const showNumberColumn = inputContract.rules.some((rule) =>
                         ['number', 'integer'].includes(rule.field_type),
@@ -1912,7 +1927,9 @@ export default function AdminPage() {
                         (rule) => rule.field_type === 'array' || rule.field_type === 'enum',
                       );
                       const visibleContractColumnCount =
-                        5 + (showStringItemsColumn ? 1 : 0) + (showNumberColumn ? 1 : 0) +
+                        5 +
+                        (showStringItemsColumn ? 1 : 0) +
+                        (showNumberColumn ? 1 : 0) +
                         (showAllowedValuesColumn ? 1 : 0);
 
                       return (
@@ -1971,7 +1988,10 @@ export default function AdminPage() {
                               <tbody className="divide-y divide-gray-100 bg-white">
                                 {inputContract.rules.length === 0 && (
                                   <tr>
-                                    <td colSpan={visibleContractColumnCount} className="px-4 py-8 text-center text-sm text-gray-500">
+                                    <td
+                                      colSpan={visibleContractColumnCount}
+                                      className="px-4 py-8 text-center text-sm text-gray-500"
+                                    >
                                       No input rules configured.
                                     </td>
                                   </tr>
@@ -2026,11 +2046,13 @@ export default function AdminPage() {
                                           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                                           value={rule.field_type}
                                           onChange={(e) => {
+                                            const newType = e.target.value;
                                             updateInputContractRule(index, {
-                                              field_type: e.target.value,
+                                              field_type: newType,
                                               format: '',
+                                              redact: IS_PII.includes(newType) ? true : rule.redact ?? false,
                                             });
-                                            setSelectedCategoryType(e.target.value);
+                                            setSelectedCategoryType(newType);
                                           }}
                                         >
                                           {CONTRACT_FIELD_TYPES.map((fieldType) => (
@@ -2060,13 +2082,17 @@ export default function AdminPage() {
                                                 type="number"
                                                 className="w-full rounded-lg border border-gray-200 px-2 py-2 text-xs text-black focus:ring-2 focus:ring-blue-500 outline-none"
                                                 value={
-                                                  isArrayLike ? (rule.min_items ?? '') : (rule.min_length ?? '')
+                                                  isArrayLike
+                                                    ? (rule.min_items ?? '')
+                                                    : (rule.min_length ?? '')
                                                 }
                                                 onChange={(e) =>
                                                   updateInputContractRule(index, {
                                                     ...(isArrayLike
                                                       ? { min_items: numberOrEmpty(e.target.value) }
-                                                      : { min_length: numberOrEmpty(e.target.value) }),
+                                                      : {
+                                                          min_length: numberOrEmpty(e.target.value),
+                                                        }),
                                                   })
                                                 }
                                                 placeholder={isArrayLike ? 'Min items' : 'Min len'}
@@ -2075,13 +2101,17 @@ export default function AdminPage() {
                                                 type="number"
                                                 className="w-full rounded-lg border border-gray-200 px-2 py-2 text-xs text-black focus:ring-2 focus:ring-blue-500 outline-none"
                                                 value={
-                                                  isArrayLike ? (rule.max_items ?? '') : (rule.max_length ?? '')
+                                                  isArrayLike
+                                                    ? (rule.max_items ?? '')
+                                                    : (rule.max_length ?? '')
                                                 }
                                                 onChange={(e) =>
                                                   updateInputContractRule(index, {
                                                     ...(isArrayLike
                                                       ? { max_items: numberOrEmpty(e.target.value) }
-                                                      : { max_length: numberOrEmpty(e.target.value) }),
+                                                      : {
+                                                          max_length: numberOrEmpty(e.target.value),
+                                                        }),
                                                   })
                                                 }
                                                 placeholder={isArrayLike ? 'Max items' : 'Max len'}
@@ -2182,7 +2212,7 @@ export default function AdminPage() {
                                               <input
                                                 type="checkbox"
                                                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                                checked={rule.redact ?? false}
+                                                checked={rule.redact !== undefined ? rule.redact : IS_PII.includes(rule.field_type)}
                                                 onChange={(e) =>
                                                   updateInputContractRule(index, {
                                                     redact: e.target.checked,

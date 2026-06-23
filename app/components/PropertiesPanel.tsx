@@ -63,7 +63,7 @@ function FieldMapperModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[80vh]">
         <div className="p-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -145,10 +145,13 @@ type NodeData = Record<string, PropertyValue | NodeProperties | undefined>;
 interface PropertiesPanelProps {
   /** The ReactFlow node currently selected on the canvas */
   selectedNode: Node | null;
+  /** The ReactFlow edge currently selected on the canvas */
+  selectedEdge?: Edge | null;
   /** Callback fired when the close button is clicked (non-optional) */
   onClose: () => void;
   /** Callback to propagate data changes back to the workflow state (local ReactFlow update only) */
   onUpdateNode: (nodeId: string, newData: NodeData) => void;
+  onUpdateEdge?: (edgeId: string, newEdge: Partial<Edge>) => void;
   /** Callback for global save action */
   onSave?: () => void;
   /** The ID of the current workflow (agent) */
@@ -167,8 +170,10 @@ interface PropertiesPanelProps {
  */
 export default function PropertiesPanel({
   selectedNode,
+  selectedEdge,
   onClose,
   onUpdateNode, // Keep original name, but its behavior is now just local state update
+  onUpdateEdge,
   onSaveInstanceProperties, // New prop for explicit instance property saving
   onSave,
   workflowId,
@@ -183,11 +188,17 @@ export default function PropertiesPanel({
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [viewMode, setViewMode] = useState<'config' | 'contract'>('config');
 
+
   // Local state for fetched contracts and properties from API
   const [inputContract, setInputContract] = useState<any>({});
   const [outputContract, setOutputContract] = useState<any>({});
-  const [user_properties, setUserProperties] = useState<NodeProperties>({});
-  const [system_properties, setSystemProperties] = useState<NodeProperties>({});
+  const [properties, setProperties] = useState<NodeProperties>({});
+
+  // Edge editor state
+  const [edgeCondition, setEdgeCondition] = useState<string>('');
+  const [edgeExpression, setEdgeExpression] = useState<string>('');
+  const [sourceOutputPreview, setSourceOutputPreview] = useState<any>(null);
+  const [allowedConditions, setAllowedConditions] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -212,31 +223,63 @@ export default function PropertiesPanel({
     window.open(url, 'auth-popup', `width=${width},height=${height},left=${left},top=${top}`);
   };
 
-  // Add this useEffect to PropertiesPanel.tsx
   useEffect(() => {
-    console.log('PropertiesPanel: selectedNode changed', selectedNode);
-    if (selectedNode) {
-      const localData = selectedNode.data as NodeData;
-
-      // Fetch full details including contracts from the API
-      api
-        .getAgentNodeProperties(workflowId || '', selectedNode.id)
-        .then((res) => {
-          if (!res) return;
-          // Ensure that state variables are set to objects/arrays even if API returns null/undefined
-          setInputContract(res?.input_contract || {});
-          setOutputContract(res?.output_contract || {});
-          setUserProperties(res?.user_properties || {});
-          setSystemProperties(res?.system_properties || {});
-        })
-        .catch((err) => console.error('Failed to fetch node contracts', err));
-    } else {
+    if (!selectedNode) {
       setInputContract({});
       setOutputContract({});
-      setUserProperties({});
-      setSystemProperties({});
+      setProperties({});
+      setSourceOutputPreview(null);
+      setAllowedConditions(['success', 'failure', 'default']);
+      setEdgeCondition('');
+      setEdgeExpression('');
+      return;
     }
-  }, [selectedNode?.id, workflowId]);
+
+    const localData = selectedNode.data as NodeData;
+
+    setInputContract(
+      (localData.input_contract || localData.inputContract || {}) as Record<string, any>,
+    );
+    setOutputContract(
+      (localData.output_contract || localData.outputContract || {}) as Record<string, any>,
+    );
+    setProperties((localData.properties || {}) as NodeProperties);
+
+    api
+      .getAgentNodeProperties(workflowId || '', selectedNode.id)
+      .then((res) => {
+        if (!res) return;
+        setInputContract(res?.input_contract || res?.inputContract || {});
+        setOutputContract(res?.output_contract || res?.outputContract || {});
+        setProperties(res?.properties || {});
+      })
+      .catch((err) => console.error('Failed to fetch node contracts', err));
+
+    if (selectedEdge && workflowId) {
+      const srcId = String((selectedEdge as any).source || '');
+      api
+        .getAgentNodeProperties(workflowId || '', srcId)
+        .then((res) => {
+          setSourceOutputPreview(res?.output_example || res?.output_contract || res?.outputContract || null);
+          const declared = (res?.properties?.conditions as string[]) ||
+            (res?.user_properties?.conditions as string[]) ||
+            (res?.userProperties?.conditions as string[]) || [];
+          setAllowedConditions(declared.length ? declared : ['success', 'failure', 'default']);
+          setEdgeCondition(
+            (selectedEdge as any).condition || (selectedEdge as any).sourceHandle || 'default',
+          );
+          setEdgeExpression((selectedEdge as any).expression || '');
+        })
+        .catch((err) =>
+          console.error('Failed to fetch source node properties for edge preview', err),
+        );
+    } else {
+      setSourceOutputPreview(null);
+      setAllowedConditions(['success', 'failure', 'default']);
+      setEdgeCondition('');
+      setEdgeExpression('');
+    }
+  }, [selectedNode?.id, selectedEdge?.id, workflowId]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -266,16 +309,16 @@ export default function PropertiesPanel({
     if (!selectedNode || !onUpdateNode) return;
 
     // Update local state for immediate UI feedback so fields are editable
-    setUserProperties((prev) => ({
+    setProperties((prev) => ({
       ...prev,
       [key]: value,
     }));
 
     const nodeData = selectedNode.data as NodeData;
-    const currentProps = (nodeData.user_properties || {}) as NodeProperties;
+    const currentProps = (nodeData.properties || {}) as NodeProperties;
     const newData = {
       ...nodeData,
-      user_properties: {
+      properties: {
         ...currentProps,
         [key]: value,
       },
@@ -329,7 +372,7 @@ export default function PropertiesPanel({
     if (!selectedNode || !onSaveInstanceProperties) return;
     setIsSaving(true);
     try {
-      await onSaveInstanceProperties(selectedNode.id, user_properties);
+      await onSaveInstanceProperties(selectedNode.id, properties);
     } catch (error) {
       console.error('Failed to save node instance properties:', error);
     } finally {
@@ -351,10 +394,11 @@ export default function PropertiesPanel({
     userProps: NodeProperties,
     systemProps: NodeProperties,
   ) => {
-    const isSystem = systemProps.hasOwnProperty(field.key);
-    const value = isSystem ? systemProps[field.key] : getPropertyValue(userProps, field);
+    const hasUserValue = userProps.hasOwnProperty(field.key);
+    const isSystem = systemProps.hasOwnProperty(field.key) && !hasUserValue;
+    const value = hasUserValue ? userProps[field.key] : (systemProps.hasOwnProperty(field.key) ? systemProps[field.key] : getPropertyValue(userProps, field));
     const isDisabled = isSystem;
-    const displayValue = isSystem && field.type === 'password' ? '••••••••' : String(value ?? '');
+    const displayValue = (isSystem || hasUserValue) && field.type === 'password' && value ? '••••••••' : String(value ?? '');
 
     // Boolean Toggle
     if (field.type === 'boolean') {
@@ -595,12 +639,87 @@ export default function PropertiesPanel({
   };
 
   // Placeholder state when no node is selected
-  if (!selectedNode) {
+  if (!selectedNode && !selectedEdge) {
     return (
       <div className="w-80 border-l border-gray-200 bg-white p-6">
         <div className="text-center text-gray-400 mt-10">
           <Settings className="w-8 h-8 mx-auto mb-3" />
           <p>Select a node to edit properties</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If an edge is selected, render the Edge Editor
+  if (selectedEdge) {
+    return (
+      <div className="w-80 border-l border-gray-200 bg-white flex flex-col h-full">
+        <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <div className="font-semibold text-black flex items-center gap-2">Edge Properties</div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4 flex-1 overflow-auto">
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase">Source Node Output Preview</label>
+            <pre className="mt-2 p-3 bg-gray-100 text-[11px] rounded-lg overflow-x-auto font-mono text-gray-700">
+              {JSON.stringify(sourceOutputPreview || {}, null, 2)}
+            </pre>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase">Condition</label>
+            <select
+              value={edgeCondition}
+              onChange={(e) => setEdgeCondition(e.target.value)}
+              className="w-full mt-2 rounded-lg border px-3 py-2 text-sm"
+            >
+              {allowedConditions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Or enter a custom expression below.</p>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase">Expression (optional)</label>
+            <textarea
+              value={edgeExpression}
+              onChange={(e) => setEdgeExpression(e.target.value)}
+              placeholder={'e.g. output.score > 0.5 or output.intent == "cancel"'}
+              className="w-full mt-2 rounded-lg border px-3 py-2 text-sm font-mono h-28"
+            />
+            <p className="text-xs text-gray-400 mt-1">Expressions are evaluated against the source node output as <code className="bg-gray-100 px-1 rounded">output</code>.</p>
+          </div>
+        </div>
+
+        <div className="p-4 border-t bg-gray-50 shrink-0 flex gap-2">
+          <button
+            onClick={() => onClose()}
+            className="flex-1 px-4 py-2 text-sm bg-white border rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (onUpdateEdge && selectedEdge) {
+                onUpdateEdge(
+                  selectedEdge.id || `${selectedEdge.source}_${selectedEdge.target}`,
+                  {
+                    condition: edgeCondition,
+                    expression: edgeExpression,
+                  } as any,
+                );
+              }
+            }}
+            className="flex-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg"
+          >
+            Save Edge
+          </button>
         </div>
       </div>
     );
@@ -628,9 +747,10 @@ export default function PropertiesPanel({
           <input
             type="text"
             value={String(
-              (selectedNode.data as any).label || (selectedNode.data as any).name || '',
+              selectedNode ? (selectedNode.data as any).label || (selectedNode.data as any).name || '' : '',
             )}
             onChange={(e) => {
+              if (!selectedNode) return;
               const val = e.target.value;
               onUpdateNode(selectedNode.id, {
                 ...(selectedNode.data as any),
@@ -649,8 +769,9 @@ export default function PropertiesPanel({
             <div className="flex items-center gap-2">
               <input
                 type="color"
-                value={String((selectedNode.data as any).color || '#10b981')}
+                value={String(selectedNode ? (selectedNode.data as any).color || '#10b981' : '#10b981')}
                 onChange={(e) => {
+                  if (!selectedNode) return;
                   onUpdateNode(selectedNode.id, {
                     ...(selectedNode.data as any),
                     color: e.target.value,
@@ -659,7 +780,7 @@ export default function PropertiesPanel({
                 className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200 p-0"
               />
               <span className="text-xs font-mono text-gray-500 uppercase">
-                {String((selectedNode.data as any).color || '#10b981')}
+                {String(selectedNode ? (selectedNode.data as any).color || '#10b981' : '#10b981')}
               </span>
             </div>
           </div>
@@ -682,25 +803,122 @@ export default function PropertiesPanel({
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto p-5 space-y-6">
-        <div className="space-y-6">
-          <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase">Input Contract</label>
-            <pre className="mt-2 p-3 bg-gray-900 text-green-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
-              {JSON.stringify(inputContract || {}, null, 2)}
-            </pre>
-          </div>
-          <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase">Output Contract</label>
-            <pre className="mt-2 p-3 bg-gray-900 text-blue-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
-              {JSON.stringify(outputContract || {}, null, 2)}
-            </pre>
-          </div>
-          <p className="text-[10px] text-gray-400 italic leading-relaxed">
-            Mapping can be achieved by referencing upstream nodes in your config using
-            <code className="bg-gray-100 px-1 rounded">{'{{ node_id.output_key }}'}</code>.
-          </p>
-        </div>
+          <div className="flex-1 overflow-auto p-5 space-y-6">
+        {(() => {
+          if (viewMode === 'contract') {
+            return (
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Input Contract</label>
+                  <pre className="mt-2 p-3 bg-gray-900 text-green-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
+                    {JSON.stringify(inputContract || {}, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Output Contract</label>
+                  <pre className="mt-2 p-3 bg-gray-900 text-blue-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
+                    {JSON.stringify(outputContract || {}, null, 2)}
+                  </pre>
+                </div>
+                <p className="text-[10px] text-gray-400 italic leading-relaxed">
+                  Mapping can be achieved by referencing upstream nodes in your config using
+                  <code className="bg-gray-100 px-1 rounded">{'{{ node_id.output_key }}'}</code>.
+                </p>
+              </div>
+            );
+          }
+
+          const formatLabel = (k: string) => {
+            return k
+              .replace(/[_-]+/g, ' ')
+              .replace(/\b\w/g, (char) => char.toUpperCase());
+          };
+
+          const entries = Object.entries(properties);
+
+          return (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center border-b pb-2">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Properties</span>
+              </div>
+
+              {entries.length > 0 ? (
+                <div className="space-y-4">
+                  {entries.map(([key, value]) => {
+                    const label = formatLabel(key);
+                    const valueType = typeof value === 'boolean' ? 'boolean' : typeof value === 'number' ? 'number' : 'string';
+                    
+                    if (valueType === 'boolean') {
+                      return (
+                        <label
+                          key={key}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-black cursor-pointer shadow-sm hover:border-gray-300 transition-all"
+                        >
+                          <span className="font-semibold text-gray-700">{label}</span>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(value)}
+                            onChange={(e) => handlePropertyChange(key, e.target.checked)}
+                            className="h-4 w-4 accent-blue-600"
+                          />
+                        </label>
+                      );
+                    }
+
+                    if (valueType === 'number') {
+                      return (
+                        <div key={key} className="space-y-1.5">
+                          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            {label}
+                          </label>
+                          <input
+                            type="number"
+                            value={Number(value ?? 0)}
+                            onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
+                            placeholder="Value"
+                            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500 shadow-sm"
+                          />
+                        </div>
+                      );
+                    }
+
+                    // Multiline textarea for prompts/long strings
+                    const isMultiline = String(value ?? '').length > 40 || key.toLowerCase().includes('prompt') || key.toLowerCase().includes('query');
+
+                    return (
+                      <div key={key} className="space-y-1.5">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          {label}
+                        </label>
+                        {isMultiline ? (
+                          <textarea
+                            value={String(value ?? '')}
+                            onChange={(e) => handlePropertyChange(key, e.target.value)}
+                            placeholder="Value"
+                            rows={3}
+                            className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm font-mono bg-white text-black focus:outline-none focus:border-blue-500 resize-y shadow-sm"
+                          />
+                        ) : (
+                          <input
+                            type={key.toLowerCase().includes('password') || key.toLowerCase().includes('secret') ? 'password' : 'text'}
+                            value={String(value ?? '')}
+                            onChange={(e) => handlePropertyChange(key, e.target.value)}
+                            placeholder="Value"
+                            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500 shadow-sm"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
+                  <p className="text-xs">No properties defined.</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Footer - Save & Delete Buttons */}
@@ -714,7 +932,7 @@ export default function PropertiesPanel({
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {isSaving ? 'Saving...' : 'Save Properties'}
           </button>
-          {onDeleteNode && (
+          {onDeleteNode && selectedNode && (
             <button
               onClick={() => {
                 const nodeName =
