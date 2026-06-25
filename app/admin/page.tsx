@@ -1034,7 +1034,7 @@ export default function AdminPage() {
         {activeTab === 'nodes' ? (
           <>
             {/* Categories Section */}
-            <section className="space-y-6">
+            {/* <section className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <IconMap.tag className="h-5 w-5 text-gray-400" />
@@ -1117,7 +1117,7 @@ export default function AdminPage() {
                   );
                 })}
               </div>
-            </section>
+            </section> */}
 
             {/* Agents/Nodes Section */}
             <section className="space-y-4">
@@ -1287,10 +1287,17 @@ export default function AdminPage() {
                           </td>
 
                           {/* Type */}
+                          
                           <td className="px-4 py-3">
-                            <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 border border-amber-100">
-                              {agent.node_type}
-                            </span>
+                            {agent.node_type.toLowerCase()=="node" && (
+                              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 border border-amber-100">
+                                {agent.node_type}
+                              </span>)}
+                                {agent.node_type.toLowerCase()=="trigger" && (
+                              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-green-700 border border-green-100">
+                                {agent.node_type}
+                              </span>)}
+
                           </td>
 
                           {/* Category

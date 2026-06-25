@@ -28,12 +28,16 @@ export default function FieldMappingController({
   onUpdateNode,
   onSaveInstanceProperties,
 }: FieldMappingControllerProps) {
+  const isTransform =
+    selectedNode?.data?.name === 'transform_node' ||
+    String(selectedNode?.data?.node_type || '').toUpperCase() === 'TRANSFORM';
+
   const sourceNode = nodes.find(
     (node) => node.id === edges.find((edge) => edge.target === selectedNode?.id)?.source,
   );
-  const targetNode = nodes.find(
-    (node) => node.id === edges.find((edge) => edge.source === selectedNode?.id)?.target,
-  );
+  const targetNode = isTransform
+    ? nodes.find((node) => node.id === edges.find((edge) => edge.source === selectedNode?.id)?.target)
+    : selectedNode;
 
   const currentMapping = (() => {
     try {

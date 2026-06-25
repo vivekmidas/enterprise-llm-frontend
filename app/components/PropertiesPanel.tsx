@@ -2,9 +2,51 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Node, Edge } from '@xyflow/react';
-import { X, Settings, Save, Loader2, ArrowRightLeft, Wand2, Info, Trash2 } from 'lucide-react';
+import { X, Settings, Save, Loader2, ArrowRightLeft, Wand2, Info, Trash2, Lock, Copy, Check } from 'lucide-react';
 import { api } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
+
+// Helper to normalize and parse system properties from different database formats
+const parseSystemProperties = (value: any): Record<string, any> => {
+  if (!value) return {};
+  if (typeof value === 'string') {
+    try {
+      return parseSystemProperties(JSON.parse(value));
+    } catch {
+      return {};
+    }
+  }
+  if (Array.isArray(value)) {
+    const result: Record<string, any> = {};
+    value.forEach((item) => {
+      let entry = item;
+      if (typeof item === 'string') {
+        try {
+          entry = JSON.parse(item);
+        } catch {
+          return;
+        }
+      }
+      if (entry && typeof entry === 'object' && entry.key) {
+        result[entry.key] = entry.value !== undefined ? entry.value : (entry.default !== undefined ? entry.default : '');
+      }
+    });
+    return result;
+  }
+  if (typeof value === 'object') {
+    const result: Record<string, any> = {};
+    Object.entries(value).forEach(([k, v]) => {
+      if (v && typeof v === 'object' && ('value' in v || 'default' in v)) {
+        const obj = v as any;
+        result[k] = obj.value !== undefined ? obj.value : (obj.default !== undefined ? obj.default : '');
+      } else {
+        result[k] = v;
+      }
+    });
+    return result;
+  }
+  return {};
+};
 // Assuming AgentPropertyDefinition and PropertyValue are defined in component-categoriees.ts
 // If not, you would define them here:
 // export type PropertyValue = string | number | boolean | string[] | undefined;
@@ -193,6 +235,16 @@ export default function PropertiesPanel({
   const [inputContract, setInputContract] = useState<any>({});
   const [outputContract, setOutputContract] = useState<any>({});
   const [properties, setProperties] = useState<NodeProperties>({});
+  const [systemProperties, setSystemProperties] = useState<NodeProperties>({});
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopy = (key: string, value: any) => {
+    navigator.clipboard.writeText(String(value ?? ''));
+    setCopiedKey(key);
+    setTimeout(() => {
+      setCopiedKey(null);
+    }, 2000);
+  };
 
   // Edge editor state
   const [edgeCondition, setEdgeCondition] = useState<string>('');
@@ -224,58 +276,77 @@ export default function PropertiesPanel({
   };
 
   useEffect(() => {
-    if (!selectedNode) {
+    // Reset properties if nothing is selected
+    if (!selectedNode && !selectedEdge) {
       setInputContract({});
       setOutputContract({});
       setProperties({});
+      setSystemProperties({});
       setSourceOutputPreview(null);
-      setAllowedConditions(['success', 'failure', 'default']);
+      setAllowedConditions(['success', 'failure']);
       setEdgeCondition('');
       setEdgeExpression('');
       return;
     }
 
-    const localData = selectedNode.data as NodeData;
+    // Load node properties if selected
+    if (selectedNode) {
+      const localData = selectedNode.data as NodeData;
 
-    setInputContract(
-      (localData.input_contract || localData.inputContract || {}) as Record<string, any>,
-    );
-    setOutputContract(
-      (localData.output_contract || localData.outputContract || {}) as Record<string, any>,
-    );
-    setProperties((localData.properties || {}) as NodeProperties);
+      setInputContract(
+        (localData.input_contract || localData.inputContract || {}) as Record<string, any>,
+      );
+      setOutputContract(
+        (localData.output_contract || localData.outputContract || {}) as Record<string, any>,
+      );
+      setProperties((localData.properties || {}) as NodeProperties);
+      setSystemProperties(parseSystemProperties(localData.system_properties || localData.systemProperties));
 
-    api
-      .getAgentNodeProperties(workflowId || '', selectedNode.id)
-      .then((res) => {
-        if (!res) return;
-        setInputContract(res?.input_contract || res?.inputContract || {});
-        setOutputContract(res?.output_contract || res?.outputContract || {});
-        setProperties(res?.properties || {});
-      })
-      .catch((err) => console.error('Failed to fetch node contracts', err));
+      api
+        .getAgentNodeProperties(workflowId || '', selectedNode.id)
+        .then((res) => {
+          if (!res) return;
+          setInputContract(res?.input_contract || res?.inputContract || {});
+          setOutputContract(res?.output_contract || res?.outputContract || {});
+          setProperties(res?.properties || {});
+          setSystemProperties(parseSystemProperties(res?.system_level_properties || res?.system_properties || {}));
+        })
+        .catch((err) => console.error('Failed to fetch node contracts', err));
+    }
 
+    // Load edge properties if selected
     if (selectedEdge && workflowId) {
       const srcId = String((selectedEdge as any).source || '');
       api
         .getAgentNodeProperties(workflowId || '', srcId)
         .then((res) => {
           setSourceOutputPreview(res?.output_example || res?.output_contract || res?.outputContract || null);
-          const declared = (res?.properties?.conditions as string[]) ||
-            (res?.user_properties?.conditions as string[]) ||
-            (res?.userProperties?.conditions as string[]) || [];
-          setAllowedConditions(declared.length ? declared : ['success', 'failure', 'default']);
-          setEdgeCondition(
-            (selectedEdge as any).condition || (selectedEdge as any).sourceHandle || 'default',
-          );
-          setEdgeExpression((selectedEdge as any).expression || '');
+          const declared = ((res?.properties?.conditions ||
+            res?.user_properties?.conditions ||
+            res?.userProperties?.conditions ||
+            []) as string[]).filter(c => c !== 'default');
+          setAllowedConditions(declared.length ? declared : ['success', 'failure']);
+          
+          const edgeData = (selectedEdge as any).data || {};
+          const currentCondition =
+            edgeData.condition ||
+            (selectedEdge as any).condition ||
+            (selectedEdge as any).sourceHandle ||
+            '';
+          const currentExpression =
+            edgeData.expression ||
+            (selectedEdge as any).expression ||
+            '';
+
+          setEdgeCondition(currentCondition);
+          setEdgeExpression(currentExpression);
         })
         .catch((err) =>
           console.error('Failed to fetch source node properties for edge preview', err),
         );
     } else {
       setSourceOutputPreview(null);
-      setAllowedConditions(['success', 'failure', 'default']);
+      setAllowedConditions(['success', 'failure']);
       setEdgeCondition('');
       setEdgeExpression('');
     }
@@ -435,7 +506,7 @@ export default function PropertiesPanel({
       return (
         <div
           key={field.key}
-          className="space-y-4 p-4 border rounded-xl bg-slate-50 shadow-sm transition-all"
+          className="space-y-4 p-4 border rounded-xl h-full overflow-hidden bg-slate-50 shadow-sm transition-all"
         >
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -672,16 +743,34 @@ export default function PropertiesPanel({
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase">Condition</label>
             <select
-              value={edgeCondition}
-              onChange={(e) => setEdgeCondition(e.target.value)}
-              className="w-full mt-2 rounded-lg border px-3 py-2 text-sm"
+              value={allowedConditions.includes(edgeCondition) ? edgeCondition : 'custom'}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'custom') {
+                  setEdgeCondition('');
+                } else {
+                  setEdgeCondition(val);
+                }
+              }}
+              className="w-full mt-2 rounded-lg border px-3 py-2 text-sm text-black bg-white"
             >
               {allowedConditions.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
               ))}
+              <option value="custom">Custom Condition Name...</option>
             </select>
+            
+            {(!allowedConditions.includes(edgeCondition) || edgeCondition === '') && (
+              <input
+                type="text"
+                value={edgeCondition}
+                onChange={(e) => setEdgeCondition(e.target.value)}
+                placeholder="Enter custom condition name (e.g. is_safe)"
+                className="w-full mt-2 rounded-lg border px-3 py-2 text-sm font-mono text-black bg-white"
+              />
+            )}
             <p className="text-xs text-gray-400 mt-1">Or enter a custom expression below.</p>
           </div>
 
@@ -707,11 +796,19 @@ export default function PropertiesPanel({
           <button
             onClick={() => {
               if (onUpdateEdge && selectedEdge) {
+                const trimmedCondition = (edgeCondition || '').trim();
+                const trimmedExpression = (edgeExpression || '').trim();
+
+                if (trimmedExpression && !trimmedCondition) {
+                  alert('Please specify a condition name/label for your custom expression (e.g. is_safe, high_profit).');
+                  return;
+                }
+
                 onUpdateEdge(
                   selectedEdge.id || `${selectedEdge.source}_${selectedEdge.target}`,
                   {
-                    condition: edgeCondition,
-                    expression: edgeExpression,
+                    condition: trimmedCondition,
+                    expression: trimmedExpression,
                   } as any,
                 );
               }
@@ -836,84 +933,136 @@ export default function PropertiesPanel({
 
           const entries = Object.entries(properties);
 
+          const systemEntries = Object.entries(systemProperties);
+
           return (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center border-b pb-2">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Properties</span>
-              </div>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Properties</span>
+                </div>
 
-              {entries.length > 0 ? (
-                <div className="space-y-4">
-                  {entries.map(([key, value]) => {
-                    const label = formatLabel(key);
-                    const valueType = typeof value === 'boolean' ? 'boolean' : typeof value === 'number' ? 'number' : 'string';
-                    
-                    if (valueType === 'boolean') {
-                      return (
-                        <label
-                          key={key}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-black cursor-pointer shadow-sm hover:border-gray-300 transition-all"
-                        >
-                          <span className="font-semibold text-gray-700">{label}</span>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(value)}
-                            onChange={(e) => handlePropertyChange(key, e.target.checked)}
-                            className="h-4 w-4 accent-blue-600"
-                          />
-                        </label>
-                      );
-                    }
+                {entries.length > 0 ? (
+                  <div className="space-y-4">
+                    {entries.map(([key, value]) => {
+                      const label = formatLabel(key);
+                      const valueType = typeof value === 'boolean' ? 'boolean' : typeof value === 'number' ? 'number' : 'string';
+                      
+                      if (valueType === 'boolean') {
+                        return (
+                          <label
+                            key={key}
+                            className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-black cursor-pointer shadow-sm hover:border-gray-300 transition-all"
+                          >
+                            <span className="font-semibold text-gray-700">{label}</span>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(value)}
+                              onChange={(e) => handlePropertyChange(key, e.target.checked)}
+                              className="h-4 w-4 accent-blue-600"
+                            />
+                          </label>
+                        );
+                      }
 
-                    if (valueType === 'number') {
+                      if (valueType === 'number') {
+                        return (
+                          <div key={key} className="space-y-1.5">
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                              {label}
+                            </label>
+                            <input
+                              type="number"
+                              value={Number(value ?? 0)}
+                              onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
+                              placeholder="Value"
+                              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500 shadow-sm"
+                            />
+                          </div>
+                        );
+                      }
+
+                      // Multiline textarea for prompts/long strings
+                      const isMultiline = String(value ?? '').length > 40 || key.toLowerCase().includes('prompt') || key.toLowerCase().includes('query');
+
                       return (
                         <div key={key} className="space-y-1.5">
                           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">
                             {label}
                           </label>
-                          <input
-                            type="number"
-                            value={Number(value ?? 0)}
-                            onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
-                            placeholder="Value"
-                            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500 shadow-sm"
-                          />
+                          {isMultiline ? (
+                            <textarea
+                              value={String(value ?? '')}
+                              onChange={(e) => handlePropertyChange(key, e.target.value)}
+                              placeholder="Value"
+                              rows={3}
+                              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm font-mono bg-white text-black focus:outline-none focus:border-blue-500 resize-y shadow-sm"
+                            />
+                          ) : (
+                            <input
+                              type={key.toLowerCase().includes('password') || key.toLowerCase().includes('secret') ? 'password' : 'text'}
+                              value={String(value ?? '')}
+                              onChange={(e) => handlePropertyChange(key, e.target.value)}
+                              placeholder="Value"
+                              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500 shadow-sm"
+                            />
+                          )}
                         </div>
                       );
-                    }
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
+                    <p className="text-xs">No properties defined.</p>
+                  </div>
+                )}
+              </div>
 
-                    // Multiline textarea for prompts/long strings
-                    const isMultiline = String(value ?? '').length > 40 || key.toLowerCase().includes('prompt') || key.toLowerCase().includes('query');
+              {systemEntries.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-gray-400" />
+                      System Configuration
+                    </span>
+                    <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 tracking-wider">
+                      READ ONLY
+                    </span>
+                  </div>
 
-                    return (
-                      <div key={key} className="space-y-1.5">
-                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          {label}
-                        </label>
-                        {isMultiline ? (
-                          <textarea
-                            value={String(value ?? '')}
-                            onChange={(e) => handlePropertyChange(key, e.target.value)}
-                            placeholder="Value"
-                            rows={3}
-                            className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm font-mono bg-white text-black focus:outline-none focus:border-blue-500 resize-y shadow-sm"
-                          />
-                        ) : (
-                          <input
-                            type={key.toLowerCase().includes('password') || key.toLowerCase().includes('secret') ? 'password' : 'text'}
-                            value={String(value ?? '')}
-                            onChange={(e) => handlePropertyChange(key, e.target.value)}
-                            placeholder="Value"
-                            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500 shadow-sm"
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
-                  <p className="text-xs">No properties defined.</p>
+                  <div className="bg-gray-50/75 rounded-xl p-3.5 border border-gray-200/60 space-y-2.5 shadow-sm">
+                    {systemEntries.map(([key, value]) => {
+                      const label = formatLabel(key);
+                      const isCopied = copiedKey === key;
+                      return (
+                        <div
+                          key={key}
+                          className="flex justify-between items-center py-0.5 group/row"
+                        >
+                          <span className="font-semibold text-xs text-gray-500">
+                            {label}
+                          </span>
+                          <div className="flex items-center gap-1.5 max-w-[65%]">
+                            <span className="font-mono text-xs text-gray-700 bg-white border border-gray-200/80 px-2.5 py-1 rounded-lg shadow-sm break-all">
+                              {String(value ?? '')}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(key, value)}
+                              className="p-1.5 hover:bg-gray-200/70 rounded-md transition-colors shrink-0 opacity-0 group-hover/row:opacity-100 focus:opacity-100 text-gray-400 hover:text-gray-600"
+                              title="Copy to clipboard"
+                            >
+                              {isCopied ? (
+                                <Check className="w-3.5 h-3.5 text-green-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>

@@ -144,6 +144,7 @@ export const CATEGORIES: Record<string, Category> = {
   Custom: { id: 11, name: 'Custom', label: 'Custom Node', icon: 'message-square', color: 'gray' },
   Clock: { id: 12, name: 'Clock', label: 'Timer/Schedule', icon: 'clock', color: 'orange' },
   Workflow: { id: 13, name: 'Workflow', label: 'Sub-workflow', icon: 'workflow', color: 'indigo' },
+  VectorDB: { id: 10, name: 'VectorDB', label: 'Vector DB', icon: 'blocks', color: 'emerald' },
 };
 
 export const getCategory = (name?: number): Category => {

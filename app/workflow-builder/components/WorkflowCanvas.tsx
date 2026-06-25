@@ -17,8 +17,13 @@ import { CustomNode } from '../../components/reactflow/CustomNode';
 import type { WorkflowNodeData, WorkflowTraceStep } from '../types';
 import { defaultEdgeOptions } from '../workflow-helpers';
 import ExecutionTracePanel from './ExecutionTracePanel';
+import { CustomLabelEdge } from './CustomEdge';
 
 const nodeTypes = { custom: CustomNode };
+const edgeTypes = {
+  custom: CustomLabelEdge,
+  default: CustomLabelEdge,
+};
 
 type WorkflowCanvasProps = {
   nodes: Node<WorkflowNodeData>[];
@@ -56,13 +61,13 @@ export default function WorkflowCanvas({
   onOpenMapper,
   onClearTrace,
 }: WorkflowCanvasProps) {
-  const isTransformSelected =
-    selectedNode?.data?.name === 'transform_node' ||
-    String(selectedNode?.data?.node_type || '').toUpperCase() === 'TRANSFORM';
+  const isMappingAvailable = selectedNode
+    ? edges.some((edge) => edge.target === selectedNode.id)
+    : false;
 
   return (
     <div
-      className="flex-1 relative bg-gray-50 overflow-hidden"
+      className="flex-1 h-full relative bg-gray-50 overflow-hidden"
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
@@ -77,6 +82,7 @@ export default function WorkflowCanvas({
         onPaneClick={onPaneClick}
         onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes as NodeTypes}
+        edgeTypes={edgeTypes}
         nodesDraggable={true}
         nodesConnectable={true}
         elementsSelectable={true}
@@ -97,11 +103,11 @@ export default function WorkflowCanvas({
         <MiniMap />
       </ReactFlow>
 
-      {isTransformSelected && (
-        <div className="absolute top-4 right-84 z-10 animate-in fade-in slide-in-from-right-4 duration-300">
+      {isMappingAvailable && (
+        <div className="absolute top-4 right-84 z-10 animate-in fade-in slide-in-from-right-4 duration-300 text-m">
           <button
             onClick={onOpenMapper}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xl transition-all transform hover:scale-105 active:scale-95 border border-blue-400"
+            className="flex text-m items-center gap-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xl transition-all transform hover:scale-105 active:scale-95 border border-blue-400"
           >
             <ArrowRightLeft size={12} />
             Configure Data Mapping

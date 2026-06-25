@@ -180,3 +180,18 @@
 .react-flow__node.selected {
   box-shadow: 0 0 0 4px rgba(206, 8, 2, 0.5);
 }
+
+@keyframes edge-flow {
+  from {
+    stroke-dashoffset: 20;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.react-flow__edge-path.animated {
+  stroke-dasharray: 6, 6;
+  animation: edge-flow 1s linear infinite;
+}
+

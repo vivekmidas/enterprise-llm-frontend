@@ -33,6 +33,11 @@ import {
   Power,
   Search,
   Workflow,
+  GitFork,
+  ShieldAlert,
+  History,
+  Bell,
+  Blocks
 } from 'lucide-react';
 
 export const IconMap: Record<string, any> = {
@@ -43,9 +48,13 @@ export const IconMap: Record<string, any> = {
   database: Database,
   mail: Mail,
   globe: Globe,
-  shield: Shield,
+  
   workflow: Workflow,
   shuffle: Shuffle,
+  bell: Bell,
+  history: History,
+  gitfork:GitFork,
+  shield: ShieldAlert,
   clock: Clock,
   'alert-triangle': AlertTriangle,
   settings: Settings,
@@ -63,6 +72,7 @@ export const IconMap: Record<string, any> = {
   Save: Save,
   trash2: Trash2,
   Trash2: Trash2,
+  blocks:Blocks,
   box: Box,
   tag: Tag,
   code2: Code2,

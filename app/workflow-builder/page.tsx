@@ -162,7 +162,15 @@ function AgentBuilderContent() {
         }
 
         setIsDirty(true);
-        return addEdge({ ...params, ...defaultEdgeOptions }, eds);
+        const edgeParams = {
+          ...params,
+          ...defaultEdgeOptions,
+          condition: params.sourceHandle || undefined,
+          data: {
+            condition: params.sourceHandle || undefined,
+          },
+        };
+        return addEdge(edgeParams, eds);
       }),
     [getNodes, setEdges],
   );
@@ -212,23 +220,36 @@ function AgentBuilderContent() {
 
     fetchNodeData();
 
-    // Fetch neighbor contracts for Transform Node mapping
-    if (selectedNode?.data?.name === 'transform_node') {
+    // Fetch neighbor contracts for mapping
+    if (selectedNode) {
       const incomingEdge = edges.find((e) => e.target === selectedNode.id);
-      const outgoingEdge = edges.find((e) => e.source === selectedNode.id);
+      const isTransform =
+        selectedNode.data?.name === 'transform_node' ||
+        String(selectedNode.data?.node_type || '').toUpperCase() === 'TRANSFORM';
 
-      if (incomingEdge) {
+      if (isTransform) {
+        const outgoingEdge = edges.find((e) => e.source === selectedNode.id);
+        if (incomingEdge) {
+          api
+            .getAgentNodeProperties(agentId, incomingEdge.source)
+            .then((res) => setPrevNodeContract(res?.output_contract || {}));
+        }
+        if (outgoingEdge) {
+          api
+            .getAgentNodeProperties(agentId, outgoingEdge.target)
+            .then((res) => setNextNodeContract(res?.input_contract || {}));
+        }
+      } else if (incomingEdge) {
+        // Direct mapping: source is the incoming node's output, target is selected node's input
         api
           .getAgentNodeProperties(agentId, incomingEdge.source)
           .then((res) => setPrevNodeContract(res?.output_contract || {}));
-      }
-      if (outgoingEdge) {
         api
-          .getAgentNodeProperties(agentId, outgoingEdge.target)
+          .getAgentNodeProperties(agentId, selectedNode.id)
           .then((res) => setNextNodeContract(res?.input_contract || {}));
       }
     }
-  }, [selectedNode?.id, agentId, setNodes]);
+  }, [selectedNode?.id, agentId, setNodes, edges]);
 
   const onPaneClick = useCallback(() => setSelectedNode(null), []);
   // Clear selections for both nodes and edges when clicking on the pane
@@ -649,17 +670,69 @@ function AgentBuilderContent() {
 
         if (category === 'End') break;
 
-        // Branching logic: traverse based on output status if it's a condition
+        // Branching logic: traverse based on output status and expressions
         const outgoingEdges = edges.filter((e) => e.source === activeNode.id);
-        if (category === 'Condition') {
-          const resultStatus = output.status === 'failure' ? 'failure' : 'success';
-          const edge = outgoingEdges.find((e) => e.sourceHandle === resultStatus);
-          currentNode = edge ? nodes.find((n) => n.id === edge.target) : undefined;
+        let matchedEdge = undefined;
+
+        if (output && output.status === 'failure') {
+          // Failure path check:
+          // Look for any edge that is failure-specific
+          matchedEdge = outgoingEdges.find(
+            (e) => {
+              const cond = (e.data?.condition || (e as any).condition || e.sourceHandle || '').toLowerCase();
+              return cond === 'failure' || cond === 'has_violations';
+            }
+          );
+          // If no failure path is defined, the execution stops gracefully.
         } else {
-          currentNode = outgoingEdges[0]
-            ? nodes.find((n) => n.id === outgoingEdges[0].target)
-            : undefined;
+          // Success / Custom Path check:
+          // 1. First, check expression edges
+          for (const edge of outgoingEdges) {
+            const expr = edge.data?.expression || (edge as any).expression;
+            if (expr) {
+              try {
+                // Safely evaluate simple JS expression with 'output' context
+                const keys = Object.keys(output || {});
+                const vals = Object.values(output || {});
+                const evalFn = new Function('output', ...keys, `try { return !!(${expr}); } catch(e) { return false; }`);
+                if (evalFn(output, ...vals)) {
+                  matchedEdge = edge;
+                  break;
+                }
+              } catch (e) {
+                console.error('Failed to evaluate expression during simulation:', expr, e);
+              }
+            }
+          }
+
+          // 2. If no expression matched, check custom conditions and success conditions
+          if (!matchedEdge) {
+            const conditionResult = output?.condition_result || 'success';
+            matchedEdge = outgoingEdges.find(
+              (e) => {
+                const cond = (e.data?.condition || (e as any).condition || e.sourceHandle || '').toLowerCase();
+                return cond === String(conditionResult).toLowerCase();
+              }
+            );
+          }
+
+          // 3. Fallback to unconditional success edges (empty condition or success)
+          if (!matchedEdge) {
+            matchedEdge = outgoingEdges.find(
+              (e) => {
+                const cond = (e.data?.condition || (e as any).condition || e.sourceHandle || '').toLowerCase();
+                return cond === 'success' || cond === '' || cond === 'default';
+              }
+            );
+          }
+
+          // 4. Fallback to the first outgoing edge if still no match
+          if (!matchedEdge && outgoingEdges.length > 0) {
+            matchedEdge = outgoingEdges[0];
+          }
         }
+
+        currentNode = matchedEdge ? nodes.find((n) => n.id === matchedEdge.target) : undefined;
       } catch (nodeError) {
         const finishedAtMs = Date.now();
         const traceStep: WorkflowTraceStep = {
@@ -692,7 +765,7 @@ function AgentBuilderContent() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50 text-black">
+    <div className="flex h-screen flex-col bg-gray-50 text-black overflow-hidden">
       <WorkflowHeader
         agentId={agentId}
         agentDescription={description}
@@ -716,7 +789,7 @@ function AgentBuilderContent() {
         onExecute={onExecute}
       />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <AgentSidebar
           onSelectAgent={loadAgent}
           onNewAgent={handleNewAgent}
@@ -751,8 +824,32 @@ function AgentBuilderContent() {
           }}
           onUpdateNode={onUpdateNode}
           onUpdateEdge={(edgeId, newEdge) => {
-            setEdges((eds) => eds.map((e) => (e.id === edgeId ? { ...e, ...newEdge } : e)));
-            setSelectedEdge((e) => (e && e.id === edgeId ? { ...e, ...newEdge } : e));
+            setEdges((eds) =>
+              eds.map((e) =>
+                e.id === edgeId
+                  ? {
+                      ...e,
+                      ...newEdge,
+                      data: {
+                        ...(e.data || {}),
+                        ...newEdge,
+                      },
+                    }
+                  : e
+              )
+            );
+            setSelectedEdge((e) =>
+              e && e.id === edgeId
+                ? {
+                    ...e,
+                    ...newEdge,
+                    data: {
+                      ...(e.data || {}),
+                      ...newEdge,
+                    },
+                  }
+                : e
+            );
             setIsDirty(true);
           }}
           onSaveInstanceProperties={onSaveInstanceProperties}
