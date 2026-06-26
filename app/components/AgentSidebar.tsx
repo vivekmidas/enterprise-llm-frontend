@@ -165,7 +165,7 @@ export default function AgentSidebar({
         style={{ borderLeft: `2.5px solid ${themeColor}` }}
       >
         <Icon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-        <span className="truncate shrink">{node.label || node.name}</span>
+        <span className="truncate shrink text-[12px]">{node.label || node.name}</span>
       </div>
     );
   };
@@ -218,17 +218,17 @@ export default function AgentSidebar({
         {/* Saved Workflows Section */}
         {savedAgents.length > 0 && (
           <div>
-            <h4 className="mb-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+            <h4 className="mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               Saved Workflows
             </h4>
-            <div className="space-y-1 bg-slate-50/50 p-1.5 rounded-xl border border-slate-100 max-h-40 overflow-y-auto custom-scrollbar">
+            <div className="space-y-2 bg-slate-50/50 p-1.5 rounded-xl border border-slate-100 max-h-40 overflow-y-auto custom-scrollbar">
               {savedAgents.map((agent) => (
                 <button
                   key={agent.id}
                   onClick={() => onSelectAgent?.(agent.id)}
-                  className="flex w-full items-center justify-between text-left p-2 rounded-lg transition-all hover:bg-white hover:text-indigo-600 hover:shadow-sm border border-transparent hover:border-slate-100 cursor-pointer group"
+                  className="flex w-full font-bold items-center justify-between text-left p-0.5 rounded-lg transition-all hover:bg-white hover:text-indigo-600 hover:shadow-sm border border-transparent hover:border-slate-100 cursor-pointer group"
                 >
-                  <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="flex items-center gap-1 min-w-0">
                     <FileText className="h-3.5 w-3.5 text-slate-400 shrink-0 group-hover:text-indigo-500 transition-colors" />
                     <span className="text-xs font-medium text-slate-650 truncate">{agent.name || agent.id}</span>
                   </div>
@@ -243,7 +243,7 @@ export default function AgentSidebar({
 
         {/* Triggers & Flow Logic Group */}
         <div>
-          <h4 className="mb-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+          <h4 className="mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             Core Nodes
           </h4>
           <div className="grid grid-cols-2 gap-2">
@@ -254,7 +254,7 @@ export default function AgentSidebar({
 
         {/* Actions Library */}
         <div className="border-t border-slate-100 pt-4">
-          <h4 className="mb-2.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+          <h4 className="mb-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             Action Registry
           </h4>
 

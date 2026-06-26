@@ -94,10 +94,10 @@ export default function WorkflowHeader({
             {/* New Workflow Button */}
             <button
               onClick={onNewAgent}
-              className="flex items-center justify-center p-1.5 ml-1 rounded-lg border border-slate-200 hover:border-slate-350 bg-white hover:bg-slate-50 transition-all text-slate-650 cursor-pointer shadow-sm hover:scale-[1.05] active:scale-[0.95]"
+              className="flex items-center justify-center p-1 ml-1 rounded-lg border border-slate-200 hover:border-slate-350 bg-green hover:bg-slate-50 transition-all text-slate-650 cursor-pointer shadow-sm hover:scale-[1.05] active:scale-[0.95]"
               title="New Workflow"
             >
-              <Plus size={13} className="text-slate-500 font-bold" />
+              <Plus size={24} className="text-slate-500 font-bold" />
             </button>
           </div>
 
