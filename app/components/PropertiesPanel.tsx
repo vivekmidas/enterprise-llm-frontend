@@ -202,6 +202,7 @@ interface PropertiesPanelProps {
   onSaveInstanceProperties: (nodeId: string, properties: NodeProperties) => Promise<void>;
   /** Callback to delete node from canvas */
   onDeleteNode?: (nodeId: string) => void;
+  onOpenMapper?: () => void;
 }
 
 /**
@@ -220,6 +221,7 @@ export default function PropertiesPanel({
   onSave,
   workflowId,
   onDeleteNode,
+  onOpenMapper,
 }: PropertiesPanelProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [credentials, setCredentials] = useState<any[]>([]);
@@ -712,10 +714,13 @@ export default function PropertiesPanel({
   // Placeholder state when no node is selected
   if (!selectedNode && !selectedEdge) {
     return (
-      <div className="w-80 border-l border-gray-200 bg-white p-6">
-        <div className="text-center text-gray-400 mt-10">
-          <Settings className="w-8 h-8 mx-auto mb-3" />
-          <p>Select a node to edit properties</p>
+      <div className="w-[340px] shrink-0 border-l border-slate-100 bg-white p-6 flex flex-col items-center justify-center">
+        <div className="text-center text-slate-400 max-w-[200px]">
+          <div className="w-12 h-12 bg-slate-50 border border-slate-150 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <Settings className="w-5 h-5 text-slate-500 animate-[spin_6s_linear_infinite]" />
+          </div>
+          <h3 className="font-semibold text-slate-700 text-sm mb-1">Properties</h3>
+          <p className="text-xs text-slate-400 leading-normal">Select a canvas node or connection line to configure settings.</p>
         </div>
       </div>
     );
@@ -724,24 +729,27 @@ export default function PropertiesPanel({
   // If an edge is selected, render the Edge Editor
   if (selectedEdge) {
     return (
-      <div className="w-80 border-l border-gray-200 bg-white flex flex-col h-full">
-        <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
-          <div className="font-semibold text-black flex items-center gap-2">Edge Properties</div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-5 h-5" />
+      <div className="w-[340px] shrink-0 border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <div className="font-bold text-xs text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+            <ArrowRightLeft className="w-4 h-4 text-indigo-500" />
+            Connection Settings
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-4 space-y-4 flex-1 overflow-auto">
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Source Node Output Preview</label>
-            <pre className="mt-2 p-3 bg-gray-100 text-[11px] rounded-lg overflow-x-auto font-mono text-gray-700">
+        <div className="p-5 space-y-5 flex-1 overflow-y-auto custom-scrollbar">
+          <div className="space-y-1.5">
+            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest">Source Output Sample</label>
+            <pre className="p-3 bg-slate-905 text-emerald-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-40 custom-scrollbar">
               {JSON.stringify(sourceOutputPreview || {}, null, 2)}
             </pre>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Condition</label>
+          <div className="space-y-2">
+            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest">Branch Condition</label>
             <select
               value={allowedConditions.includes(edgeCondition) ? edgeCondition : 'custom'}
               onChange={(e) => {
@@ -752,14 +760,14 @@ export default function PropertiesPanel({
                   setEdgeCondition(val);
                 }
               }}
-              className="w-full mt-2 rounded-lg border px-3 py-2 text-sm text-black bg-white"
+              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/50 focus:bg-white text-slate-700 outline-none transition-all cursor-pointer"
             >
               {allowedConditions.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {c.toUpperCase()}
                 </option>
               ))}
-              <option value="custom">Custom Condition Name...</option>
+              <option value="custom">Custom Condition Variable...</option>
             </select>
             
             {(!allowedConditions.includes(edgeCondition) || edgeCondition === '') && (
@@ -768,28 +776,28 @@ export default function PropertiesPanel({
                 value={edgeCondition}
                 onChange={(e) => setEdgeCondition(e.target.value)}
                 placeholder="Enter custom condition name (e.g. is_safe)"
-                className="w-full mt-2 rounded-lg border px-3 py-2 text-sm font-mono text-black bg-white"
+                className="w-full border border-slate-250 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-100 transition-all"
               />
             )}
-            <p className="text-xs text-gray-400 mt-1">Or enter a custom expression below.</p>
+            <p className="text-[10px] text-slate-400 leading-normal">Define when execution traverses this path.</p>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Expression (optional)</label>
+          <div className="space-y-1.5">
+            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest">Condition Expression (Optional)</label>
             <textarea
               value={edgeExpression}
               onChange={(e) => setEdgeExpression(e.target.value)}
               placeholder={'e.g. output.score > 0.5 or output.intent == "cancel"'}
-              className="w-full mt-2 rounded-lg border px-3 py-2 text-sm font-mono h-28"
+              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono h-28 bg-slate-50/50 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-none"
             />
-            <p className="text-xs text-gray-400 mt-1">Expressions are evaluated against the source node output as <code className="bg-gray-100 px-1 rounded">output</code>.</p>
+            <p className="text-[10px] text-slate-450 leading-normal">JavaScript expression evaluated against source node output. Prefix variables with <code className="bg-slate-100 px-1 rounded text-[9px] font-mono">output.</code>.</p>
           </div>
         </div>
 
-        <div className="p-4 border-t bg-gray-50 shrink-0 flex gap-2">
+        <div className="p-4 border-t border-slate-100 shrink-0 flex gap-2">
           <button
             onClick={() => onClose()}
-            className="flex-1 px-4 py-2 text-sm bg-white border rounded-lg"
+            className="flex-1 py-2 text-xs font-semibold text-slate-650 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-xl transition-all cursor-pointer"
           >
             Cancel
           </button>
@@ -813,9 +821,9 @@ export default function PropertiesPanel({
                 );
               }
             }}
-            className="flex-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg"
+            className="flex-1 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-750 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
           >
-            Save Edge
+            Save Connection
           </button>
         </div>
       </div>
@@ -823,23 +831,23 @@ export default function PropertiesPanel({
   }
 
   return (
-    <div className="w-80 border-l border-gray-200 bg-white flex flex-col h-full">
+    <div className="w-[340px] shrink-0 border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b bg-gray-50 flex items-center justify-between shrink-0">
-        <div className="font-semibold text-black flex items-center gap-2">
-          <Settings className="w-4 h-4" />
-          Node Properties
+      <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+        <div className="font-bold text-xs text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+          <Settings className="w-4 h-4 text-indigo-500" />
+          Configure Node
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-          <X className="w-5 h-5" />
+        <button onClick={onClose} className="p-1 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+          <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Node Metadata (Label & Color) */}
-      <div className="p-4 border-b space-y-3 shrink-0 bg-white shadow-sm">
-        <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-            Node Label
+      <div className="p-4 border-b border-slate-100 bg-slate-50/20 space-y-4 shrink-0 shadow-sm">
+        <div className="space-y-1.5">
+          <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest">
+            Node Label / Display Name
           </label>
           <input
             type="text"
@@ -855,71 +863,56 @@ export default function PropertiesPanel({
               });
             }}
             placeholder="e.g. LLM Node"
-            className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white text-black focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+            className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all font-medium"
           />
-        </div>
-        <div className="flex gap-2 items-center">
-          <div className="flex-1">
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-              Node Color
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={String(selectedNode ? (selectedNode.data as any).color || '#10b981' : '#10b981')}
-                onChange={(e) => {
-                  if (!selectedNode) return;
-                  onUpdateNode(selectedNode.id, {
-                    ...(selectedNode.data as any),
-                    color: e.target.value,
-                  });
-                }}
-                className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200 p-0"
-              />
-              <span className="text-xs font-mono text-gray-500 uppercase">
-                {String(selectedNode ? (selectedNode.data as any).color || '#10b981' : '#10b981')}
-              </span>
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex border-b text-xs font-semibold uppercase tracking-wider text-gray-500">
+      <div className="flex border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-500 shrink-0">
         <button
           onClick={() => setViewMode('config')}
-          className={`flex-1 py-3 text-center transition-colors ${viewMode === 'config' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'bg-gray-50 hover:bg-gray-100'}`}
+          className={`flex-1 py-3 text-center transition-all cursor-pointer ${
+            viewMode === 'config'
+              ? 'bg-white text-indigo-650 border-b-2 border-indigo-600 font-bold'
+              : 'bg-slate-50/50 hover:bg-slate-50 hover:text-slate-700'
+          }`}
         >
-          Config
+          Properties
         </button>
         <button
           onClick={() => setViewMode('contract')}
-          className={`flex-1 py-3 text-center transition-colors ${viewMode === 'contract' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'bg-gray-50 hover:bg-gray-100'}`}
+          className={`flex-1 py-3 text-center transition-all cursor-pointer ${
+            viewMode === 'contract'
+              ? 'bg-white text-indigo-650 border-b-2 border-indigo-600 font-bold'
+              : 'bg-slate-50/50 hover:bg-slate-50 hover:text-slate-700'
+          }`}
         >
-          Data Contract
+          Data Schema
         </button>
       </div>
 
-          <div className="flex-1 overflow-auto p-5 space-y-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6">
         {(() => {
           if (viewMode === 'contract') {
             return (
-              <div className="space-y-6">
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Input Contract</label>
-                  <pre className="mt-2 p-3 bg-gray-900 text-green-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
+              <div className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-slate-450 uppercase tracking-widest">Input Structure</label>
+                  <pre className="p-3 bg-slate-905 text-indigo-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
                     {JSON.stringify(inputContract || {}, null, 2)}
                   </pre>
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Output Contract</label>
-                  <pre className="mt-2 p-3 bg-gray-900 text-blue-400 text-[10px] rounded-lg overflow-x-auto font-mono border border-gray-800 shadow-inner">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold text-slate-450 uppercase tracking-widest">Output Structure</label>
+                  <pre className="p-3 bg-slate-905 text-emerald-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
                     {JSON.stringify(outputContract || {}, null, 2)}
                   </pre>
                 </div>
-                <p className="text-[10px] text-gray-400 italic leading-relaxed">
-                  Mapping can be achieved by referencing upstream nodes in your config using
-                  <code className="bg-gray-100 px-1 rounded">{'{{ node_id.output_key }}'}</code>.
+                <p className="text-[10px] text-slate-450 leading-relaxed italic bg-indigo-50/40 p-3 rounded-xl border border-indigo-50">
+                  Inject data values dynamically from upstream nodes using 
+                  <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[9px] font-mono text-indigo-700 mx-1 font-bold">{"{{ node_id.output_key }}"}</code> 
+                  syntax in text parameters.
                 </p>
               </div>
             );
@@ -932,16 +925,11 @@ export default function PropertiesPanel({
           };
 
           const entries = Object.entries(properties);
-
           const systemEntries = Object.entries(systemProperties);
 
           return (
-            <div className="space-y-6">
+            <div className="space-y-5">
               <div className="space-y-4">
-                <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Properties</span>
-                </div>
-
                 {entries.length > 0 ? (
                   <div className="space-y-4">
                     {entries.map(([key, value]) => {
@@ -952,14 +940,14 @@ export default function PropertiesPanel({
                         return (
                           <label
                             key={key}
-                            className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-black cursor-pointer shadow-sm hover:border-gray-300 transition-all"
+                            className="flex items-center justify-between gap-3 rounded-xl border border-slate-150 bg-slate-50/30 px-3.5 py-2.5 text-xs text-slate-700 cursor-pointer shadow-sm hover:border-slate-250 transition-all hover:bg-slate-50"
                           >
-                            <span className="font-semibold text-gray-700">{label}</span>
+                            <span className="font-semibold text-slate-650">{label}</span>
                             <input
                               type="checkbox"
                               checked={Boolean(value)}
                               onChange={(e) => handlePropertyChange(key, e.target.checked)}
-                              className="h-4 w-4 accent-blue-600"
+                              className="h-4 w-4 accent-indigo-600 rounded cursor-pointer"
                             />
                           </label>
                         );
@@ -968,7 +956,7 @@ export default function PropertiesPanel({
                       if (valueType === 'number') {
                         return (
                           <div key={key} className="space-y-1.5">
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-widest">
                               {label}
                             </label>
                             <input
@@ -976,8 +964,50 @@ export default function PropertiesPanel({
                               value={Number(value ?? 0)}
                               onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
                               placeholder="Value"
-                              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500 shadow-sm"
+                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none transition-all shadow-inner-sm"
                             />
+                          </div>
+                        );
+                      }
+
+                      if (key.toLowerCase() === 'mapping_template') {
+                        let currentMapping: Record<string, string> = {};
+                        try {
+                          currentMapping = typeof value === 'string' ? JSON.parse(value) : value || {};
+                        } catch {
+                          currentMapping = {};
+                        }
+
+                        return (
+                          <div key={key} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-widest">
+                                {label}
+                              </label>
+                              {onOpenMapper && (
+                                <button
+                                  type="button"
+                                  onClick={onOpenMapper}
+                                  className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-850 transition-colors cursor-pointer bg-transparent border-0 p-0"
+                                >
+                                  <ArrowRightLeft className="w-3 h-3" />
+                                  Modify Mapping
+                                </button>
+                              )}
+                            </div>
+                            
+                            <div className="text-[10px] text-slate-650 bg-slate-50 border border-slate-150 rounded-xl p-3.5 space-y-1.5 font-mono max-h-32 overflow-y-auto custom-scrollbar shadow-inner-sm">
+                              {Object.keys(currentMapping).length > 0 ? (
+                                Object.entries(currentMapping).map(([tgt, src]) => (
+                                  <div key={tgt} className="truncate flex items-center justify-between gap-1.5 border-b border-slate-100/50 pb-1 last:border-0 last:pb-0">
+                                    <span className="text-indigo-650 font-semibold">{tgt}</span>
+                                    <span className="text-slate-450 font-normal truncate">&larr; {String(src)}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <p className="text-[10px] text-slate-450 italic font-sans py-1 text-center">No fields mapped yet. Click Modify Mapping to configure.</p>
+                              )}
+                            </div>
                           </div>
                         );
                       }
@@ -987,24 +1017,24 @@ export default function PropertiesPanel({
 
                       return (
                         <div key={key} className="space-y-1.5">
-                          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-widest">
                             {label}
                           </label>
                           {isMultiline ? (
                             <textarea
                               value={String(value ?? '')}
                               onChange={(e) => handlePropertyChange(key, e.target.value)}
-                              placeholder="Value"
+                              placeholder="Enter text/variables..."
                               rows={3}
-                              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm font-mono bg-white text-black focus:outline-none focus:border-blue-500 resize-y shadow-sm"
+                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20"
                             />
                           ) : (
                             <input
                               type={key.toLowerCase().includes('password') || key.toLowerCase().includes('secret') ? 'password' : 'text'}
                               value={String(value ?? '')}
                               onChange={(e) => handlePropertyChange(key, e.target.value)}
-                              placeholder="Value"
-                              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500 shadow-sm"
+                              placeholder="Enter value..."
+                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm"
                             />
                           )}
                         </div>
@@ -1012,50 +1042,50 @@ export default function PropertiesPanel({
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
-                    <p className="text-xs">No properties defined.</p>
+                  <div className="text-center py-8 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                    <p className="text-xs italic">No configurable parameters.</p>
                   </div>
                 )}
               </div>
 
               {systemEntries.length > 0 && (
-                <div className="space-y-3 pt-2">
-                  <div className="flex justify-between items-center border-b pb-2">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5 text-gray-400" />
-                      System Configuration
+                <div className="space-y-3 pt-3 border-t border-slate-100">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      Runtime System
                     </span>
-                    <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 tracking-wider">
+                    <span className="text-[8px] font-bold text-slate-450 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-150 tracking-wide uppercase shrink-0">
                       READ ONLY
                     </span>
                   </div>
 
-                  <div className="bg-gray-50/75 rounded-xl p-3.5 border border-gray-200/60 space-y-2.5 shadow-sm">
+                  <div className="bg-slate-50/75 rounded-xl p-3 border border-slate-150 space-y-2.5 shadow-sm">
                     {systemEntries.map(([key, value]) => {
                       const label = formatLabel(key);
                       const isCopied = copiedKey === key;
                       return (
                         <div
                           key={key}
-                          className="flex justify-between items-center py-0.5 group/row"
+                          className="flex justify-between items-center gap-2 py-0.5 group/row"
                         >
-                          <span className="font-semibold text-xs text-gray-500">
+                          <span className="font-semibold text-[10px] text-slate-500 truncate">
                             {label}
                           </span>
-                          <div className="flex items-center gap-1.5 max-w-[65%]">
-                            <span className="font-mono text-xs text-gray-700 bg-white border border-gray-200/80 px-2.5 py-1 rounded-lg shadow-sm break-all">
+                          <div className="flex items-center gap-1.5 max-w-[70%]">
+                            <span className="font-mono text-[10px] text-slate-700 bg-white border border-slate-150 px-2 py-0.5 rounded shadow-inner-sm truncate" title={String(value ?? '')}>
                               {String(value ?? '')}
                             </span>
                             <button
                               type="button"
                               onClick={() => handleCopy(key, value)}
-                              className="p-1.5 hover:bg-gray-200/70 rounded-md transition-colors shrink-0 opacity-0 group-hover/row:opacity-100 focus:opacity-100 text-gray-400 hover:text-gray-600"
+                              className="p-1 hover:bg-slate-150 rounded transition-colors shrink-0 opacity-0 group-hover/row:opacity-100 focus:opacity-100 text-slate-400 hover:text-slate-650 cursor-pointer"
                               title="Copy to clipboard"
                             >
                               {isCopied ? (
-                                <Check className="w-3.5 h-3.5 text-green-600" />
+                                <Check className="w-3 h-3 text-emerald-600 font-bold" />
                               ) : (
-                                <Copy className="w-3.5 h-3.5" />
+                                <Copy className="w-3 h-3" />
                               )}
                             </button>
                           </div>
@@ -1072,14 +1102,14 @@ export default function PropertiesPanel({
 
       {/* Footer - Save & Delete Buttons */}
       {(onSave || selectedNode) && (
-        <div className="p-4 border-t bg-gray-50 shrink-0 flex flex-col gap-2">
+        <div className="p-4 border-t border-slate-100 bg-slate-50/30 shrink-0 flex flex-col gap-2">
           <button
             onClick={handleSaveInstanceProperties}
             disabled={isSaving}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg text-sm font-medium text-white transition-colors shadow-sm"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-750 disabled:bg-indigo-400 rounded-xl text-xs font-bold text-white shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
           >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {isSaving ? 'Saving...' : 'Save Properties'}
+            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {isSaving ? 'Saving...' : 'Save Parameters'}
           </button>
           {onDeleteNode && selectedNode && (
             <button
@@ -1092,9 +1122,9 @@ export default function PropertiesPanel({
                   onDeleteNode(selectedNode.id);
                 }
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-rose-200 hover:border-rose-350 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
               Delete Node
             </button>
           )}

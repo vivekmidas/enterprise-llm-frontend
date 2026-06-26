@@ -218,6 +218,69 @@ export const api = {
     return res.json();
   },
 
+  createUser: async (user: any) => {
+    const res = await fetch(`${BACKEND_URL}/admin/users`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(user),
+    });
+    return res.json();
+  },
+
+  getCustomers: async () => {
+    const res = await fetch(`${BACKEND_URL}/admin/customers`, { headers: getHeaders() });
+    return res.json();
+  },
+
+  createCustomer: async (customer: any) => {
+    const res = await fetch(`${BACKEND_URL}/admin/customers`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(customer),
+    });
+    return res.json();
+  },
+
+  updateCustomer: async (id: number, customer: any) => {
+    const res = await fetch(`${BACKEND_URL}/admin/customers/${id}`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(customer),
+    });
+    return res.json();
+  },
+
+  deleteCustomer: async (id: number) => {
+    const res = await fetch(`${BACKEND_URL}/admin/customers/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return res.ok;
+  },
+
+  createCustomerUser: async (customerId: number, user: any) => {
+    const res = await fetch(`${BACKEND_URL}/admin/customers/${customerId}/users`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(user),
+    });
+    return res.json();
+  },
+
+  getCustomerNodesAdmin: async (customerId: number) => {
+    const res = await fetch(`${BACKEND_URL}/admin/customers/${customerId}/nodes`, { headers: getHeaders() });
+    return res.json();
+  },
+
+  configureCustomerNodesAdmin: async (customerId: number, nodes: any[]) => {
+    const res = await fetch(`${BACKEND_URL}/admin/customers/${customerId}/nodes`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ nodes }),
+    });
+    return res.json();
+  },
+
   // Admin Trigger Management
   getTriggerInstances: async (): Promise<any[]> => {
     const res = await fetch(`${BACKEND_URL}/admin/triggers`, { headers: getHeaders() });
@@ -288,6 +351,20 @@ export const api = {
     const res = await fetch(`${BACKEND_URL}/admin/oauth/providers`, {
       method: 'POST',
       body: JSON.stringify(provider),
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+    });
+    return res.json();
+  },
+
+  getCustomerNodeConfigs: async () => {
+    const res = await fetch(`${BACKEND_URL}/nodes/customer/config`, { headers: getHeaders() });
+    return res.json();
+  },
+
+  configureCustomerNode: async (nodeName: string, config: any) => {
+    const res = await fetch(`${BACKEND_URL}/nodes/customer/config/${nodeName}`, {
+      method: 'PUT',
+      body: JSON.stringify(config),
       headers: getHeaders({ 'Content-Type': 'application/json' }),
     });
     return res.json();

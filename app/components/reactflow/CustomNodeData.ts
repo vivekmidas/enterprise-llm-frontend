@@ -11,6 +11,8 @@ export type CustomNodeData = {
   sub_label: string;
   icon?: string | React.ReactNode;
   variant?: 'start' | 'detector' | 'agent';
+  executionStatus?: 'idle' | 'running' | 'success' | 'error';
+  description?: string;
 };
 
 // ✅ Use this for your nodes array

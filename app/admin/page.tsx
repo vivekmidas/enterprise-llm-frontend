@@ -18,6 +18,7 @@ type PropertyEntry = {
   value?: any;
   default?: any;
   multiple?: boolean;
+  description?: string;
 };
 
 type PropertyRow = PropertyEntry & {
@@ -314,11 +315,42 @@ export default function AdminPage() {
 
   const [editingCategory, setEditingCategory] = useState<NodeCategory | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'nodes' | 'workflows' | 'users' | 'oauth' | 'logs'>(
+  const [activeTab, setActiveTab] = useState<'nodes' | 'workflows' | 'users' | 'oauth' | 'logs' | 'customers'>(
     'nodes',
   );
   const [users, setUsers] = useState<any[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [newCustomerDomain, setNewCustomerDomain] = useState('');
+  const [newCustomerIcon, setNewCustomerIcon] = useState('Building');
+  const [newCustomerColor, setNewCustomerColor] = useState('#2563eb');
+
+  // Customer Node Scoping States
+  const [selectedCustomerForNodes, setSelectedCustomerForNodes] = useState<any | null>(null);
+  const [showNodesModal, setShowNodesModal] = useState(false);
+  const [customerNodeAssignments, setCustomerNodeAssignments] = useState<Record<string, boolean>>({});
+  const [selectedNodesForBulk, setSelectedNodesForBulk] = useState<Record<string, boolean>>({});
+  const [savingNodes, setSavingNodes] = useState(false);
+  const [customerNodeProperties, setCustomerNodeProperties] = useState<Record<string, Record<string, any>>>({});
+  const [configuringNode, setConfiguringNode] = useState<any | null>(null);
+  const [nodeSearchQuery, setNodeSearchQuery] = useState('');
+  const [nodeViewMode, setNodeViewMode] = useState<'grid' | 'list'>('grid');
+
+
+  const [showAddCustomerUserModal, setShowAddCustomerUserModal] = useState(false);
+  const [selectedCustomerIdForUser, setSelectedCustomerIdForUser] = useState<number | null>(null);
+  const [customerUserEmail, setCustomerUserEmail] = useState('');
+  const [customerUserPassword, setCustomerUserPassword] = useState('');
+  const [customerUserName, setCustomerUserName] = useState('');
+
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'admin' | 'user'>('user');
   const [isRegistering, setIsRegistering] = useState(false);
   const [providers, setProviders] = useState<any[]>([]);
   const [workflows, setWorkflows] = useState<any[]>([]);
@@ -353,7 +385,7 @@ export default function AdminPage() {
     const role = localStorage.getItem('user_role');
 
     if (token) {
-      if (role !== 'admin') {
+      if (role !== 'admin' && role !== 'system_admin') {
         router.push('/workflow-builder');
         return;
       }
@@ -361,19 +393,34 @@ export default function AdminPage() {
       setUserRole(localStorage.getItem('user_role'));
       setUserEmail(localStorage.getItem('user_email'));
       setUserId(localStorage.getItem('user_id'));
+      setCustomerId(localStorage.getItem('customer_id') || null);
     }
 
     async function loadAdminData() {
       try {
-        const [agentsRes, catsRes, providersRes, workflowsRes, usersRes] = await Promise.all([
+        const roleCustomerId = localStorage.getItem('customer_id');
+        setCustomerId(roleCustomerId || null);
+
+        const promises: Promise<any>[] = [
           api.getNodes(),
           api.getNodesCategories(),
           api.getProviders(),
           api.getSavedAgents(),
           api.getUsers().catch(() => []),
-        ]);
+        ];
 
-        // The backend returns { "nodes": [...] } for /nodes and { "categories": [...] } for /nodes/categories
+        if (!roleCustomerId) {
+          promises.push(api.getCustomers().catch(() => []));
+        }
+
+        const resolved = await Promise.all(promises);
+        const agentsRes = resolved[0];
+        const catsRes = resolved[1];
+        const providersRes = resolved[2];
+        const workflowsRes = resolved[3];
+        const usersRes = resolved[4];
+        const customersRes = !roleCustomerId ? resolved[5] : [];
+
         setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
 
         const cats = Array.isArray(catsRes) ? catsRes : catsRes.categories || [];
@@ -389,6 +436,9 @@ export default function AdminPage() {
         setProviders(providersRes || []);
         setWorkflows(workflowsRes || []);
         setUsers(usersRes || []);
+        if (!roleCustomerId) {
+          setCustomers(customersRes || []);
+        }
       } catch (error) {
         console.error('Failed to load admin data:', error);
       } finally {
@@ -421,13 +471,14 @@ export default function AdminPage() {
         localStorage.setItem('admin_token', data.token);
         localStorage.setItem('user_role', data.role);
         localStorage.setItem('user_email', loginEmail);
+        localStorage.setItem('customer_id', data.customer_id !== null && data.customer_id !== undefined ? String(data.customer_id) : '');
 
-        // Set the cookie for the middleware
         document.cookie = `admin_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 
-        if (data.role === 'admin') {
+        if (data.role === 'admin' || data.role === 'system_admin') {
           setUserRole(data.role);
           setUserEmail(loginEmail);
+          setCustomerId(data.customer_id !== null && data.customer_id !== undefined ? String(data.customer_id) : null);
           setIsAuthenticated(true);
         } else {
           router.push('/workflow-builder');
@@ -437,6 +488,203 @@ export default function AdminPage() {
       alert('Authentication failed. Check your credentials.');
     }
   };
+
+  const handleSaveCustomerConfig = async () => {
+    if (!editingAgent) return;
+    try {
+      const overrides: Record<string, any> = {};
+      const userProps = propertyEntriesFromValue(editingAgent.user_properties);
+      const sysProps = propertyEntriesFromValue(editingAgent.system_properties);
+      [...userProps, ...sysProps].forEach((entry: any) => {
+        if (entry.key) {
+          overrides[entry.key] = entry.value !== undefined ? entry.value : entry.default;
+        }
+      });
+
+      await api.configureCustomerNode(editingAgent.name, {
+        properties: overrides,
+        is_enabled: editingAgent.is_enabled !== undefined ? editingAgent.is_enabled : true,
+      });
+
+      alert('Node configuration saved successfully!');
+      const agentsRes = await api.getNodes();
+      setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
+      setEditingAgent(null);
+    } catch (error: any) {
+      console.error('Failed to save customer node config:', error);
+      alert('Failed to save customer node config: ' + error.message);
+    }
+  };
+
+  const handleAddCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.createCustomer({
+        name: newCustomerName,
+        domain: newCustomerDomain,
+        icon: newCustomerIcon,
+        color_schema: newCustomerColor,
+      });
+      alert('Customer created successfully!');
+      setShowAddCustomerModal(false);
+      setNewCustomerName('');
+      setNewCustomerDomain('');
+      const custs = await api.getCustomers().catch(() => []);
+      setCustomers(custs || []);
+    } catch (err: any) {
+      alert('Failed to create customer: ' + err.message);
+    }
+  };
+
+  const handleAddCustomerUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedCustomerIdForUser === null) return;
+    try {
+      await api.createCustomerUser(selectedCustomerIdForUser, {
+        name: customerUserName,
+        email: customerUserEmail,
+        password: customerUserPassword,
+        role: 'admin',
+      });
+      alert('Admin user onboarded successfully!');
+      setShowAddCustomerUserModal(false);
+      setCustomerUserName('');
+      setCustomerUserEmail('');
+      setCustomerUserPassword('');
+    } catch (err: any) {
+      alert('Failed to add admin user: ' + err.message);
+    }
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.createUser({
+        name: newUserName,
+        email: newUserEmail,
+        password: newUserPassword,
+        role: newUserRole,
+      });
+      alert('User added successfully!');
+      setShowAddUserModal(false);
+      setNewUserName('');
+      setNewUserEmail('');
+      setNewUserPassword('');
+      const usrs = await api.getUsers().catch(() => []);
+      setUsers(usrs || []);
+    } catch (err: any) {
+      alert('Failed to add user: ' + err.message);
+    }
+  };
+
+  const handleDeleteCustomer = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this customer? This will also delete all of their users.')) return;
+    try {
+      await api.deleteCustomer(id);
+      alert('Customer deleted successfully!');
+      const custs = await api.getCustomers().catch(() => []);
+      setCustomers(custs || []);
+    } catch (err: any) {
+      alert('Failed to delete customer: ' + err.message);
+    }
+  };
+
+  const handleManageCustomerNodes = async (customer: any) => {
+    setSelectedCustomerForNodes(customer);
+    setCustomerNodeAssignments({});
+    setSelectedNodesForBulk({});
+    setCustomerNodeProperties({});
+    setConfiguringNode(null);
+    setNodeSearchQuery('');
+    try {
+      const res = await api.getCustomerNodesAdmin(customer.id);
+      const assignments: Record<string, boolean> = {};
+      const properties: Record<string, Record<string, any>> = {};
+      if (res && res.configs) {
+        res.configs.forEach((c: any) => {
+          assignments[c.node_name] = c.is_enabled;
+          properties[c.node_name] = c.properties || {};
+        });
+      }
+      setCustomerNodeAssignments(assignments);
+      setCustomerNodeProperties(properties);
+      setShowNodesModal(true);
+    } catch (err: any) {
+      alert('Failed to load customer node configurations: ' + err.message);
+    }
+  };
+
+  const handleSaveCustomerNodes = async () => {
+    if (!selectedCustomerForNodes) return;
+    setSavingNodes(true);
+    try {
+      const nodesPayload = agents.map((agent: any) => {
+        const nodeName = agent.name;
+        const is_enabled = !!customerNodeAssignments[nodeName];
+        const properties = customerNodeProperties[nodeName] || {};
+        return {
+          node_name: nodeName,
+          is_enabled: is_enabled,
+          properties: properties,
+        };
+      });
+
+      await api.configureCustomerNodesAdmin(selectedCustomerForNodes.id, nodesPayload);
+      alert('Node assignments updated successfully!');
+      setShowNodesModal(false);
+    } catch (err: any) {
+      alert('Failed to save assignments: ' + err.message);
+    } finally {
+      setSavingNodes(false);
+    }
+  };
+
+  const handleToggleSingleAssignment = (nodeName: string) => {
+    setCustomerNodeAssignments((prev) => ({
+      ...prev,
+      [nodeName]: !prev[nodeName],
+    }));
+  };
+
+  const handleBulkToggle = (enable: boolean) => {
+    const nextAssignments = { ...customerNodeAssignments };
+    Object.keys(selectedNodesForBulk).forEach((nodeName) => {
+      if (selectedNodesForBulk[nodeName]) {
+        nextAssignments[nodeName] = enable;
+      }
+    });
+    setCustomerNodeAssignments(nextAssignments);
+    setSelectedNodesForBulk({});
+  };
+
+  const handleSelectAllForBulk = () => {
+    const nextBulk: Record<string, boolean> = {};
+    agents.forEach((agent: any) => {
+      nextBulk[agent.name] = true;
+    });
+    setSelectedNodesForBulk(nextBulk);
+  };
+
+  const handleDeselectAllForBulk = () => {
+    setSelectedNodesForBulk({});
+  };
+
+  const handleBulkEnableAll = () => {
+    const nextAssignments: Record<string, boolean> = {};
+    agents.forEach((agent: any) => {
+      nextAssignments[agent.name] = true;
+    });
+    setCustomerNodeAssignments(nextAssignments);
+  };
+
+  const handleBulkDisableAll = () => {
+    const nextAssignments: Record<string, boolean> = {};
+    agents.forEach((agent: any) => {
+      nextAssignments[agent.name] = false;
+    });
+    setCustomerNodeAssignments(nextAssignments);
+  };
+
 
   const handleToggleWorkflow = async (id: string) => {
     await api.toggleWorkflowStatus(id);
@@ -876,10 +1124,91 @@ export default function AdminPage() {
       );
     }
 
+  };
+
+  const renderCustomerPropertyInput = (entry: any, val: any, nodeName: string) => {
+    const handleValChange = (v: any) => {
+      setCustomerNodeProperties((prev) => ({
+        ...prev,
+        [nodeName]: {
+          ...(prev[nodeName] || {}),
+          [entry.key]: v,
+        },
+      }));
+    };
+    const commonClasses =
+      'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
+
+    if (entry.type === 'password' || entry.type?.toLowerCase().includes('secret') || entry.type?.toLowerCase().includes('key')) {
+      return (
+        <input
+          type="password"
+          className={commonClasses}
+          value={String(val ?? '')}
+          placeholder="••••••••"
+          autoComplete="new-password"
+          onChange={(e) => handleValChange(e.target.value)}
+        />
+      );
+    }
+
+    if (entry.type === 'boolean') {
+      return (
+        <select
+          className={commonClasses}
+          value={String(val ?? false)}
+          onChange={(e) => handleValChange(e.target.value === 'true')}
+        >
+          <option value="true">True</option>
+          <option value="false">False</option>
+        </select>
+      );
+    }
+
+    if (entry.type === 'number') {
+      return (
+        <input
+          type="number"
+          className={commonClasses}
+          value={val ?? 0}
+          onChange={(e) => handleValChange(Number(e.target.value))}
+        />
+      );
+    }
+
+    if (entry.type === 'textarea') {
+      return (
+        <textarea
+          className={`${commonClasses} min-h-[60px] resize-y`}
+          value={String(val ?? '')}
+          placeholder="Enter content..."
+          onChange={(e) => handleValChange(e.target.value)}
+        />
+      );
+    }
+
+    if (entry.multiple || entry.type === 'list') {
+      return (
+        <input
+          className={commonClasses}
+          value={Array.isArray(val) ? val.join(', ') : String(val ?? '')}
+          placeholder="val1, val2, val3..."
+          onChange={(e) =>
+            handleValChange(
+              e.target.value
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+            )
+          }
+        />
+      );
+    }
+
     return (
       <input
-        className={`${commonClasses} text-black`}
-        value={typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')}
+        className={commonClasses}
+        value={typeof val === 'object' ? JSON.stringify(val) : String(val ?? '')}
         placeholder="Enter value..."
         onChange={(e) => handleValChange(e.target.value)}
       />
@@ -993,7 +1322,15 @@ export default function AdminPage() {
         </header>
 
         <div className="flex border-b border-gray-200">
-          {userRole === 'admin' && (
+          {!customerId && (userRole === 'admin' || userRole === 'system_admin') && (
+            <button
+              onClick={() => setActiveTab('customers')}
+              className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'customers' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Customer Management
+            </button>
+          )}
+          {(userRole === 'admin' || userRole === 'system_admin') && (
             <button
               onClick={() => setActiveTab('nodes')}
               className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'nodes' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
@@ -1007,7 +1344,7 @@ export default function AdminPage() {
           >
             Workflow Management
           </button>
-          {userRole === 'admin' && (
+          {(userRole === 'admin' || userRole === 'system_admin') && (
             <>
               <button
                 onClick={() => setActiveTab('users')}
@@ -1165,32 +1502,34 @@ export default function AdminPage() {
                     </select>
                   </div>
 
-                  <button
-                    onClick={() =>
-                      setEditingAgent({
-                        name: '',
-                        label: '',
-                        description: '',
-                        node_type: 'default',
-                        version: '1.0.0',
-                        category: categories[0]?.id?.toString() || '',
-                        group: '',
-                        icon: 'bot',
-                        color: '#5E0CEC',
-                        badge: 'Node',
-                        sub_label: '',
+                  {!customerId && (
+                    <button
+                      onClick={() =>
+                        setEditingAgent({
+                          name: '',
+                          label: '',
+                          description: '',
+                          node_type: 'default',
+                          version: '1.0.0',
+                          category: categories[0]?.id?.toString() || '',
+                          group: '',
+                          icon: 'bot',
+                          color: '#5E0CEC',
+                          badge: 'Node',
+                          sub_label: '',
 
-                        system_properties: [],
-                        user_properties: [],
+                          system_properties: [],
+                          user_properties: [],
 
-                        input_contract: { version: '1.0', rules: [], additional_fields: true },
-                        output_contract: {},
-                      })
-                    }
-                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
-                  >
-                    <IconMap.plus className="h-4 w-4" /> Add New Node
-                  </button>
+                          input_contract: { version: '1.0', rules: [], additional_fields: true },
+                          output_contract: {},
+                        })
+                      }
+                      className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                    >
+                      <IconMap.plus className="h-4 w-4" /> Add New Node
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -1372,21 +1711,56 @@ export default function AdminPage() {
 
                           {/* Actions */}
                           <td className="px-4 py-3 text-right min-w-[100px]">
-                            <div className="flex items-center justify-end gap-1">
+                            <div className="flex items-center justify-end gap-2">
+                              {customerId && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const overrides: Record<string, any> = {};
+                                      const userProps = propertyEntriesFromValue(agent.user_properties);
+                                      const sysProps = propertyEntriesFromValue(agent.system_properties);
+                                      [...userProps, ...sysProps].forEach((entry: any) => {
+                                        if (entry.key) {
+                                          overrides[entry.key] = entry.value !== undefined ? entry.value : entry.default;
+                                        }
+                                      });
+                                      const newEnabledState = !(agent.is_enabled !== false);
+                                      await api.configureCustomerNode(agent.name, {
+                                        properties: overrides,
+                                        is_enabled: newEnabledState,
+                                      });
+                                      const agentsRes = await api.getNodes();
+                                      setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
+                                    } catch (err: any) {
+                                      alert('Failed to toggle status: ' + err.message);
+                                    }
+                                  }}
+                                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
+                                    agent.is_enabled !== false
+                                      ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                      : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                                  }`}
+                                  title={agent.is_enabled !== false ? 'Click to Disable' : 'Click to Enable'}
+                                >
+                                  {agent.is_enabled !== false ? 'Enabled' : 'Disabled'}
+                                </button>
+                              )}
                               <button
                                 onClick={() => setEditingAgent({ ...agent })}
                                 className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                                title="Edit Node Type"
+                                title={customerId ? 'Edit Customer Overrides' : 'Edit Node Type'}
                               >
                                 <IconMap.edit2 className="h-4 w-4" />
                               </button>
-                              <button
-                                onClick={() => handleDeleteNode(agent.name)}
-                                className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                title="Delete Node Type"
-                              >
-                                <IconMap.trash2 className="h-4 w-4" />
-                              </button>
+                              {!customerId && (
+                                <button
+                                  onClick={() => handleDeleteNode(agent.name)}
+                                  className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                  title="Delete Node Type"
+                                >
+                                  <IconMap.trash2 className="h-4 w-4" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1428,7 +1802,7 @@ export default function AdminPage() {
                         {wf.is_enabled !== false ? 'Active' : 'Disabled'}
                       </span>
                       <div className="flex gap-1">
-                        {userRole === 'admin' && (
+                        {(userRole === 'admin' || userRole === 'system_admin') && (
                           <button
                             onClick={() => handleToggleWorkflow(wf.id)}
                             className={`p-1 rounded transition-colors ${wf.is_enabled !== false ? 'text-gray-400 hover:text-red-500' : 'text-gray-400 hover:text-green-500'}`}
@@ -1437,7 +1811,7 @@ export default function AdminPage() {
                             <IconMap.power className="h-4 w-4" />
                           </button>
                         )}
-                        {userRole !== 'admin' && (
+                        {userRole !== 'admin' && userRole !== 'system_admin' && (
                           <button
                             onClick={() => handleDeleteWorkflow(wf.id)}
                             className="p-1 text-gray-400 hover:text-red-600 transition-colors"
@@ -1481,6 +1855,80 @@ export default function AdminPage() {
               )}
             </div>
           </section>
+        ) : activeTab === 'customers' ? (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <IconMap.users className="h-5 w-5 text-gray-400" />
+                <h2 className="text-xl font-semibold text-black">Customer Management</h2>
+              </div>
+              <button
+                onClick={() => setShowAddCustomerModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+              >
+                <IconMap.plus className="h-4 w-4" /> Add Customer
+              </button>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Name</th>
+                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Domain</th>
+                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Status</th>
+                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {customers.map((c, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm text-black font-medium flex items-center gap-3">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.color_schema || '#2563eb' }}></span>
+                        {c.name}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{c.domain}</td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${c.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                          {c.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm flex gap-3">
+                        <button
+                          onClick={() => {
+                            setSelectedCustomerIdForUser(c.id);
+                            setShowAddCustomerUserModal(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 font-semibold"
+                        >
+                          Add Admin User
+                        </button>
+                        <button
+                          onClick={() => handleManageCustomerNodes(c)}
+                          className="text-indigo-600 hover:text-indigo-800 font-semibold"
+                        >
+                          Manage Nodes
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCustomer(c.id)}
+                          className="text-red-600 hover:text-red-800 font-semibold"
+                        >
+                          Delete
+                        </button>
+                      </td>
+
+                    </tr>
+                  ))}
+                  {customers.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-12 text-center text-gray-500 text-sm">
+                        No customers configured. Click "Add Customer" to configure the first tenant.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
         ) : activeTab === 'users' ? (
           <section className="space-y-4">
             <div className="flex items-center justify-between">
@@ -1488,7 +1936,10 @@ export default function AdminPage() {
                 <IconMap.users className="h-5 w-5 text-gray-400" />
                 <h2 className="text-xl font-semibold text-black">User Management</h2>
               </div>
-              <button className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all opacity-50 cursor-not-allowed">
+              <button
+                onClick={() => setShowAddUserModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+              >
                 <IconMap.plus className="h-4 w-4" /> Add User
               </button>
             </div>
@@ -1511,7 +1962,7 @@ export default function AdminPage() {
                       <td className="px-6 py-4 text-sm text-gray-600">{u.email_id}</td>
                       <td className="px-6 py-4">
                         <span
-                          className={`px-2 py-1 rounded text-xs font-bold uppercase ${u.role === 'admin' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}
+                          className={`px-2 py-1 rounded text-xs font-bold uppercase ${u.role === 'admin' || u.role === 'system_admin' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}
                         >
                           {u.role}
                         </span>
@@ -1732,6 +2183,650 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Add Customer Modal */}
+        {showAddCustomerModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
+              <h3 className="text-xl font-bold text-black mb-4">Add Customer Tenant</h3>
+              <form onSubmit={handleAddCustomer} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Customer Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newCustomerName}
+                    onChange={(e) => setNewCustomerName(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                    placeholder="e.g. Acme Corp"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Domain Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newCustomerDomain}
+                    onChange={(e) => setNewCustomerDomain(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                    placeholder="e.g. acme.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Color Schema (Hex)</label>
+                  <input
+                    type="text"
+                    required
+                    value={newCustomerColor}
+                    onChange={(e) => setNewCustomerColor(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                    placeholder="e.g. #2563eb"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCustomerModal(false)}
+                    className="px-4 py-2 text-sm font-semibold text-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all"
+                  >
+                    Create Customer
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Customer User Modal */}
+        {showAddCustomerUserModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
+              <h3 className="text-xl font-bold text-black mb-4">Onboard Customer Admin User</h3>
+              <form onSubmit={handleAddCustomerUser} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Admin Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={customerUserName}
+                    onChange={(e) => setCustomerUserName(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                    placeholder="e.g. John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Admin Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={customerUserEmail}
+                    onChange={(e) => setCustomerUserEmail(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                    placeholder="e.g. admin@acme.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Temporary Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={customerUserPassword}
+                    onChange={(e) => setCustomerUserPassword(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCustomerUserModal(false)}
+                    className="px-4 py-2 text-sm font-semibold text-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all"
+                  >
+                    Onboard Admin
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Company User Modal */}
+        {showAddUserModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
+              <h3 className="text-xl font-bold text-black mb-4">Add Company User</h3>
+              <form onSubmit={handleAddUser} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                    placeholder="e.g. Jane Smith"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                    placeholder="e.g. jane@acme.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Role</label>
+                  <select
+                    value={newUserRole}
+                    onChange={(e) => setNewUserRole(e.target.value as 'admin' | 'user')}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                  >
+                    <option value="user">User (can build workflows)</option>
+                    <option value="admin">Admin (can manage users + config nodes)</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddUserModal(false)}
+                    className="px-4 py-2 text-sm font-semibold text-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all"
+                  >
+                    Add User
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Manage Customer Nodes Modal */}
+        {showNodesModal && selectedCustomerForNodes && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="flex h-[85vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
+                <div>
+                  <h3 className="text-lg font-bold text-black">
+                    Manage Customer Nodes: {selectedCustomerForNodes.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium">
+                    Assign which nodes are active for this customer, and configure specific defaults or credentials.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowNodesModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <IconMap.x className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Main Content Pane */}
+              <div className="flex-1 flex overflow-hidden">
+                {configuringNode ? (
+                  /* Designing/Configuring Single Node Sub-view */
+                  <div className="flex-1 flex flex-col h-full bg-white">
+                    <div className="border-b px-6 py-3 bg-gray-50/50 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+                        <button
+                          type="button"
+                          onClick={() => setConfiguringNode(null)}
+                          className="hover:text-blue-600 transition-colors"
+                        >
+                          Node Library
+                        </button>
+                        <span>&gt;</span>
+                        <span className="text-black">{configuringNode.label || configuringNode.name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setConfiguringNode(null)}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                      >
+                        Back to Library
+                      </button>
+                    </div>
+
+                    <div className="flex-1 flex overflow-hidden">
+                      {/* Left: Input Fields */}
+                      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        <div>
+                          <h4 className="text-md font-bold text-black flex items-center gap-2">
+                            {configuringNode.label || configuringNode.name} Overrides
+                          </h4>
+                          <p className="text-xs text-gray-500">
+                            Provide credentials or server URLs that workflows for this tenant will use.
+                          </p>
+                        </div>
+
+                        {(() => {
+                          const userProps = propertyEntriesFromValue(configuringNode.user_properties);
+                          const sysProps = propertyEntriesFromValue(configuringNode.system_properties);
+                          const allProps = [
+                            ...sysProps.map(p => ({ ...p, category: 'system' })),
+                            ...userProps.map(p => ({ ...p, category: 'user' }))
+                          ];
+
+                          if (allProps.length === 0) {
+                            return (
+                              <div className="py-8 text-center text-sm text-gray-500">
+                                This node type has no custom properties to configure.
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-5">
+                              {allProps.map((prop) => {
+                                const val = customerNodeProperties[configuringNode.name]?.[prop.key] ?? prop.value ?? prop.default ?? '';
+                                return (
+                                  <div key={prop.key} className="space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                                        {prop.label || prop.key}
+                                        <span className="text-[10px] text-gray-400 normal-case ml-2">({prop.category} property)</span>
+                                      </label>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCustomerNodeProperties(prev => {
+                                            const updated = { ...(prev[configuringNode.name] || {}) };
+                                            delete updated[prop.key];
+                                            return {
+                                              ...prev,
+                                              [configuringNode.name]: updated
+                                            };
+                                          });
+                                        }}
+                                        className="text-[10px] font-semibold text-red-500 hover:underline"
+                                      >
+                                        Reset to Global Default
+                                      </button>
+                                    </div>
+                                    {renderCustomerPropertyInput(prop, val, configuringNode.name)}
+                                    {prop.description && (
+                                      <p className="text-[11px] text-gray-500">{prop.description}</p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Right: Preview & Guide */}
+                      <div className="w-80 border-l bg-gray-50 p-6 overflow-y-auto space-y-4">
+                        <h4 className="text-xs font-bold text-gray-700 uppercase">Configuration Summary</h4>
+                        <div className="bg-gray-900 rounded-lg p-4 font-mono text-[10px] text-green-400 overflow-x-auto shadow-inner">
+                          <div className="text-gray-400 mb-1">// Active Override JSON</div>
+                          {JSON.stringify(customerNodeProperties[configuringNode.name] || {}, null, 2)}
+                        </div>
+                        <div className="text-xs text-gray-500 leading-relaxed bg-blue-50 border border-blue-100 rounded-lg p-3">
+                          <strong className="text-blue-700">How this works:</strong>
+                          <p className="mt-1">
+                            Values specified here will override global node defaults only for workflows running under this tenant account. Sensitive credentials are encrypted at rest.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Node Assignment Grid (Multiple select, search, toggle) */
+                  <div className="flex-1 flex flex-col h-full bg-white">
+                    {/* Toolbar */}
+                    <div className="border-b px-6 py-3 bg-gray-50/50 flex flex-wrap items-center justify-between gap-3">
+                      {/* Search and View Mode Switcher */}
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-72">
+                          <IconMap.search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search nodes by label or name..."
+                            value={nodeSearchQuery}
+                            onChange={(e) => setNodeSearchQuery(e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 pl-9 pr-4 py-1.5 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                          />
+                        </div>
+
+                        {/* View switcher */}
+                        <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white shadow-sm">
+                          <button
+                            type="button"
+                            onClick={() => setNodeViewMode('grid')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+                              nodeViewMode === 'grid'
+                                ? 'bg-blue-50 text-blue-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-800'
+                            }`}
+                          >
+                            Grid
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNodeViewMode('list')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+                              nodeViewMode === 'list'
+                                ? 'bg-blue-50 text-blue-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-800'
+                            }`}
+                          >
+                            List
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bulk actions */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextBulk = { ...selectedNodesForBulk };
+                            agents.forEach((agent: any) => {
+                              const query = nodeSearchQuery.toLowerCase();
+                              const matches =
+                                agent.label?.toLowerCase().includes(query) ||
+                                agent.name?.toLowerCase().includes(query) ||
+                                agent.category?.toLowerCase().includes(query);
+                              if (matches) {
+                                nextBulk[agent.name] = true;
+                              }
+                            });
+                            setSelectedNodesForBulk(nextBulk);
+                          }}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-gray-600 bg-white border rounded hover:bg-gray-50 transition-colors"
+                        >
+                          Select All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDeselectAllForBulk}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-gray-600 bg-white border rounded hover:bg-gray-50 transition-colors"
+                        >
+                          Deselect All
+                        </button>
+                        <span className="h-4 border-l border-gray-300 mx-1"></span>
+                        <button
+                          type="button"
+                          onClick={() => handleBulkToggle(true)}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition-colors"
+                          disabled={Object.values(selectedNodesForBulk).filter(Boolean).length === 0}
+                        >
+                          Enable Selected ({Object.values(selectedNodesForBulk).filter(Boolean).length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleBulkToggle(false)}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100 transition-colors"
+                          disabled={Object.values(selectedNodesForBulk).filter(Boolean).length === 0}
+                        >
+                          Disable Selected ({Object.values(selectedNodesForBulk).filter(Boolean).length})
+                        </button>
+                        <span className="h-4 border-l border-gray-300 mx-1"></span>
+                        <button
+                          type="button"
+                          onClick={handleBulkEnableAll}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 transition-colors"
+                        >
+                          Enable All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleBulkDisableAll}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 transition-colors"
+                        >
+                          Disable All
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Nodes Catalog Cards Grid / List */}
+                    <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
+                      {(() => {
+                        const filteredAgents = agents.filter((agent: any) => {
+                          const query = nodeSearchQuery.toLowerCase();
+                          return (
+                            agent.label?.toLowerCase().includes(query) ||
+                            agent.name?.toLowerCase().includes(query) ||
+                            agent.category?.toLowerCase().includes(query)
+                          );
+                        });
+
+                        if (filteredAgents.length === 0) {
+                          return (
+                            <div className="py-12 text-center text-gray-500 text-sm bg-white rounded-xl border border-dashed border-gray-200">
+                              No nodes found matching "{nodeSearchQuery}".
+                            </div>
+                          );
+                        }
+
+                        if (nodeViewMode === 'list') {
+                          return (
+                            <div className="space-y-2">
+                              {filteredAgents.map((agent: any) => {
+                                const isEnabled = !!customerNodeAssignments[agent.name];
+                                const isChecked = !!selectedNodesForBulk[agent.name];
+                                const categoryText = String(agent.category || 'general');
+                                const NodeIcon = IconMap[String(agent.icon || '').toLowerCase()] || IconMap.bot;
+
+                                return (
+                                  <div
+                                    key={agent.name}
+                                    className={`flex flex-wrap md:flex-nowrap items-center justify-between gap-4 rounded-xl border bg-white px-4 py-3 shadow-sm transition-all hover:shadow-md ${
+                                      isEnabled ? 'border-blue-100 ring-1 ring-blue-50' : 'border-gray-200'
+                                    }`}
+                                  >
+                                    {/* Left: Checkbox + Icon + Details */}
+                                    <div className="flex items-center gap-4 flex-1 min-w-[280px]">
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={(e) => {
+                                          setSelectedNodesForBulk((prev) => ({
+                                            ...prev,
+                                            [agent.name]: e.target.checked,
+                                          }));
+                                        }}
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                      />
+                                      <div className={`p-2 rounded-lg flex-shrink-0 ${isEnabled ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                                        <NodeIcon className="h-5 w-5" />
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <h4 className="text-sm font-bold text-black truncate max-w-[200px]">
+                                            {agent.label || agent.name}
+                                          </h4>
+                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-gray-100 text-gray-600 border border-gray-200">
+                                            {categoryText}
+                                          </span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 font-mono truncate">
+                                          {agent.name}
+                                        </p>
+                                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
+                                          {agent.description || 'No description provided.'}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Right: Switch toggle + Configure Button */}
+                                    <div className="flex items-center gap-6">
+                                      <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={isEnabled}
+                                          onChange={() => handleToggleSingleAssignment(agent.name)}
+                                          className="sr-only peer"
+                                        />
+                                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                        <span className="ml-2 text-xs font-semibold text-gray-600 min-w-[50px]">
+                                          {isEnabled ? 'Enabled' : 'Disabled'}
+                                        </span>
+                                      </label>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfiguringNode(agent)}
+                                        className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors bg-blue-50/50 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100"
+                                      >
+                                        <IconMap.settings className="h-3.5 w-3.5" />
+                                        Configure
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredAgents.map((agent: any) => {
+                              const isEnabled = !!customerNodeAssignments[agent.name];
+                              const isChecked = !!selectedNodesForBulk[agent.name];
+                              const categoryText = String(agent.category || 'general');
+                              const NodeIcon = IconMap[String(agent.icon || '').toLowerCase()] || IconMap.bot;
+
+                              return (
+                                <div
+                                  key={agent.name}
+                                  className={`rounded-xl border bg-white p-4 space-y-4 shadow-sm transition-all hover:shadow-md ${
+                                    isEnabled ? 'border-blue-100 ring-2 ring-blue-50/50' : 'border-gray-200'
+                                  }`}
+                                >
+                                  {/* Upper layout: Checkbox + Icon + Badge */}
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={(e) => {
+                                          setSelectedNodesForBulk((prev) => ({
+                                            ...prev,
+                                            [agent.name]: e.target.checked,
+                                          }));
+                                        }}
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                      />
+                                      <div className={`p-2 rounded-lg ${isEnabled ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                                        <NodeIcon className="h-5 w-5" />
+                                      </div>
+                                    </div>
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-100 text-gray-600 border border-gray-200">
+                                      {categoryText}
+                                    </span>
+                                  </div>
+
+                                  {/* Labels */}
+                                  <div>
+                                    <h4 className="text-sm font-bold text-black truncate">
+                                      {agent.label || agent.name}
+                                    </h4>
+                                    <p className="text-[11px] text-gray-400 font-mono truncate">
+                                      {agent.name}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1 line-clamp-2 min-h-[32px]">
+                                      {agent.description || 'No description provided.'}
+                                    </p>
+                                  </div>
+
+                                  {/* Bottom toggles & configuration link */}
+                                  <div className="border-t pt-3 flex items-center justify-between">
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={isEnabled}
+                                        onChange={() => handleToggleSingleAssignment(agent.name)}
+                                        className="sr-only peer"
+                                      />
+                                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                      <span className="ml-2 text-xs font-semibold text-gray-600">
+                                        {isEnabled ? 'Enabled' : 'Disabled'}
+                                      </span>
+                                    </label>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfiguringNode(agent)}
+                                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                                    >
+                                      <IconMap.settings className="h-3.5 w-3.5" />
+                                      Configure
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="border-t bg-gray-50 px-6 py-4 flex items-center justify-between">
+                <div className="text-xs text-gray-500 font-semibold">
+                  {Object.values(customerNodeAssignments).filter(Boolean).length} of {agents.length} nodes assigned
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowNodesModal(false)}
+                    className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveCustomerNodes}
+                    disabled={savingNodes}
+                    className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-2"
+                  >
+                    {savingNodes ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Edit Modal */}
         {editingAgent && (
           <div className="fixed max-w-full inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -1739,7 +2834,11 @@ export default function AdminPage() {
               <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
                 <div>
                   <h3 className="text-xl font-bold text-black">
-                    {editingAgent.id ? 'Edit Node Registry' : 'Create New Node Type'}
+                    {customerId
+                      ? 'Edit Customer Node Configuration'
+                      : editingAgent.id
+                      ? 'Edit Node Registry'
+                      : 'Create New Node Type'}
                   </h3>
                   <p className="text-xs text-gray-500 font-mono uppercase">
                     {editingAgent.id
@@ -1756,6 +2855,24 @@ export default function AdminPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 space-y-10">
+                {customerId && (
+                  <div className="flex items-center justify-between bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-black">Enable / Disable Node</h4>
+                      <p className="text-xs text-gray-500">Allow workflow builders in your organization to use this node type.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingAgent.is_enabled !== false}
+                        onChange={(e) => setEditingAgent({ ...editingAgent, is_enabled: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                )}
+
                 {/* Section: Metadata */}
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -1767,6 +2884,7 @@ export default function AdminPage() {
                       value={editingAgent.label || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, label: e.target.value })}
                       placeholder="e.g. My Custom Agent"
+                      disabled={!!customerId}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1778,7 +2896,7 @@ export default function AdminPage() {
                       value={editingAgent.name || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, name: e.target.value })}
                       placeholder="e.g. custom_llm_agent"
-                      disabled={!!editingAgent.id}
+                      disabled={!!editingAgent.id || !!customerId}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1792,6 +2910,7 @@ export default function AdminPage() {
                         setEditingAgent({ ...editingAgent, version: e.target.value })
                       }
                       placeholder="1.0.0"
+                      disabled={!!customerId}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1804,6 +2923,7 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, category: e.target.value })
                       }
+                      disabled={!!customerId}
                     >
                       {categories.map((cat, idx) => (
                         <option key={`opt-${cat.id || cat.name || idx}`} value={cat.id}>
@@ -1822,6 +2942,7 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, sub_label: e.target.value })
                       }
+                      disabled={!!customerId}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1834,6 +2955,7 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, node_type: e.target.value })
                       }
+                      disabled={!!customerId}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1844,6 +2966,7 @@ export default function AdminPage() {
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.group || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, group: e.target.value })}
+                      disabled={!!customerId}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1854,6 +2977,7 @@ export default function AdminPage() {
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.badge || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, badge: e.target.value })}
+                      disabled={!!customerId}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1864,6 +2988,7 @@ export default function AdminPage() {
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.icon || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, icon: e.target.value })}
+                      disabled={!!customerId}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1877,6 +3002,7 @@ export default function AdminPage() {
                         onChange={(e) =>
                           setEditingAgent({ ...editingAgent, color: e.target.value })
                         }
+                        disabled={!!customerId}
                       />
                       <div
                         className="w-10 h-10 rounded-lg border border-gray-200 shadow-sm"
@@ -1894,6 +3020,7 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, description: e.target.value })
                       }
+                      disabled={!!customerId}
                     />
                   </div>
                 </div>

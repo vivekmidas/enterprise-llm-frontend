@@ -20,13 +20,15 @@ export default function LoginPage() {
       localStorage.setItem('admin_token', data.token);
       localStorage.setItem('user_role', data.role);
       localStorage.setItem('user_email', email);
+      localStorage.setItem('customer_id', data.customer_id !== null && data.customer_id !== undefined ? String(data.customer_id) : '');
+      localStorage.setItem('user_domain', data.domain || '');
 
       // Set a cookie so the middleware can access the token
       // path=/ ensures the cookie is available for all routes
       // max-age is set to 7 days (60s * 60m * 24h * 7d)
       document.cookie = `admin_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 
-      if (data.role === 'admin') {
+      if (data.role === 'admin' || data.role === 'system_admin') {
         router.push('/admin');
       } else {
         router.push('/workflow-builder');

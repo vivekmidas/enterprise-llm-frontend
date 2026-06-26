@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { DragEvent, ComponentType, CSSProperties } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, FileText, Loader2 } from 'lucide-react';
 
 import { api } from '@/lib/api';
 import {
@@ -148,10 +148,11 @@ export default function AgentSidebar({
     (event.target as HTMLElement).style.opacity = '1';
   };
 
-  const renderNodeItem = (node: any) => {
+  const renderCompactNodeItem = (node: any) => {
     const category = getCategory(node.id);
     const Icon =
       IconMap[node.icon?.toLowerCase()] || IconMap[category.icon?.toLowerCase()] || IconMap.bot;
+    const themeColor = node.category_color || category.color || '#3b82f6';
 
     return (
       <div
@@ -159,31 +160,51 @@ export default function AgentSidebar({
         draggable
         onDragStart={(event) => onDragStart(event, node)}
         onDragEnd={onDragEnd}
-        className="cursor-grab rounded-lg border border-gray-200 bg-white p-2 shadow-sm transition-all hover:border-blue-300 hover:shadow-md active:cursor-grabbing"
+        className="cursor-grab rounded-lg border border-slate-150 bg-white p-2 shadow-sm transition-all hover:border-slate-305 hover:shadow-md hover:scale-[1.01] active:cursor-grabbing active:scale-[0.98] flex items-center gap-1.5 text-[10px] font-semibold text-slate-650 min-w-0"
         title={node.label || node.name}
-        style={category.color ? { borderLeft: `4px solid ${node.category_color}` } : {}}
+        style={{ borderLeft: `2.5px solid ${themeColor}` }}
       >
-        <div className="flex items-start gap-2">
+        <Icon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+        <span className="truncate shrink">{node.label || node.name}</span>
+      </div>
+    );
+  };
+
+  const renderNodeItem = (node: any) => {
+    const category = getCategory(node.id);
+    const Icon =
+      IconMap[node.icon?.toLowerCase()] || IconMap[category.icon?.toLowerCase()] || IconMap.bot;
+    const themeColor = node.category_color || category.color || '#3b82f6';
+
+    return (
+      <div
+        key={node.id || node.name}
+        draggable
+        onDragStart={(event) => onDragStart(event, node)}
+        onDragEnd={onDragEnd}
+        className="cursor-grab rounded-lg border border-slate-150 bg-white p-2.5 shadow-sm transition-all hover:border-slate-300 hover:shadow-md hover:translate-y-[-1px] active:cursor-grabbing active:scale-[0.98]"
+        title={node.label || node.name}
+        style={{ borderLeft: `3px solid ${themeColor}` }}
+      >
+        <div className="flex items-start gap-2.5">
           <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-white"
-            style={node.category_color ? { backgroundColor: node.category_color } : {}}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-white shadow-sm"
+            style={{ backgroundColor: themeColor }}
           >
-            <Icon className="h-5 w-5" />
+            <Icon className="h-4.5 w-4.5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold leading-tight text-slate-800 truncate">
+            <div className="text-xs font-semibold leading-tight text-slate-700 truncate">
               {node.label || node.name}
             </div>
-            {node.node_type && (
-              <div className="mt-1 flex items-center gap-1">
-                <div className="inline-block px-1.5 py-0.5 rounded text-[10px] text-gray-500 font-bold uppercase tracking-tighter">
-                  {node.node_type}
-                </div>
-                {node.version && (
-                  <span className="text-[9px] text-gray-400 font-mono">v{node.version}</span>
-                )}
-              </div>
-            )}
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="inline-block px-1 py-0.5 rounded text-[8px] font-bold text-slate-500 bg-slate-100 border border-slate-150 uppercase tracking-wide">
+                {node.node_type || 'node'}
+              </span>
+              {node.version && (
+                <span className="text-[8px] text-slate-400 font-mono">v{node.version}</span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -191,127 +212,115 @@ export default function AgentSidebar({
   };
 
   return (
-    <div className="w-[320px] shrink-0 overflow-auto border-r border-sky-200 bg-white px-5 py-6">
-      <button
-        onClick={onNewAgent}
-        className="mb-7 flex w-full items-center gap-2 rounded-lg bg-blue-50 px-5 py-1 text-left text-sm font-medium text-blue-600 transition-colors hover:bg-blue-100"
-      >
-        <Plus className="h-6 w-6" />
-        <span>New Agent</span>
-      </button>
+    <div className="w-[300px] shrink-0 flex flex-col h-full border-r border-slate-100 bg-white overflow-hidden">
+      {/* Main scrolling content */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-5">
+        {/* Saved Workflows Section */}
+        {savedAgents.length > 0 && (
+          <div>
+            <h4 className="mb-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+              Saved Workflows
+            </h4>
+            <div className="space-y-1 bg-slate-50/50 p-1.5 rounded-xl border border-slate-100 max-h-40 overflow-y-auto custom-scrollbar">
+              {savedAgents.map((agent) => (
+                <button
+                  key={agent.id}
+                  onClick={() => onSelectAgent?.(agent.id)}
+                  className="flex w-full items-center justify-between text-left p-2 rounded-lg transition-all hover:bg-white hover:text-indigo-600 hover:shadow-sm border border-transparent hover:border-slate-100 cursor-pointer group"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <FileText className="h-3.5 w-3.5 text-slate-400 shrink-0 group-hover:text-indigo-500 transition-colors" />
+                    <span className="text-xs font-medium text-slate-650 truncate">{agent.name || agent.id}</span>
+                  </div>
+                  <span className="text-[8px] bg-slate-200/75 text-slate-500 px-1 py-0.5 rounded uppercase font-bold shrink-0">
+                    {agent.category || 'default'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-      <div className="space-y-3 px-4 text-sm text-black">
-        {savedAgents.map((agent) => (
-          <button
-            key={agent.id}
-            onClick={() => onSelectAgent?.(agent.id)}
-            className="flex w-full items-center justify-between text-left transition-colors hover:text-blue-600"
-          >
-            <span>{agent.name || agent.id}</span>
-            <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-400 uppercase font-bold">
-              {agent.category || 'default'}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className="my-2 border-t-2 border-stone-200" />
-
-      <h2 className="mb-5 text-sm font-semibold text-black uppercase tracking-wider">Triggers</h2>
-      {/* Trigger Section */}
-      <div className="flex gap-2">
-        <div className="flex w-8 shrink-0 flex-col items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-300">
-            <IconMap.zap className="h-5 w-5 text-blue-600" />
+        {/* Triggers & Flow Logic Group */}
+        <div>
+          <h4 className="mb-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+            Core Nodes
+          </h4>
+          <div className="grid grid-cols-2 gap-2">
+            {triggerNodes.map(renderCompactNodeItem)}
+            {logicNodes.map(renderCompactNodeItem)}
           </div>
         </div>
 
-        <div className="min-w-0 flex-1 border-l border-stone-200 pl-4">
-          {/* <h3 className="mb-5 text-lg font-semibold text-slate-800">
-           
-          </h3> */}
+        {/* Actions Library */}
+        <div className="border-t border-slate-100 pt-4">
+          <h4 className="mb-2.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+            Action Registry
+          </h4>
 
-          <div className="space-y-6">
-            {triggerNodes.length > 0 && (
-              <div>
-                <h4 className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Entry Points
-                </h4>
-                <div className="space-y-2">{triggerNodes.map(renderNodeItem)}</div>
-              </div>
-            )}
-
-            {/* Logic/Condition Section */}
-            {logicNodes.length > 0 && (
-              <div>
-                <h4 className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Flow Logic
-                </h4>
-                <div className="space-y-2">{logicNodes.map(renderNodeItem)}</div>
-              </div>
-            )}
+          {/* Search bar */}
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-1.5 text-slate-450 focus-within:border-indigo-400 focus-within:bg-white focus-within:shadow-sm transition-all">
+            <IconMap.search className="h-4 w-4 shrink-0 text-slate-400" />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search actions..."
+              className="w-full bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none"
+            />
           </div>
-        </div>
-      </div>
-      <h2 className="mb-5 text-sm font-semibold text-black uppercase tracking-wider">Nodes</h2>
 
-      <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-1 text-gray-400 shadow-sm">
-        <IconMap.search className="h-5 w-5 shrink-0" />
-        <input
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search components..."
-          className="w-full bg-transparent text-sm text-black placeholder:text-gray-400 focus:outline-none"
-        />
-      </div>
+          <div className="flex gap-3">
+            {/* Category selection selector */}
+            <div className="flex w-7 shrink-0 flex-col items-center gap-2">
+              {categories.map((category) => {
+                const isActive = activeGroup === category.id;
+                const Icon = category.icon;
 
-      <div className="flex gap-2">
-        <div className="flex w-8 shrink-0 flex-col items-center gap-2">
-          {categories.map((category) => {
-            const isActive = activeGroup === category.id;
-            const Icon = category.icon;
+                return (
+                  <button
+                    key={category.group}
+                    type="button"
+                    title={category.label}
+                    aria-label={category.label}
+                    onClick={() => handleCategoryClick(category.id)}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all hover:scale-[1.05] cursor-pointer ${
+                      isActive
+                        ? 'border-indigo-400 bg-indigo-50 shadow-sm ring-1 ring-indigo-300'
+                        : 'border-slate-200 bg-white hover:border-slate-350 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon className="h-4.5 w-4.5" style={{ color: category.color }} />
+                  </button>
+                );
+              })}
+            </div>
 
-            return (
-              <button
-                key={category.group}
-                type="button"
-                title={category.label}
-                aria-label={category.label}
-                onClick={() => handleCategoryClick(category.id)}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg border bg-white transition-all hover:border-blue-300 hover:bg-blue-50 ${
-                  isActive ? 'border-blue-400 bg-blue-50 shadow-sm ring-1 ring-blue-300' : ''
-                }`}
-              >
-                <Icon className="h-5 w-5" style={{ color: category.color }} />
-              </button>
-            );
-          })}
-        </div>
+            {/* Selected category node items */}
+            <div className="min-w-0 flex-1 border-l border-slate-100 pl-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-slate-700 truncate">
+                  {selectedCategory?.label || ''}
+                </span>
+              </div>
 
-        <div className="min-w-0 flex-1 border-l border-stone-200 pl-4">
-          <h3 className="mb-5 text-lg font-semibold text-black">{selectedCategory?.label || ''}</h3>
-
-          {loading ? (
-            <p className="text-gray-500">Loading components...</p>
-          ) : (
-            <div className="space-y-6">
-              {/* Actions Section (Filtered by Category) */}
-              <div>
-                <h4 className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  {selectedCategory?.label || 'Actions'}
-                </h4>
-                <div className="space-y-2">
+              {loading ? (
+                <div className="flex items-center gap-2 text-slate-450 text-[10px]">
+                  <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
+                  <span>Loading nodes...</span>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
                   {actionNodes.length > 0 ? (
                     actionNodes.map(renderNodeItem)
                   ) : (
-                    <p className="text-xs text-gray-400 italic">
-                      No actions available in this category.
+                    <p className="text-[10px] text-slate-400 italic">
+                      No matching actions found.
                     </p>
                   )}
                 </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

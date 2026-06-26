@@ -53,8 +53,12 @@ function AgentBuilderContent() {
   const [workflowOwnerId, setWorkflowOwnerId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
-  const { screenToFlowPosition, getNodes } = useReactFlow();
+  const { screenToFlowPosition, getNodes, fitView } = useReactFlow();
   const [description, setAgentDescription] = useState('');
+
+  const onCenter = useCallback(() => {
+    fitView({ duration: 300 });
+  }, [fitView]);
 
   const [isMapperOpen, setIsMapperOpen] = useState(false);
   const [prevNodeContract, setPrevNodeContract] = useState<any>(null);
@@ -124,6 +128,11 @@ function AgentBuilderContent() {
   const onConnect = useCallback(
     (params: Connection) =>
       setEdges((eds) => {
+        if (params.source === params.target) {
+          setStatus('❌ Self-connections are not allowed to prevent loops.');
+          return eds;
+        }
+
         const currentNodes = getNodes();
         const source = currentNodes.find((node) => node.id === params.source);
         const target = currentNodes.find((node) => node.id === params.target);
@@ -707,7 +716,7 @@ function AgentBuilderContent() {
 
           // 2. If no expression matched, check custom conditions and success conditions
           if (!matchedEdge) {
-            const conditionResult = output?.condition_result || 'success';
+            const conditionResult = (output as any)?.condition_result || 'success';
             matchedEdge = outgoingEdges.find(
               (e) => {
                 const cond = (e.data?.condition || (e as any).condition || e.sourceHandle || '').toLowerCase();
@@ -776,7 +785,7 @@ function AgentBuilderContent() {
         isEditingName={isEditingName}
         isExecuting={isExecuting}
         status={status}
-        canDelete={Boolean(agentId && (userRole === 'admin' || userId === workflowOwnerId))}
+        canDelete={Boolean(agentId && (userRole === 'admin' || userRole === 'system_admin' || userId === workflowOwnerId))}
         onAgentNameChange={setAgentName}
         onAgentEnabledChange={setIsAgentEnabled}
         onEditingNameChange={setIsEditingName}
@@ -787,6 +796,8 @@ function AgentBuilderContent() {
         onSaveAs={onSaveAs}
         onGet={onGet}
         onExecute={onExecute}
+        onCenter={onCenter}
+        onNewAgent={handleNewAgent}
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -856,6 +867,7 @@ function AgentBuilderContent() {
           onSave={onSave}
           workflowId={agentId}
           onDeleteNode={onDeleteNode}
+          onOpenMapper={() => setIsMapperOpen(true)}
         />
 
         <FieldMappingController

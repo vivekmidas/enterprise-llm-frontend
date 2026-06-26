@@ -77,6 +77,7 @@ export default function WorkflowCanvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        isValidConnection={(connection) => connection.source !== connection.target}
         onEdgeClick={(_, edge) => onEdgeClick && onEdgeClick(edge)}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
@@ -102,18 +103,6 @@ export default function WorkflowCanvas({
         <Controls />
         <MiniMap />
       </ReactFlow>
-
-      {isMappingAvailable && (
-        <div className="absolute top-4 right-84 z-10 animate-in fade-in slide-in-from-right-4 duration-300 text-m">
-          <button
-            onClick={onOpenMapper}
-            className="flex text-m items-center gap-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xl transition-all transform hover:scale-105 active:scale-95 border border-blue-400"
-          >
-            <ArrowRightLeft size={12} />
-            Configure Data Mapping
-          </button>
-        </div>
-      )}
 
       <ExecutionTracePanel trace={executionTrace} onClear={onClearTrace} />
     </div>

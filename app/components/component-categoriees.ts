@@ -86,6 +86,7 @@ export interface AgentNode {
   system_properties: string[];
   input_contract: Record<string, any> | string;
   output_contract: Record<string, any> | string;
+  is_enabled?: boolean;
 }
 
 export interface NodeData {
