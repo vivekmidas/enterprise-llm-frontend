@@ -159,6 +159,7 @@
     @apply bg-background text-foreground;
     /* Added custom font family for body */
     font-family: var(--font-sans);
+    font-size: 10px;
   }
   h1,
   h2,
@@ -273,5 +274,4 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.24);
 }
-
 

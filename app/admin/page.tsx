@@ -9,6 +9,7 @@ import { Workflow, ChevronDown, ChevronUp, Copy, Check, List, LayoutGrid } from 
 import { IconMap } from '@/lib/icons';
 import { AgentNode, NodeCategory } from '@components/component-categoriees';
 import { JsonTreeView } from '@components/JsonTreeView';
+import JsonSchemaGeneratorModal from '@components/JsonSchemaGeneratorModal';
 
 type PropertyTarget = 'user' | 'system';
 
@@ -69,6 +70,11 @@ const CONTRACT_FIELD_TYPES = [
   'date',
   'datetime',
   'ip_address',
+  'file',
+  'pdf',
+  'doc',
+  'docx',
+  'image',
 ];
 
 const IS_PII = [
@@ -360,6 +366,10 @@ export default function AdminPage() {
   const [editingProvider, setEditingProvider] = useState<any | null>(null);
   const [selectedCategoryType, setSelectedCategoryType] = useState<string>('string');
   const [isEditingProp, setIsEditingProp] = useState(false);
+  const [contractGenerator, setContractGenerator] = useState<{
+    isOpen: boolean;
+    type: 'input' | 'output';
+  }>({ isOpen: false, type: 'input' });
 
   // System Log Scoping & Filtering States
   const [logs, setLogs] = useState<any[]>([]);
@@ -1163,6 +1173,24 @@ export default function AdminPage() {
     }));
   };
 
+  const handleGeneratedContract = (schema: any) => {
+    setEditingAgent((prev) => {
+      if (!prev) return null;
+
+      if (contractGenerator.type === 'input') {
+        return {
+          ...prev,
+          input_contract: cleanInputContract(contractFromValue(schema)),
+        };
+      }
+
+      return {
+        ...prev,
+        output_contract: schema,
+      };
+    });
+  };
+
   const renderValueInput = (field: PropertyRow, value: any) => {
     const handleValChange = (v: any) => updateProperty(field, v);
     const commonClasses =
@@ -1843,10 +1871,9 @@ export default function AdminPage() {
                                             overrides[entry.key] = entry.value !== undefined ? entry.value : entry.default;
                                           }
                                         });
-                                        const newEnabledState = !(agent.is_enabled !== false);
                                         await api.configureCustomerNode(agent.name, {
                                           properties: overrides,
-                                          is_enabled: newEnabledState,
+                                          is_enabled: false,
                                         }, customerId || undefined);
                                         const agentsRes = await api.getNodes();
                                         setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
@@ -1854,14 +1881,10 @@ export default function AdminPage() {
                                         alert('Failed to toggle status: ' + err.message);
                                       }
                                     }}
-                                    className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
-                                      agent.is_enabled !== false
-                                        ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                                        : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                                    }`}
-                                    title={agent.is_enabled !== false ? 'Click to Disable' : 'Click to Enable'}
+                                    className="px-2.5 py-1 text-xs font-bold rounded-lg border transition-all bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                    title="Click to Disable"
                                   >
-                                    {agent.is_enabled !== false ? 'Enabled' : 'Disabled'}
+                                    Enabled
                                   </button>
                                 )
                               )}
@@ -3652,7 +3675,16 @@ export default function AdminPage() {
                               </p>
                             </div>
                             <div className="flex items-center gap-3">
-                              <label className="inline-flex items-center gap-4 text-xs font-semibold text-gray-600">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setContractGenerator({ isOpen: true, type: 'input' })
+                                }
+                                className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
+                              >
+                                <IconMap.code2 className="h-4 w-4" /> Generate from JSON
+                              </button>
+                              {/* <label className="inline-flex items-center gap-4 text-xs font-semibold text-gray-600">
                                 <input
                                   type="checkbox"
                                   className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -3665,13 +3697,13 @@ export default function AdminPage() {
                                   }
                                 />
                                 Additional fields
-                              </label>
-                              <button
+                              </label> */}
+                              {/* <button
                                 onClick={addInputContractRule}
                                 className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100"
                               >
                                 <IconMap.Plus className="h-4 w-4" /> Add Rule
-                              </button>
+                              </button> */}
                             </div>
                           </div>
 
@@ -3972,9 +4004,18 @@ export default function AdminPage() {
                     })()}
                   </div>
                   <div className="col-span-2 space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
-                      Output Contract (JSON)
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                        Output Contract (JSON)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setContractGenerator({ isOpen: true, type: 'output' })}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
+                      >
+                        <IconMap.code2 className="h-4 w-4" /> Generate from JSON
+                      </button>
+                    </div>
                     <textarea
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={
@@ -4011,6 +4052,24 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {editingAgent && (
+          <JsonSchemaGeneratorModal
+            isOpen={contractGenerator.isOpen}
+            onClose={() => setContractGenerator((prev) => ({ ...prev, isOpen: false }))}
+            initialSchema={
+              contractGenerator.type === 'input'
+                ? editingAgent.input_contract
+                : editingAgent.output_contract
+            }
+            onSave={handleGeneratedContract}
+            title={
+              contractGenerator.type === 'input'
+                ? `Generate Input Contract for ${editingAgent.label || editingAgent.name || 'Node'}`
+                : `Generate Output Contract for ${editingAgent.label || editingAgent.name || 'Node'}`
+            }
+          />
         )}
 
         {/* Add Property Modal */}

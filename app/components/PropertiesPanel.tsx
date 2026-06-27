@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Node, Edge } from '@xyflow/react';
-import { X, Settings, Save, Loader2, ArrowRightLeft, Wand2, Info, Trash2, Lock, Copy, Check } from 'lucide-react';
+import { X, Settings, Save, Loader2, ArrowRightLeft, Wand2, Info, Trash2, Lock, Copy, Check, Sparkles } from 'lucide-react';
 import { api } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
+import JsonSchemaGeneratorModal from './JsonSchemaGeneratorModal';
 
 // Helper to normalize and parse system properties from different database formats
 const parseSystemProperties = (value: any): Record<string, any> => {
@@ -233,6 +234,8 @@ export default function PropertiesPanel({
   const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [viewMode, setViewMode] = useState<'config' | 'contract'>('config');
+  const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
+  const [generatorModalType, setGeneratorModalType] = useState<'input' | 'output'>('input');
 
 
   // Local state for fetched contracts and properties from API
@@ -241,6 +244,23 @@ export default function PropertiesPanel({
   const [properties, setProperties] = useState<NodeProperties>({});
   const [systemProperties, setSystemProperties] = useState<NodeProperties>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleSaveContract = (type: 'input' | 'output', newSchema: any) => {
+    if (!selectedNode) return;
+    
+    const updatedData = {
+      ...(selectedNode.data as any),
+      [type === 'input' ? 'input_contract' : 'output_contract']: newSchema,
+    };
+    
+    if (type === 'input') {
+      setInputContract(newSchema);
+    } else {
+      setOutputContract(newSchema);
+    }
+    
+    onUpdateNode(selectedNode.id, updatedData);
+  };
 
   const handleCopy = (key: string, value: any) => {
     navigator.clipboard.writeText(String(value ?? ''));
@@ -884,7 +904,7 @@ export default function PropertiesPanel({
         </button>
         <button
           onClick={() => setViewMode('contract')}
-          className={`flex-1 py-3 text-center transition-all cursor-pointer ${
+          className={`flex-1 py-3 text-center text-[10px] transition-all cursor-pointer ${
             viewMode === 'contract'
               ? 'bg-white text-indigo-650 border-b-2 border-indigo-600 font-bold'
               : 'bg-slate-50/50 hover:bg-slate-50 hover:text-slate-700'
@@ -900,13 +920,37 @@ export default function PropertiesPanel({
             return (
               <div className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-450 uppercase tracking-widest">Input Structure</label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">Input Structure</label>
+                    <button
+                      onClick={() => {
+                        setGeneratorModalType('input');
+                        setIsGeneratorModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 text-[12px] font-bold text-indigo-650 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-indigo-150"
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      Define from JSON
+                    </button>
+                  </div>
                   <pre className="p-3 bg-slate-905 text-indigo-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
                     {JSON.stringify(inputContract || {}, null, 2)}
                   </pre>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-450 uppercase tracking-widest">Output Structure</label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">Output Structure</label>
+                    <button
+                      onClick={() => {
+                        setGeneratorModalType('output');
+                        setIsGeneratorModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 text-[12px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      Define from JSON
+                    </button>
+                  </div>
                   <pre className="p-3 bg-slate-905 text-emerald-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
                     {JSON.stringify(outputContract || {}, null, 2)}
                   </pre>
@@ -1023,7 +1067,7 @@ export default function PropertiesPanel({
                       <button
                         type="button"
                         onClick={onOpenMapper}
-                        className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-850 transition-colors cursor-pointer bg-transparent border-0 p-0"
+                        className="flex items-center gap-1 text-[12px] font-bold text-indigo-600 hover:text-indigo-850 transition-colors cursor-pointer bg-transparent border-0 p-0"
                       >
                         <ArrowRightLeft className="w-3 h-3" />
                         Modify Mapping
@@ -1146,6 +1190,19 @@ export default function PropertiesPanel({
           )}
         </div>
       )}
+      
+      {/* Modal for defining input/output contracts from JSON sample */}
+      <JsonSchemaGeneratorModal
+        isOpen={isGeneratorModalOpen}
+        onClose={() => setIsGeneratorModalOpen(false)}
+        initialSchema={generatorModalType === 'input' ? inputContract : outputContract}
+        onSave={(schema) => handleSaveContract(generatorModalType, schema)}
+        title={
+          generatorModalType === 'input'
+            ? `Define Input Contract for ${(selectedNode?.data as any)?.label || 'Node'}`
+            : `Define Output Contract for ${(selectedNode?.data as any)?.label || 'Node'}`
+        }
+      />
     </div>
   );
 }
