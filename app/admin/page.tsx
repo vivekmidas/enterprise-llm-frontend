@@ -2309,7 +2309,7 @@ export default function AdminPage() {
                       <th className="px-6 py-4 font-semibold text-gray-600">Trace ID</th>
                       <th className="px-6 py-4 font-semibold text-gray-600">Customer ID</th>
                       <th className="px-6 py-4 font-semibold text-gray-600">User ID</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">User Email</th>
+                     {/* <th className="px-6 py-4 font-semibold text-gray-600">User Email</th>*/}
                       <th className="px-6 py-4 font-semibold text-gray-600">Latency</th>
                       <th className="px-6 py-4 font-semibold text-gray-600">Timestamp</th>
                       <th className="px-6 py-4"></th>
@@ -2347,7 +2347,7 @@ export default function AdminPage() {
                           <td className="px-6 py-4 font-mono text-xs text-gray-600">
                             {log.user_id || '-'}
                           </td>
-                          <td className="px-6 py-4 text-gray-600">{log.user_email || log.user_id || 'system'}</td>
+                          {/* <td className="px-6 py-4 text-gray-600">{log.user_email || log.user_id || 'system'}</td> */}
                           <td className="px-6 py-4 text-gray-950 font-semibold">{log.latency_ms}ms</td>
                           <td className="px-6 py-4 text-gray-500">
                             {new Date(log.timestamp * 1000).toLocaleString()}
