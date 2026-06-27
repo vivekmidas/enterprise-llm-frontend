@@ -36,24 +36,15 @@ export function CustomLabelEdge({
   // Retrieve the edge definition to get any saved condition or expression fields
   const edge = getEdge(id);
   const condition =
-    data?.condition ||
-    (edge as any)?.condition ||
-    sourceHandleId ||
-    edge?.sourceHandle ||
-    '';
-  const expression =
-    data?.expression ||
-    (edge as any)?.expression ||
-    '';
+    data?.condition || (edge as any)?.condition || sourceHandleId || edge?.sourceHandle || '';
+  const expression = data?.expression || (edge as any)?.expression || '';
 
   const isSuccessType = String(condition || '').toLowerCase() === 'success';
   const isFailureType = String(condition || '').toLowerCase() === 'failure';
 
   // Label to render (only show the condition name/label, and not the raw expression)
   const labelText = condition || (expression ? 'Custom' : '');
-  const displayLabel = labelText
-    ? labelText.charAt(0).toUpperCase() + labelText.slice(1)
-    : '';
+  const displayLabel = labelText ? labelText.charAt(0).toUpperCase() + labelText.slice(1) : '';
 
   // Edge stroke and label colors based on the condition type
   let strokeColor = '#cbd5e1'; // Default gray (slate-300)
@@ -99,16 +90,8 @@ export function CustomLabelEdge({
           strokeWidth,
           transition: 'stroke 0.3s ease, stroke-width 0.3s ease',
         }}
-        markerEnd={
-          markerEnd
-            ? `url(#${id}-marker-end)`
-            : undefined
-        }
-        markerStart={
-          markerStart
-            ? `url(#${id}-marker-start)`
-            : undefined
-        }
+        markerEnd={markerEnd ? `url(#${id}-marker-end)` : undefined}
+        markerStart={markerStart ? `url(#${id}-marker-start)` : undefined}
       />
 
       {/* Dynamic colored SVG markers for edge arrows */}

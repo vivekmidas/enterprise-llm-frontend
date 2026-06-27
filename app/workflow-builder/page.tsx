@@ -686,12 +686,15 @@ function AgentBuilderContent() {
         if (output && output.status === 'failure') {
           // Failure path check:
           // Look for any edge that is failure-specific
-          matchedEdge = outgoingEdges.find(
-            (e) => {
-              const cond = (e.data?.condition || (e as any).condition || e.sourceHandle || '').toLowerCase();
-              return cond === 'failure' || cond === 'has_violations';
-            }
-          );
+          matchedEdge = outgoingEdges.find((e) => {
+            const cond = (
+              e.data?.condition ||
+              (e as any).condition ||
+              e.sourceHandle ||
+              ''
+            ).toLowerCase();
+            return cond === 'failure' || cond === 'has_violations';
+          });
           // If no failure path is defined, the execution stops gracefully.
         } else {
           // Success / Custom Path check:
@@ -703,7 +706,11 @@ function AgentBuilderContent() {
                 // Safely evaluate simple JS expression with 'output' context
                 const keys = Object.keys(output || {});
                 const vals = Object.values(output || {});
-                const evalFn = new Function('output', ...keys, `try { return !!(${expr}); } catch(e) { return false; }`);
+                const evalFn = new Function(
+                  'output',
+                  ...keys,
+                  `try { return !!(${expr}); } catch(e) { return false; }`,
+                );
                 if (evalFn(output, ...vals)) {
                   matchedEdge = edge;
                   break;
@@ -717,22 +724,28 @@ function AgentBuilderContent() {
           // 2. If no expression matched, check custom conditions and success conditions
           if (!matchedEdge) {
             const conditionResult = (output as any)?.condition_result || 'success';
-            matchedEdge = outgoingEdges.find(
-              (e) => {
-                const cond = (e.data?.condition || (e as any).condition || e.sourceHandle || '').toLowerCase();
-                return cond === String(conditionResult).toLowerCase();
-              }
-            );
+            matchedEdge = outgoingEdges.find((e) => {
+              const cond = (
+                e.data?.condition ||
+                (e as any).condition ||
+                e.sourceHandle ||
+                ''
+              ).toLowerCase();
+              return cond === String(conditionResult).toLowerCase();
+            });
           }
 
           // 3. Fallback to unconditional success edges (empty condition or success)
           if (!matchedEdge) {
-            matchedEdge = outgoingEdges.find(
-              (e) => {
-                const cond = (e.data?.condition || (e as any).condition || e.sourceHandle || '').toLowerCase();
-                return cond === 'success' || cond === '' || cond === 'default';
-              }
-            );
+            matchedEdge = outgoingEdges.find((e) => {
+              const cond = (
+                e.data?.condition ||
+                (e as any).condition ||
+                e.sourceHandle ||
+                ''
+              ).toLowerCase();
+              return cond === 'success' || cond === '' || cond === 'default';
+            });
           }
 
           // 4. Fallback to the first outgoing edge if still no match
@@ -785,7 +798,10 @@ function AgentBuilderContent() {
         isEditingName={isEditingName}
         isExecuting={isExecuting}
         status={status}
-        canDelete={Boolean(agentId && (userRole === 'admin' || userRole === 'system_admin' || userId === workflowOwnerId))}
+        canDelete={Boolean(
+          agentId &&
+          (userRole === 'admin' || userRole === 'system_admin' || userId === workflowOwnerId),
+        )}
         onAgentNameChange={setAgentName}
         onAgentEnabledChange={setIsAgentEnabled}
         onEditingNameChange={setIsEditingName}
@@ -846,8 +862,8 @@ function AgentBuilderContent() {
                         ...newEdge,
                       },
                     }
-                  : e
-              )
+                  : e,
+              ),
             );
             setSelectedEdge((e) =>
               e && e.id === edgeId
@@ -859,7 +875,7 @@ function AgentBuilderContent() {
                       ...newEdge,
                     },
                   }
-                : e
+                : e,
             );
             setIsDirty(true);
           }}

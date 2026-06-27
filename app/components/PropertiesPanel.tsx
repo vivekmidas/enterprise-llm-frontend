@@ -2,7 +2,20 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Node, Edge } from '@xyflow/react';
-import { X, Settings, Save, Loader2, ArrowRightLeft, Wand2, Info, Trash2, Lock, Copy, Check, Sparkles } from 'lucide-react';
+import {
+  X,
+  Settings,
+  Save,
+  Loader2,
+  ArrowRightLeft,
+  Wand2,
+  Info,
+  Trash2,
+  Lock,
+  Copy,
+  Check,
+  Sparkles,
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
 import JsonSchemaGeneratorModal from './JsonSchemaGeneratorModal';
@@ -29,7 +42,12 @@ const parseSystemProperties = (value: any): Record<string, any> => {
         }
       }
       if (entry && typeof entry === 'object' && entry.key) {
-        result[entry.key] = entry.value !== undefined ? entry.value : (entry.default !== undefined ? entry.default : '');
+        result[entry.key] =
+          entry.value !== undefined
+            ? entry.value
+            : entry.default !== undefined
+              ? entry.default
+              : '';
       }
     });
     return result;
@@ -39,7 +57,8 @@ const parseSystemProperties = (value: any): Record<string, any> => {
     Object.entries(value).forEach(([k, v]) => {
       if (v && typeof v === 'object' && ('value' in v || 'default' in v)) {
         const obj = v as any;
-        result[k] = obj.value !== undefined ? obj.value : (obj.default !== undefined ? obj.default : '');
+        result[k] =
+          obj.value !== undefined ? obj.value : obj.default !== undefined ? obj.default : '';
       } else {
         result[k] = v;
       }
@@ -237,7 +256,6 @@ export default function PropertiesPanel({
   const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
   const [generatorModalType, setGeneratorModalType] = useState<'input' | 'output'>('input');
 
-
   // Local state for fetched contracts and properties from API
   const [inputContract, setInputContract] = useState<any>({});
   const [outputContract, setOutputContract] = useState<any>({});
@@ -247,18 +265,18 @@ export default function PropertiesPanel({
 
   const handleSaveContract = (type: 'input' | 'output', newSchema: any) => {
     if (!selectedNode) return;
-    
+
     const updatedData = {
       ...(selectedNode.data as any),
       [type === 'input' ? 'input_contract' : 'output_contract']: newSchema,
     };
-    
+
     if (type === 'input') {
       setInputContract(newSchema);
     } else {
       setOutputContract(newSchema);
     }
-    
+
     onUpdateNode(selectedNode.id, updatedData);
   };
 
@@ -324,7 +342,9 @@ export default function PropertiesPanel({
         (localData.output_contract || localData.outputContract || {}) as Record<string, any>,
       );
       setProperties((localData.properties || {}) as NodeProperties);
-      setSystemProperties(parseSystemProperties(localData.system_properties || localData.systemProperties));
+      setSystemProperties(
+        parseSystemProperties(localData.system_properties || localData.systemProperties),
+      );
 
       api
         .getAgentNodeProperties(workflowId || '', selectedNode.id)
@@ -333,7 +353,9 @@ export default function PropertiesPanel({
           setInputContract(res?.input_contract || res?.inputContract || {});
           setOutputContract(res?.output_contract || res?.outputContract || {});
           setProperties(res?.properties || {});
-          setSystemProperties(parseSystemProperties(res?.system_level_properties || res?.system_properties || {}));
+          setSystemProperties(
+            parseSystemProperties(res?.system_level_properties || res?.system_properties || {}),
+          );
         })
         .catch((err) => console.error('Failed to fetch node contracts', err));
     }
@@ -344,23 +366,24 @@ export default function PropertiesPanel({
       api
         .getAgentNodeProperties(workflowId || '', srcId)
         .then((res) => {
-          setSourceOutputPreview(res?.output_example || res?.output_contract || res?.outputContract || null);
-          const declared = ((res?.properties?.conditions ||
-            res?.user_properties?.conditions ||
-            res?.userProperties?.conditions ||
-            []) as string[]).filter(c => c !== 'default');
+          setSourceOutputPreview(
+            res?.output_example || res?.output_contract || res?.outputContract || null,
+          );
+          const declared = (
+            (res?.properties?.conditions ||
+              res?.user_properties?.conditions ||
+              res?.userProperties?.conditions ||
+              []) as string[]
+          ).filter((c) => c !== 'default');
           setAllowedConditions(declared.length ? declared : ['success', 'failure']);
-          
+
           const edgeData = (selectedEdge as any).data || {};
           const currentCondition =
             edgeData.condition ||
             (selectedEdge as any).condition ||
             (selectedEdge as any).sourceHandle ||
             '';
-          const currentExpression =
-            edgeData.expression ||
-            (selectedEdge as any).expression ||
-            '';
+          const currentExpression = edgeData.expression || (selectedEdge as any).expression || '';
 
           setEdgeCondition(currentCondition);
           setEdgeExpression(currentExpression);
@@ -491,9 +514,16 @@ export default function PropertiesPanel({
   ) => {
     const hasUserValue = userProps.hasOwnProperty(field.key);
     const isSystem = systemProps.hasOwnProperty(field.key) && !hasUserValue;
-    const value = hasUserValue ? userProps[field.key] : (systemProps.hasOwnProperty(field.key) ? systemProps[field.key] : getPropertyValue(userProps, field));
+    const value = hasUserValue
+      ? userProps[field.key]
+      : systemProps.hasOwnProperty(field.key)
+        ? systemProps[field.key]
+        : getPropertyValue(userProps, field);
     const isDisabled = isSystem;
-    const displayValue = (isSystem || hasUserValue) && field.type === 'password' && value ? '••••••••' : String(value ?? '');
+    const displayValue =
+      (isSystem || hasUserValue) && field.type === 'password' && value
+        ? '••••••••'
+        : String(value ?? '');
 
     // Boolean Toggle
     if (field.type === 'boolean') {
@@ -742,7 +772,9 @@ export default function PropertiesPanel({
             <Settings className="w-5 h-5 text-slate-500 animate-[spin_6s_linear_infinite]" />
           </div>
           <h3 className="font-semibold text-slate-700 text-sm mb-1">Properties</h3>
-          <p className="text-xs text-slate-400 leading-normal">Select a canvas node or connection line to configure settings.</p>
+          <p className="text-xs text-slate-400 leading-normal">
+            Select a canvas node or connection line to configure settings.
+          </p>
         </div>
       </div>
     );
@@ -757,21 +789,28 @@ export default function PropertiesPanel({
             <ArrowRightLeft className="w-4 h-4 text-indigo-500" />
             Connection Settings
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-5 space-y-5 flex-1 overflow-y-auto custom-scrollbar">
           <div className="space-y-1.5">
-            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest">Source Output Sample</label>
+            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest">
+              Source Output Sample
+            </label>
             <pre className="p-3 bg-slate-905 text-emerald-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-40 custom-scrollbar">
               {JSON.stringify(sourceOutputPreview || {}, null, 2)}
             </pre>
           </div>
 
           <div className="space-y-2">
-            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest">Branch Condition</label>
+            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest">
+              Branch Condition
+            </label>
             <select
               value={allowedConditions.includes(edgeCondition) ? edgeCondition : 'custom'}
               onChange={(e) => {
@@ -791,7 +830,7 @@ export default function PropertiesPanel({
               ))}
               <option value="custom">Custom Condition Variable...</option>
             </select>
-            
+
             {(!allowedConditions.includes(edgeCondition) || edgeCondition === '') && (
               <input
                 type="text"
@@ -801,18 +840,25 @@ export default function PropertiesPanel({
                 className="w-full border border-slate-250 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-100 transition-all"
               />
             )}
-            <p className="text-[10px] text-slate-400 leading-normal">Define when execution traverses this path.</p>
+            <p className="text-[10px] text-slate-400 leading-normal">
+              Define when execution traverses this path.
+            </p>
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest">Condition Expression (Optional)</label>
+            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest">
+              Condition Expression (Optional)
+            </label>
             <textarea
               value={edgeExpression}
               onChange={(e) => setEdgeExpression(e.target.value)}
               placeholder={'e.g. output.score > 0.5 or output.intent == "cancel"'}
               className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono h-28 bg-slate-50/50 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-none"
             />
-            <p className="text-[10px] text-slate-450 leading-normal">JavaScript expression evaluated against source node output. Prefix variables with <code className="bg-slate-100 px-1 rounded text-[9px] font-mono">output.</code>.</p>
+            <p className="text-[10px] text-slate-450 leading-normal">
+              JavaScript expression evaluated against source node output. Prefix variables with{' '}
+              <code className="bg-slate-100 px-1 rounded text-[9px] font-mono">output.</code>.
+            </p>
           </div>
         </div>
 
@@ -830,17 +876,16 @@ export default function PropertiesPanel({
                 const trimmedExpression = (edgeExpression || '').trim();
 
                 if (trimmedExpression && !trimmedCondition) {
-                  alert('Please specify a condition name/label for your custom expression (e.g. is_safe, high_profit).');
+                  alert(
+                    'Please specify a condition name/label for your custom expression (e.g. is_safe, high_profit).',
+                  );
                   return;
                 }
 
-                onUpdateEdge(
-                  selectedEdge.id || `${selectedEdge.source}_${selectedEdge.target}`,
-                  {
-                    condition: trimmedCondition,
-                    expression: trimmedExpression,
-                  } as any,
-                );
+                onUpdateEdge(selectedEdge.id || `${selectedEdge.source}_${selectedEdge.target}`, {
+                  condition: trimmedCondition,
+                  expression: trimmedExpression,
+                } as any);
               }
             }}
             className="flex-1 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-750 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
@@ -860,7 +905,10 @@ export default function PropertiesPanel({
           <Settings className="w-4 h-4 text-indigo-500" />
           Configure Node
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+        >
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -874,7 +922,9 @@ export default function PropertiesPanel({
           <input
             type="text"
             value={String(
-              selectedNode ? (selectedNode.data as any).label || (selectedNode.data as any).name || '' : '',
+              selectedNode
+                ? (selectedNode.data as any).label || (selectedNode.data as any).name || ''
+                : '',
             )}
             onChange={(e) => {
               if (!selectedNode) return;
@@ -921,7 +971,9 @@ export default function PropertiesPanel({
               <div className="space-y-5">
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">Input Structure</label>
+                    <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">
+                      Input Structure
+                    </label>
                     <button
                       onClick={() => {
                         setGeneratorModalType('input');
@@ -939,7 +991,9 @@ export default function PropertiesPanel({
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">Output Structure</label>
+                    <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">
+                      Output Structure
+                    </label>
                     <button
                       onClick={() => {
                         setGeneratorModalType('output');
@@ -956,8 +1010,10 @@ export default function PropertiesPanel({
                   </pre>
                 </div>
                 <p className="text-[10px] text-slate-450 leading-relaxed italic bg-indigo-50/40 p-3 rounded-xl border border-indigo-50">
-                  Inject data values dynamically from upstream nodes using 
-                  <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[9px] font-mono text-indigo-700 mx-1 font-bold">{"{{ node_id.output_key }}"}</code> 
+                  Inject data values dynamically from upstream nodes using
+                  <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[9px] font-mono text-indigo-700 mx-1 font-bold">
+                    {'{{ node_id.output_key }}'}
+                  </code>
                   syntax in text parameters.
                 </p>
               </div>
@@ -965,14 +1021,15 @@ export default function PropertiesPanel({
           }
 
           const formatLabel = (k: string) => {
-            return k
-              .replace(/[_-]+/g, ' ')
-              .replace(/\b\w/g, (char) => char.toUpperCase());
+            return k.replace(/[_-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
           };
 
-          const isTrigger = String((selectedNode?.data as any)?.node_type || (selectedNode?.data as any)?.nodeType || '').toUpperCase() === 'TRIGGER';
+          const isTrigger =
+            String(
+              (selectedNode?.data as any)?.node_type || (selectedNode?.data as any)?.nodeType || '',
+            ).toUpperCase() === 'TRIGGER';
           const entries = Object.entries(properties).filter(
-            ([key]) => key.toLowerCase() !== 'mapping_template'
+            ([key]) => key.toLowerCase() !== 'mapping_template',
           );
           const systemEntries = Object.entries(systemProperties);
 
@@ -983,8 +1040,13 @@ export default function PropertiesPanel({
                   <div className="space-y-4">
                     {entries.map(([key, value]) => {
                       const label = formatLabel(key);
-                      const valueType = typeof value === 'boolean' ? 'boolean' : typeof value === 'number' ? 'number' : 'string';
-                      
+                      const valueType =
+                        typeof value === 'boolean'
+                          ? 'boolean'
+                          : typeof value === 'number'
+                            ? 'number'
+                            : 'string';
+
                       if (valueType === 'boolean') {
                         return (
                           <label
@@ -1020,7 +1082,10 @@ export default function PropertiesPanel({
                       }
 
                       // Multiline textarea for prompts/long strings
-                      const isMultiline = String(value ?? '').length > 40 || key.toLowerCase().includes('prompt') || key.toLowerCase().includes('query');
+                      const isMultiline =
+                        String(value ?? '').length > 40 ||
+                        key.toLowerCase().includes('prompt') ||
+                        key.toLowerCase().includes('query');
 
                       return (
                         <div key={key} className="space-y-1.5">
@@ -1037,7 +1102,12 @@ export default function PropertiesPanel({
                             />
                           ) : (
                             <input
-                              type={key.toLowerCase().includes('password') || key.toLowerCase().includes('secret') ? 'password' : 'text'}
+                              type={
+                                key.toLowerCase().includes('password') ||
+                                key.toLowerCase().includes('secret')
+                                  ? 'password'
+                                  : 'text'
+                              }
                               value={String(value ?? '')}
                               onChange={(e) => handlePropertyChange(key, e.target.value)}
                               placeholder="Enter value..."
@@ -1074,23 +1144,29 @@ export default function PropertiesPanel({
                       </button>
                     )}
                   </div>
-                  
+
                   {hasPredecessor ? (
                     <div className="text-[10px] text-slate-650 bg-slate-50 border border-slate-150 rounded-xl p-3.5 space-y-1.5 font-mono max-h-32 overflow-y-auto custom-scrollbar shadow-inner-sm">
                       {(() => {
                         let currentMapping: Record<string, string> = {};
                         try {
                           const value = properties.mapping_template;
-                          currentMapping = typeof value === 'string' ? JSON.parse(value) : value || {};
+                          currentMapping =
+                            typeof value === 'string' ? JSON.parse(value) : value || {};
                         } catch {
                           currentMapping = {};
                         }
-                        
+
                         return Object.keys(currentMapping).length > 0 ? (
                           Object.entries(currentMapping).map(([tgt, src]) => (
-                            <div key={tgt} className="truncate flex items-center justify-between gap-1.5 border-b border-slate-100/50 pb-1 last:border-0 last:pb-0">
+                            <div
+                              key={tgt}
+                              className="truncate flex items-center justify-between gap-1.5 border-b border-slate-100/50 pb-1 last:border-0 last:pb-0"
+                            >
                               <span className="text-indigo-650 font-semibold">{tgt}</span>
-                              <span className="text-slate-450 font-normal truncate">&larr; {String(src)}</span>
+                              <span className="text-slate-450 font-normal truncate">
+                                &larr; {String(src)}
+                              </span>
                             </div>
                           ))
                         ) : (
@@ -1102,7 +1178,9 @@ export default function PropertiesPanel({
                     </div>
                   ) : (
                     <div className="text-center py-4 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                      <p className="text-[10px] italic">Connect an upstream node to enable field mapping.</p>
+                      <p className="text-[10px] italic">
+                        Connect an upstream node to enable field mapping.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1133,7 +1211,10 @@ export default function PropertiesPanel({
                             {label}
                           </span>
                           <div className="flex items-center gap-1.5 max-w-[70%]">
-                            <span className="font-mono text-[10px] text-slate-700 bg-white border border-slate-150 px-2 py-0.5 rounded shadow-inner-sm truncate" title={String(value ?? '')}>
+                            <span
+                              className="font-mono text-[10px] text-slate-700 bg-white border border-slate-150 px-2 py-0.5 rounded shadow-inner-sm truncate"
+                              title={String(value ?? '')}
+                            >
                               {String(value ?? '')}
                             </span>
                             <button
@@ -1168,7 +1249,11 @@ export default function PropertiesPanel({
             disabled={isSaving}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-750 disabled:bg-indigo-400 rounded-xl text-xs font-bold text-white shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
           >
-            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {isSaving ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5" />
+            )}
             {isSaving ? 'Saving...' : 'Save Parameters'}
           </button>
           {onDeleteNode && selectedNode && (
@@ -1190,7 +1275,7 @@ export default function PropertiesPanel({
           )}
         </div>
       )}
-      
+
       {/* Modal for defining input/output contracts from JSON sample */}
       <JsonSchemaGeneratorModal
         isOpen={isGeneratorModalOpen}

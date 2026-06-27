@@ -4,7 +4,17 @@ import { IconMap } from '@/lib/icons';
 import { Bot, Loader2, CheckCircle2, XCircle, Zap } from 'lucide-react';
 
 export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) => {
-  const { label, name, model, node_type, icon, color, category_color, executionStatus, description } = data;
+  const {
+    label,
+    name,
+    model,
+    node_type,
+    icon,
+    color,
+    category_color,
+    executionStatus,
+    description,
+  } = data;
   const title = label || name || 'Untitled Node';
 
   const renderIcon = () => {
@@ -102,9 +112,12 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
           </h4>
           {statusStyles.badge}
         </div>
-        
+
         {description && (
-          <p className="text-[9px] text-slate-450 leading-tight truncate" title={String(description)}>
+          <p
+            className="text-[9px] text-slate-450 leading-tight truncate"
+            title={String(description)}
+          >
             {String(description)}
           </p>
         )}
@@ -115,9 +128,7 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
               {model}
             </span>
           )}
-          {!executionStatus && (
-            <span className="text-[8px] font-mono text-slate-400">Ready</span>
-          )}
+          {!executionStatus && <span className="text-[8px] font-mono text-slate-400">Ready</span>}
         </div>
       </div>
 

@@ -23,7 +23,10 @@ const JsonNode: React.FC<JsonNodeProps> = ({ name, value, isLast, depth }) => {
 
     if (isEmpty) {
       return (
-        <div style={{ paddingLeft: `${depth * 16}px` }} className="font-mono text-xs text-gray-400 py-0.5">
+        <div
+          style={{ paddingLeft: `${depth * 16}px` }}
+          className="font-mono text-xs text-gray-400 py-0.5"
+        >
           <span className="text-blue-400 font-semibold">{name}</span>: {isArray ? '[]' : '{}'}
           {!isLast && ','}
         </div>
@@ -43,7 +46,7 @@ const JsonNode: React.FC<JsonNodeProps> = ({ name, value, isLast, depth }) => {
           )}
           <span className="text-blue-300 font-semibold">{name}</span>: {isArray ? '[' : '{'}
         </button>
-        
+
         {isExpanded ? (
           <div className="border-l border-gray-800 ml-1.5 pl-3.5 my-0.5">
             {keys.map((key, index) => (
@@ -84,7 +87,10 @@ const JsonNode: React.FC<JsonNodeProps> = ({ name, value, isLast, depth }) => {
   }
 
   return (
-    <div style={{ paddingLeft: `${depth * 16}px` }} className="font-mono text-xs py-0.5 hover:bg-gray-800/40 rounded pr-2">
+    <div
+      style={{ paddingLeft: `${depth * 16}px` }}
+      className="font-mono text-xs py-0.5 hover:bg-gray-800/40 rounded pr-2"
+    >
       <span className="text-blue-400 font-semibold">{name}</span>: {valElement}
       {!isLast && ','}
     </div>
@@ -105,7 +111,7 @@ export function JsonTreeView({ data }: JsonTreeViewProps) {
   };
 
   const isObject = data !== null && typeof data === 'object';
-  
+
   return (
     <div className="relative border border-gray-800 rounded-lg bg-gray-950 p-4 max-h-[500px] overflow-auto select-text text-gray-300 shadow-inner">
       <button
@@ -147,9 +153,7 @@ export function JsonTreeView({ data }: JsonTreeViewProps) {
             </div>
           </div>
         ) : (
-          <div className="font-mono text-xs">
-            {String(data)}
-          </div>
+          <div className="font-mono text-xs">{String(data)}</div>
         )}
       </div>
     </div>

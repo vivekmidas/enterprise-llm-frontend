@@ -24,13 +24,13 @@ interface JsonSchemaGeneratorModalProps {
 }
 
 interface FlattenedField {
-  key: string;      // short name
-  path: string;     // dotted path e.g. "data.chunks"
-  type: string;     // inferred type
+  key: string; // short name
+  path: string; // dotted path e.g. "data.chunks"
+  type: string; // inferred type
   isLeaf: boolean;
   parentPath: string | null;
   children: string[]; // paths of children
-  value: any;       // sample value
+  value: any; // sample value
 }
 
 // Allowed types in the dropdown
@@ -80,7 +80,7 @@ export default function JsonSchemaGeneratorModal({
               parts.forEach((part: string, idx: number) => {
                 const isLeaf = idx === parts.length - 1;
                 const cleanPart = part.replace('[]', '');
-                
+
                 if (isLeaf) {
                   const type = rule.field_type || 'string';
                   let val: any = 'sample';
@@ -131,7 +131,9 @@ export default function JsonSchemaGeneratorModal({
           setRawJson('{\n  "data": "value"\n}');
         }
       } else {
-        setRawJson('{\n  "data": {\n    "chunks": [\n      "hello"\n    ],\n    "chunk_count": 1,\n    "strategy": "recursive",\n    "chunk_size": 1000,\n    "chunk_overlap": 200\n  },\n  "auth_token": "token",\n  "source_system": "localhost"\n}');
+        setRawJson(
+          '{\n  "data": {\n    "chunks": [\n      "hello"\n    ],\n    "chunk_count": 1,\n    "strategy": "recursive",\n    "chunk_size": 1000,\n    "chunk_overlap": 200\n  },\n  "auth_token": "token",\n  "source_system": "localhost"\n}',
+        );
       }
     }
   }, [isOpen, initialSchema]);
@@ -148,7 +150,7 @@ export default function JsonSchemaGeneratorModal({
     if (Array.isArray(obj)) {
       const currentPath = prefix || 'root';
       const childPaths: string[] = [];
-      
+
       accumulator[currentPath] = {
         key: prefix.split('.').pop() || 'root',
         path: currentPath,
@@ -170,7 +172,7 @@ export default function JsonSchemaGeneratorModal({
     if (typeof obj === 'object') {
       const currentPath = prefix || 'root';
       const childPaths: string[] = [];
-      
+
       accumulator[currentPath] = {
         key: prefix.split('.').pop() || 'root',
         path: currentPath,
@@ -205,7 +207,13 @@ export default function JsonSchemaGeneratorModal({
       else if (/^((25[0-5]|2[0-4]\d|1?\d?\d)(\.|$)){4}$/.test(obj)) typeOverride = 'ip_address';
       else if (lower.endsWith('.pdf')) typeOverride = 'pdf';
       else if (lower.endsWith('.docx') || lower.endsWith('.doc')) typeOverride = 'doc';
-      else if (lower.startsWith('data:image/') || lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg')) typeOverride = 'image';
+      else if (
+        lower.startsWith('data:image/') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg')
+      )
+        typeOverride = 'image';
     }
 
     accumulator[currentPath] = {
@@ -235,7 +243,7 @@ export default function JsonSchemaGeneratorModal({
       setJsonError(null);
       const flattened = flattenObject(parsed);
       setFieldsMap(flattened);
-      
+
       // Rebuild selections and types to only contain keys present in the new structure
       setSelectedFields((prev) => {
         const next: Record<string, boolean> = {};
@@ -251,13 +259,13 @@ export default function JsonSchemaGeneratorModal({
           const prevVal = prev[path];
           const isNewObject = field.type === 'object';
           const isNewArray = field.type === 'array';
-          
+
           if (prevVal !== undefined) {
             const isPrevObject = prevVal === 'object';
             const isPrevArray = prevVal === 'array';
             const isPrevPrimitive = !isPrevObject && !isPrevArray;
             const isNewPrimitive = !isNewObject && !isNewArray;
-            
+
             if (
               (isNewObject && isPrevObject) ||
               (isNewArray && isPrevArray) ||
@@ -403,7 +411,9 @@ export default function JsonSchemaGeneratorModal({
             )}
 
             {/* Field Name */}
-            <span className={`text-xs font-mono font-medium truncate ${isSelected ? 'text-slate-800' : 'text-slate-400'}`}>
+            <span
+              className={`text-xs font-mono font-medium truncate ${isSelected ? 'text-slate-800' : 'text-slate-400'}`}
+            >
               {field.key}
             </span>
 
@@ -423,7 +433,9 @@ export default function JsonSchemaGeneratorModal({
                 <input
                   type="checkbox"
                   checked={isRequired}
-                  onChange={(e) => setRequiredFields((prev) => ({ ...prev, [path]: e.target.checked }))}
+                  onChange={(e) =>
+                    setRequiredFields((prev) => ({ ...prev, [path]: e.target.checked }))
+                  }
                   className="w-3 h-3 text-amber-500 rounded border-slate-300 focus:ring-amber-500"
                 />
                 <span className="text-[9px] font-bold text-amber-700 uppercase tracking-tighter select-none">
@@ -460,7 +472,6 @@ export default function JsonSchemaGeneratorModal({
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl shadow-2xl w-[85vw] max-w-[1100px] h-[85vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-        
         {/* Header */}
         <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-100/70">
           <div className="flex items-center gap-2">
@@ -469,7 +480,10 @@ export default function JsonSchemaGeneratorModal({
               {title || 'Define Contract from Sample JSON'}
             </h2>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -512,7 +526,6 @@ export default function JsonSchemaGeneratorModal({
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             {/* Split tree / schema view */}
             <div className="flex-1 flex overflow-hidden min-h-0 border-b border-slate-200">
-              
               {/* Tree view */}
               <div className="flex-1 flex flex-col overflow-auto custom-scrollbar p-4">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 block">
@@ -523,7 +536,9 @@ export default function JsonSchemaGeneratorModal({
                     <div className="flex flex-col items-center justify-center h-full p-8 text-center gap-2">
                       <AlertCircle className="w-8 h-8 text-slate-300" />
                       <p className="text-xs font-semibold text-slate-400">
-                        {jsonError ? 'Correct JSON syntax errors to show schema' : 'Paste valid JSON to start'}
+                        {jsonError
+                          ? 'Correct JSON syntax errors to show schema'
+                          : 'Paste valid JSON to start'}
                       </p>
                     </div>
                   ) : (
@@ -559,7 +574,9 @@ export default function JsonSchemaGeneratorModal({
             <div className="p-3 bg-indigo-50/40 px-5 flex items-center gap-2 border-b border-slate-200">
               <Info size={14} className="text-indigo-600" />
               <p className="text-[10px] text-indigo-700 leading-relaxed font-medium">
-                Pasting a sample JSON auto-detects nesting structures, arrays, and standard type rules. Customize types to enforce file formats (PDF, DOC, Images) and strict validation rules.
+                Pasting a sample JSON auto-detects nesting structures, arrays, and standard type
+                rules. Customize types to enforce file formats (PDF, DOC, Images) and strict
+                validation rules.
               </p>
             </div>
           </div>
@@ -581,7 +598,6 @@ export default function JsonSchemaGeneratorModal({
             Apply & Save Schema
           </button>
         </div>
-
       </div>
     </div>
   );

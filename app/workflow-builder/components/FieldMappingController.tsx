@@ -36,7 +36,9 @@ export default function FieldMappingController({
     (node) => node.id === edges.find((edge) => edge.target === selectedNode?.id)?.source,
   );
   const targetNode = isTransform
-    ? nodes.find((node) => node.id === edges.find((edge) => edge.source === selectedNode?.id)?.target)
+    ? nodes.find(
+        (node) => node.id === edges.find((edge) => edge.source === selectedNode?.id)?.target,
+      )
     : selectedNode;
 
   const currentMapping = (() => {

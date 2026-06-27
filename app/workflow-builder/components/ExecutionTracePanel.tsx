@@ -46,14 +46,18 @@ export default function ExecutionTracePanel({ trace, onClear }: ExecutionTracePa
                 ) : (
                   <AlertCircle size={13} className="text-rose-500 shrink-0" />
                 )}
-                <span className="font-semibold text-xs text-slate-700 truncate">{step.nodeName}</span>
+                <span className="font-semibold text-xs text-slate-700 truncate">
+                  {step.nodeName}
+                </span>
                 <span className="text-[8px] text-slate-400 font-bold bg-slate-100 px-1 py-0.5 rounded border border-slate-150 shrink-0 uppercase tracking-wider">
                   {step.group}
                 </span>
               </div>
-              <span className="text-[9px] font-mono text-slate-400 shrink-0 font-medium">{step.durationMs}ms</span>
+              <span className="text-[9px] font-mono text-slate-400 shrink-0 font-medium">
+                {step.durationMs}ms
+              </span>
             </div>
-            
+
             {step.error && (
               <p className="mt-1.5 text-[10px] text-rose-600 bg-rose-50 border border-rose-100 p-2 rounded-lg font-mono break-words leading-relaxed">
                 {step.error}

@@ -102,7 +102,11 @@ export default function WorkflowHeader({
           </div>
 
           <div className="text-xs text-slate-500 flex items-center gap-3">
-            {agentId && <span className="font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{agentId}</span>}
+            {agentId && (
+              <span className="font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                {agentId}
+              </span>
+            )}
             <span className="text-slate-300">•</span>
             <span className="bg-indigo-50 px-2.5 py-0.5 rounded text-indigo-700 font-mono text-[10px] font-bold border border-indigo-100">
               v{agentVersion ?? 1}

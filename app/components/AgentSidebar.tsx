@@ -234,7 +234,9 @@ export default function AgentSidebar({
                 >
                   <div className="flex items-center gap-1 min-w-0">
                     <FileText className="h-3.5 w-3.5 text-slate-400 shrink-0 group-hover:text-indigo-500 transition-colors" />
-                    <span className="text-xs font-medium text-slate-650 truncate">{agent.name || agent.id}</span>
+                    <span className="text-xs font-medium text-slate-650 truncate">
+                      {agent.name || agent.id}
+                    </span>
                   </div>
                   <span className="text-[8px] bg-slate-200/75 text-slate-500 px-1 py-0.5 rounded uppercase font-bold shrink-0">
                     {agent.category || 'default'}
@@ -317,9 +319,7 @@ export default function AgentSidebar({
                   {actionNodes.length > 0 ? (
                     actionNodes.map(renderNodeItem)
                   ) : (
-                    <p className="text-[10px] text-slate-400 italic">
-                      No matching actions found.
-                    </p>
+                    <p className="text-[10px] text-slate-400 italic">No matching actions found.</p>
                   )}
                 </div>
               )}

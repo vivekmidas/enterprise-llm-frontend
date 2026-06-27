@@ -20,7 +20,10 @@ export default function LoginPage() {
       localStorage.setItem('admin_token', data.token);
       localStorage.setItem('user_role', data.role);
       localStorage.setItem('user_email', email);
-      localStorage.setItem('customer_id', data.customer_id !== null && data.customer_id !== undefined ? String(data.customer_id) : '');
+      localStorage.setItem(
+        'customer_id',
+        data.customer_id !== null && data.customer_id !== undefined ? String(data.customer_id) : '',
+      );
       localStorage.setItem('user_domain', data.domain || '');
 
       // Set a cookie so the middleware can access the token

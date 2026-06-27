@@ -1,4 +1,12 @@
-import { EdgeLabelRenderer, EdgeLabelRendererProps,EdgeProps, EdgeText, MarkerType, type Edge, type Node } from '@xyflow/react';
+import {
+  EdgeLabelRenderer,
+  EdgeLabelRendererProps,
+  EdgeProps,
+  EdgeText,
+  MarkerType,
+  type Edge,
+  type Node,
+} from '@xyflow/react';
 
 import type { NodeProperties, WorkflowGraphPayload, WorkflowNodeData } from './types';
 
@@ -6,15 +14,14 @@ export const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve,
 
 export const defaultEdgeOptions = {
   style: { strokeWidth: 2, stroke: '#94a3b8' },
-  EdgeText: "hello",
+  EdgeText: 'hello',
   markerEnd: {
     type: MarkerType.ArrowClosed,
     width: 16,
     height: 16,
-    color: '#3208a6b2'
+    color: '#3208a6b2',
   },
 };
-
 
 export const initialNodes: Node<WorkflowNodeData>[] = [];
 

@@ -268,7 +268,9 @@ export const api = {
   },
 
   getCustomerNodesAdmin: async (customerId: number) => {
-    const res = await fetch(`${BACKEND_URL}/admin/customers/${customerId}/nodes`, { headers: getHeaders() });
+    const res = await fetch(`${BACKEND_URL}/admin/customers/${customerId}/nodes`, {
+      headers: getHeaders(),
+    });
     return res.json();
   },
 

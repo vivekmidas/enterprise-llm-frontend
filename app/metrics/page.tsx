@@ -36,7 +36,7 @@ export default function MetricsDashboard() {
         console.error('Failed to load workflows', err);
         return [];
       }
-    }
+    },
   });
 
   const { data, isLoading, error } = useQuery({
@@ -47,7 +47,7 @@ export default function MetricsDashboard() {
       if (selectedWorkflow && selectedWorkflow !== 'all') {
         url.searchParams.append('workflow_id', selectedWorkflow);
       }
-      
+
       const response = await fetch(url.toString(), {
         headers: getHeaders(),
       });
