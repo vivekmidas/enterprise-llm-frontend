@@ -50,11 +50,13 @@ export default function AgentSidebar({
           ? nodesData
           : (nodesData as any).nodes || (nodesData as any).agents || [];
 
+        const activeAgents = fetchedAgents.filter((n: any) => n.is_enabled !== false);
+
         // Separate global components from category-specific ones
-        setTriggers(fetchedAgents.filter(isTrigger));
-        setLogic(fetchedAgents.filter(isLogic));
+        setTriggers(activeAgents.filter(isTrigger));
+        setLogic(activeAgents.filter(isLogic));
         setCategoryNodes(
-          fetchedAgents.filter(
+          activeAgents.filter(
             (n: any) => Number(n.category) === activeGroup && !isTrigger(n) && !isLogic(n),
           ),
         );
@@ -111,8 +113,10 @@ export default function AgentSidebar({
         ? nodesData
         : (nodesData as any).nodes || (nodesData as any).agents || [];
 
+      const activeNodes = fetchedNodes.filter((n: any) => n.is_enabled !== false);
+
       // Filter out triggers/logic so they don't appear in the Actions section twice
-      setCategoryNodes(fetchedNodes.filter((n: any) => !isTrigger(n) && !isLogic(n)));
+      setCategoryNodes(activeNodes.filter((n: any) => !isTrigger(n) && !isLogic(n)));
       const fetchedCategory = await api.getCategory(category_id);
       setSelectedCategory(fetchedCategory.category);
     } catch (error) {

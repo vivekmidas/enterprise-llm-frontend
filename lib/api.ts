@@ -3,7 +3,7 @@ import { LoginPayload, RegisterPayload } from '@/lib/types/login';
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 import { CategoryItem, AgentPayload } from '@/app/components/component-categoriees';
 
-const getHeaders = (headers: Record<string, string> = {}) => {
+export const getHeaders = (headers: Record<string, string> = {}) => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
   return {
     ...headers,
@@ -356,13 +356,19 @@ export const api = {
     return res.json();
   },
 
-  getCustomerNodeConfigs: async () => {
-    const res = await fetch(`${BACKEND_URL}/nodes/customer/config`, { headers: getHeaders() });
+  getCustomerNodeConfigs: async (customerId?: string | number) => {
+    const url = customerId
+      ? `${BACKEND_URL}/nodes/customer/config?customer_id=${customerId}`
+      : `${BACKEND_URL}/nodes/customer/config`;
+    const res = await fetch(url, { headers: getHeaders() });
     return res.json();
   },
 
-  configureCustomerNode: async (nodeName: string, config: any) => {
-    const res = await fetch(`${BACKEND_URL}/nodes/customer/config/${nodeName}`, {
+  configureCustomerNode: async (nodeName: string, config: any, customerId?: string | number) => {
+    const url = customerId
+      ? `${BACKEND_URL}/nodes/customer/config/${nodeName}?customer_id=${customerId}`
+      : `${BACKEND_URL}/nodes/customer/config/${nodeName}`;
+    const res = await fetch(url, {
       method: 'PUT',
       body: JSON.stringify(config),
       headers: getHeaders({ 'Content-Type': 'application/json' }),

@@ -868,6 +868,7 @@ function AgentBuilderContent() {
           workflowId={agentId}
           onDeleteNode={onDeleteNode}
           onOpenMapper={() => setIsMapperOpen(true)}
+          hasPredecessor={selectedNode ? edges.some((e) => e.target === selectedNode.id) : false}
         />
 
         <FieldMappingController

@@ -12,7 +12,7 @@ import {
   Database,
 } from 'lucide-react';
 import { useState } from 'react';
-import { api } from '@/lib/api';
+import { api, getHeaders } from '@/lib/api';
 
 const TIME_RANGES = [
   { label: '5m', value: 5 },
@@ -23,14 +23,34 @@ const TIME_RANGES = [
 
 export default function MetricsDashboard() {
   const [timeRange, setTimeRange] = useState(30);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<string>('all');
   const [expandedTrace, setExpandedTrace] = useState<string | null>(null);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['observability-metrics', timeRange],
+  // Fetch all saved workflows for the dropdown selector
+  const { data: workflows } = useQuery({
+    queryKey: ['saved-workflows-list'],
     queryFn: async () => {
-      const response = await fetch(
-        `http://localhost:8000/api/observability/traces?minutes=${timeRange}`,
-      );
+      try {
+        return await api.getSavedAgents();
+      } catch (err) {
+        console.error('Failed to load workflows', err);
+        return [];
+      }
+    }
+  });
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['observability-metrics', timeRange, selectedWorkflow],
+    queryFn: async () => {
+      const url = new URL('http://localhost:8000/api/observability/traces');
+      url.searchParams.append('minutes', timeRange.toString());
+      if (selectedWorkflow && selectedWorkflow !== 'all') {
+        url.searchParams.append('workflow_id', selectedWorkflow);
+      }
+      
+      const response = await fetch(url.toString(), {
+        headers: getHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch metrics');
       return response.json();
     },
@@ -68,20 +88,34 @@ export default function MetricsDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Observability Hub</h1>
           <p className="text-gray-400 mt-1">Real-time performance and trace analysis</p>
         </div>
-        <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-800">
-          {TIME_RANGES.map((range) => (
-            <button
-              key={range.value}
-              onClick={() => setTimeRange(range.value)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                timeRange === range.value
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
-              }`}
-            >
-              {range.label}
-            </button>
-          ))}
+        <div className="flex gap-4 items-center">
+          <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-800">
+            {TIME_RANGES.map((range) => (
+              <button
+                key={range.value}
+                onClick={() => setTimeRange(range.value)}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  timeRange === range.value
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
+          <select
+            value={selectedWorkflow}
+            onChange={(e) => setSelectedWorkflow(e.target.value)}
+            className="bg-gray-900 border border-gray-800 text-gray-100 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors"
+          >
+            <option value="all">All Workflows</option>
+            {workflows?.map((wf: any) => (
+              <option key={wf.id} value={wf.id}>
+                {wf.name || wf.id}
+              </option>
+            ))}
+          </select>
         </div>
       </header>
 

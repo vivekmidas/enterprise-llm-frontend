@@ -4,10 +4,11 @@ import React, { useEffect, useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import { api } from '@/lib/api';
-import { Workflow } from 'lucide-react';
+import { api, getHeaders } from '@/lib/api';
+import { Workflow, ChevronDown, ChevronUp, Copy, Check, List, LayoutGrid } from 'lucide-react';
 import { IconMap } from '@/lib/icons';
 import { AgentNode, NodeCategory } from '@components/component-categoriees';
+import { JsonTreeView } from '@components/JsonTreeView';
 
 type PropertyTarget = 'user' | 'system';
 
@@ -354,10 +355,26 @@ export default function AdminPage() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [providers, setProviders] = useState<any[]>([]);
   const [workflows, setWorkflows] = useState<any[]>([]);
+  const [workflowViewMode, setWorkflowViewMode] = useState<'list' | 'card'>('list');
   const [jsonExpandedState, setJsonExpandedState] = useState<Record<string, boolean>>({});
   const [editingProvider, setEditingProvider] = useState<any | null>(null);
   const [selectedCategoryType, setSelectedCategoryType] = useState<string>('string');
   const [isEditingProp, setIsEditingProp] = useState(false);
+
+  // System Log Scoping & Filtering States
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [selectedWorkflowFilter, setSelectedWorkflowFilter] = useState('all');
+  const [minutesFilter, setMinutesFilter] = useState(30);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [traceViewMode, setTraceViewMode] = useState<'tree' | 'raw'>('tree');
+  const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
+
+  const handleCopyLog = (logData: any) => {
+    navigator.clipboard.writeText(JSON.stringify(logData, null, 2));
+    setCopiedLogId(logData.trace_id);
+    setTimeout(() => setCopiedLogId(null), 2000);
+  };
   // New Property Modal State
   const [propModal, setPropModal] = useState({
     isOpen: false,
@@ -453,6 +470,34 @@ export default function AdminPage() {
     }
   }, [isAuthenticated]);
 
+  const fetchLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const url = new URL('http://localhost:8000/api/observability/traces');
+      url.searchParams.append('minutes', minutesFilter.toString());
+      if (selectedWorkflowFilter && selectedWorkflowFilter !== 'all') {
+        url.searchParams.append('workflow_id', selectedWorkflowFilter);
+      }
+      const response = await fetch(url.toString(), {
+        headers: getHeaders(),
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setLogs(result.traces || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch system logs', err);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'logs') {
+      fetchLogs();
+    }
+  }, [activeTab, selectedWorkflowFilter, minutesFilter]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -491,6 +536,10 @@ export default function AdminPage() {
 
   const handleSaveCustomerConfig = async () => {
     if (!editingAgent) return;
+    if (editingAgent.is_enabled === false) {
+      alert('This node is locked and cannot be configured because it has been disabled by the system administrator.');
+      return;
+    }
     try {
       const overrides: Record<string, any> = {};
       const userProps = propertyEntriesFromValue(editingAgent.user_properties);
@@ -501,10 +550,32 @@ export default function AdminPage() {
         }
       });
 
+      // Validate and parse Input Contract
+      const currentContract = contractFromValue(editingAgent.input_contract);
+      const validatedContract = validateInputContract(currentContract);
+
+      // Validate and parse Output Contract
+      let finalOutputContract = {};
+      try {
+        if (
+          typeof editingAgent.output_contract === 'string' &&
+          editingAgent.output_contract.trim() !== ''
+        ) {
+          finalOutputContract = JSON.parse(editingAgent.output_contract);
+        } else if (editingAgent.output_contract && typeof editingAgent.output_contract === 'object') {
+          finalOutputContract = editingAgent.output_contract;
+        }
+      } catch (e) {
+        alert('Invalid JSON in Output Contract field.');
+        return;
+      }
+
       await api.configureCustomerNode(editingAgent.name, {
         properties: overrides,
         is_enabled: editingAgent.is_enabled !== undefined ? editingAgent.is_enabled : true,
-      });
+        input_contract: validatedContract,
+        output_contract: finalOutputContract,
+      }, customerId || undefined);
 
       alert('Node configuration saved successfully!');
       const agentsRes = await api.getNodes();
@@ -842,10 +913,49 @@ export default function AdminPage() {
 
   const handleSaveInputContract = async () => {
     if (!editingAgent) return;
+    if (editingAgent.is_enabled === false) {
+      alert('This node is locked and cannot be configured because it has been disabled by the system administrator.');
+      return;
+    }
 
     try {
       const currentContract = contractFromValue(editingAgent.input_contract);
       const validatedContract = validateInputContract(currentContract);
+
+      if (customerId) {
+        const overrides: Record<string, any> = {};
+        const userProps = propertyEntriesFromValue(editingAgent.user_properties);
+        const sysProps = propertyEntriesFromValue(editingAgent.system_properties);
+        [...userProps, ...sysProps].forEach((entry: any) => {
+          if (entry.key) {
+            overrides[entry.key] = entry.value !== undefined ? entry.value : entry.default;
+          }
+        });
+
+        let finalOutputContract = {};
+        try {
+          if (
+            typeof editingAgent.output_contract === 'string' &&
+            editingAgent.output_contract.trim() !== ''
+          ) {
+            finalOutputContract = JSON.parse(editingAgent.output_contract);
+          } else if (editingAgent.output_contract && typeof editingAgent.output_contract === 'object') {
+            finalOutputContract = editingAgent.output_contract;
+          }
+        } catch (e) {}
+
+        await api.configureCustomerNode(editingAgent.name, {
+          properties: overrides,
+          is_enabled: editingAgent.is_enabled !== undefined ? editingAgent.is_enabled : true,
+          input_contract: validatedContract,
+          output_contract: finalOutputContract,
+        }, customerId || undefined);
+
+        const agentsRes = await api.getNodes();
+        setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
+        alert('Input contract saved successfully!');
+        return;
+      }
 
       if (!editingAgent.id) {
         alert('Please create the node first before saving input contracts separately.');
@@ -1306,7 +1416,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-7xl space-y-8">
+      <div className="mx-auto w-full space-y-8">
         <header className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-black">System Registry</h1>
@@ -1713,42 +1823,66 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-right min-w-[100px]">
                             <div className="flex items-center justify-end gap-2">
                               {customerId && (
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      const overrides: Record<string, any> = {};
-                                      const userProps = propertyEntriesFromValue(agent.user_properties);
-                                      const sysProps = propertyEntriesFromValue(agent.system_properties);
-                                      [...userProps, ...sysProps].forEach((entry: any) => {
-                                        if (entry.key) {
-                                          overrides[entry.key] = entry.value !== undefined ? entry.value : entry.default;
-                                        }
-                                      });
-                                      const newEnabledState = !(agent.is_enabled !== false);
-                                      await api.configureCustomerNode(agent.name, {
-                                        properties: overrides,
-                                        is_enabled: newEnabledState,
-                                      });
-                                      const agentsRes = await api.getNodes();
-                                      setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
-                                    } catch (err: any) {
-                                      alert('Failed to toggle status: ' + err.message);
-                                    }
-                                  }}
-                                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
-                                    agent.is_enabled !== false
-                                      ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                                      : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                                  }`}
-                                  title={agent.is_enabled !== false ? 'Click to Disable' : 'Click to Enable'}
-                                >
-                                  {agent.is_enabled !== false ? 'Enabled' : 'Disabled'}
-                                </button>
+                                agent.is_enabled === false ? (
+                                  <div
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border bg-red-50 text-red-700 border-red-200 cursor-not-allowed select-none transition-all shadow-sm"
+                                    title="Locked by System Administrator"
+                                  >
+                                    <IconMap.lock className="h-3 w-3 text-red-500" />
+                                    <span>Locked</span>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const overrides: Record<string, any> = {};
+                                        const userProps = propertyEntriesFromValue(agent.user_properties);
+                                        const sysProps = propertyEntriesFromValue(agent.system_properties);
+                                        [...userProps, ...sysProps].forEach((entry: any) => {
+                                          if (entry.key) {
+                                            overrides[entry.key] = entry.value !== undefined ? entry.value : entry.default;
+                                          }
+                                        });
+                                        const newEnabledState = !(agent.is_enabled !== false);
+                                        await api.configureCustomerNode(agent.name, {
+                                          properties: overrides,
+                                          is_enabled: newEnabledState,
+                                        }, customerId || undefined);
+                                        const agentsRes = await api.getNodes();
+                                        setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
+                                      } catch (err: any) {
+                                        alert('Failed to toggle status: ' + err.message);
+                                      }
+                                    }}
+                                    className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
+                                      agent.is_enabled !== false
+                                        ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                        : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                                    }`}
+                                    title={agent.is_enabled !== false ? 'Click to Disable' : 'Click to Enable'}
+                                  >
+                                    {agent.is_enabled !== false ? 'Enabled' : 'Disabled'}
+                                  </button>
+                                )
                               )}
                               <button
-                                onClick={() => setEditingAgent({ ...agent })}
-                                className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                                title={customerId ? 'Edit Customer Overrides' : 'Edit Node Type'}
+                                onClick={() => {
+                                  if (agent.is_enabled === false) return;
+                                  setEditingAgent({ ...agent });
+                                }}
+                                disabled={agent.is_enabled === false}
+                                className={`p-1 rounded transition-colors ${
+                                  agent.is_enabled === false
+                                    ? 'text-gray-300 cursor-not-allowed'
+                                    : 'text-blue-600 hover:bg-blue-50'
+                                }`}
+                                title={
+                                  agent.is_enabled === false
+                                    ? 'Locked by System Administrator'
+                                    : customerId
+                                    ? 'Edit Customer Overrides'
+                                    : 'Edit Node Type'
+                                }
                               >
                                 <IconMap.edit2 className="h-4 w-4" />
                               </button>
@@ -1778,82 +1912,203 @@ export default function AdminPage() {
                 <Workflow className="h-5 w-5 text-gray-400" />
                 <h2 className="text-xl font-semibold text-black">Workflow Catalog</h2>
               </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {workflows.map((wf) => (
-                <div
-                  key={wf.id}
-                  className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-all"
+              {/* View Mode Toggle */}
+              <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setWorkflowViewMode('list')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                    workflowViewMode === 'list'
+                      ? 'bg-blue-50 text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-800'
+                  }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100">
-                        <Workflow className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-black">{wf.name}</h3>
-                        <p className="text-[10px] text-gray-400 font-mono">{wf.id}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border ${wf.is_enabled !== false ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}
-                      >
-                        {wf.is_enabled !== false ? 'Active' : 'Disabled'}
-                      </span>
-                      <div className="flex gap-1">
-                        {(userRole === 'admin' || userRole === 'system_admin') && (
-                          <button
-                            onClick={() => handleToggleWorkflow(wf.id)}
-                            className={`p-1 rounded transition-colors ${wf.is_enabled !== false ? 'text-gray-400 hover:text-red-500' : 'text-gray-400 hover:text-green-500'}`}
-                            title={wf.is_enabled !== false ? 'Disable' : 'Enable'}
-                          >
-                            <IconMap.power className="h-4 w-4" />
-                          </button>
-                        )}
-                        {userRole !== 'admin' && userRole !== 'system_admin' && (
-                          <button
-                            onClick={() => handleDeleteWorkflow(wf.id)}
-                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                            title="Delete"
-                          >
-                            <IconMap.trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {wf.description || 'No description provided.'}
-                    </p>
-                    <div className="flex items-center gap-4 pt-4 border-t border-gray-50">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-400 uppercase font-bold">Nodes</span>
-                        <span className="text-sm font-semibold text-black">
-                          {wf.graph?.nodes?.length || 0}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-400 uppercase font-bold">Edges</span>
-                        <span className="text-sm font-semibold text-black">
-                          {wf.graph?.edges?.length || 0}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {workflows.length === 0 && (
-                <div className="col-span-full py-12 text-center rounded-xl border-2 border-dashed border-gray-200">
-                  <IconMap.Workflow className="mx-auto h-12 w-12 text-gray-300" />
-                  <h3 className="mt-2 text-sm font-semibold text-gray-900">No workflows found</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Get started by creating a new workflow in the builder.
-                  </p>
-                </div>
-              )}
+                  <List className="h-3.5 w-3.5" />
+                  List
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWorkflowViewMode('card')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                    workflowViewMode === 'card'
+                      ? 'bg-blue-50 text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  Card
+                </button>
+              </div>
             </div>
+
+            {workflowViewMode === 'list' ? (
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Workflow Name / ID</th>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Description</th>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold text-center">Nodes</th>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold text-center">Edges</th>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Status</th>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {workflows.map((wf) => (
+                      <tr key={wf.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 text-sm font-medium text-black">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100 flex-shrink-0">
+                              <Workflow className="h-4 w-4" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-black">{wf.name}</span>
+                              <span className="text-[10px] text-gray-400 font-mono">{wf.id}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                          {wf.description || <span className="text-gray-400 italic">No description provided.</span>}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700 font-semibold text-center">
+                          {wf.graph?.nodes?.length || 0}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700 font-semibold text-center">
+                          {wf.graph?.edges?.length || 0}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border ${
+                              wf.is_enabled !== false
+                                ? 'bg-green-50 text-green-700 border-green-100'
+                                : 'bg-red-50 text-red-700 border-red-100'
+                            }`}
+                          >
+                            {wf.is_enabled !== false ? 'Active' : 'Disabled'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {(userRole === 'admin' || userRole === 'system_admin') && (
+                              <button
+                                onClick={() => handleToggleWorkflow(wf.id)}
+                                className={`p-1.5 rounded transition-colors ${
+                                  wf.is_enabled !== false
+                                    ? 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                                    : 'text-gray-400 hover:text-green-500 hover:bg-green-50'
+                                }`}
+                                title={wf.is_enabled !== false ? 'Disable' : 'Enable'}
+                              >
+                                <IconMap.power className="h-4 w-4" />
+                              </button>
+                            )}
+                            {userRole !== 'admin' && userRole !== 'system_admin' && (
+                              <button
+                                onClick={() => handleDeleteWorkflow(wf.id)}
+                                className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                title="Delete"
+                              >
+                                <IconMap.trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {workflows.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-gray-500 text-sm">
+                          <div className="flex flex-col items-center">
+                            <IconMap.Workflow className="mx-auto h-12 w-12 text-gray-300 mb-2" />
+                            <h3 className="text-sm font-semibold text-gray-900">No workflows found</h3>
+                            <p className="mt-1 text-sm text-gray-500">
+                              Get started by creating a new workflow in the builder.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {workflows.map((wf) => (
+                  <div
+                    key={wf.id}
+                    className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100">
+                          <Workflow className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-black">{wf.name}</h3>
+                          <p className="text-[10px] text-gray-400 font-mono">{wf.id}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border ${wf.is_enabled !== false ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}
+                        >
+                          {wf.is_enabled !== false ? 'Active' : 'Disabled'}
+                        </span>
+                        <div className="flex gap-1">
+                          {(userRole === 'admin' || userRole === 'system_admin') && (
+                            <button
+                              onClick={() => handleToggleWorkflow(wf.id)}
+                              className={`p-1 rounded transition-colors ${wf.is_enabled !== false ? 'text-gray-400 hover:text-red-500' : 'text-gray-400 hover:text-green-500'}`}
+                              title={wf.is_enabled !== false ? 'Disable' : 'Enable'}
+                            >
+                              <IconMap.power className="h-4 w-4" />
+                            </button>
+                          )}
+                          {userRole !== 'admin' && userRole !== 'system_admin' && (
+                            <button
+                              onClick={() => handleDeleteWorkflow(wf.id)}
+                              className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                              title="Delete"
+                            >
+                              <IconMap.trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      <p className="text-sm text-gray-600 line-clamp-2">
+                        {wf.description || 'No description provided.'}
+                      </p>
+                      <div className="flex items-center gap-4 pt-4 border-t border-gray-50">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-gray-400 uppercase font-bold">Nodes</span>
+                          <span className="text-sm font-semibold text-black">
+                            {wf.graph?.nodes?.length || 0}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-gray-400 uppercase font-bold">Edges</span>
+                          <span className="text-sm font-semibold text-black">
+                            {wf.graph?.edges?.length || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {workflows.length === 0 && (
+                  <div className="col-span-full py-12 text-center rounded-xl border-2 border-dashed border-gray-200">
+                    <IconMap.Workflow className="mx-auto h-12 w-12 text-gray-300" />
+                    <h3 className="mt-2 text-sm font-semibold text-gray-900">No workflows found</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Get started by creating a new workflow in the builder.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         ) : activeTab === 'customers' ? (
           <section className="space-y-4">
@@ -1992,16 +2247,216 @@ export default function AdminPage() {
           </section>
         ) : activeTab === 'logs' ? (
           <section className="space-y-4">
-            <div className="flex items-center gap-2">
-              <IconMap.activity className="h-5 w-5 text-gray-400" />
-              <h2 className="text-xl font-semibold text-black">System Activity Logs</h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <IconMap.activity className="h-5 w-5 text-gray-400" />
+                <h2 className="text-xl font-semibold text-black">System Activity Logs</h2>
+              </div>
+              <div className="flex gap-3">
+                {/* Time Range Selector */}
+                <select
+                  value={minutesFilter}
+                  onChange={(e) => setMinutesFilter(Number(e.target.value))}
+                  className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+                >
+                  <option value={5}>Last 5 Minutes</option>
+                  <option value={10}>Last 10 Minutes</option>
+                  <option value={30}>Last 30 Minutes</option>
+                  <option value={60}>Last 1 Hour</option>
+                </select>
+
+                {/* Workflow Selector */}
+                <select
+                  value={selectedWorkflowFilter}
+                  onChange={(e) => setSelectedWorkflowFilter(e.target.value)}
+                  className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+                >
+                  <option value="all">All Workflows</option>
+                  {workflows?.map((wf: any) => (
+                    <option key={wf.id} value={wf.id}>
+                      {wf.name || wf.id}
+                    </option>
+                  ))}
+                </select>
+                
+                <button
+                  onClick={fetchLogs}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden p-8 text-center">
-              <IconMap.activity className="mx-auto h-12 w-12 text-gray-200 mb-4" />
-              <p className="text-gray-500 text-sm">
-                Real-time system logs will appear here after the next gateway restart.
-              </p>
-            </div>
+
+            {logsLoading ? (
+              <div className="p-12 text-center text-gray-500 text-sm">
+                Loading activity logs...
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden p-8 text-center">
+                <IconMap.activity className="mx-auto h-12 w-12 text-gray-200 mb-4" />
+                <p className="text-gray-500 text-sm">
+                  No execution logs found in the selected time range.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead className="bg-gray-50 text-gray-400 uppercase text-xs border-b border-gray-150">
+                    <tr>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Status</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Workflow ID / Name</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Trace ID</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Customer ID</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">User ID</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">User Email</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Latency</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Timestamp</th>
+                      <th className="px-6 py-4"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-150">
+                    {logs.map((log: any) => (
+                      <React.Fragment key={log.trace_id}>
+                        <tr
+                          className="hover:bg-gray-50 cursor-pointer transition-colors"
+                          onClick={() =>
+                            setExpandedLogId(expandedLogId === log.trace_id ? null : log.trace_id)
+                          }
+                        >
+                          <td className="px-6 py-4">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                log.violations?.length > 0
+                                  ? 'bg-red-50 text-red-600 border border-red-100'
+                                  : 'bg-green-50 text-green-600 border border-green-100'
+                              }`}
+                            >
+                              {log.violations?.length > 0 ? 'Flagged' : 'Healthy'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-gray-900">
+                            {log.workflow_name || log.workflow_id}
+                          </td>
+                          <td className="px-6 py-4 font-mono text-gray-500">
+                            {log.trace_id?.substring(0, 8)}...
+                          </td>
+                          <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                            {log.customer_id || '-'}
+                          </td>
+                          <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                            {log.user_id || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">{log.user_email || log.user_id || 'system'}</td>
+                          <td className="px-6 py-4 text-gray-950 font-semibold">{log.latency_ms}ms</td>
+                          <td className="px-6 py-4 text-gray-500">
+                            {new Date(log.timestamp * 1000).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {expandedLogId === log.trace_id ? (
+                              <ChevronUp className="h-4 w-4 text-gray-400 inline" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-gray-400 inline" />
+                            )}
+                          </td>
+                        </tr>
+                        {expandedLogId === log.trace_id && (
+                          <tr className="bg-gray-50/50 w-full">
+                            <td colSpan={9} className="px-6 py-6 border-b border-gray-150 max-w-0">
+                              <div className="w-full overflow-hidden">
+                                {log.violations?.length > 0 && (
+                                  <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-lg text-xs flex flex-col gap-2">
+                                    <span className="text-red-700 font-bold uppercase tracking-wider">Violations Detected</span>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {log.violations.map((v: string) => (
+                                        <span key={v} className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded text-[10px] border border-red-100">
+                                          {v}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                  {/* Tab Header Bar */}
+                                  <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Trace Payload</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 ml-0">
+                                      {/* Segmented Control / Tabs */}
+                                      <div className="inline-flex rounded-lg bg-gray-200 p-0.5 ml-0">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setTraceViewMode('tree');
+                                          }}
+                                          className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                                            traceViewMode === 'tree'
+                                              ? 'bg-white text-gray-900 shadow-sm'
+                                              : 'text-gray-600 hover:text-gray-900'
+                                          }`}
+                                        >
+                                          JSON Tree
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setTraceViewMode('raw');
+                                          }}
+                                          className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                                            traceViewMode === 'raw'
+                                              ? 'bg-white text-gray-900 shadow-sm'
+                                              : 'text-gray-600 hover:text-gray-900'
+                                          }`}
+                                        >
+                                          Raw JSON
+                                        </button>
+                                      </div>
+                                      {/* Copy Button */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCopyLog(log);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+                                      >
+                                        {copiedLogId === log.trace_id ? (
+                                          <>
+                                            <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                            <span className="text-emerald-500 font-semibold font-sans">Copied!</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Copy className="h-3.5 w-3.5 text-gray-400" />
+                                            <span className="font-sans">Copy JSON</span>
+                                          </>
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Tab Content */}
+                                  <div className="p-4 bg-gray-950 overflow-x-auto">
+                                    {traceViewMode === 'tree' ? (
+                                      <JsonTreeView data={log} />
+                                    ) : (
+                                      <pre className="p-4 bg-gray-950 text-gray-100 rounded-lg overflow-x-auto max-h-[500px] text-[10px] font-mono leading-relaxed select-text w-full min-w-0">
+                                        {JSON.stringify(log, null, 2)}
+                                      </pre>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         ) : (
           <section className="space-y-4">
@@ -2856,19 +3311,30 @@ export default function AdminPage() {
 
               <div className="flex-1 overflow-y-auto p-8 space-y-10">
                 {customerId && (
-                  <div className="flex items-center justify-between bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+                  <div className={`flex items-center justify-between border rounded-xl p-4 ${editingAgent.is_enabled === false ? 'bg-red-50/50 border-red-100' : 'bg-blue-50/50 border-blue-100'}`}>
                     <div>
-                      <h4 className="text-sm font-semibold text-black">Enable / Disable Node</h4>
-                      <p className="text-xs text-gray-500">Allow workflow builders in your organization to use this node type.</p>
+                      <h4 className="text-sm font-semibold text-black flex items-center gap-1.5">
+                        {editingAgent.is_enabled === false && <IconMap.lock className="h-4 w-4 text-red-500" />}
+                        Enable / Disable Node
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        {editingAgent.is_enabled === false
+                          ? 'This node has been locked and disabled by the system administrator.'
+                          : 'Allow workflow builders in your organization to use this node type.'}
+                      </p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
+                    <label className={`relative inline-flex items-center ${editingAgent.is_enabled === false ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                       <input
                         type="checkbox"
                         checked={editingAgent.is_enabled !== false}
-                        onChange={(e) => setEditingAgent({ ...editingAgent, is_enabled: e.target.checked })}
+                        onChange={(e) => {
+                          if (editingAgent.is_enabled === false) return;
+                          setEditingAgent({ ...editingAgent, is_enabled: e.target.checked });
+                        }}
+                        disabled={editingAgent.is_enabled === false}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className={`w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${editingAgent.is_enabled === false ? 'bg-gray-300 opacity-60' : 'peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:bg-blue-600'}`}></div>
                     </label>
                   </div>
                 )}
@@ -3532,11 +3998,15 @@ export default function AdminPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={handleSaveNode}
+                  onClick={customerId ? handleSaveCustomerConfig : handleSaveNode}
                   className="flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-2 text-sm font-bold text-white hover:bg-blue-700 shadow-md transition-all"
                 >
                   <IconMap.Save className="h-4 w-4" />{' '}
-                  {editingAgent.id ? 'Update Registry' : 'Create Node Type'}
+                  {customerId
+                    ? 'Save Configuration'
+                    : editingAgent.id
+                    ? 'Update Registry'
+                    : 'Create Node Type'}
                 </button>
               </div>
             </div>

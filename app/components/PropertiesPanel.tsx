@@ -203,6 +203,7 @@ interface PropertiesPanelProps {
   /** Callback to delete node from canvas */
   onDeleteNode?: (nodeId: string) => void;
   onOpenMapper?: () => void;
+  hasPredecessor?: boolean;
 }
 
 /**
@@ -222,6 +223,7 @@ export default function PropertiesPanel({
   workflowId,
   onDeleteNode,
   onOpenMapper,
+  hasPredecessor = false,
 }: PropertiesPanelProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [credentials, setCredentials] = useState<any[]>([]);
@@ -924,7 +926,10 @@ export default function PropertiesPanel({
               .replace(/\b\w/g, (char) => char.toUpperCase());
           };
 
-          const entries = Object.entries(properties);
+          const isTrigger = String((selectedNode?.data as any)?.node_type || (selectedNode?.data as any)?.nodeType || '').toUpperCase() === 'TRIGGER';
+          const entries = Object.entries(properties).filter(
+            ([key]) => key.toLowerCase() !== 'mapping_template'
+          );
           const systemEntries = Object.entries(systemProperties);
 
           return (
@@ -970,48 +975,6 @@ export default function PropertiesPanel({
                         );
                       }
 
-                      if (key.toLowerCase() === 'mapping_template') {
-                        let currentMapping: Record<string, string> = {};
-                        try {
-                          currentMapping = typeof value === 'string' ? JSON.parse(value) : value || {};
-                        } catch {
-                          currentMapping = {};
-                        }
-
-                        return (
-                          <div key={key} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-widest">
-                                {label}
-                              </label>
-                              {onOpenMapper && (
-                                <button
-                                  type="button"
-                                  onClick={onOpenMapper}
-                                  className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-850 transition-colors cursor-pointer bg-transparent border-0 p-0"
-                                >
-                                  <ArrowRightLeft className="w-3 h-3" />
-                                  Modify Mapping
-                                </button>
-                              )}
-                            </div>
-                            
-                            <div className="text-[10px] text-slate-650 bg-slate-50 border border-slate-150 rounded-xl p-3.5 space-y-1.5 font-mono max-h-32 overflow-y-auto custom-scrollbar shadow-inner-sm">
-                              {Object.keys(currentMapping).length > 0 ? (
-                                Object.entries(currentMapping).map(([tgt, src]) => (
-                                  <div key={tgt} className="truncate flex items-center justify-between gap-1.5 border-b border-slate-100/50 pb-1 last:border-0 last:pb-0">
-                                    <span className="text-indigo-650 font-semibold">{tgt}</span>
-                                    <span className="text-slate-450 font-normal truncate">&larr; {String(src)}</span>
-                                  </div>
-                                ))
-                              ) : (
-                                <p className="text-[10px] text-slate-450 italic font-sans py-1 text-center">No fields mapped yet. Click Modify Mapping to configure.</p>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      }
-
                       // Multiline textarea for prompts/long strings
                       const isMultiline = String(value ?? '').length > 40 || key.toLowerCase().includes('prompt') || key.toLowerCase().includes('query');
 
@@ -1047,6 +1010,59 @@ export default function PropertiesPanel({
                   </div>
                 )}
               </div>
+
+              {/* Field Mapping Section */}
+              {!isTrigger && (
+                <div className="space-y-2 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest flex items-center gap-1.5">
+                      <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-500" />
+                      Field Mapping
+                    </span>
+                    {hasPredecessor && onOpenMapper && (
+                      <button
+                        type="button"
+                        onClick={onOpenMapper}
+                        className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-850 transition-colors cursor-pointer bg-transparent border-0 p-0"
+                      >
+                        <ArrowRightLeft className="w-3 h-3" />
+                        Modify Mapping
+                      </button>
+                    )}
+                  </div>
+                  
+                  {hasPredecessor ? (
+                    <div className="text-[10px] text-slate-650 bg-slate-50 border border-slate-150 rounded-xl p-3.5 space-y-1.5 font-mono max-h-32 overflow-y-auto custom-scrollbar shadow-inner-sm">
+                      {(() => {
+                        let currentMapping: Record<string, string> = {};
+                        try {
+                          const value = properties.mapping_template;
+                          currentMapping = typeof value === 'string' ? JSON.parse(value) : value || {};
+                        } catch {
+                          currentMapping = {};
+                        }
+                        
+                        return Object.keys(currentMapping).length > 0 ? (
+                          Object.entries(currentMapping).map(([tgt, src]) => (
+                            <div key={tgt} className="truncate flex items-center justify-between gap-1.5 border-b border-slate-100/50 pb-1 last:border-0 last:pb-0">
+                              <span className="text-indigo-650 font-semibold">{tgt}</span>
+                              <span className="text-slate-450 font-normal truncate">&larr; {String(src)}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-[10px] text-slate-450 italic font-sans py-1 text-center">
+                            No fields mapped yet. Click Modify Mapping to configure.
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                      <p className="text-[10px] italic">Connect an upstream node to enable field mapping.</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {systemEntries.length > 0 && (
                 <div className="space-y-3 pt-3 border-t border-slate-100">
