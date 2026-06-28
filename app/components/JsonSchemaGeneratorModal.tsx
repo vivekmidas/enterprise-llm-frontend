@@ -373,7 +373,7 @@ export default function JsonSchemaGeneratorModal({
       <div key={path} className="flex flex-col">
         {/* Node selector row */}
         <div
-          className={`flex items-center justify-between py-2 px-3 hover:bg-slate-50 border-b border-slate-100 gap-4 transition-colors ${
+          className={`flex items-center justify-between py-1 px-3 hover:bg-slate-50 border-b border-slate-100 gap-4 transition-colors ${
             isSelected ? 'bg-slate-50/30' : 'opacity-60'
           }`}
           style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }}
@@ -491,7 +491,7 @@ export default function JsonSchemaGeneratorModal({
         {/* Content Pane */}
         <div className="flex-1 flex overflow-hidden min-h-0">
           {/* Left panel: raw JSON textarea */}
-          <div className="w-[40%] flex flex-col border-r border-slate-200 p-4 gap-3 bg-slate-50/30">
+          <div className="w-[30%] flex flex-col border-r border-slate-200 p-4 gap-3 bg-slate-50/30">
             <div className="flex justify-between items-center">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 Paste Payload Sample JSON

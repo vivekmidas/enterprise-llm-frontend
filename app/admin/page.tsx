@@ -422,6 +422,7 @@ export default function AdminPage() {
     async function loadAdminData() {
       try {
         const roleCustomerId = localStorage.getItem('customer_id');
+        const user_role = localStorage.getItem("user_role");
         setCustomerId(roleCustomerId || null);
 
         const promises: Promise<any>[] = [
@@ -432,7 +433,7 @@ export default function AdminPage() {
           api.getUsers().catch(() => []),
         ];
 
-        if (!roleCustomerId) {
+        if (user_role==="system_admin") {
           promises.push(api.getCustomers().catch(() => []));
         }
 
@@ -442,7 +443,7 @@ export default function AdminPage() {
         const providersRes = resolved[2];
         const workflowsRes = resolved[3];
         const usersRes = resolved[4];
-        const customersRes = !roleCustomerId ? resolved[5] : [];
+        const customersRes = resolved[5];
 
         setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
 
@@ -459,7 +460,7 @@ export default function AdminPage() {
         setProviders(providersRes || []);
         setWorkflows(workflowsRes || []);
         setUsers(usersRes || []);
-        if (!roleCustomerId) {
+        if (user_role==="system_admin") {
           setCustomers(customersRes || []);
         }
       } catch (error) {
@@ -1488,7 +1489,7 @@ export default function AdminPage() {
         </header>
 
         <div className="flex border-b border-gray-200">
-          {!customerId && (userRole === 'admin' || userRole === 'system_admin') && (
+          {(userRole === 'admin' || userRole === 'system_admin') && (
             <button
               onClick={() => setActiveTab('customers')}
               className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'customers' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
@@ -3861,7 +3862,7 @@ export default function AdminPage() {
                             </div>
                           </div>
 
-                          <div className="overflow-x-auto rounded-xl border border-gray-200">
+                          {/* <div className="overflow-x-auto rounded-xl border border-gray-200">
                             <table className="min-w-[1080px] w-full text-left text-sm">
                               <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-[10px] font-bold">
                                 <tr>
@@ -4139,7 +4140,7 @@ export default function AdminPage() {
                                 })}
                               </tbody>
                             </table>
-                          </div>
+                          </div> */}
 
                           <div className="flex gap-3 items-start">
                             <details className="flex-1 rounded-xl border border-gray-200 bg-gray-50">
@@ -4155,7 +4156,7 @@ export default function AdminPage() {
                                 onClick={handleSaveInputContract}
                                 className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 shadow-md transition-all whitespace-nowrap h-fit mt-1"
                               >
-                                <IconMap.Save className="h-4 w-4" /> Save Contract
+                                <IconMap.Save className="h-4 w-4" /> Save Input Contract
                               </button>
                             )}
                           </div>
@@ -4165,9 +4166,12 @@ export default function AdminPage() {
                   </div>
                   <div className="col-span-2 space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
-                        Output Contract (JSON)
-                      </label>
+                      <div>
+                        <h4 className="font-bold text-black">Output Contract</h4>
+                        <p className="text-xs text-gray-500">
+                          Define the JSON body a node sends after execution.
+                        </p>
+                      </div>
                       <button
                         type="button"
                         onClick={() => setContractGenerator({ isOpen: true, type: 'output' })}
@@ -4176,8 +4180,26 @@ export default function AdminPage() {
                         <IconMap.code2 className="h-4 w-4" /> Generate from JSON
                       </button>
                     </div>
-                    <textarea
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <div className="flex gap-3 items-start">
+                      <details className="flex-1 rounded-xl border border-gray-200 bg-gray-50">
+                        <summary className="cursor-pointer px-4 py-3 text-xs font-bold uppercase text-gray-500">
+                          JSON Preview
+                        </summary>
+                        <pre className="max-h-64 overflow-auto border-t border-gray-200 p-4 text-xs text-gray-700">
+                          {JSON.stringify(editingAgent.output_contract, null, 2)}
+                        </pre>
+                      </details>
+                      {editingAgent.id && (
+                        <button
+                          onClick={handleSaveInputContract}
+                          className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 shadow-md transition-all whitespace-nowrap h-fit mt-1"
+                        >
+                          <IconMap.Save className="h-4 w-4" /> Save Output Contract
+                        </button>
+                      )}
+                    </div>
+                    {/* <textarea
+                      className="w-full text-xs rounded-lg border border-gray-200 px-4 py-2 h-32 text-sm font-mono text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={
                         typeof editingAgent.output_contract === 'string'
                           ? editingAgent.output_contract
@@ -4186,7 +4208,7 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, output_contract: e.target.value })
                       }
-                    />
+                    /> */}
                   </div>
                 </div>
               </div>

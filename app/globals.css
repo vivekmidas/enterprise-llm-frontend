@@ -159,7 +159,7 @@
     @apply bg-background text-foreground;
     /* Added custom font family for body */
     font-family: var(--font-sans);
-    font-size: 10px;
+    font-size: 13px;
   }
   h1,
   h2,

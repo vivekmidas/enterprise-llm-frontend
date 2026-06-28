@@ -960,7 +960,7 @@ export default function PropertiesPanel({
               : 'bg-slate-50/50 hover:bg-slate-50 hover:text-slate-700'
           }`}
         >
-          Data Schema
+          Data Contracts
         </button>
       </div>
 
