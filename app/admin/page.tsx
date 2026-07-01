@@ -2131,7 +2131,7 @@ export default function AdminPage() {
                       <tr>
                         <td colSpan={6} className="py-12 text-center text-gray-500 text-sm">
                           <div className="flex flex-col items-center">
-                            <IconMap.Workflow className="mx-auto h-12 w-12 text-gray-300 mb-2" />
+                            <IconMap.workflow className="mx-auto h-12 w-12 text-gray-300 mb-2" />
                             <h3 className="text-sm font-semibold text-gray-900">
                               No workflows found
                             </h3>
@@ -2213,11 +2213,11 @@ export default function AdminPage() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </div>      
                 ))}
                 {workflows.length === 0 && (
                   <div className="col-span-full py-12 text-center rounded-xl border-2 border-dashed border-gray-200">
-                    <IconMap.Workflow className="mx-auto h-12 w-12 text-gray-300" />
+                    <IconMap.workflow className="mx-auto h-12 w-12 text-gray-300" />
                     <h3 className="mt-2 text-sm font-semibold text-gray-900">No workflows found</h3>
                     <p className="mt-1 text-sm text-gray-500">
                       Get started by creating a new workflow in the builder.
