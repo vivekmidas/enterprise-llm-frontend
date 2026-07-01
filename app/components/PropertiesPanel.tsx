@@ -224,6 +224,7 @@ interface PropertiesPanelProps {
   onDeleteNode?: (nodeId: string) => void;
   onOpenMapper?: () => void;
   hasPredecessor?: boolean;
+  userRole?: string;
 }
 
 /**
@@ -244,6 +245,7 @@ export default function PropertiesPanel({
   onDeleteNode,
   onOpenMapper,
   hasPredecessor = false,
+  userRole,
 }: PropertiesPanelProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [credentials, setCredentials] = useState<any[]>([]);
@@ -378,11 +380,14 @@ export default function PropertiesPanel({
           setAllowedConditions(declared.length ? declared : ['success', 'failure']);
 
           const edgeData = (selectedEdge as any).data || {};
-          const currentCondition =
+          let currentCondition =
             edgeData.condition ||
             (selectedEdge as any).condition ||
             (selectedEdge as any).sourceHandle ||
             '';
+          if (currentCondition === 'source-right' || currentCondition === 'source-bottom') {
+            currentCondition = 'default';
+          }
           const currentExpression = edgeData.expression || (selectedEdge as any).expression || '';
 
           setEdgeCondition(currentCondition);
@@ -393,7 +398,7 @@ export default function PropertiesPanel({
         );
     } else {
       setSourceOutputPreview(null);
-      setAllowedConditions(['success', 'failure']);
+      setAllowedConditions(['success', 'failure',"default"]);
       setEdgeCondition('');
       setEdgeExpression('');
     }
@@ -501,6 +506,7 @@ export default function PropertiesPanel({
   /** Helper to safely retrieve current value or appropriate default for the field type */
   const getPropertyValue = (properties: NodeProperties, field: NodePropertyDefinition) => {
     if (properties[field.key] !== undefined) return properties[field.key];
+    if (field.default !== undefined && field.default !== null) return field.default;
     if (field.type === 'boolean') return false;
     if (field.multiple) return [];
     return '';
@@ -934,8 +940,9 @@ export default function PropertiesPanel({
                 label: val,
               });
             }}
+            disabled={userRole === 'user'}
             placeholder="e.g. LLM Node"
-            className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all font-medium"
+            className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all font-medium disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
           />
         </div>
       </div>
@@ -974,16 +981,18 @@ export default function PropertiesPanel({
                     <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">
                       Input Structure
                     </label>
-                    <button
-                      onClick={() => {
-                        setGeneratorModalType('input');
-                        setIsGeneratorModalOpen(true);
-                      }}
-                      className="flex items-center gap-1 text-[12px] font-bold text-indigo-650 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-indigo-150"
-                    >
-                      <Sparkles className="w-2.5 h-2.5" />
-                      Define from JSON
-                    </button>
+                    {userRole !== 'user' && (
+                      <button
+                        onClick={() => {
+                          setGeneratorModalType('input');
+                          setIsGeneratorModalOpen(true);
+                        }}
+                        className="flex items-center gap-1 text-[12px] font-bold text-indigo-650 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-indigo-150"
+                      >
+                        <Sparkles className="w-2.5 h-2.5" />
+                        Define from JSON
+                      </button>
+                    )}
                   </div>
                   <pre className="p-3 bg-slate-905 text-indigo-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
                     {JSON.stringify(inputContract || {}, null, 2)}
@@ -994,16 +1003,18 @@ export default function PropertiesPanel({
                     <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">
                       Output Structure
                     </label>
-                    <button
-                      onClick={() => {
-                        setGeneratorModalType('output');
-                        setIsGeneratorModalOpen(true);
-                      }}
-                      className="flex items-center gap-1 text-[12px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
-                    >
-                      <Sparkles className="w-2.5 h-2.5" />
-                      Define from JSON
-                    </button>
+                    {userRole !== 'user' && (
+                      <button
+                        onClick={() => {
+                          setGeneratorModalType('output');
+                          setIsGeneratorModalOpen(true);
+                        }}
+                        className="flex items-center gap-1 text-[12px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
+                      >
+                        <Sparkles className="w-2.5 h-2.5" />
+                        Define from JSON
+                      </button>
+                    )}
                   </div>
                   <pre className="p-3 bg-slate-905 text-emerald-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
                     {JSON.stringify(outputContract || {}, null, 2)}
@@ -1028,8 +1039,9 @@ export default function PropertiesPanel({
             String(
               (selectedNode?.data as any)?.node_type || (selectedNode?.data as any)?.nodeType || '',
             ).toUpperCase() === 'TRIGGER';
+          const systemKeys = Object.keys(systemProperties);
           const entries = Object.entries(properties).filter(
-            ([key]) => key.toLowerCase() !== 'mapping_template',
+            ([key]) => key.toLowerCase() !== 'mapping_template' && !systemKeys.includes(key),
           );
           const systemEntries = Object.entries(systemProperties);
 
@@ -1057,8 +1069,9 @@ export default function PropertiesPanel({
                             <input
                               type="checkbox"
                               checked={Boolean(value)}
+                              disabled={userRole === 'user'}
                               onChange={(e) => handlePropertyChange(key, e.target.checked)}
-                              className="h-4 w-4 accent-indigo-600 rounded cursor-pointer"
+                              className="h-4 w-4 accent-indigo-600 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </label>
                         );
@@ -1073,9 +1086,10 @@ export default function PropertiesPanel({
                             <input
                               type="number"
                               value={Number(value ?? 0)}
+                              disabled={userRole === 'user'}
                               onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
                               placeholder="Value"
-                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none transition-all shadow-inner-sm"
+                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </div>
                         );
@@ -1095,10 +1109,11 @@ export default function PropertiesPanel({
                           {isMultiline ? (
                             <textarea
                               value={String(value ?? '')}
+                              disabled={userRole === 'user'}
                               onChange={(e) => handlePropertyChange(key, e.target.value)}
                               placeholder="Enter text/variables..."
                               rows={3}
-                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20"
+                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20 disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           ) : (
                             <input
@@ -1109,9 +1124,10 @@ export default function PropertiesPanel({
                                   : 'text'
                               }
                               value={String(value ?? '')}
+                              disabled={userRole === 'user'}
                               onChange={(e) => handlePropertyChange(key, e.target.value)}
                               placeholder="Enter value..."
-                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm"
+                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           )}
                         </div>
@@ -1171,7 +1187,9 @@ export default function PropertiesPanel({
                           ))
                         ) : (
                           <p className="text-[10px] text-slate-450 italic font-sans py-1 text-center">
-                            No fields mapped yet. Click Modify Mapping to configure.
+                            {userRole === 'user'
+                              ? 'No fields mapped yet.'
+                              : 'No fields mapped yet. Click Modify Mapping to configure.'}
                           </p>
                         );
                       })()}
@@ -1242,7 +1260,7 @@ export default function PropertiesPanel({
       </div>
 
       {/* Footer - Save & Delete Buttons */}
-      {(onSave || selectedNode) && (
+      {userRole !== 'user' && (onSave || selectedNode) && (
         <div className="p-4 border-t border-slate-100 bg-slate-50/30 shrink-0 flex flex-col gap-2">
           <button
             onClick={handleSaveInstanceProperties}

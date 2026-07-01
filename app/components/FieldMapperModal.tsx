@@ -25,6 +25,7 @@ interface FieldMapperModalProps {
   targetNodeName?: string;
   currentMapping: Record<string, string>;
   onSaveMapping: (mapping: Record<string, string>) => void;
+  readOnly?: boolean;
 }
 
 interface TreeNode {
@@ -354,6 +355,7 @@ export default function FieldMapperModal({
   targetNodeName,
   currentMapping,
   onSaveMapping,
+  readOnly = false,
 }: FieldMapperModalProps) {
   const [mapping, setMapping] = useState<Record<string, string>>(currentMapping);
   const [localSourceContract, setLocalSourceContract] = useState(sourceContract);
@@ -556,13 +558,14 @@ export default function FieldMapperModal({
                     type="text"
                     value={mapping[node.path] || ''}
                     onChange={(e) => updateMapping(node.path, e.target.value)}
-                    placeholder="Enter expression or choose field"
-                    className="w-full px-2.5 py-1.5 text-xs outline-none bg-transparent"
+                    placeholder={readOnly ? 'No mapping configured' : 'Enter expression or choose field'}
+                    className="w-full px-2.5 py-1.5 text-xs outline-none bg-transparent disabled:opacity-75 disabled:cursor-not-allowed"
+                    disabled={readOnly}
                   />
-                  {mapping[node.path] && (
+                  {mapping[node.path] && !readOnly && (
                     <button
                       onClick={() => updateMapping(node.path, '')}
-                      className="p-1 mr-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
+                      className="p-1 mr-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-650 transition-colors"
                       title="Clear mapping"
                     >
                       <X size={12} />
@@ -571,21 +574,23 @@ export default function FieldMapperModal({
                 </div>
 
                 {/* Popover trigger button */}
-                <button
-                  id={`trigger-${node.path}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActivePopover(activePopover === node.path ? null : node.path);
-                  }}
-                  className={`p-1.5 border rounded-lg flex items-center justify-center transition-all ${
-                    activePopover === node.path
-                      ? 'bg-blue-50 border-blue-300 text-blue-600 shadow-sm'
-                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800'
-                  }`}
-                  title="Select field from source"
-                >
-                  <Brackets size={14} />
-                </button>
+                {!readOnly && (
+                  <button
+                    id={`trigger-${node.path}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePopover(activePopover === node.path ? null : node.path);
+                    }}
+                    className={`p-1.5 border rounded-lg flex items-center justify-center transition-all ${
+                      activePopover === node.path
+                        ? 'bg-blue-50 border-blue-300 text-blue-600 shadow-sm'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800'
+                    }`}
+                    title="Select field from source"
+                  >
+                    <Brackets size={14} />
+                  </button>
+                )}
 
                 {/* Popover */}
                 {activePopover === node.path && (
@@ -644,13 +649,15 @@ export default function FieldMapperModal({
               {showRawContracts ? <EyeOff size={14} /> : <Eye size={14} />}
               {showRawContracts ? 'Hide Contracts' : 'View Contracts'}
             </button>
-            <button
-              onClick={handleAutoMap}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm shadow-blue-500/20"
-            >
-              <Wand2 size={14} />
-              Auto-map by Name
-            </button>
+            {!readOnly && (
+              <button
+                onClick={handleAutoMap}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm shadow-blue-500/20"
+              >
+                <Wand2 size={14} />
+                Auto-map by Name
+              </button>
+            )}
           </div>
         </div>
 
@@ -695,18 +702,29 @@ export default function FieldMapperModal({
         </div>
 
         <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onSaveMapping(mapping)}
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm shadow-blue-500/20"
-          >
-            Apply Mapping
-          </button>
+          {readOnly ? (
+            <button
+              onClick={onClose}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shadow-blue-500/20"
+            >
+              Close
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => onSaveMapping(mapping)}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm shadow-blue-500/20"
+              >
+                Apply Mapping
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

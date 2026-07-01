@@ -35,8 +35,11 @@ export function CustomLabelEdge({
   const { getEdge } = useReactFlow();
   // Retrieve the edge definition to get any saved condition or expression fields
   const edge = getEdge(id);
-  const condition =
+  let condition =
     data?.condition || (edge as any)?.condition || sourceHandleId || edge?.sourceHandle || '';
+  if (condition === 'source-right' || condition === 'source-bottom') {
+    condition = 'default';
+  }
   const expression = data?.expression || (edge as any)?.expression || '';
 
   const isSuccessType = String(condition || '').toLowerCase() === 'success';

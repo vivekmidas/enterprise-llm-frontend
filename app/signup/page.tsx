@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Shield } from 'lucide-react';
 import { RegisterPayload } from '@/lib/types/login';
+import Alert from "@mui/material/Alert"
+import { CheckIcon } from 'lucide-react';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -22,10 +24,10 @@ export default function SignupPage() {
     setLoading(true);
     try {
       await api.register(formData as RegisterPayload);
-      alert('Registration successful! Please login.');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Registration successful! Please login.</Alert>;
       router.push('/admin');
     } catch (err) {
-      alert('Registration failed. Ensure all fields are filled correctly.');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Registration failed. Ensure all fields are filled correctly.</Alert>;
     } finally {
       setLoading(false);
     }

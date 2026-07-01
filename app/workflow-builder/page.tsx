@@ -171,12 +171,16 @@ function AgentBuilderContent() {
         }
 
         setIsDirty(true);
+        let initialCondition = params.sourceHandle || 'success';
+        if (initialCondition === 'source-right' || initialCondition === 'source-bottom') {
+          initialCondition = 'default';
+        }
         const edgeParams = {
           ...params,
           ...defaultEdgeOptions,
-          condition: params.sourceHandle || undefined,
+          condition: initialCondition,
           data: {
-            condition: params.sourceHandle || undefined,
+            condition: initialCondition,
           },
         };
         return addEdge(edgeParams, eds);
@@ -725,12 +729,15 @@ function AgentBuilderContent() {
           if (!matchedEdge) {
             const conditionResult = (output as any)?.condition_result || 'success';
             matchedEdge = outgoingEdges.find((e) => {
-              const cond = (
+              let cond = (
                 e.data?.condition ||
                 (e as any).condition ||
                 e.sourceHandle ||
                 ''
               ).toLowerCase();
+              if (cond === 'source-right' || cond === 'source-bottom') {
+                cond = 'success';
+              }
               return cond === String(conditionResult).toLowerCase();
             });
           }
@@ -738,12 +745,15 @@ function AgentBuilderContent() {
           // 3. Fallback to unconditional success edges (empty condition or success)
           if (!matchedEdge) {
             matchedEdge = outgoingEdges.find((e) => {
-              const cond = (
+              let cond = (
                 e.data?.condition ||
                 (e as any).condition ||
                 e.sourceHandle ||
                 ''
               ).toLowerCase();
+              if (cond === 'source-right' || cond === 'source-bottom') {
+                cond = 'success';
+              }
               return cond === 'success' || cond === '' || cond === 'default';
             });
           }
@@ -885,6 +895,7 @@ function AgentBuilderContent() {
           onDeleteNode={onDeleteNode}
           onOpenMapper={() => setIsMapperOpen(true)}
           hasPredecessor={selectedNode ? edges.some((e) => e.target === selectedNode.id) : false}
+          userRole={userRole}
         />
 
         <FieldMappingController
@@ -897,6 +908,7 @@ function AgentBuilderContent() {
           targetContract={nextNodeContract}
           onUpdateNode={onUpdateNode}
           onSaveInstanceProperties={onSaveInstanceProperties}
+          userRole={userRole}
         />
       </div>
     </div>

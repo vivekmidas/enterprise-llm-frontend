@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useState, type ComponentType } from 'react';
+import Alert from '@mui/material/Alert';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
+import { CheckIcon } from 'lucide-react';
 import { api, getHeaders } from '@/lib/api';
 import { Workflow, ChevronDown, ChevronUp, Copy, Check, List, LayoutGrid } from 'lucide-react';
 import { IconMap } from '@/lib/icons';
@@ -422,7 +423,7 @@ export default function AdminPage() {
     async function loadAdminData() {
       try {
         const roleCustomerId = localStorage.getItem('customer_id');
-        const user_role = localStorage.getItem("user_role");
+        const user_role = localStorage.getItem('user_role');
         setCustomerId(roleCustomerId || null);
 
         const promises: Promise<any>[] = [
@@ -433,7 +434,7 @@ export default function AdminPage() {
           api.getUsers().catch(() => []),
         ];
 
-        if (user_role==="system_admin") {
+        if (user_role === 'system_admin') {
           promises.push(api.getCustomers().catch(() => []));
         }
 
@@ -460,7 +461,7 @@ export default function AdminPage() {
         setProviders(providersRes || []);
         setWorkflows(workflowsRes || []);
         setUsers(usersRes || []);
-        if (user_role==="system_admin") {
+        if (user_role === 'system_admin') {
           setCustomers(customersRes || []);
         }
       } catch (error) {
@@ -516,7 +517,10 @@ export default function AdminPage() {
           name: '',
           lastname: '',
         });
-        alert('Registration successful! Please login.');
+        <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+  'Registration successful! Please login.'
+</Alert>
+       
         setIsRegistering(false);
       } else {
         const data = await api.login({ email: loginEmail, password: loginPassword });
@@ -546,7 +550,10 @@ export default function AdminPage() {
         }
       }
     } catch (err) {
-      alert('Authentication failed. Check your credentials.');
+        <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+ 'Authentication failed. Check your credentials.'
+</Alert>
+  
     }
   };
 
@@ -587,7 +594,9 @@ export default function AdminPage() {
           finalOutputContract = editingAgent.output_contract;
         }
       } catch (e) {
-        alert('Invalid JSON in Output Contract field.');
+       <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Invalid JSON in Output Contract field.
+        </Alert>
         return;
       }
 
@@ -598,11 +607,12 @@ export default function AdminPage() {
           is_enabled: editingAgent.is_enabled !== undefined ? editingAgent.is_enabled : true,
           input_contract: validatedContract,
           output_contract: finalOutputContract,
+          label: editingAgent.label,
         },
         customerId || undefined,
       );
 
-      alert('Node configuration saved successfully!');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Node configuration saved successfully!</Alert>;
       const agentsRes = await api.getNodes();
       setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
       setEditingAgent(null);
@@ -621,7 +631,7 @@ export default function AdminPage() {
         icon: newCustomerIcon,
         color_schema: newCustomerColor,
       });
-      alert('Customer created successfully!');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Customer created successfully!</Alert>;
       setShowAddCustomerModal(false);
       setNewCustomerName('');
       setNewCustomerDomain('');
@@ -642,7 +652,7 @@ export default function AdminPage() {
         password: customerUserPassword,
         role: 'admin',
       });
-      alert('Admin user onboarded successfully!');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Admin user onboarded successfully!</Alert>;
       setShowAddCustomerUserModal(false);
       setCustomerUserName('');
       setCustomerUserEmail('');
@@ -661,7 +671,7 @@ export default function AdminPage() {
         password: newUserPassword,
         role: newUserRole,
       });
-      alert('User added successfully!');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">User added successfully!</Alert>;
       setShowAddUserModal(false);
       setNewUserName('');
       setNewUserEmail('');
@@ -682,7 +692,7 @@ export default function AdminPage() {
       return;
     try {
       await api.deleteCustomer(id);
-      alert('Customer deleted successfully!');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Customer deleted successfully!</Alert>;
       const custs = await api.getCustomers().catch(() => []);
       setCustomers(custs || []);
     } catch (err: any) {
@@ -731,7 +741,7 @@ export default function AdminPage() {
       });
 
       await api.configureCustomerNodesAdmin(selectedCustomerForNodes.id, nodesPayload);
-      alert('Node assignments updated successfully!');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Node assignments updated successfully!</Alert>;
       setShowNodesModal(false);
     } catch (err: any) {
       alert('Failed to save assignments: ' + err.message);
@@ -985,18 +995,19 @@ export default function AdminPage() {
             is_enabled: editingAgent.is_enabled !== undefined ? editingAgent.is_enabled : true,
             input_contract: validatedContract,
             output_contract: finalOutputContract,
+            label: editingAgent.label,
           },
           customerId || undefined,
         );
 
         const agentsRes = await api.getNodes();
         setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
-        alert('Input contract saved successfully!');
+        <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Input contract saved successfully!</Alert>;
         return;
       }
 
       if (!editingAgent.id) {
-        alert('Please create the node first before saving input contracts separately.');
+        <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Please create the node first before saving input contracts separately.</Alert>;
         return;
       }
 
@@ -1006,10 +1017,10 @@ export default function AdminPage() {
       await api.updateNode(updatedAgent);
       const agentsRes = await api.getNodes();
       setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
-      alert('Input contract saved successfully!');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Input contract saved successfully!</Alert>;
     } catch (error) {
       console.error('Failed to save input contract:', error);
-      alert('Failed to save input contract. Please ensure the backend endpoint is implemented.');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Failed to save input contract. Please ensure the backend endpoint is implemented.</Alert>;
     }
   };
 
@@ -1035,7 +1046,7 @@ export default function AdminPage() {
         );
       }
     } catch (e) {
-      alert('Invalid JSON in Input Contract field.');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Invalid JSON in Input Contract field.</Alert>;
       return;
     }
 
@@ -1050,7 +1061,7 @@ export default function AdminPage() {
         finalAgent.output_contract = {};
       }
     } catch (e) {
-      alert('Invalid JSON in Output Contract field.');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Invalid JSON in Output Contract field.</Alert>;
       return;
     }
 
@@ -1060,7 +1071,7 @@ export default function AdminPage() {
         propertyEntriesFromValue(finalAgent.user_properties),
       );
     } catch (e) {
-      alert('Invalid JSON in User Properties field.');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Invalid JSON in User Properties field.</Alert>;
       return;
     }
 
@@ -1070,7 +1081,7 @@ export default function AdminPage() {
         propertyEntriesFromValue(finalAgent.system_properties),
       );
     } catch (e) {
-      alert('Invalid JSON in System Properties field.');
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Invalid JSON in System Properties field.</Alert>;
       return;
     }
 
@@ -1224,12 +1235,14 @@ export default function AdminPage() {
     const commonClasses =
       'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
 
+    const displayValue = value !== undefined && value !== null ? value : field.default;
+
     if (field.type === 'password' || field.type?.toLowerCase().includes('secret')) {
       return (
         <input
           type="password"
           className={`${commonClasses} text-black`}
-          value={String(value ?? '')}
+          value={String(displayValue ?? '')}
           placeholder="••••••••"
           autoComplete="new-password"
           onChange={(e) => handleValChange(e.target.value)}
@@ -1241,7 +1254,7 @@ export default function AdminPage() {
       return (
         <select
           className={`${commonClasses} text-black`}
-          value={String(value ?? false)}
+          value={String(displayValue ?? false)}
           onChange={(e) => handleValChange(e.target.value === 'true')}
         >
           <option value="true">True</option>
@@ -1255,7 +1268,7 @@ export default function AdminPage() {
         <input
           type="number"
           className={`${commonClasses} text-black`}
-          value={value ?? 0}
+          value={displayValue ?? 0}
           onChange={(e) => handleValChange(Number(e.target.value))}
         />
       );
@@ -1265,7 +1278,7 @@ export default function AdminPage() {
       return (
         <textarea
           className={`${commonClasses} text-black min-h-[60px] resize-y`}
-          value={String(value ?? '')}
+          value={String(displayValue ?? '')}
           placeholder="Multiline content..."
           onChange={(e) => handleValChange(e.target.value)}
         />
@@ -1276,7 +1289,7 @@ export default function AdminPage() {
       return (
         <input
           className={`${commonClasses} text-black`}
-          value={Array.isArray(value) ? value.join(', ') : String(value ?? '')}
+          value={Array.isArray(displayValue) ? displayValue.join(', ') : String(displayValue ?? '')}
           placeholder="val1, val2, val3..."
           onChange={(e) =>
             handleValChange(
@@ -1289,6 +1302,15 @@ export default function AdminPage() {
         />
       );
     }
+
+    return (
+      <input
+        className={`${commonClasses} text-black`}
+        value={typeof displayValue === 'object' ? JSON.stringify(displayValue) : String(displayValue ?? '')}
+        placeholder="Enter value..."
+        onChange={(e) => handleValChange(e.target.value)}
+      />
+    );
   };
 
   const renderCustomerPropertyInput = (entry: any, val: any, nodeName: string) => {
@@ -1489,7 +1511,7 @@ export default function AdminPage() {
         </header>
 
         <div className="flex border-b border-gray-200">
-          {(userRole === 'admin' || userRole === 'system_admin') && (
+          {(userRole === 'system_admin') && (
             <button
               onClick={() => setActiveTab('customers')}
               className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'customers' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
@@ -1898,41 +1920,42 @@ export default function AdminPage() {
                                   </div>
                                 ) : (
                                   <button
-                                    onClick={async () => {
-                                      try {
-                                        const overrides: Record<string, any> = {};
-                                        const userProps = propertyEntriesFromValue(
-                                          agent.user_properties,
-                                        );
-                                        const sysProps = propertyEntriesFromValue(
-                                          agent.system_properties,
-                                        );
-                                        [...userProps, ...sysProps].forEach((entry: any) => {
-                                          if (entry.key) {
-                                            overrides[entry.key] =
-                                              entry.value !== undefined
-                                                ? entry.value
-                                                : entry.default;
-                                          }
-                                        });
-                                        await api.configureCustomerNode(
-                                          agent.name,
-                                          {
-                                            properties: overrides,
-                                            is_enabled: false,
-                                          },
-                                          customerId || undefined,
-                                        );
-                                        const agentsRes = await api.getNodes();
-                                        setAgents(
-                                          (agentsRes as any).nodes ||
-                                            (agentsRes as any).agents ||
-                                            [],
-                                        );
-                                      } catch (err: any) {
-                                        alert('Failed to toggle status: ' + err.message);
-                                      }
-                                    }}
+                                    // onClick={async () => {
+                                    //   try {
+                                    //     const overrides: Record<string, any> = {};
+                                    //     const userProps = propertyEntriesFromValue(
+                                    //       agent.user_properties,
+                                    //     );
+                                    //     const sysProps = propertyEntriesFromValue(
+                                    //       agent.system_properties,
+                                    //     );
+                                    //     [...userProps, ...sysProps].forEach((entry: any) => {
+                                    //       if (entry.key) {
+                                    //         overrides[entry.key] =
+                                    //           entry.value !== undefined
+                                    //             ? entry.value
+                                    //             : entry.default;
+                                    //       }
+                                    //     });
+                                    //     await api.configureCustomerNode(
+                                    //       agent.name,
+                                    //       {
+                                    //         properties: overrides,
+                                    //         is_enabled: false,
+                                    //         label: agent.label,
+                                    //       },
+                                    //       customerId || undefined,
+                                    //     );
+                                    //     const agentsRes = await api.getNodes();
+                                    //     setAgents(
+                                    //       (agentsRes as any).nodes ||
+                                    //         (agentsRes as any).agents ||
+                                    //         [],
+                                    //     );
+                                    //   } catch (err: any) {
+                                    //     alert('Failed to toggle status: ' + err.message);
+                                    //   }
+                                    // }}
                                     className="px-2.5 py-1 text-xs font-bold rounded-lg border transition-all bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                                     title="Click to Disable"
                                   >
@@ -3047,7 +3070,7 @@ export default function AdminPage() {
                                   prop.default ??
                                   '';
                                 return (
-                                  <div key={prop.key} className="space-y-1">
+                                  <div key={`${prop.category}-${prop.key}`} className="space-y-1">
                                     <div className="flex items-center justify-between">
                                       <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">
                                         {prop.label || prop.key}
@@ -3503,10 +3526,10 @@ export default function AdminPage() {
                       <input
                         type="checkbox"
                         checked={editingAgent.is_enabled !== false}
-                        onChange={(e) => {
-                          if (editingAgent.is_enabled === false) return;
-                          setEditingAgent({ ...editingAgent, is_enabled: e.target.checked });
-                        }}
+                        // onChange={(e) => {
+                        //   if (editingAgent.is_enabled === false) return;
+                        //   setEditingAgent({ ...editingAgent, is_enabled: e.target.checked });
+                        // }}
                         disabled={editingAgent.is_enabled === false}
                         className="sr-only peer"
                       />
@@ -3519,6 +3542,19 @@ export default function AdminPage() {
 
                 {/* Section: Metadata */}
                 <div className="grid grid-cols-2 gap-6">
+                  {editingAgent.id && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                        Database ID (Read-only)
+                      </label>
+                      <input
+                        className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-400 bg-gray-50 font-mono cursor-not-allowed"
+                        value={editingAgent.id}
+                        readOnly
+                        disabled
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
                       Display Label
@@ -3528,7 +3564,6 @@ export default function AdminPage() {
                       value={editingAgent.label || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, label: e.target.value })}
                       placeholder="e.g. My Custom Agent"
-                      disabled={!!customerId}
                     />
                   </div>
                   <div className="space-y-2">
@@ -3540,7 +3575,7 @@ export default function AdminPage() {
                       value={editingAgent.name || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, name: e.target.value })}
                       placeholder="e.g. custom_llm_agent"
-                      disabled={!!editingAgent.id || !!customerId}
+                      disabled={!!editingAgent.id || userRole !== 'system_admin'}
                     />
                   </div>
                   <div className="space-y-2">
@@ -3554,7 +3589,7 @@ export default function AdminPage() {
                         setEditingAgent({ ...editingAgent, version: e.target.value })
                       }
                       placeholder="1.0.0"
-                      disabled={!!customerId}
+                      disabled={userRole !== 'system_admin'}
                     />
                   </div>
                   <div className="space-y-2">
@@ -3567,7 +3602,7 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, category: e.target.value })
                       }
-                      disabled={!!customerId}
+                      disabled={userRole !== 'system_admin'}
                     >
                       {categories.map((cat, idx) => (
                         <option key={`opt-${cat.id || cat.name || idx}`} value={cat.id}>
@@ -3586,7 +3621,7 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, sub_label: e.target.value })
                       }
-                      disabled={!!customerId}
+                      disabled={userRole !== 'system_admin'}
                     />
                   </div>
                   <div className="space-y-2">
@@ -3599,7 +3634,7 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, node_type: e.target.value })
                       }
-                      disabled={!!customerId}
+                      disabled={userRole !== 'system_admin'}
                     />
                   </div>
                   <div className="space-y-2">
@@ -3610,7 +3645,7 @@ export default function AdminPage() {
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.group || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, group: e.target.value })}
-                      disabled={!!customerId}
+                      disabled={userRole !== 'system_admin'}
                     />
                   </div>
                   <div className="space-y-2">
@@ -3621,7 +3656,7 @@ export default function AdminPage() {
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.badge || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, badge: e.target.value })}
-                      disabled={!!customerId}
+                      disabled={userRole !== 'system_admin'}
                     />
                   </div>
                   <div className="space-y-2">
@@ -3632,7 +3667,7 @@ export default function AdminPage() {
                       className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingAgent.icon || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, icon: e.target.value })}
-                      disabled={!!customerId}
+                      disabled={userRole !== 'system_admin'}
                     />
                   </div>
                   <div className="space-y-2">
@@ -3646,7 +3681,7 @@ export default function AdminPage() {
                         onChange={(e) =>
                           setEditingAgent({ ...editingAgent, color: e.target.value })
                         }
-                        disabled={!!customerId}
+                        disabled={userRole !== 'system_admin'}
                       />
                       <div
                         className="w-10 h-10 rounded-lg border border-gray-200 shadow-sm"
@@ -3664,7 +3699,7 @@ export default function AdminPage() {
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, description: e.target.value })
                       }
-                      disabled={!!customerId}
+                      disabled={userRole !== 'system_admin'}
                     />
                   </div>
                 </div>

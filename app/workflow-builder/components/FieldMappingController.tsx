@@ -15,6 +15,7 @@ type FieldMappingControllerProps = {
   onClose: () => void;
   onUpdateNode: (nodeId: string, newData: any) => void;
   onSaveInstanceProperties: (nodeId: string, properties: NodeProperties) => Promise<void>;
+  userRole?: string;
 };
 
 export default function FieldMappingController({
@@ -27,6 +28,7 @@ export default function FieldMappingController({
   onClose,
   onUpdateNode,
   onSaveInstanceProperties,
+  userRole,
 }: FieldMappingControllerProps) {
   const isTransform =
     selectedNode?.data?.name === 'transform_node' ||
@@ -59,6 +61,7 @@ export default function FieldMappingController({
       sourceContract={sourceContract}
       targetContract={targetContract}
       currentMapping={currentMapping}
+      readOnly={false}
       onSaveMapping={async (newMap) => {
         if (!selectedNode) return;
 
