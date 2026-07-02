@@ -398,7 +398,7 @@ export default function PropertiesPanel({
         );
     } else {
       setSourceOutputPreview(null);
-      setAllowedConditions(['success', 'failure',"default"]);
+      setAllowedConditions(['success', 'failure', 'default']);
       setEdgeCondition('');
       setEdgeExpression('');
     }
@@ -495,7 +495,11 @@ export default function PropertiesPanel({
     if (!selectedNode || !onSaveInstanceProperties) return;
     setIsSaving(true);
     try {
-      await onSaveInstanceProperties(selectedNode.id, properties);
+      const payload = {
+        ...properties,
+        label: (selectedNode.data as any).label || (selectedNode.data as any).name || '',
+      };
+      await onSaveInstanceProperties(selectedNode.id, payload);
     } catch (error) {
       console.error('Failed to save node instance properties:', error);
     } finally {
@@ -534,21 +538,30 @@ export default function PropertiesPanel({
     // Boolean Toggle
     if (field.type === 'boolean') {
       return (
-        <label
-          key={field.key}
-          className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-4 py-3 text-sm text-black"
-        >
-          <span className="font-medium">{field.label}</span>
-          <input
-            type="checkbox"
-            checked={Boolean(value)}
-            disabled={isDisabled}
-            onChange={(event) =>
-              !isDisabled && handlePropertyChange(field.key, event.target.checked)
-            }
-            className="h-4 w-4 accent-blue-600"
-          />
-        </label>
+        <div key={field.key} className="flex flex-col gap-1.5">
+          <label
+            className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-4 py-3 text-sm text-black cursor-help"
+            title={field.description}
+          >
+            <span className="font-medium flex items-center gap-1.5">
+              {field.label}
+              {field.description && (
+                <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+                  i
+                </span>
+              )}
+            </span>
+            <input
+              type="checkbox"
+              checked={Boolean(value)}
+              disabled={isDisabled}
+              onChange={(event) =>
+                !isDisabled && handlePropertyChange(field.key, event.target.checked)
+              }
+              className="h-4 w-4 accent-blue-600"
+            />
+          </label>
+        </div>
       );
     }
 
@@ -684,7 +697,17 @@ export default function PropertiesPanel({
       if (field.multiple) {
         return (
           <div key={field.key}>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
+            <label
+              className="block text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1.5 cursor-help"
+              title={field.description}
+            >
+              {field.label}
+              {field.description && (
+                <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+                  i
+                </span>
+              )}
+            </label>
             <select
               multiple
               disabled={isDisabled}
@@ -708,7 +731,17 @@ export default function PropertiesPanel({
       // Single dropdown mode
       return (
         <div key={field.key}>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
+          <label
+            className="block text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1.5 cursor-help"
+            title={field.description}
+          >
+            {field.label}
+            {field.description && (
+              <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+                i
+              </span>
+            )}
+          </label>
           <select
             disabled={isDisabled}
             value={String(value)}
@@ -731,7 +764,17 @@ export default function PropertiesPanel({
     if (field.type === 'textarea') {
       return (
         <div key={field.key}>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
+          <label
+            className="block text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1.5 cursor-help"
+            title={field.description}
+          >
+            {field.label}
+            {field.description && (
+              <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+                i
+              </span>
+            )}
+          </label>
           <textarea
             disabled={isDisabled}
             value={String(value)}
@@ -748,7 +791,17 @@ export default function PropertiesPanel({
     // Standard inputs: text, password, number
     return (
       <div key={field.key}>
-        <label className="block text-xs font-medium text-gray-500 mb-1.5">{field.label}</label>
+        <label
+          className="block text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1.5 cursor-help"
+          title={field.description}
+        >
+          {field.label}
+          {field.description && (
+            <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+              i
+            </span>
+          )}
+        </label>
         <input
           type={
             field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'
@@ -940,7 +993,7 @@ export default function PropertiesPanel({
                 label: val,
               });
             }}
-            disabled={userRole === 'user'}
+            disabled={false}
             placeholder="e.g. LLM Node"
             className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all font-medium disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
           />
@@ -1260,7 +1313,7 @@ export default function PropertiesPanel({
       </div>
 
       {/* Footer - Save & Delete Buttons */}
-      {userRole !== 'user' && (onSave || selectedNode) && (
+      {(onSave || selectedNode) && (
         <div className="p-4 border-t border-slate-100 bg-slate-50/30 shrink-0 flex flex-col gap-2">
           <button
             onClick={handleSaveInstanceProperties}
@@ -1272,9 +1325,9 @@ export default function PropertiesPanel({
             ) : (
               <Save className="w-3.5 h-3.5" />
             )}
-            {isSaving ? 'Saving...' : 'Save Parameters'}
+            {isSaving ? 'Saving...' : userRole === 'user' ? 'Save Label' : 'Save Parameters'}
           </button>
-          {onDeleteNode && selectedNode && (
+          {userRole !== 'user' && onDeleteNode && selectedNode && (
             <button
               onClick={() => {
                 const nodeName =

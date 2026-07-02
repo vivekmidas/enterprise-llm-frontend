@@ -558,7 +558,9 @@ export default function FieldMapperModal({
                     type="text"
                     value={mapping[node.path] || ''}
                     onChange={(e) => updateMapping(node.path, e.target.value)}
-                    placeholder={readOnly ? 'No mapping configured' : 'Enter expression or choose field'}
+                    placeholder={
+                      readOnly ? 'No mapping configured' : 'Enter expression or choose field'
+                    }
                     className="w-full px-2.5 py-1.5 text-xs outline-none bg-transparent disabled:opacity-75 disabled:cursor-not-allowed"
                     disabled={readOnly}
                   />

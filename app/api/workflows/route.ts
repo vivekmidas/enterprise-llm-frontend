@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     nodes: [
       { id: 'presidio', type: 'agent', name: 'presidio_ner_guard' },
       { id: 'profanity', type: 'agent', name: 'profanity_guard' },
+      { id: 'unified_guard', type: 'agent', name: 'unified_content_guard' },
       { id: 'llm', type: 'llm' },
     ],
     edges: [],

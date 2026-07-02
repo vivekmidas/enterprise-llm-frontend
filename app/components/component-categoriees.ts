@@ -20,6 +20,7 @@ export interface NodePropertyDefinition {
   options?: string[];
   multiple?: boolean;
   default?: PropertyValue;
+  description?: string;
 }
 
 export interface NodeDefinition {
@@ -83,8 +84,8 @@ export interface AgentNode {
   color?: string;
   badge?: string;
   sub_label?: string;
-  user_properties: string[];
-  system_properties: string[];
+  user_properties: any[];
+  system_properties: any[];
   input_contract: Record<string, any> | string;
   output_contract: Record<string, any> | string;
   is_enabled?: boolean;

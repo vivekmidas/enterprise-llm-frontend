@@ -133,17 +133,15 @@ const propertyEntriesFromValue = (value: any): PropertyEntry[] => {
   return [];
 };
 
-const propertyEntriesToJsonStrings = (entries: PropertyEntry[]) =>
-  entries.map((entry) =>
-    JSON.stringify({
-      ...entry,
-      key: entry.key,
-      label: entry.label || entry.key,
-      type: entry.type || 'string',
-      value: entry.value ?? '',
-      default: entry.default ?? '',
-    }),
-  );
+const propertyEntriesToJsonStrings = (entries: PropertyEntry[]): any[] =>
+  entries.map((entry) => ({
+    key: entry.key,
+    label: entry.label || entry.key,
+    type: entry.type || 'string',
+    value: entry.value ?? '',
+    default: entry.default ?? '',
+    description: entry.description ?? '',
+  }));
 
 const boolFromValue = (value: any) =>
   value === true || String(value).trim().toLowerCase() === 'true';
@@ -393,6 +391,7 @@ export default function AdminPage() {
     type: 'string',
     defaultValue: '',
     value: '',
+    description: '',
   });
 
   // Auth state
@@ -518,9 +517,9 @@ export default function AdminPage() {
           lastname: '',
         });
         <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
-  'Registration successful! Please login.'
-</Alert>
-       
+          'Registration successful! Please login.'
+        </Alert>;
+
         setIsRegistering(false);
       } else {
         const data = await api.login({ email: loginEmail, password: loginPassword });
@@ -550,10 +549,9 @@ export default function AdminPage() {
         }
       }
     } catch (err) {
-        <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
- 'Authentication failed. Check your credentials.'
-</Alert>
-  
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        'Authentication failed. Check your credentials.'
+      </Alert>;
     }
   };
 
@@ -594,9 +592,9 @@ export default function AdminPage() {
           finalOutputContract = editingAgent.output_contract;
         }
       } catch (e) {
-       <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
-        Invalid JSON in Output Contract field.
-        </Alert>
+        <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+          Invalid JSON in Output Contract field.
+        </Alert>;
         return;
       }
 
@@ -612,7 +610,9 @@ export default function AdminPage() {
         customerId || undefined,
       );
 
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Node configuration saved successfully!</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Node configuration saved successfully!
+      </Alert>;
       const agentsRes = await api.getNodes();
       setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
       setEditingAgent(null);
@@ -631,7 +631,9 @@ export default function AdminPage() {
         icon: newCustomerIcon,
         color_schema: newCustomerColor,
       });
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Customer created successfully!</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Customer created successfully!
+      </Alert>;
       setShowAddCustomerModal(false);
       setNewCustomerName('');
       setNewCustomerDomain('');
@@ -652,7 +654,9 @@ export default function AdminPage() {
         password: customerUserPassword,
         role: 'admin',
       });
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Admin user onboarded successfully!</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Admin user onboarded successfully!
+      </Alert>;
       setShowAddCustomerUserModal(false);
       setCustomerUserName('');
       setCustomerUserEmail('');
@@ -671,7 +675,9 @@ export default function AdminPage() {
         password: newUserPassword,
         role: newUserRole,
       });
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">User added successfully!</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        User added successfully!
+      </Alert>;
       setShowAddUserModal(false);
       setNewUserName('');
       setNewUserEmail('');
@@ -692,7 +698,9 @@ export default function AdminPage() {
       return;
     try {
       await api.deleteCustomer(id);
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Customer deleted successfully!</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Customer deleted successfully!
+      </Alert>;
       const custs = await api.getCustomers().catch(() => []);
       setCustomers(custs || []);
     } catch (err: any) {
@@ -741,7 +749,9 @@ export default function AdminPage() {
       });
 
       await api.configureCustomerNodesAdmin(selectedCustomerForNodes.id, nodesPayload);
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Node assignments updated successfully!</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Node assignments updated successfully!
+      </Alert>;
       setShowNodesModal(false);
     } catch (err: any) {
       alert('Failed to save assignments: ' + err.message);
@@ -895,6 +905,7 @@ export default function AdminPage() {
         type: field.type || 'string',
         defaultValue: field.default || '',
         value: field.value ?? '',
+        description: field.description || '',
       });
       setIsEditingProp(true);
     } else {
@@ -908,6 +919,7 @@ export default function AdminPage() {
         type: 'string',
         defaultValue: '',
         value: '',
+        description: '',
       });
       setIsEditingProp(false);
     }
@@ -928,6 +940,7 @@ export default function AdminPage() {
         type: propModal.type || 'string',
         value: propModal.value,
         default: propModal.defaultValue,
+        description: propModal.description || '',
       };
 
       if (isEditingProp && propModal.sourceIndex >= 0) {
@@ -1002,12 +1015,16 @@ export default function AdminPage() {
 
         const agentsRes = await api.getNodes();
         setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
-        <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Input contract saved successfully!</Alert>;
+        <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+          Input contract saved successfully!
+        </Alert>;
         return;
       }
 
       if (!editingAgent.id) {
-        <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Please create the node first before saving input contracts separately.</Alert>;
+        <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+          Please create the node first before saving input contracts separately.
+        </Alert>;
         return;
       }
 
@@ -1017,10 +1034,14 @@ export default function AdminPage() {
       await api.updateNode(updatedAgent);
       const agentsRes = await api.getNodes();
       setAgents((agentsRes as any).nodes || (agentsRes as any).agents || []);
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Input contract saved successfully!</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Input contract saved successfully!
+      </Alert>;
     } catch (error) {
       console.error('Failed to save input contract:', error);
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Failed to save input contract. Please ensure the backend endpoint is implemented.</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Failed to save input contract. Please ensure the backend endpoint is implemented.
+      </Alert>;
     }
   };
 
@@ -1046,7 +1067,9 @@ export default function AdminPage() {
         );
       }
     } catch (e) {
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Invalid JSON in Input Contract field.</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Invalid JSON in Input Contract field.
+      </Alert>;
       return;
     }
 
@@ -1061,7 +1084,9 @@ export default function AdminPage() {
         finalAgent.output_contract = {};
       }
     } catch (e) {
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Invalid JSON in Output Contract field.</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Invalid JSON in Output Contract field.
+      </Alert>;
       return;
     }
 
@@ -1071,7 +1096,9 @@ export default function AdminPage() {
         propertyEntriesFromValue(finalAgent.user_properties),
       );
     } catch (e) {
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Invalid JSON in User Properties field.</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Invalid JSON in User Properties field.
+      </Alert>;
       return;
     }
 
@@ -1081,7 +1108,9 @@ export default function AdminPage() {
         propertyEntriesFromValue(finalAgent.system_properties),
       );
     } catch (e) {
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Invalid JSON in System Properties field.</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Invalid JSON in System Properties field.
+      </Alert>;
       return;
     }
 
@@ -1306,7 +1335,11 @@ export default function AdminPage() {
     return (
       <input
         className={`${commonClasses} text-black`}
-        value={typeof displayValue === 'object' ? JSON.stringify(displayValue) : String(displayValue ?? '')}
+        value={
+          typeof displayValue === 'object'
+            ? JSON.stringify(displayValue)
+            : String(displayValue ?? '')
+        }
         placeholder="Enter value..."
         onChange={(e) => handleValChange(e.target.value)}
       />
@@ -1511,7 +1544,7 @@ export default function AdminPage() {
         </header>
 
         <div className="flex border-b border-gray-200">
-          {(userRole === 'system_admin') && (
+          {userRole === 'system_admin' && (
             <button
               onClick={() => setActiveTab('customers')}
               className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'customers' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
@@ -1747,9 +1780,9 @@ export default function AdminPage() {
                       {/* <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
                         Group
                       </th> */}
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      {/* <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
                         Description
-                      </th>
+                      </th> */}
                       <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
                         JSON Definition
                       </th>
@@ -1807,6 +1840,9 @@ export default function AdminPage() {
                                     {agent.sub_label}
                                   </span>
                                 )}
+                                <p className="text-xs text-gray-600  line-clamp-2">
+                                  {agent.description || 'No description.'}
+                                </p>
                               </div>
                             </div>
                           </td>
@@ -1851,20 +1887,7 @@ export default function AdminPage() {
                           </td> */}
 
                           {/* Description */}
-                          <td className="px-4 py-3">
-                            <p className="text-xs text-gray-600 max-w-[200px] line-clamp-2">
-                              {agent.description || 'No description.'}
-                            </p>
-                            {/* Original Classification badges, now moved to their own columns */}
-                            {/* <div className="flex flex-wrap gap-2 pt-1">
-                              <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 border border-blue-100 uppercase">
-                                {agent.category}
-                              </span>
-                              <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-bold text-gray-600 border border-gray-100 uppercase">
-                                {agent.group}
-                              </span>
-                            </div> */}
-                          </td>
+                          {/*  */}
 
                           {/* JSON Definition (Collapsible) */}
                           <td className="px-4 py-3">
@@ -2213,7 +2236,7 @@ export default function AdminPage() {
                         </div>
                       </div>
                     </div>
-                  </div>      
+                  </div>
                 ))}
                 {workflows.length === 0 && (
                   <div className="col-span-full py-12 text-center rounded-xl border-2 border-dashed border-gray-200">
@@ -3480,20 +3503,82 @@ export default function AdminPage() {
           <div className="fixed max-w-full inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
             <div className="flex h-[90vh] w-full flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
               <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
-                <div>
-                  <h3 className="text-xl font-bold text-black">
+                <div className="flex flex-col">
+                  <h3 className="text-xl font-bold font-mono text-black">
                     {customerId
-                      ? 'Edit Customer Node Configuration'
+                      ? `${editingAgent.name}`
                       : editingAgent.id
                         ? 'Edit Node Registry'
                         : 'Create New Node Type'}
                   </h3>
-                  <p className="text-xs text-gray-500 font-mono uppercase">
+                  <p className="text-xs text-gray-500 font-mono uppercase mt-0.5">
                     {editingAgent.id
-                      ? `${editingAgent.name} v${editingAgent.version}`
+                      ? `${editingAgent.name} v${editingAgent.version || '1.0.0'}`
                       : 'New Registry Entry'}
                   </p>
                 </div>
+
+                <div className="flex items-center gap-6 ml-auto mr-4">
+                  {/* Version Control */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                      Version
+                    </label>
+                    <input
+                      type="text"
+                      className="w-24 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                      value={editingAgent.version || '1.0.0'}
+                      onChange={(e) =>
+                        setEditingAgent({ ...editingAgent, version: e.target.value })
+                      }
+                      placeholder="1.0.0"
+                      disabled={!!customerId || userRole !== 'system_admin'}
+                    />
+                  </div>
+
+                  {/* Enable/Disable Toggle */}
+                  {customerId && (
+                    <div className="flex items-center gap-3 border-l border-gray-200 pl-6">
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-tight flex items-center justify-end gap-1.5">
+                          {editingAgent.is_enabled === false && (
+                            <IconMap.lock className="h-3.5 w-3.5 text-red-500" />
+                          )}
+                          Status
+                        </span>
+                        <p className="text-[10px] text-gray-400">
+                          {editingAgent.is_enabled === false ? 'Disabled' : 'Enabled'}
+                        </p>
+                      </div>
+                      <label
+                        className={`relative inline-flex items-center ${
+                          editingAgent.is_enabled === false
+                            ? 'cursor-not-allowed pointer-events-none'
+                            : 'cursor-pointer'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editingAgent.is_enabled !== false}
+                          onChange={(e) => {
+                            if (editingAgent.is_enabled === false) return;
+                            setEditingAgent({ ...editingAgent, is_enabled: e.target.checked });
+                          }}
+                          disabled={editingAgent.is_enabled === false}
+                          className="sr-only peer"
+                        />
+                        <div
+                          className={`w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
+                            editingAgent.is_enabled === false
+                              ? 'bg-gray-300 opacity-60'
+                              : 'peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 peer-checked:bg-blue-600'
+                          }`}
+                        ></div>
+                      </label>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={() => setEditingAgent(null)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -3503,46 +3588,9 @@ export default function AdminPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 space-y-10">
-                {customerId && (
-                  <div
-                    className={`flex items-center justify-between border rounded-xl p-4 ${editingAgent.is_enabled === false ? 'bg-red-50/50 border-red-100' : 'bg-blue-50/50 border-blue-100'}`}
-                  >
-                    <div>
-                      <h4 className="text-sm font-semibold text-black flex items-center gap-1.5">
-                        {editingAgent.is_enabled === false && (
-                          <IconMap.lock className="h-4 w-4 text-red-500" />
-                        )}
-                        Enable / Disable Node
-                      </h4>
-                      <p className="text-xs text-gray-500">
-                        {editingAgent.is_enabled === false
-                          ? 'This node has been locked and disabled by the system administrator.'
-                          : 'Allow workflow builders in your organization to use this node type.'}
-                      </p>
-                    </div>
-                    <label
-                      className={`relative inline-flex items-center ${editingAgent.is_enabled === false ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editingAgent.is_enabled !== false}
-                        // onChange={(e) => {
-                        //   if (editingAgent.is_enabled === false) return;
-                        //   setEditingAgent({ ...editingAgent, is_enabled: e.target.checked });
-                        // }}
-                        disabled={editingAgent.is_enabled === false}
-                        className="sr-only peer"
-                      />
-                      <div
-                        className={`w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${editingAgent.is_enabled === false ? 'bg-gray-300 opacity-60' : 'peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:bg-blue-600'}`}
-                      ></div>
-                    </label>
-                  </div>
-                )}
-
                 {/* Section: Metadata */}
                 <div className="grid grid-cols-2 gap-6">
-                  {editingAgent.id && (
+                  {/* {editingAgent.id && (
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
                         Database ID (Read-only)
@@ -3554,7 +3602,7 @@ export default function AdminPage() {
                         disabled
                       />
                     </div>
-                  )}
+                  )} */}
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
                       Display Label
@@ -3566,7 +3614,7 @@ export default function AdminPage() {
                       placeholder="e.g. My Custom Agent"
                     />
                   </div>
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
                       System Name (Unique ID)
                     </label>
@@ -3577,21 +3625,8 @@ export default function AdminPage() {
                       placeholder="e.g. custom_llm_agent"
                       disabled={!!editingAgent.id || userRole !== 'system_admin'}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
-                      Version
-                    </label>
-                    <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={editingAgent.version || '1.0.0'}
-                      onChange={(e) =>
-                        setEditingAgent({ ...editingAgent, version: e.target.value })
-                      }
-                      placeholder="1.0.0"
-                      disabled={userRole !== 'system_admin'}
-                    />
-                  </div>
+                  </div> */}
+
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
                       Node Category
@@ -3769,7 +3804,14 @@ export default function AdminPage() {
                                 </span>
                               </td>
                               <td className="px-4 py-3 font-mono text-xs text-black">{row.key}</td>
-                              <td className="px-4 py-3 text-gray-600">{row.label}</td>
+                              <td className="px-4 py-3 text-gray-600">
+                                <div className="font-semibold text-sm">{row.label}</div>
+                                {row.description && (
+                                  <div className="text-m text-gray-400 italic mt-0.5  break-words">
+                                    {row.description}
+                                  </div>
+                                )}
+                              </td>
                               <td className="px-4 py-3">
                                 <span className="text-[10px] font-mono text-gray-400">
                                   {row.type}
@@ -4386,6 +4428,19 @@ export default function AdminPage() {
                       placeholder="Registry value"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">
+                    Description / Guide
+                  </label>
+                  <textarea
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-m text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={propModal.description || ''}
+                    onChange={(e) => setPropModal({ ...propModal, description: e.target.value })}
+                    placeholder="Helper text for users configuring this property"
+                    rows={2}
+                  />
                 </div>
               </div>
               <div className="border-t bg-gray-50 px-6 py-4 flex justify-end gap-3">

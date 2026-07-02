@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Cpu, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import Alert from "@mui/material/Alert"
+import Alert from '@mui/material/Alert';
 import { CheckIcon } from 'lucide-react';
 
 export default function LoginPage() {
@@ -39,7 +39,9 @@ export default function LoginPage() {
         router.push('/workflow-builder');
       }
     } catch (err) {
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">Login failed. Please check your credentials.</Alert>;
+      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+        Login failed. Please check your credentials.
+      </Alert>;
     } finally {
       setLoading(false);
     }
