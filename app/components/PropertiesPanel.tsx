@@ -15,6 +15,7 @@ import {
   Copy,
   Check,
   Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
@@ -257,6 +258,18 @@ export default function PropertiesPanel({
   const [viewMode, setViewMode] = useState<'config' | 'contract'>('config');
   const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
   const [generatorModalType, setGeneratorModalType] = useState<'input' | 'output'>('input');
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    parameters: false,
+    mapping: false,
+    system: true,
+  });
+
+  const toggleSection = (section: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
 
   // Local state for fetched contracts and properties from API
   const [inputContract, setInputContract] = useState<any>({});
@@ -1099,212 +1112,270 @@ export default function PropertiesPanel({
           const systemEntries = Object.entries(systemProperties);
 
           return (
-            <div className="space-y-5">
-              <div className="space-y-4">
-                {entries.length > 0 ? (
-                  <div className="space-y-4">
-                    {entries.map(([key, value]) => {
-                      const label = formatLabel(key);
-                      const valueType =
-                        typeof value === 'boolean'
-                          ? 'boolean'
-                          : typeof value === 'number'
-                            ? 'number'
-                            : 'string';
-
-                      if (valueType === 'boolean') {
-                        return (
-                          <label
-                            key={key}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-slate-150 bg-slate-50/30 px-3.5 py-2.5 text-xs text-slate-700 cursor-pointer shadow-sm hover:border-slate-250 transition-all hover:bg-slate-50"
-                          >
-                            <span className="font-semibold text-slate-650">{label}</span>
-                            <input
-                              type="checkbox"
-                              checked={Boolean(value)}
-                              disabled={userRole === 'user'}
-                              onChange={(e) => handlePropertyChange(key, e.target.checked)}
-                              className="h-4 w-4 accent-indigo-600 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                          </label>
-                        );
-                      }
-
-                      if (valueType === 'number') {
-                        return (
-                          <div key={key} className="space-y-1.5">
-                            <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-widest">
-                              {label}
-                            </label>
-                            <input
-                              type="number"
-                              value={Number(value ?? 0)}
-                              disabled={userRole === 'user'}
-                              onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
-                              placeholder="Value"
-                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                          </div>
-                        );
-                      }
-
-                      // Multiline textarea for prompts/long strings
-                      const isMultiline =
-                        String(value ?? '').length > 40 ||
-                        key.toLowerCase().includes('prompt') ||
-                        key.toLowerCase().includes('query');
-
-                      return (
-                        <div key={key} className="space-y-1.5">
-                          <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-widest">
-                            {label}
-                          </label>
-                          {isMultiline ? (
-                            <textarea
-                              value={String(value ?? '')}
-                              disabled={userRole === 'user'}
-                              onChange={(e) => handlePropertyChange(key, e.target.value)}
-                              placeholder="Enter text/variables..."
-                              rows={3}
-                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20 disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                          ) : (
-                            <input
-                              type={
-                                key.toLowerCase().includes('password') ||
-                                key.toLowerCase().includes('secret')
-                                  ? 'password'
-                                  : 'text'
-                              }
-                              value={String(value ?? '')}
-                              disabled={userRole === 'user'}
-                              onChange={(e) => handlePropertyChange(key, e.target.value)}
-                              placeholder="Enter value..."
-                              className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
+            <div className="space-y-4">
+              {/* Accordion Item: Parameters */}
+              <div className="border border-slate-150 rounded-xl overflow-hidden shadow-sm bg-white">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('parameters')}
+                  className="w-full flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Settings className="w-3.5 h-3.5 text-indigo-500" />
+                    <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">
+                      Parameters
+                    </span>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                    <p className="text-xs italic">No configurable parameters.</p>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
+                      collapsedSections.parameters ? '-rotate-90' : 'rotate-0'
+                    }`}
+                  />
+                </button>
+                {!collapsedSections.parameters && (
+                  <div className="p-4 space-y-4 border-t border-slate-100 bg-white">
+                    {entries.length > 0 ? (
+                      <div className="space-y-4">
+                        {entries.map(([key, value]) => {
+                          const label = formatLabel(key);
+                          const valueType =
+                            typeof value === 'boolean'
+                              ? 'boolean'
+                              : typeof value === 'number'
+                                ? 'number'
+                                : 'string';
+
+                          if (valueType === 'boolean') {
+                            return (
+                              <label
+                                key={key}
+                                className="flex items-center justify-between gap-3 rounded-xl border border-slate-150 bg-slate-50/30 px-3.5 py-2.5 text-xs text-slate-700 cursor-pointer shadow-sm hover:border-slate-250 transition-all hover:bg-slate-50"
+                              >
+                                <span className="font-semibold text-slate-655">{label}</span>
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(value)}
+                                  disabled={userRole === 'user'}
+                                  onChange={(e) => handlePropertyChange(key, e.target.checked)}
+                                  className="h-4 w-4 accent-indigo-600 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                              </label>
+                            );
+                          }
+
+                          if (valueType === 'number') {
+                            return (
+                              <div key={key} className="space-y-1.5">
+                                <label className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest">
+                                  {label}
+                                </label>
+                                <input
+                                  type="number"
+                                  value={Number(value ?? 0)}
+                                  disabled={userRole === 'user'}
+                                  onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
+                                  placeholder="Value"
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                              </div>
+                            );
+                          }
+
+                          // Multiline textarea for prompts/long strings
+                          const isMultiline =
+                            String(value ?? '').length > 40 ||
+                            key.toLowerCase().includes('prompt') ||
+                            key.toLowerCase().includes('query');
+
+                          return (
+                            <div key={key} className="space-y-1.5">
+                              <label className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest">
+                                {label}
+                              </label>
+                              {isMultiline ? (
+                                <textarea
+                                  value={String(value ?? '')}
+                                  disabled={userRole === 'user'}
+                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
+                                  placeholder="Enter text/variables..."
+                                  rows={3}
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                              ) : (
+                                <input
+                                  type={
+                                    key.toLowerCase().includes('password') ||
+                                    key.toLowerCase().includes('secret')
+                                      ? 'password'
+                                      : 'text'
+                                  }
+                                  value={String(value ?? '')}
+                                  disabled={userRole === 'user'}
+                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
+                                  placeholder="Enter value..."
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                        <p className="text-xs italic">No configurable parameters.</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Field Mapping Section */}
+              {/* Accordion Item: Field Mapping */}
               {!isTrigger && (
-                <div className="space-y-2 pt-3 border-t border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest flex items-center gap-1.5">
+                <div className="border border-slate-150 rounded-xl overflow-hidden shadow-sm bg-white">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('mapping')}
+                    className="w-full flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2">
                       <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-500" />
-                      Field Mapping
-                    </span>
-                    {hasPredecessor && onOpenMapper && (
-                      <button
-                        type="button"
-                        onClick={onOpenMapper}
-                        className="flex items-center gap-1 text-[12px] font-bold text-indigo-600 hover:text-indigo-850 transition-colors cursor-pointer bg-transparent border-0 p-0"
-                      >
-                        <ArrowRightLeft className="w-3 h-3" />
-                        Modify Mapping
-                      </button>
-                    )}
-                  </div>
-
-                  {hasPredecessor ? (
-                    <div className="text-[10px] text-slate-650 bg-slate-50 border border-slate-150 rounded-xl p-3.5 space-y-1.5 font-mono max-h-32 overflow-y-auto custom-scrollbar shadow-inner-sm">
-                      {(() => {
-                        let currentMapping: Record<string, string> = {};
-                        try {
-                          const value = properties.mapping_template;
-                          currentMapping =
-                            typeof value === 'string' ? JSON.parse(value) : value || {};
-                        } catch {
-                          currentMapping = {};
-                        }
-
-                        return Object.keys(currentMapping).length > 0 ? (
-                          Object.entries(currentMapping).map(([tgt, src]) => (
-                            <div
-                              key={tgt}
-                              className="truncate flex items-center justify-between gap-1.5 border-b border-slate-100/50 pb-1 last:border-0 last:pb-0"
-                            >
-                              <span className="text-indigo-650 font-semibold">{tgt}</span>
-                              <span className="text-slate-450 font-normal truncate">
-                                &larr; {String(src)}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-[10px] text-slate-450 italic font-sans py-1 text-center">
-                            {userRole === 'user'
-                              ? 'No fields mapped yet.'
-                              : 'No fields mapped yet. Click Modify Mapping to configure.'}
-                          </p>
-                        );
-                      })()}
+                      <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">
+                        Field Mapping
+                      </span>
                     </div>
-                  ) : (
-                    <div className="text-center py-4 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                      <p className="text-[10px] italic">
-                        Connect an upstream node to enable field mapping.
-                      </p>
+                    <div className="flex items-center gap-2">
+                      {hasPredecessor && onOpenMapper && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation(); // prevent collapsing section
+                            onOpenMapper();
+                          }}
+                          className="flex items-center gap-1 text-[11px] font-bold text-indigo-650 hover:text-indigo-850 transition-colors cursor-pointer bg-transparent border-0 p-0 mr-1"
+                        >
+                          <ArrowRightLeft className="w-3 h-3" />
+                          Modify Mapping
+                        </button>
+                      )}
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
+                          collapsedSections.mapping ? '-rotate-90' : 'rotate-0'
+                        }`}
+                      />
+                    </div>
+                  </button>
+                  {!collapsedSections.mapping && (
+                    <div className="p-4 space-y-4 border-t border-slate-100 bg-white">
+                      {hasPredecessor ? (
+                        <div className="text-[10px] text-slate-655 bg-slate-50 border border-slate-150 rounded-xl p-3.5 space-y-1.5 font-mono max-h-32 overflow-y-auto custom-scrollbar shadow-inner-sm">
+                          {(() => {
+                            let currentMapping: Record<string, string> = {};
+                            try {
+                              const value = properties.mapping_template;
+                              currentMapping =
+                                typeof value === 'string' ? JSON.parse(value) : value || {};
+                            } catch {
+                              currentMapping = {};
+                            }
+
+                            return Object.keys(currentMapping).length > 0 ? (
+                              Object.entries(currentMapping).map(([tgt, src]) => (
+                                <div
+                                  key={tgt}
+                                  className="truncate flex items-center justify-between gap-1.5 border-b border-slate-100/50 pb-1 last:border-0 last:pb-0"
+                                >
+                                  <span className="text-indigo-655 font-semibold">{tgt}</span>
+                                  <span className="text-slate-450 font-normal truncate">
+                                    &larr; {String(src)}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-[10px] text-slate-455 italic font-sans py-1 text-center">
+                                {userRole === 'user'
+                                  ? 'No fields mapped yet.'
+                                  : 'No fields mapped yet. Click Modify Mapping to configure.'}
+                              </p>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-slate-450 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                          <p className="text-[10px] italic">
+                            Connect an upstream node to enable field mapping.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               )}
 
+              {/* Accordion Item: Runtime System */}
               {systemEntries.length > 0 && (
-                <div className="space-y-3 pt-3 border-t border-slate-100">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      Runtime System
-                    </span>
-                    <span className="text-[8px] font-bold text-slate-450 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-150 tracking-wide uppercase shrink-0">
-                      READ ONLY
-                    </span>
-                  </div>
-
-                  <div className="bg-slate-50/75 rounded-xl p-3 border border-slate-150 space-y-2.5 shadow-sm">
-                    {systemEntries.map(([key, value]) => {
-                      const label = formatLabel(key);
-                      const isCopied = copiedKey === key;
-                      return (
-                        <div
-                          key={key}
-                          className="flex justify-between items-center gap-2 py-0.5 group/row"
-                        >
-                          <span className="font-semibold text-[10px] text-slate-500 truncate">
-                            {label}
-                          </span>
-                          <div className="flex items-center gap-1.5 max-w-[70%]">
-                            <span
-                              className="font-mono text-[10px] text-slate-700 bg-white border border-slate-150 px-2 py-0.5 rounded shadow-inner-sm truncate"
-                              title={String(value ?? '')}
+                <div className="border border-slate-150 rounded-xl overflow-hidden shadow-sm bg-white">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('system')}
+                    className="w-full flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5 text-slate-450" />
+                      <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">
+                        Runtime System
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[8px] font-bold text-slate-450 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-150 tracking-wide uppercase shrink-0">
+                        READ ONLY
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
+                          collapsedSections.system ? '-rotate-90' : 'rotate-0'
+                        }`}
+                      />
+                    </div>
+                  </button>
+                  {!collapsedSections.system && (
+                    <div className="p-4 space-y-4 border-t border-slate-100 bg-white">
+                      <div className="bg-slate-50/75 rounded-xl p-3 border border-slate-150 space-y-2.5 shadow-sm">
+                        {systemEntries.map(([key, value]) => {
+                          const label = formatLabel(key);
+                          const isCopied = copiedKey === key;
+                          return (
+                            <div
+                              key={key}
+                              className="flex justify-between items-center gap-2 py-0.5 group/row"
                             >
-                              {String(value ?? '')}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleCopy(key, value)}
-                              className="p-1 hover:bg-slate-150 rounded transition-colors shrink-0 opacity-0 group-hover/row:opacity-100 focus:opacity-100 text-slate-400 hover:text-slate-650 cursor-pointer"
-                              title="Copy to clipboard"
-                            >
-                              {isCopied ? (
-                                <Check className="w-3 h-3 text-emerald-600 font-bold" />
-                              ) : (
-                                <Copy className="w-3 h-3" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                              <span className="font-semibold text-[10px] text-slate-500 truncate">
+                                {label}
+                              </span>
+                              <div className="flex items-center gap-1.5 max-w-[70%]">
+                                <span
+                                  className="font-mono text-[10px] text-slate-700 bg-white border border-slate-150 px-2 py-0.5 rounded shadow-inner-sm truncate"
+                                  title={String(value ?? '')}
+                                >
+                                  {String(value ?? '')}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(key, value)}
+                                  className="p-1 hover:bg-slate-150 rounded transition-colors shrink-0 opacity-0 group-hover/row:opacity-100 focus:opacity-100 text-slate-400 hover:text-slate-655 cursor-pointer"
+                                  title="Copy to clipboard"
+                                >
+                                  {isCopied ? (
+                                    <Check className="w-3 h-3 text-emerald-600 font-bold" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
