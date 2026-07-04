@@ -312,6 +312,7 @@ function AgentBuilderContent() {
               data: {
                 ...fullAgent,
                 user_properties: fullAgent.user_properties || {},
+                system_properties: fullAgent.system_properties || {},
                 executionStatus: 'idle' as ExecutionStatus,
                 variant: fullAgent.category?.toString().toLowerCase(),
                 subIcon: fullAgent.icon,
@@ -595,10 +596,20 @@ function AgentBuilderContent() {
   }, [agentId, handleNewAgent, setStatus, userId, userRole]);
 
   const setNodeExecutionStatus = useCallback(
-    (nodeId: string, executionStatus: ExecutionStatus) => {
+    (nodeId: string, executionStatus: ExecutionStatus, output?: any) => {
       setNodes((currentNodes) =>
         currentNodes.map((node) =>
-          node.id === nodeId ? { ...node, data: { ...node.data, executionStatus } } : node,
+          node.id === nodeId
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  executionStatus,
+                  output: executionStatus === 'error' ? undefined : (output?.output || output),
+                  error: executionStatus === 'error' ? (typeof output === 'string' ? output : output?.message || 'Execution failed') : undefined,
+                },
+              }
+            : node,
         ),
       );
     },
@@ -626,7 +637,12 @@ function AgentBuilderContent() {
     setNodes((currentNodes) =>
       currentNodes.map((node) => ({
         ...node,
-        data: { ...node.data, executionStatus: 'idle' as ExecutionStatus },
+        data: {
+          ...node.data,
+          executionStatus: 'idle' as ExecutionStatus,
+          output: undefined,
+          error: undefined,
+        },
       })),
     );
 
@@ -677,7 +693,7 @@ function AgentBuilderContent() {
         };
 
         setExecutionTrace((trace) => [...trace, traceStep]);
-        setNodeExecutionStatus(activeNode.id, 'success');
+        setNodeExecutionStatus(activeNode.id, 'success', output);
         stepCount++;
         payload = output;
 
@@ -781,7 +797,7 @@ function AgentBuilderContent() {
         };
 
         setExecutionTrace((trace) => [...trace, traceStep]);
-        setNodeExecutionStatus(activeNode.id, 'error');
+        setNodeExecutionStatus(activeNode.id, 'error', traceStep.error);
         setStatus(`Execution stopped at ${nodeName}: ${traceStep.error}`);
         setIsExecuting(false);
         return;

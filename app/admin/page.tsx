@@ -11,6 +11,7 @@ import { IconMap } from '@/lib/icons';
 import { AgentNode, NodeCategory } from '@components/component-categoriees';
 import { JsonTreeView } from '@components/JsonTreeView';
 import JsonSchemaGeneratorModal from '@components/JsonSchemaGeneratorModal';
+import RunVisualizerModal from '@components/RunVisualizerModal';
 
 type PropertyTarget = 'user' | 'system';
 
@@ -370,7 +371,9 @@ export default function AdminPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [selectedWorkflowFilter, setSelectedWorkflowFilter] = useState('all');
+  const [selectedCustomerFilter, setSelectedCustomerFilter] = useState('all');
   const [minutesFilter, setMinutesFilter] = useState(30);
+  const [selectedTraceForVisualizer, setSelectedTraceForVisualizer] = useState<any | null>(null);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [traceViewMode, setTraceViewMode] = useState<'tree' | 'raw'>('tree');
   const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
@@ -485,6 +488,9 @@ export default function AdminPage() {
       if (selectedWorkflowFilter && selectedWorkflowFilter !== 'all') {
         url.searchParams.append('workflow_id', selectedWorkflowFilter);
       }
+      if (userRole === 'system_admin' && selectedCustomerFilter && selectedCustomerFilter !== 'all') {
+        url.searchParams.append('customer_id', selectedCustomerFilter);
+      }
       const response = await fetch(url.toString(), {
         headers: getHeaders(),
       });
@@ -503,7 +509,53 @@ export default function AdminPage() {
     if (activeTab === 'logs') {
       fetchLogs();
     }
-  }, [activeTab, selectedWorkflowFilter, minutesFilter]);
+  }, [activeTab, selectedWorkflowFilter, minutesFilter, selectedCustomerFilter]);
+  const handleStopTrace = async (e: React.MouseEvent, traceId: string) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to stop this running execution?')) {
+      return;
+    }
+    try {
+      const response = await fetch(`http://localhost:8000/api/observability/traces/${traceId}/stop`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      if (response.ok) {
+        alert('Stop signal sent successfully.');
+        fetchLogs();
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to stop execution: ${errorData.detail || response.statusText}`);
+      }
+    } catch (err) {
+      console.error('Failed to stop trace', err);
+      alert('Error occurred while attempting to stop execution.');
+    }
+  };
+
+  const handleRestartTrace = async (e: React.MouseEvent, traceId: string) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to restart this execution with original inputs?')) {
+      return;
+    }
+    try {
+      const response = await fetch(`http://localhost:8000/api/observability/traces/${traceId}/restart`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        alert(`Execution successfully restarted! New Trace ID: ${data.new_trace_id}`);
+        fetchLogs();
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to restart execution: ${errorData.detail || response.statusText}`);
+      }
+    } catch (err) {
+      console.error('Failed to restart trace', err);
+      alert('Error occurred while attempting to restart execution.');
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -602,6 +654,8 @@ export default function AdminPage() {
         editingAgent.name,
         {
           properties: overrides,
+          user_properties: propertyEntriesToJsonStrings(userProps),
+          system_properties: propertyEntriesToJsonStrings(sysProps),
           is_enabled: editingAgent.is_enabled !== undefined ? editingAgent.is_enabled : true,
           input_contract: validatedContract,
           output_contract: finalOutputContract,
@@ -812,6 +866,37 @@ export default function AdminPage() {
     setWorkflows(workflowsRes || []);
   };
 
+  const handleClearWorkflowCache = async (workflowId?: string) => {
+    if (workflowId) {
+      if (!confirm('Are you sure you want to clear the compiled graph cache for this workflow?')) return;
+    } else {
+      if (!confirm('Are you sure you want to clear the entire compiled graph cache? This will cause all workflows to rebuild on their next run.')) return;
+    }
+    
+    try {
+      const token = localStorage.getItem('admin_token');
+      const url = new URL('http://localhost:8000/workflows/cache/clear');
+      if (workflowId) {
+        url.searchParams.append('workflow_id', workflowId);
+      }
+      
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      
+      if (response.ok) {
+        alert(workflowId ? 'Workflow cache cleared successfully.' : 'Entire graph cache cleared successfully.');
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to clear cache: ${errorData.detail || response.statusText}`);
+      }
+    } catch (err) {
+      console.error('Failed to clear graph cache', err);
+      alert('Error occurred while clearing graph cache.');
+    }
+  };
+
   const handleDeleteWorkflow = async (workflowId: string) => {
     if (!confirm('Are you sure you want to delete this workflow?')) return;
     await api.deleteWorkflow(workflowId, {
@@ -1005,6 +1090,8 @@ export default function AdminPage() {
           editingAgent.name,
           {
             properties: overrides,
+            user_properties: propertyEntriesToJsonStrings(userProps),
+            system_properties: propertyEntriesToJsonStrings(sysProps),
             is_enabled: editingAgent.is_enabled !== undefined ? editingAgent.is_enabled : true,
             input_contract: validatedContract,
             output_contract: finalOutputContract,
@@ -1265,6 +1352,7 @@ export default function AdminPage() {
       'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
 
     const displayValue = value !== undefined && value !== null ? value : field.default;
+    const isDisabled = userRole !== 'system_admin' && !customerId;
 
     if (field.type === 'password' || field.type?.toLowerCase().includes('secret')) {
       return (
@@ -1275,6 +1363,7 @@ export default function AdminPage() {
           placeholder="••••••••"
           autoComplete="new-password"
           onChange={(e) => handleValChange(e.target.value)}
+          disabled={isDisabled}
         />
       );
     }
@@ -1285,6 +1374,7 @@ export default function AdminPage() {
           className={`${commonClasses} text-black`}
           value={String(displayValue ?? false)}
           onChange={(e) => handleValChange(e.target.value === 'true')}
+          disabled={isDisabled}
         >
           <option value="true">True</option>
           <option value="false">False</option>
@@ -1299,6 +1389,7 @@ export default function AdminPage() {
           className={`${commonClasses} text-black`}
           value={displayValue ?? 0}
           onChange={(e) => handleValChange(Number(e.target.value))}
+          disabled={isDisabled}
         />
       );
     }
@@ -1310,6 +1401,7 @@ export default function AdminPage() {
           value={String(displayValue ?? '')}
           placeholder="Multiline content..."
           onChange={(e) => handleValChange(e.target.value)}
+          disabled={isDisabled}
         />
       );
     }
@@ -1328,6 +1420,7 @@ export default function AdminPage() {
                 .filter(Boolean),
             )
           }
+          disabled={isDisabled}
         />
       );
     }
@@ -1342,6 +1435,7 @@ export default function AdminPage() {
         }
         placeholder="Enter value..."
         onChange={(e) => handleValChange(e.target.value)}
+        disabled={isDisabled}
       />
     );
   };
@@ -2032,32 +2126,44 @@ export default function AdminPage() {
                 <Workflow className="h-5 w-5 text-gray-400" />
                 <h2 className="text-xl font-semibold text-black">Workflow Catalog</h2>
               </div>
-              {/* View Mode Toggle */}
-              <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setWorkflowViewMode('list')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                    workflowViewMode === 'list'
-                      ? 'bg-blue-50 text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  <List className="h-3.5 w-3.5" />
-                  List
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWorkflowViewMode('card')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                    workflowViewMode === 'card'
-                      ? 'bg-blue-50 text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                  Card
-                </button>
+              <div className="flex items-center gap-3">
+                {(userRole === 'admin' || userRole === 'system_admin') && (
+                  <button
+                    onClick={() => handleClearWorkflowCache()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+                    title="Clear all compiled workflows from memory cache"
+                  >
+                    <IconMap.refreshCw className="h-3.5 w-3.5" />
+                    Clear Cache
+                  </button>
+                )}
+                {/* View Mode Toggle */}
+                <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setWorkflowViewMode('list')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                      workflowViewMode === 'list'
+                        ? 'bg-blue-50 text-blue-600 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    <List className="h-3.5 w-3.5" />
+                    List
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWorkflowViewMode('card')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                      workflowViewMode === 'card'
+                        ? 'bg-blue-50 text-blue-600 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    Card
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2125,17 +2231,26 @@ export default function AdminPage() {
                         <td className="px-6 py-4 text-sm text-right">
                           <div className="flex items-center justify-end gap-2">
                             {(userRole === 'admin' || userRole === 'system_admin') && (
-                              <button
-                                onClick={() => handleToggleWorkflow(wf.id)}
-                                className={`p-1.5 rounded transition-colors ${
-                                  wf.is_enabled !== false
-                                    ? 'text-gray-400 hover:text-red-500 hover:bg-red-50'
-                                    : 'text-gray-400 hover:text-green-500 hover:bg-green-50'
-                                }`}
-                                title={wf.is_enabled !== false ? 'Disable' : 'Enable'}
-                              >
-                                <IconMap.power className="h-4 w-4" />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleClearWorkflowCache(wf.id)}
+                                  className="p-1.5 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                                  title="Clear Workflow Cache"
+                                >
+                                  <IconMap.refreshCw className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleToggleWorkflow(wf.id)}
+                                  className={`p-1.5 rounded transition-colors ${
+                                    wf.is_enabled !== false
+                                      ? 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                                      : 'text-gray-400 hover:text-green-500 hover:bg-green-50'
+                                  }`}
+                                  title={wf.is_enabled !== false ? 'Disable' : 'Enable'}
+                                >
+                                  <IconMap.power className="h-4 w-4" />
+                                </button>
+                              </>
                             )}
                             {userRole !== 'admin' && userRole !== 'system_admin' && (
                               <button
@@ -2193,13 +2308,22 @@ export default function AdminPage() {
                         </span>
                         <div className="flex gap-1">
                           {(userRole === 'admin' || userRole === 'system_admin') && (
-                            <button
-                              onClick={() => handleToggleWorkflow(wf.id)}
-                              className={`p-1 rounded transition-colors ${wf.is_enabled !== false ? 'text-gray-400 hover:text-red-500' : 'text-gray-400 hover:text-green-500'}`}
-                              title={wf.is_enabled !== false ? 'Disable' : 'Enable'}
-                            >
-                              <IconMap.power className="h-4 w-4" />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleClearWorkflowCache(wf.id)}
+                                className="p-1 rounded text-gray-400 hover:text-blue-500 transition-colors"
+                                title="Clear Workflow Cache"
+                              >
+                                <IconMap.refreshCw className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleToggleWorkflow(wf.id)}
+                                className={`p-1 rounded transition-colors ${wf.is_enabled !== false ? 'text-gray-400 hover:text-red-500' : 'text-gray-400 hover:text-green-500'}`}
+                                title={wf.is_enabled !== false ? 'Disable' : 'Enable'}
+                              >
+                                <IconMap.power className="h-4 w-4" />
+                              </button>
+                            </>
                           )}
                           {userRole !== 'admin' && userRole !== 'system_admin' && (
                             <button
@@ -2423,6 +2547,22 @@ export default function AdminPage() {
                   ))}
                 </select>
 
+                {/* Customer Selector for System Admins */}
+                {userRole === 'system_admin' && (
+                  <select
+                    value={selectedCustomerFilter}
+                    onChange={(e) => setSelectedCustomerFilter(e.target.value)}
+                    className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+                  >
+                    <option value="all">All Customers</option>
+                    {customers?.map((cust: any) => (
+                      <option key={cust.id} value={cust.id}>
+                        {cust.name || cust.domain}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
                 <button
                   onClick={fetchLogs}
                   className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
@@ -2469,12 +2609,22 @@ export default function AdminPage() {
                           <td className="px-6 py-4">
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                log.violations?.length > 0
-                                  ? 'bg-red-50 text-red-600 border border-red-100'
-                                  : 'bg-green-50 text-green-600 border border-green-100'
+                                log.status === 'running'
+                                  ? 'bg-blue-50 text-blue-600 border border-blue-100 animate-pulse'
+                                  : log.status === 'stopped'
+                                    ? 'bg-gray-100 text-gray-600 border border-gray-200'
+                                    : log.status === 'failure' || log.status === 'failed' || log.violations?.length > 0
+                                      ? 'bg-red-50 text-red-600 border border-red-100'
+                                      : 'bg-green-50 text-green-600 border border-green-100'
                               }`}
                             >
-                              {log.violations?.length > 0 ? 'Flagged' : 'Healthy'}
+                              {log.status === 'running'
+                                ? 'Running'
+                                : log.status === 'stopped'
+                                  ? 'Stopped'
+                                  : log.status === 'failure' || log.status === 'failed' || log.violations?.length > 0
+                                    ? 'Failed'
+                                    : 'Completed'}
                             </span>
                           </td>
                           <td className="px-6 py-4 font-semibold text-gray-900">
@@ -2497,11 +2647,44 @@ export default function AdminPage() {
                             {new Date(log.timestamp * 1000).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {expandedLogId === log.trace_id ? (
-                              <ChevronUp className="h-4 w-4 text-gray-400 inline" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-gray-400 inline" />
-                            )}
+                            <div className="inline-flex items-center gap-3 justify-end w-full">
+                              {/* Visualizer Graph Button */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedTraceForVisualizer(log);
+                                }}
+                                className="inline-flex items-center gap-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 px-2 py-1 text-xs font-semibold transition-colors"
+                              >
+                                Graph
+                              </button>
+
+                              {/* Stop Execution Button */}
+                              {log.status === 'running' && (
+                                <button
+                                  onClick={(e) => handleStopTrace(e, log.trace_id)}
+                                  className="inline-flex items-center gap-1 rounded bg-red-50 hover:bg-red-100 text-red-700 px-2 py-1 text-xs font-semibold transition-colors"
+                                >
+                                  Stop
+                                </button>
+                              )}
+
+                              {/* Restart Execution Button */}
+                              {log.status !== 'running' && (
+                                <button
+                                  onClick={(e) => handleRestartTrace(e, log.trace_id)}
+                                  className="inline-flex items-center gap-1 rounded bg-green-50 hover:bg-green-100 text-green-700 px-2 py-1 text-xs font-semibold transition-colors"
+                                >
+                                  Restart
+                                </button>
+                              )}
+
+                              {expandedLogId === log.trace_id ? (
+                                <ChevronUp className="h-4 w-4 text-gray-400 inline" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4 text-gray-400 inline" />
+                              )}
+                            </div>
                           </td>
                         </tr>
                         {expandedLogId === log.trace_id && (
@@ -3748,12 +3931,14 @@ export default function AdminPage() {
                         Configure User (UI-visible) and System (Internal) properties.
                       </p>
                     </div>
-                    <button
-                      onClick={() => openPropModal()}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100"
-                    >
-                      <IconMap.Plus className="h-4 w-4" /> Add Property
-                    </button>
+                    {userRole === 'system_admin' && (
+                      <button
+                        onClick={() => openPropModal()}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100"
+                      >
+                        <IconMap.Plus className="h-4 w-4" /> Add Property
+                      </button>
+                    )}
                   </div>
 
                   <div className="overflow-hidden rounded-xl border border-gray-200">
@@ -3765,7 +3950,7 @@ export default function AdminPage() {
                           <th className="px-4 py-3">UI Label</th>
                           <th className="px-4 py-3">Type</th>
                           <th className="px-4 py-3">Default Value</th>
-                          <th className="px-4 py-3 text-right">Actions</th>
+                          {userRole === 'system_admin' && <th className="px-4 py-3 text-right">Actions</th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 bg-white">
@@ -3793,8 +3978,12 @@ export default function AdminPage() {
                           return rows.map((row, idx) => (
                             <tr
                               key={`unified-row-${idx}`}
-                              className="group hover:bg-gray-50 transition-colors cursor-pointer"
-                              onClick={() => openPropModal(row, row.category === 'system')}
+                              className={`group hover:bg-gray-50 transition-colors ${userRole === 'system_admin' ? 'cursor-pointer' : ''}`}
+                              onClick={() => {
+                                if (userRole === 'system_admin') {
+                                  openPropModal(row, row.category === 'system');
+                                }
+                              }}
                             >
                               <td className="px-4 py-3">
                                 <span
@@ -3826,35 +4015,37 @@ export default function AdminPage() {
                                   </span>
                                 )}
                               </td>
-                              <td
-                                className="px-4 py-3 text-right"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  onClick={() =>
-                                    setEditingAgent((prev) => {
-                                      if (!prev) return null;
-                                      const userProps = propertyEntriesFromValue(
-                                        prev.user_properties,
-                                      );
-                                      const sysProps = propertyEntriesFromValue(
-                                        prev.system_properties,
-                                      );
-                                      const entries =
-                                        row.category === 'user' ? userProps : sysProps;
-                                      entries.splice(row.sourceIndex, 1);
-                                      return {
-                                        ...prev,
-                                        user_properties: propertyEntriesToJsonStrings(userProps),
-                                        system_properties: propertyEntriesToJsonStrings(sysProps),
-                                      };
-                                    })
-                                  }
-                                  className="text-gray-400 hover:text-red-500 transition-colors"
+                              {userRole === 'system_admin' && (
+                                <td
+                                  className="px-4 py-3 text-right"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  <IconMap.Trash2 className="h-4 w-4" />
-                                </button>
-                              </td>
+                                  <button
+                                    onClick={() =>
+                                      setEditingAgent((prev) => {
+                                        if (!prev) return null;
+                                        const userProps = propertyEntriesFromValue(
+                                          prev.user_properties,
+                                        );
+                                        const sysProps = propertyEntriesFromValue(
+                                          prev.system_properties,
+                                        );
+                                        const entries =
+                                          row.category === 'user' ? userProps : sysProps;
+                                        entries.splice(row.sourceIndex, 1);
+                                        return {
+                                          ...prev,
+                                          user_properties: propertyEntriesToJsonStrings(userProps),
+                                          system_properties: propertyEntriesToJsonStrings(sysProps),
+                                        };
+                                      })
+                                    }
+                                    className="text-gray-400 hover:text-red-500 transition-colors"
+                                  >
+                                    <IconMap.Trash2 className="h-4 w-4" />
+                                  </button>
+                                </td>
+                              )}
                             </tr>
                           ));
                         })()}
@@ -4572,6 +4763,17 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Run Visualizer Modal */}
+        {selectedTraceForVisualizer && (
+          <RunVisualizerModal
+            trace={selectedTraceForVisualizer}
+            onClose={() => {
+              setSelectedTraceForVisualizer(null);
+              fetchLogs(); // Refresh logs to get updated status
+            }}
+          />
         )}
       </div>
     </div>

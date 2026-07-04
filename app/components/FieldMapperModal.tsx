@@ -23,8 +23,8 @@ interface FieldMapperModalProps {
   targetContract?: any;
   sourceNodeName?: string;
   targetNodeName?: string;
-  currentMapping: Record<string, string>;
-  onSaveMapping: (mapping: Record<string, string>) => void;
+  currentMapping: Record<string, any>;
+  onSaveMapping: (mapping: Record<string, any>) => void;
   readOnly?: boolean;
 }
 
@@ -212,16 +212,60 @@ const buildTreeFromSchema = (schema: any, prefix = ''): TreeNode[] => {
   });
 };
 
+const formatMappingExpression = (paths: string | string[]): string | string[] => {
+  const pathList = Array.isArray(paths) ? paths : [paths];
+  if (pathList.length === 0) return '';
+  
+  const formatted = pathList.map(p => `{{ "${p}" }}`);
+  if (pathList.length === 1) {
+    return formatted[0];
+  }
+  return formatted;
+};
+
+const extractPathsFromExpression = (expr: any): string[] => {
+  if (!expr) return [];
+  if (Array.isArray(expr)) {
+    return expr.flatMap(extractPathsFromExpression);
+  }
+  if (typeof expr !== 'string') return [];
+  
+  const trimmed = expr.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.flatMap(extractPathsFromExpression);
+      }
+    } catch {}
+  }
+  
+  const matches = [...trimmed.matchAll(/\{\{\s*['"]?([^'"}]+)['"]?\s*\}\}/g)];
+  if (matches.length > 0) {
+    return matches.map(m => m[1].trim());
+  }
+  
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    return trimmed.slice(1, -1).split(',').map(s => s.trim()).filter(Boolean);
+  }
+  
+  return [trimmed];
+};
+
 interface SourceTreePopoverProps {
   sourceTree: TreeNode[];
   targetPath: string;
-  onSelect: (path: string) => void;
+  onSelect: (path: string | string[]) => void;
   onClose: () => void;
+  currentValue?: any;
 }
 
-function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose }: SourceTreePopoverProps) {
+function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose, currentValue }: SourceTreePopoverProps) {
   const [search, setSearch] = useState('');
   const [popoverExpanded, setPopoverExpanded] = useState<Record<string, boolean>>({});
+  const [selectedPaths, setSelectedPaths] = useState<string[]>(() => {
+    return Array.from(new Set(extractPathsFromExpression(currentValue)));
+  });
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -273,13 +317,22 @@ function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose }: Source
     return nodes.map((node) => {
       const isLeaf = node.isLeaf;
       const isExpanded = popoverExpanded[node.path] !== false;
+      const isChecked = selectedPaths.includes(node.path);
 
       return (
         <div key={node.path} className="flex flex-col">
           <div
             onClick={() => {
               if (isLeaf) {
-                onSelect(node.path);
+                setSelectedPaths(prev => {
+                  const unique = new Set(prev);
+                  if (isChecked) {
+                    unique.delete(node.path);
+                  } else {
+                    unique.add(node.path);
+                  }
+                  return Array.from(unique);
+                });
               } else {
                 toggleExpand(node.path);
               }
@@ -296,14 +349,22 @@ function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose }: Source
                 {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
               </span>
             )}
+            {isLeaf && (
+              <input
+                type="checkbox"
+                checked={isChecked}
+                readOnly
+                className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 mr-1 cursor-pointer flex-shrink-0"
+              />
+            )}
             {!isLeaf ? (
-              <Folder size={11} className="text-blue-500 fill-blue-500/10" />
+              <Folder size={11} className="text-blue-500 fill-blue-500/10 flex-shrink-0" />
             ) : (
-              <FileCode size={11} className="text-slate-400" />
+              <FileCode size={11} className="text-slate-400 flex-shrink-0" />
             )}
             <span className="flex-1 truncate">{node.name}</span>
             {isLeaf && (
-              <span className="text-[9px] px-1 text-slate-400 bg-slate-50 border border-slate-100 rounded font-mono">
+              <span className="text-[9px] px-1 text-slate-400 bg-slate-50 border border-slate-100 rounded font-mono flex-shrink-0">
                 {node.type}
               </span>
             )}
@@ -322,7 +383,7 @@ function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose }: Source
       id={`popover-${targetPath}`}
       className="absolute top-full right-0 mt-1 z-50 w-160 h-50% bg-white border border-slate-200 rounded-xl shadow-xl flex flex-col max-h-64 animate-in fade-in slide-in-from-top-1 duration-100"
     >
-      <div className="p-2 border-b border-slate-100 flex items-center bg-slate-50/50 rounded-t-xl">
+      <div className="p-2 border-b border-slate-100 flex items-center bg-slate-50/50 rounded-t-xl flex-shrink-0">
         <div className="relative w-full">
           <input
             type="text"
@@ -342,6 +403,31 @@ function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose }: Source
           renderSourceTree(filteredSourceTree)
         )}
       </div>
+      <div className="p-2 border-t border-slate-100 flex items-center justify-between bg-slate-50/80 rounded-b-xl gap-2 flex-shrink-0">
+        <span className="text-[10px] text-slate-500 font-semibold pl-1 font-mono">
+          {selectedPaths.length} selected
+        </span>
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => setSelectedPaths([])}
+            disabled={selectedPaths.length === 0}
+            className="px-2.5 py-1 text-[10px] font-semibold text-slate-500 hover:bg-slate-200/50 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Clear
+          </button>
+          <button
+            onClick={() => {
+              if (selectedPaths.length > 0) {
+                onSelect(formatMappingExpression(selectedPaths));
+              }
+            }}
+            disabled={selectedPaths.length === 0}
+            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded shadow-sm transition-all shadow-blue-500/10 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
+          >
+            Insert
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -357,7 +443,7 @@ export default function FieldMapperModal({
   onSaveMapping,
   readOnly = false,
 }: FieldMapperModalProps) {
-  const [mapping, setMapping] = useState<Record<string, string>>(currentMapping);
+  const [mapping, setMapping] = useState<Record<string, any>>(currentMapping);
   const [localSourceContract, setLocalSourceContract] = useState(sourceContract);
   const [localTargetContract, setLocalTargetContract] = useState(targetContract);
   const [showRawContracts, setShowRawContracts] = useState(false);
@@ -478,7 +564,7 @@ export default function FieldMapperModal({
     targetFields.forEach((target) => {
       const match = sourceFields.find((s) => s.toLowerCase() === target.toLowerCase());
       if (match) {
-        newMapping[target] = `{{ input_data.${match} }}`;
+        newMapping[target] = formatMappingExpression(match);
       }
     });
     setMapping(newMapping);
@@ -491,7 +577,66 @@ export default function FieldMapperModal({
     }));
   };
 
-  const updateMapping = (path: string, value: string) => {
+  const castValueToTargetType = (path: string, value: any): any => {
+    if (value === undefined || value === null || value === '') {
+      return value;
+    }
+
+    const meta = getFieldMeta(normalizedTargetContract, path);
+    const expectedType = meta?.type;
+
+    if (expectedType === 'array') {
+      if (Array.isArray(value)) {
+        return value;
+      }
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.startsWith('{{') && trimmed.endsWith('}}')) {
+          return trimmed;
+        }
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+              return parsed;
+            }
+          } catch {
+            return trimmed
+              .slice(1, -1)
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean);
+          }
+        }
+        if (trimmed.includes(',')) {
+          return trimmed
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+        return [trimmed];
+      }
+      return [value];
+    }
+
+    if (expectedType === 'object') {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              return parsed;
+            }
+          } catch {}
+        }
+      }
+    }
+
+    return value;
+  };
+
+  const updateMapping = (path: string, value: any) => {
     const newMapping = { ...mapping };
     if (!value) {
       delete newMapping[path];
@@ -556,7 +701,11 @@ export default function FieldMapperModal({
                 <div className="flex-1 flex items-center bg-white border border-slate-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 shadow-sm transition-all overflow-hidden">
                   <input
                     type="text"
-                    value={mapping[node.path] || ''}
+                    value={
+                      Array.isArray(mapping[node.path])
+                        ? JSON.stringify(mapping[node.path])
+                        : mapping[node.path] || ''
+                    }
                     onChange={(e) => updateMapping(node.path, e.target.value)}
                     placeholder={
                       readOnly ? 'No mapping configured' : 'Enter expression or choose field'
@@ -599,8 +748,9 @@ export default function FieldMapperModal({
                   <SourceTreePopover
                     sourceTree={sourceTree}
                     targetPath={node.path}
-                    onSelect={(selectedPath) => {
-                      updateMapping(node.path, `{{ input_data.${selectedPath} }}`);
+                    currentValue={mapping[node.path]}
+                    onSelect={(selectedValue) => {
+                      updateMapping(node.path, selectedValue);
                       setActivePopover(null);
                     }}
                     onClose={() => setActivePopover(null)}
@@ -720,7 +870,13 @@ export default function FieldMapperModal({
                 Cancel
               </button>
               <button
-                onClick={() => onSaveMapping(mapping)}
+                onClick={() => {
+                  const cleanedMapping: Record<string, any> = {};
+                  for (const [path, val] of Object.entries(mapping)) {
+                    cleanedMapping[path] = castValueToTargetType(path, val);
+                  }
+                  onSaveMapping(cleanedMapping);
+                }}
                 className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm shadow-blue-500/20"
               >
                 Apply Mapping

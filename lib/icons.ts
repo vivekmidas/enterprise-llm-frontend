@@ -38,6 +38,7 @@ import {
   History,
   Bell,
   Blocks,
+  RefreshCcw
 } from 'lucide-react';
 
 export const IconMap: Record<string, any> = {
@@ -83,6 +84,7 @@ export const IconMap: Record<string, any> = {
   X: X,
   save: Save,
   power: Power,
+  refreshCw: RefreshCcw,
   search: Search,
 };
 export default IconMap;

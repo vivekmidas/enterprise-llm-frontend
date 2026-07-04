@@ -13,6 +13,9 @@ export type CustomNodeData = {
   variant?: 'start' | 'detector' | 'agent';
   executionStatus?: 'idle' | 'running' | 'success' | 'error';
   description?: string;
+  output?: any;
+  error?: string;
+  readOnly?: boolean;
 };
 
 // ✅ Use this for your nodes array

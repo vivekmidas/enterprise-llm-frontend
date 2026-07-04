@@ -278,6 +278,12 @@ export default function PropertiesPanel({
   const [systemProperties, setSystemProperties] = useState<NodeProperties>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
+  const systemKeys = Object.keys(systemProperties);
+  const entries = Object.entries(properties).filter(
+    ([key]) => key.toLowerCase() !== 'mapping_template' && !systemKeys.includes(key),
+  );
+  const systemEntries = Object.entries(systemProperties);
+
   const handleSaveContract = (type: 'input' | 'output', newSchema: any) => {
     if (!selectedNode) return;
 
@@ -1047,18 +1053,16 @@ export default function PropertiesPanel({
                     <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">
                       Input Structure
                     </label>
-                    {userRole !== 'user' && (
-                      <button
-                        onClick={() => {
-                          setGeneratorModalType('input');
-                          setIsGeneratorModalOpen(true);
-                        }}
-                        className="flex items-center gap-1 text-[12px] font-bold text-indigo-650 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-indigo-150"
-                      >
-                        <Sparkles className="w-2.5 h-2.5" />
-                        Define from JSON
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        setGeneratorModalType('input');
+                        setIsGeneratorModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 text-[12px] font-bold text-indigo-650 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-indigo-150"
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      Define from JSON
+                    </button>
                   </div>
                   <pre className="p-3 bg-slate-905 text-indigo-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
                     {JSON.stringify(inputContract || {}, null, 2)}
@@ -1069,18 +1073,16 @@ export default function PropertiesPanel({
                     <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">
                       Output Structure
                     </label>
-                    {userRole !== 'user' && (
-                      <button
-                        onClick={() => {
-                          setGeneratorModalType('output');
-                          setIsGeneratorModalOpen(true);
-                        }}
-                        className="flex items-center gap-1 text-[12px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
-                      >
-                        <Sparkles className="w-2.5 h-2.5" />
-                        Define from JSON
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        setGeneratorModalType('output');
+                        setIsGeneratorModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 text-[12px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      Define from JSON
+                    </button>
                   </div>
                   <pre className="p-3 bg-slate-905 text-emerald-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
                     {JSON.stringify(outputContract || {}, null, 2)}
@@ -1105,11 +1107,7 @@ export default function PropertiesPanel({
             String(
               (selectedNode?.data as any)?.node_type || (selectedNode?.data as any)?.nodeType || '',
             ).toUpperCase() === 'TRIGGER';
-          const systemKeys = Object.keys(systemProperties);
-          const entries = Object.entries(properties).filter(
-            ([key]) => key.toLowerCase() !== 'mapping_template' && !systemKeys.includes(key),
-          );
-          const systemEntries = Object.entries(systemProperties);
+
 
           return (
             <div className="space-y-4">
@@ -1155,7 +1153,6 @@ export default function PropertiesPanel({
                                 <input
                                   type="checkbox"
                                   checked={Boolean(value)}
-                                  disabled={userRole === 'user'}
                                   onChange={(e) => handlePropertyChange(key, e.target.checked)}
                                   className="h-4 w-4 accent-indigo-600 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
@@ -1172,7 +1169,6 @@ export default function PropertiesPanel({
                                 <input
                                   type="number"
                                   value={Number(value ?? 0)}
-                                  disabled={userRole === 'user'}
                                   onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
                                   placeholder="Value"
                                   className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1195,7 +1191,6 @@ export default function PropertiesPanel({
                               {isMultiline ? (
                                 <textarea
                                   value={String(value ?? '')}
-                                  disabled={userRole === 'user'}
                                   onChange={(e) => handlePropertyChange(key, e.target.value)}
                                   placeholder="Enter text/variables..."
                                   rows={3}
@@ -1210,7 +1205,6 @@ export default function PropertiesPanel({
                                       : 'text'
                                   }
                                   value={String(value ?? '')}
-                                  disabled={userRole === 'user'}
                                   onChange={(e) => handlePropertyChange(key, e.target.value)}
                                   placeholder="Enter value..."
                                   className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1396,7 +1390,7 @@ export default function PropertiesPanel({
             ) : (
               <Save className="w-3.5 h-3.5" />
             )}
-            {isSaving ? 'Saving...' : userRole === 'user' ? 'Save Label' : 'Save Parameters'}
+            {isSaving ? 'Saving...' : entries.length > 0 ? 'Save Parameters' : 'Save Label'}
           </button>
           {userRole !== 'user' && onDeleteNode && selectedNode && (
             <button
