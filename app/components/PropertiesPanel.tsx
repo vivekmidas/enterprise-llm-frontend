@@ -497,6 +497,47 @@ export default function PropertiesPanel({
     onUpdateNode(selectedNode.id, newData);
   };
 
+  const handleStateMappingChange = (outputField: string, isChecked: boolean, customKey?: string) => {
+    if (!selectedNode || !onUpdateNode) return;
+
+    const currentProps = ((selectedNode.data as any)?.properties || {}) as Record<string, any>;
+    const currentStateMappings = { ...(currentProps.state_mappings || currentProps.output_mappings || {}) };
+
+    if (!isChecked) {
+      // Find and delete the mapping that resolves to outputField
+      for (const [k, v] of Object.entries(currentStateMappings)) {
+        if (v === outputField || v === `{{ ${outputField} }}`) {
+          delete currentStateMappings[k];
+        }
+      }
+    } else {
+      // Add or update the mapping
+      const keyToUse = customKey || outputField;
+      // First, remove any existing mapping for this field to avoid duplicates
+      for (const [k, v] of Object.entries(currentStateMappings)) {
+        if (v === outputField || v === `{{ ${outputField} }}`) {
+          delete currentStateMappings[k];
+        }
+      }
+      currentStateMappings[keyToUse] = outputField;
+    }
+
+    const updatedProps = {
+      ...currentProps,
+      state_mappings: currentStateMappings,
+    };
+
+    setProperties(updatedProps);
+
+    const nodeData = selectedNode.data as any;
+    const newData = {
+      ...nodeData,
+      properties: updatedProps,
+    };
+
+    onUpdateNode(selectedNode.id, newData);
+  };
+
   /**
    * Saves the current node's configuration to the global registry (catalog).
    * This updates the master definition for this node type in the database.
@@ -542,8 +583,42 @@ export default function PropertiesPanel({
     if (!selectedNode || !onSaveInstanceProperties) return;
     setIsSaving(true);
     try {
+      const localData = selectedNode.data as any;
+      const userPropsArray = Array.isArray(localData.user_properties) ? (localData.user_properties as any[]) : [];
+      const systemPropsArray = Array.isArray(localData.system_properties) ? (localData.system_properties as any[]) : [];
+      const schemaArray = (localData.propertySchema || localData.property_schema || []) as any[];
+
+      const sanitizedProps = { ...properties };
+      Object.keys(sanitizedProps).forEach((key) => {
+        const fieldSchema = schemaArray.find((f: any) => f.key === key) ||
+                            userPropsArray.find((f: any) => f.key === key) ||
+                            systemPropsArray.find((f: any) => f.key === key);
+        if (fieldSchema) {
+          const fieldType = fieldSchema.type || fieldSchema.field_type;
+          if (fieldType === 'choice' && !fieldSchema.multiple) {
+            const rawOptions = fieldSchema.options || fieldSchema.value;
+            const options: string[] = Array.isArray(rawOptions)
+              ? rawOptions
+              : typeof rawOptions === 'string'
+                ? (() => {
+                    try {
+                      const parsed = JSON.parse(rawOptions);
+                      return Array.isArray(parsed) ? parsed : [];
+                    } catch {
+                      return rawOptions.split(',').map((s: string) => s.trim());
+                    }
+                  })()
+                : [];
+            const valStr = String(sanitizedProps[key] ?? '');
+            if (valStr.includes(',') || !options.includes(valStr)) {
+              sanitizedProps[key] = options[0] || '';
+            }
+          }
+        }
+      });
+
       const payload = {
-        ...properties,
+        ...sanitizedProps,
         label: (selectedNode.data as any).label || (selectedNode.data as any).name || '',
       };
       await onSaveInstanceProperties(selectedNode.id, payload);
@@ -1139,15 +1214,83 @@ export default function PropertiesPanel({
                         setGeneratorModalType('output');
                         setIsGeneratorModalOpen(true);
                       }}
-                      className="flex items-center gap-1 text-[12px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
+                      className="flex items-center gap-1 text-[11px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
                     >
                       <Sparkles className="w-2.5 h-2.5" />
                       Define from JSON
                     </button>
                   </div>
-                  <pre className="p-3 bg-slate-905 text-emerald-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
-                    {JSON.stringify(outputContract || {}, null, 2)}
-                  </pre>
+                  {(() => {
+                    const schemaProps = outputContract?.properties || outputContract || {};
+                    const propKeys = Object.keys(schemaProps);
+                    
+                    if (propKeys.length === 0) {
+                      return (
+                        <pre className="p-3 bg-slate-905 text-emerald-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
+                          {JSON.stringify(outputContract || {}, null, 2)}
+                        </pre>
+                      );
+                    }
+                    
+                    const stateMappings = (properties as any).state_mappings || (properties as any).output_mappings || {};
+                    
+                    return (
+                      <div className="space-y-2.5 bg-slate-905 p-4 rounded-xl border border-slate-800">
+                        <div className="text-[10px] font-bold text-slate-400 border-b border-slate-800 pb-1.5 mb-2 uppercase tracking-wide">
+                          Export to Workflow State:
+                        </div>
+                        {propKeys.map((fieldKey) => {
+                          let isMapped = false;
+                          let mappedVarName = fieldKey;
+                          
+                          for (const [k, v] of Object.entries(stateMappings)) {
+                            if (v === fieldKey || v === `{{ ${fieldKey} }}`) {
+                              isMapped = true;
+                              mappedVarName = k;
+                              break;
+                            }
+                          }
+                          
+                          const propType = typeof schemaProps[fieldKey] === 'object' 
+                            ? (schemaProps[fieldKey]?.type || 'any') 
+                            : 'any';
+                          
+                          return (
+                            <div key={fieldKey} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 hover:bg-slate-800/40 rounded-lg transition-colors border border-transparent hover:border-slate-800">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={isMapped}
+                                  id={`chk-state-${fieldKey}`}
+                                  onChange={(e) => handleStateMappingChange(fieldKey, e.target.checked, mappedVarName)}
+                                  className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-950 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                />
+                                <label htmlFor={`chk-state-${fieldKey}`} className="text-[11px] font-mono font-medium text-emerald-400 cursor-pointer">
+                                  {fieldKey}
+                                </label>
+                                <span className="text-[8px] text-slate-500 bg-slate-950 px-1 rounded border border-slate-800 uppercase">
+                                  {propType}
+                                </span>
+                              </div>
+                              
+                              {isMapped && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[9px] text-slate-500 font-mono">as: state.</span>
+                                  <input
+                                    type="text"
+                                    value={mappedVarName}
+                                    onChange={(e) => handleStateMappingChange(fieldKey, true, e.target.value)}
+                                    placeholder={fieldKey}
+                                    className="px-2 py-0.5 text-[10px] font-mono text-slate-200 bg-slate-950 rounded border border-slate-700 focus:outline-none focus:border-emerald-500 w-24"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <p className="text-[10px] text-slate-450 leading-relaxed italic bg-indigo-50/40 p-3 rounded-xl border border-indigo-50">
                   Inject data values dynamically from upstream nodes using
@@ -1277,7 +1420,7 @@ export default function PropertiesPanel({
                                   )}
                                 </label>
                                 <select
-                                  value={String(value ?? '')}
+                                  value={options.includes(String(value)) ? String(value) : (options[0] || '')}
                                   onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
                                     handlePropertyChange(key, event.target.value)
                                   }
