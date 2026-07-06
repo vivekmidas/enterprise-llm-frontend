@@ -1,5 +1,8 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore – @types/react-dom not linked in pnpm virtual store
+import { createPortal } from 'react-dom';
 import {
   X,
   ArrowRightLeft,
@@ -215,8 +218,10 @@ const buildTreeFromSchema = (schema: any, prefix = ''): TreeNode[] => {
 const formatMappingExpression = (paths: string | string[]): string | string[] => {
   const pathList = Array.isArray(paths) ? paths : [paths];
   if (pathList.length === 0) return '';
-  
-  const formatted = pathList.map(p => `{{ "${p}" }}`);
+
+  // Produce standard Jinja2 variable syntax: {{path}}
+  // The backend resolves these against the predecessor node's output data.
+  const formatted = pathList.map(p => `{{${p}}}`);
   if (pathList.length === 1) {
     return formatted[0];
   }
@@ -229,7 +234,7 @@ const extractPathsFromExpression = (expr: any): string[] => {
     return expr.flatMap(extractPathsFromExpression);
   }
   if (typeof expr !== 'string') return [];
-  
+
   const trimmed = expr.trim();
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     try {
@@ -239,16 +244,16 @@ const extractPathsFromExpression = (expr: any): string[] => {
       }
     } catch {}
   }
-  
+
   const matches = [...trimmed.matchAll(/\{\{\s*['"]?([^'"}]+)['"]?\s*\}\}/g)];
   if (matches.length > 0) {
     return matches.map(m => m[1].trim());
   }
-  
+
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     return trimmed.slice(1, -1).split(',').map(s => s.trim()).filter(Boolean);
   }
-  
+
   return [trimmed];
 };
 
@@ -266,6 +271,22 @@ function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose, currentV
   const [selectedPaths, setSelectedPaths] = useState<string[]>(() => {
     return Array.from(new Set(extractPathsFromExpression(currentValue)));
   });
+  const [fixedPos, setFixedPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
+
+  // Calculate fixed position from trigger button so the popover escapes overflow containers
+  useEffect(() => {
+    const triggerEl = document.getElementById(`trigger-${targetPath}`);
+    if (triggerEl) {
+      const rect = triggerEl.getBoundingClientRect();
+      const popoverHeight = 280;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < popoverHeight) {
+        setFixedPos({ bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right });
+      } else {
+        setFixedPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+      }
+    }
+  }, [targetPath]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -378,10 +399,20 @@ function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose, currentV
     });
   };
 
-  return (
+  if (!fixedPos) return null;
+
+  return createPortal(
     <div
       id={`popover-${targetPath}`}
-      className="absolute top-full right-0 mt-1 z-50 w-160 h-50% bg-white border border-slate-200 rounded-xl shadow-xl flex flex-col max-h-64 animate-in fade-in slide-in-from-top-1 duration-100"
+      style={{
+        position: 'fixed',
+        top: fixedPos.top,
+        bottom: fixedPos.bottom,
+        right: fixedPos.right,
+        width: '340px',
+        zIndex: 9999,
+      }}
+      className="bg-white border border-slate-200 rounded-xl shadow-xl flex flex-col max-h-72 animate-in fade-in slide-in-from-top-1 duration-100"
     >
       <div className="p-2 border-b border-slate-100 flex items-center bg-slate-50/50 rounded-t-xl flex-shrink-0">
         <div className="relative w-full">
@@ -428,7 +459,8 @@ function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose, currentV
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -697,8 +729,10 @@ export default function FieldMapperModal({
 
             {/* Mapping Input (Only for Leaf Nodes) */}
             {isLeaf && (
-              <div className="flex items-center gap-1.5 relative w-[320px] flex-shrink-0">
+              <div className="flex items-center gap-1.5 relative w-[340px] flex-shrink-0">
                 <div className="flex-1 flex items-center bg-white border border-slate-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 shadow-sm transition-all overflow-hidden">
+                  {/* Jinja2 template prefix indicator */}
+                  <span className="pl-2 pr-1 text-[10px] font-mono text-blue-400 select-none flex-shrink-0">{'{{ }}'}</span>
                   <input
                     type="text"
                     value={
@@ -707,10 +741,8 @@ export default function FieldMapperModal({
                         : mapping[node.path] || ''
                     }
                     onChange={(e) => updateMapping(node.path, e.target.value)}
-                    placeholder={
-                      readOnly ? 'No mapping configured' : 'Enter expression or choose field'
-                    }
-                    className="w-full px-2.5 py-1.5 text-xs outline-none bg-transparent disabled:opacity-75 disabled:cursor-not-allowed"
+                    placeholder={readOnly ? 'No mapping configured' : '{{ field_name }}'}
+                    className="w-full px-1.5 py-1.5 text-xs font-mono outline-none bg-transparent disabled:opacity-75 disabled:cursor-not-allowed"
                     disabled={readOnly}
                   />
                   {mapping[node.path] && !readOnly && (
@@ -771,7 +803,7 @@ export default function FieldMapperModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-[75vw] min-w-[75vw] max-w-[95vw] h-[80vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl w-[75vw] min-w-[75vw] max-w-[95vw] h-[80vh] flex flex-col overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ArrowRightLeft className="w-5 h-5 text-blue-600" />
@@ -814,12 +846,12 @@ export default function FieldMapperModal({
         </div>
 
         {showRawContracts && (
-          <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 border-b animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 border-b animate-in fade-in slide-in-from-top-2 duration-200 flex-shrink-0 max-h-[35%] overflow-auto">
             <div>
               <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">
                 Source Contract ({sourceNodeName || 'Output'})
               </h4>
-              <pre className="p-3 bg-slate-900 text-blue-400 text-[10px] rounded-lg border border-slate-800 font-mono max-h-48 overflow-auto shadow-inner">
+              <pre className="p-3 bg-slate-900 text-blue-400 text-[10px] rounded-lg border border-slate-800 font-mono max-h-36 overflow-auto shadow-inner">
                 {JSON.stringify(localSourceContract || {}, null, 2)}
               </pre>
             </div>
@@ -827,7 +859,7 @@ export default function FieldMapperModal({
               <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">
                 Target Contract ({targetNodeName || 'Input'})
               </h4>
-              <pre className="p-3 bg-slate-900 text-green-400 text-[10px] rounded-lg border border-slate-800 font-mono max-h-48 overflow-auto shadow-inner">
+              <pre className="p-3 bg-slate-900 text-green-400 text-[10px] rounded-lg border border-slate-800 font-mono max-h-36 overflow-auto shadow-inner">
                 {JSON.stringify(localTargetContract || {}, null, 2)}
               </pre>
             </div>
@@ -835,7 +867,7 @@ export default function FieldMapperModal({
         )}
 
         <div className="flex-1 overflow-auto p-4 h-full w-full min-h-0">
-          <div className="border border-slate-200 rounded-xl overflow-hidden h-full shadow-sm bg-slate-50/20">
+          <div className="border border-slate-200 rounded-xl h-full shadow-sm bg-slate-50/20 overflow-auto">
             {/* Headers */}
             <div className="flex justify-between py-2 px-3 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               <span>Target Fields & Structure ({targetNodeName || 'Input'})</span>
@@ -871,9 +903,41 @@ export default function FieldMapperModal({
               </button>
               <button
                 onClick={() => {
+                  // Ensure mapping values are Jinja2 {{ }} templates so the backend
+                  // resolves them at runtime. Auto-wrap bare field paths typed manually ONLY if they
+                  // map to an upstream node's output contract field.
+                  const ensureJinjaTemplate = (val: any): any => {
+                    if (Array.isArray(val)) return val.map(ensureJinjaTemplate);
+                    if (typeof val !== 'string') return val;
+                    const trimmed = val.trim();
+                    if (!trimmed || trimmed.includes('{{')) return val;
+
+                    const isUpstreamField = (path: string): boolean => {
+                      if (path.startsWith('nodes.')) return true;
+                      const cleanPath = path.startsWith('input_data.')
+                        ? path.slice(11)
+                        : path.startsWith('data.')
+                          ? path.slice(5)
+                          : path;
+                      
+                      return sourceFields.some(field => 
+                        cleanPath === field ||
+                        cleanPath.startsWith(field + '.') ||
+                        cleanPath.startsWith(field + '[')
+                      );
+                    };
+
+                    // Bare field path (word chars, dots, brackets) — wrap it only if it maps from upstream
+                    if (/^[\w.[\]]+$/.test(trimmed) && isUpstreamField(trimmed)) {
+                      return `{{${trimmed}}}`;
+                    }
+                    return val;
+                  };
+
                   const cleanedMapping: Record<string, any> = {};
                   for (const [path, val] of Object.entries(mapping)) {
-                    cleanedMapping[path] = castValueToTargetType(path, val);
+                    if (path === '_required_fields') continue; // skip meta key
+                    cleanedMapping[path] = ensureJinjaTemplate(castValueToTargetType(path, val));
                   }
                   onSaveMapping(cleanedMapping);
                 }}

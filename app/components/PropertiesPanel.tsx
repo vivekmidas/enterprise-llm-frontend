@@ -423,6 +423,34 @@ export default function PropertiesPanel({
     }
   }, [selectedNode?.id, selectedEdge?.id, workflowId]);
 
+  // Sync properties from selectedNode if they change externally (e.g., from mapping controller or other modals)
+  const stringifiedNodeProps = JSON.stringify((selectedNode?.data as any)?.properties || {});
+  useEffect(() => {
+    if (selectedNode) {
+      const nodeProps = ((selectedNode.data as any)?.properties || {}) as NodeProperties;
+      if (JSON.stringify(properties) !== JSON.stringify(nodeProps)) {
+        setProperties(nodeProps);
+      }
+    }
+  }, [stringifiedNodeProps, selectedNode?.id]);
+
+  const stringifiedInputContract = JSON.stringify((selectedNode?.data as any)?.input_contract || (selectedNode?.data as any)?.inputContract || {});
+  const stringifiedOutputContract = JSON.stringify((selectedNode?.data as any)?.output_contract || (selectedNode?.data as any)?.outputContract || {});
+  useEffect(() => {
+    if (selectedNode) {
+      const localData = selectedNode.data as any;
+      const nodeInput = (localData.input_contract || localData.inputContract || {});
+      const nodeOutput = (localData.output_contract || localData.outputContract || {});
+      
+      if (JSON.stringify(inputContract) !== JSON.stringify(nodeInput)) {
+        setInputContract(nodeInput);
+      }
+      if (JSON.stringify(outputContract) !== JSON.stringify(nodeOutput)) {
+        setOutputContract(nodeOutput);
+      }
+    }
+  }, [stringifiedInputContract, stringifiedOutputContract, selectedNode?.id]);
+
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'CREDENTIAL_CREATED') {
@@ -519,6 +547,29 @@ export default function PropertiesPanel({
         label: (selectedNode.data as any).label || (selectedNode.data as any).name || '',
       };
       await onSaveInstanceProperties(selectedNode.id, payload);
+
+      // Refresh the panel's data from the backend to ensure consistency and resolve defaults
+      const res = await api.getAgentNodeProperties(workflowId || '', selectedNode.id);
+      if (res) {
+        setInputContract(res?.input_contract || res?.inputContract || {});
+        setOutputContract(res?.output_contract || res?.outputContract || {});
+        setProperties(res?.properties || {});
+        setSystemProperties(
+          parseSystemProperties(res?.system_level_properties || res?.system_properties || {}),
+        );
+
+        // Also sync the resolved values back to the canvas/reactflow node data
+        const nodeData = selectedNode.data as NodeData;
+        const newData = {
+          ...nodeData,
+          properties: res?.properties || {},
+          input_contract: res?.input_contract || res?.inputContract || {},
+          output_contract: res?.output_contract || res?.outputContract || {},
+          property_schema: res?.property_schema || res?.propertySchema || nodeData.property_schema || [],
+          propertySchema: res?.property_schema || res?.propertySchema || nodeData.propertySchema || [],
+        };
+        onUpdateNode(selectedNode.id, newData);
+      }
     } catch (error) {
       console.error('Failed to save node instance properties:', error);
     } finally {
@@ -530,7 +581,8 @@ export default function PropertiesPanel({
   const getPropertyValue = (properties: NodeProperties, field: NodePropertyDefinition) => {
     if (properties[field.key] !== undefined) return properties[field.key];
     if (field.default !== undefined && field.default !== null) return field.default;
-    if (field.type === 'boolean') return false;
+    const fieldType = field.type || (field as any).field_type;
+    if (fieldType === 'boolean') return false;
     if (field.multiple) return [];
     return '';
   };
@@ -549,13 +601,14 @@ export default function PropertiesPanel({
         ? systemProps[field.key]
         : getPropertyValue(userProps, field);
     const isDisabled = isSystem;
+    const fieldType = field.type || (field as any).field_type;
     const displayValue =
-      (isSystem || hasUserValue) && field.type === 'password' && value
+      (isSystem || hasUserValue) && fieldType === 'password' && value
         ? '••••••••'
         : String(value ?? '');
 
     // Boolean Toggle
-    if (field.type === 'boolean') {
+    if (fieldType === 'boolean') {
       return (
         <div key={field.key} className="flex flex-col gap-1.5">
           <label
@@ -585,7 +638,7 @@ export default function PropertiesPanel({
     }
 
     // OAuth Configuration and Connection Flow
-    if (field.type === 'oauth') {
+    if (fieldType === 'oauth') {
       const clientIdKey = `${field.key}_client_id`;
       const clientSecretKey = `${field.key}_client_secret`;
       const credentialId = String(value || '');
@@ -711,7 +764,21 @@ export default function PropertiesPanel({
     }
 
     // Choice Selection
-    if (field.type === 'choice') {
+    if (fieldType === 'choice') {
+      const rawOptions = field.options || (field as any).values;
+      const options: string[] = Array.isArray(rawOptions)
+        ? rawOptions
+        : typeof rawOptions === 'string'
+          ? (() => {
+              try {
+                const parsed = JSON.parse(rawOptions);
+                return Array.isArray(parsed) ? parsed : [];
+              } catch {
+                return rawOptions.split(',').map((s: string) => s.trim());
+              }
+            })()
+          : [];
+
       // Multi-select mode
       if (field.multiple) {
         return (
@@ -737,7 +804,7 @@ export default function PropertiesPanel({
               }}
               className="h-28 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
             >
-              {(field.options || []).map((option) => (
+              {options.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -769,7 +836,7 @@ export default function PropertiesPanel({
             }
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
           >
-            {(field.options || []).map((option) => (
+            {options.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
@@ -780,7 +847,7 @@ export default function PropertiesPanel({
     }
 
     // Multiline text area
-    if (field.type === 'textarea') {
+    if (fieldType === 'textarea') {
       return (
         <div key={field.key}>
           <label
@@ -823,7 +890,7 @@ export default function PropertiesPanel({
         </label>
         <input
           type={
-            field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'
+            fieldType === 'password' ? 'password' : fieldType === 'number' ? 'number' : 'text'
           }
           disabled={isDisabled}
           value={displayValue}
@@ -832,7 +899,7 @@ export default function PropertiesPanel({
             !isDisabled &&
             handlePropertyChange(
               field.key,
-              field.type === 'number' ? Number(event.target.value) : event.target.value,
+              fieldType === 'number' ? Number(event.target.value) : event.target.value,
             )
           }
           className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500"
@@ -844,7 +911,7 @@ export default function PropertiesPanel({
   // Placeholder state when no node is selected
   if (!selectedNode && !selectedEdge) {
     return (
-      <div className="w-[340px] shrink-0 border-l border-slate-100 bg-white p-6 flex flex-col items-center justify-center">
+      <div className="w-[340px] shrink-0 border-l border-slate-100 bg-white p-6 flex flex-col items-center justify-center h-full">
         <div className="text-center text-slate-400 max-w-[200px]">
           <div className="w-12 h-12 bg-slate-50 border border-slate-150 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
             <Settings className="w-5 h-5 text-slate-500 animate-[spin_6s_linear_infinite]" />
@@ -1053,16 +1120,10 @@ export default function PropertiesPanel({
                     <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">
                       Input Structure
                     </label>
-                    <button
-                      onClick={() => {
-                        setGeneratorModalType('input');
-                        setIsGeneratorModalOpen(true);
-                      }}
-                      className="flex items-center gap-1 text-[12px] font-bold text-indigo-650 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-indigo-150"
-                    >
-                      <Sparkles className="w-2.5 h-2.5" />
-                      Define from JSON
-                    </button>
+                    <span className="flex items-center gap-1 text-[9px] font-bold text-slate-450 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 tracking-wide uppercase">
+                      <Lock className="w-2.5 h-2.5" />
+                      Read-only
+                    </span>
                   </div>
                   <pre className="p-3 bg-slate-905 text-indigo-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
                     {JSON.stringify(inputContract || {}, null, 2)}
@@ -1143,7 +1204,96 @@ export default function PropertiesPanel({
                                 ? 'number'
                                 : 'string';
 
-                          if (valueType === 'boolean') {
+                          const userPropsArray = Array.isArray((selectedNode?.data as any)?.user_properties) ? (selectedNode?.data as any)?.user_properties : [];
+                          const systemPropsArray = Array.isArray((selectedNode?.data as any)?.system_properties) ? (selectedNode?.data as any)?.system_properties : [];
+                          const schemaArray = (selectedNode?.data as any)?.propertySchema || (selectedNode?.data as any)?.property_schema || [];
+
+                          const fieldSchema = schemaArray.find((f: any) => f.key === key) ||
+                                              userPropsArray.find((f: any) => f.key === key) ||
+                                              systemPropsArray.find((f: any) => f.key === key);
+                          const fieldType = fieldSchema?.type || fieldSchema?.field_type || valueType;
+
+                          if (fieldType === 'choice') {
+                            const rawOptions = fieldSchema?.options || fieldSchema?.value;
+                            const options: string[] = Array.isArray(rawOptions)
+                              ? rawOptions
+                              : typeof rawOptions === 'string'
+                                ? (() => {
+                                    try {
+                                      const parsed = JSON.parse(rawOptions);
+                                      return Array.isArray(parsed) ? parsed : [];
+                                    } catch {
+                                      return rawOptions.split(',').map((s: string) => s.trim());
+                                    }
+                                  })()
+                                : [];
+
+                            const isMultiple = Boolean(fieldSchema?.multiple);
+
+                            if (isMultiple) {
+                              return (
+                                <div key={key} className="space-y-1.5">
+                                  <label
+                                    className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest flex items-center gap-1.5 cursor-help"
+                                    title={fieldSchema?.description}
+                                  >
+                                    {label}
+                                    {fieldSchema?.description && (
+                                      <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+                                        i
+                                      </span>
+                                    )}
+                                  </label>
+                                  <select
+                                    multiple
+                                    value={Array.isArray(value) ? value.map(String) : []}
+                                    onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+                                      const values = Array.from(event.target.selectedOptions, (option) => option.value);
+                                      handlePropertyChange(key, values);
+                                    }}
+                                    className="h-28 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm"
+                                  >
+                                    {options.map((option) => (
+                                      <option key={option} value={option}>
+                                        {option}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div key={key} className="space-y-1.5">
+                                <label
+                                  className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest flex items-center gap-1.5 cursor-help"
+                                  title={fieldSchema?.description}
+                                >
+                                  {label}
+                                  {fieldSchema?.description && (
+                                    <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+                                      i
+                                    </span>
+                                  )}
+                                </label>
+                                <select
+                                  value={String(value ?? '')}
+                                  onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+                                    handlePropertyChange(key, event.target.value)
+                                  }
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm cursor-pointer"
+                                >
+                                  {options.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          }
+
+                          if (fieldType === 'boolean') {
                             return (
                               <label
                                 key={key}
@@ -1160,7 +1310,7 @@ export default function PropertiesPanel({
                             );
                           }
 
-                          if (valueType === 'number') {
+                          if (fieldType === 'number') {
                             return (
                               <div key={key} className="space-y-1.5">
                                 <label className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest">

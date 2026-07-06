@@ -65,6 +65,23 @@ export default function JsonSchemaGeneratorModal({
   const [requiredFields, setRequiredFields] = useState<Record<string, boolean>>({});
   const [collapsedPaths, setCollapsedPaths] = useState<Record<string, boolean>>({});
 
+  // When the modal opens with an existing schema, pre-seed requiredFields and fieldTypes
+  // from the saved rules so that Required checkboxes are correctly restored.
+  useEffect(() => {
+    if (isOpen && initialSchema && Array.isArray(initialSchema.rules)) {
+      const reqSeed: Record<string, boolean> = {};
+      const typeSeed: Record<string, string> = {};
+      initialSchema.rules.forEach((rule: any) => {
+        if (rule.field_name) {
+          reqSeed[rule.field_name] = Boolean(rule.required);
+          if (rule.field_type) typeSeed[rule.field_name] = rule.field_type;
+        }
+      });
+      setRequiredFields(reqSeed);
+      setFieldTypes(typeSeed);
+    }
+  }, [isOpen, initialSchema]);
+
   // Parse default structure from initial schema if possible to prepopulate raw JSON
   useEffect(() => {
     if (isOpen) {
@@ -370,7 +387,7 @@ export default function JsonSchemaGeneratorModal({
     const hasChildren = field.children && field.children.length > 0;
 
     return (
-      <div key={path} className="flex flex-col">
+      <div key={path} className="flex flex-col w-full">
         {/* Node selector row */}
         <div
           className={`flex items-center justify-between py-1 px-3 hover:bg-slate-50 border-b border-slate-100 gap-4 transition-colors ${
@@ -471,7 +488,7 @@ export default function JsonSchemaGeneratorModal({
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center backdrop-blur-sm p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-[85vw] max-w-[1100px] h-[85vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-xl shadow-2xl w-[85vw] w-full h-[85vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-100/70">
           <div className="flex items-center gap-2">

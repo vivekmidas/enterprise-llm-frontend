@@ -63,7 +63,7 @@ export default function Header() {
   // but following instructions to add to layout.
 
   return (
-    <nav className="flex items-center justify-between px-8 py-4 bg-white border-b border-gray-100 sticky top-0 z-50">
+    <nav className="flex items-center justify-between px-8 h-16 bg-white border-b border-gray-100 sticky top-0 z-50 shrink-0">
       <div className="flex items-center gap-2">
         <Link href="/" className="flex items-center gap-2">
           <div className="bg-blue-600 p-1.5 rounded-lg">

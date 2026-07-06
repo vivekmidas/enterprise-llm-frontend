@@ -217,6 +217,8 @@ function AgentBuilderContent() {
                 data: {
                   ...n.data,
                   properties: { ...(n.data.properties || {}), ...fetchedProperties },
+                  property_schema: response.property_schema || response.propertySchema || n.data.property_schema || [],
+                  propertySchema: response.property_schema || response.propertySchema || n.data.propertySchema || [],
                 },
               };
               // Sync the selectedNode state with the newly fetched data
@@ -813,7 +815,7 @@ function AgentBuilderContent() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50 text-black overflow-hidden">
+    <div className="flex h-[calc(100vh-64px)] flex-col bg-gray-50 text-black overflow-hidden">
       <WorkflowHeader
         agentId={agentId}
         agentDescription={description}
