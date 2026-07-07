@@ -154,13 +154,22 @@ export const api = {
   },
 
   /** Deletes a workflow */
-  deleteWorkflow: async (workflowId: string, user: { id: string; role: string; email: string }) => {
+  deleteWorkflow: async (workflowId: string) => {
     const res = await fetch(`${BACKEND_URL}/workflows/${workflowId}`, {
       method: 'DELETE',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(user),
+      headers: getHeaders(),
     });
-    return res.ok;
+    if (!res.ok) {
+      let message = 'Failed to delete workflow';
+      try {
+        const data = await res.json();
+        message = data.detail || message;
+      } catch {
+        message = res.statusText || message;
+      }
+      throw new Error(message);
+    }
+    return true;
   },
 
   /** Updates a node definition in the registry (catalog) */
@@ -224,6 +233,38 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(user),
     });
+    return res.json();
+  },
+
+  deleteUser: async (id: number) => {
+    const res = await fetch(`${BACKEND_URL}/admin/users/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      let message = 'Failed to delete user';
+      try {
+        const data = await res.json();
+        message = data.detail || message;
+      } catch {
+        message = res.statusText || message;
+      }
+      throw new Error(message);
+    }
+    return true;
+  },
+
+  getAuditLogs: async (params: { customerId?: string; action?: string; limit?: number } = {}) => {
+    const url = new URL(`${BACKEND_URL}/admin/audit-logs/`);
+    url.searchParams.append('limit', String(params.limit || 100));
+    if (params.customerId && params.customerId !== 'all') {
+      url.searchParams.append('customer_id', params.customerId);
+    }
+    if (params.action) {
+      url.searchParams.append('action', params.action);
+    }
+    const res = await fetch(url.toString(), { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to load audit logs');
     return res.json();
   },
 

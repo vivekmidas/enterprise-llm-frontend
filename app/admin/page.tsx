@@ -370,6 +370,7 @@ export default function AdminPage() {
   // System Log Scoping & Filtering States
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [logMode, setLogMode] = useState<'audit' | 'execution'>('audit');
   const [selectedWorkflowFilter, setSelectedWorkflowFilter] = useState('all');
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState('all');
   const [minutesFilter, setMinutesFilter] = useState(30);
@@ -483,6 +484,19 @@ export default function AdminPage() {
   const fetchLogs = async () => {
     setLogsLoading(true);
     try {
+      if (logMode === 'audit') {
+        const auditLogs = await api.getAuditLogs({
+          customerId:
+            userRole === 'system_admin' && selectedCustomerFilter !== 'all'
+              ? selectedCustomerFilter
+              : undefined,
+          limit: 100,
+        });
+        setLogs(auditLogs || []);
+        setExpandedLogId(null);
+        return;
+      }
+
       const url = new URL('http://localhost:8000/api/observability/traces');
       url.searchParams.append('minutes', minutesFilter.toString());
       if (selectedWorkflowFilter && selectedWorkflowFilter !== 'all') {
@@ -509,7 +523,7 @@ export default function AdminPage() {
     if (activeTab === 'logs') {
       fetchLogs();
     }
-  }, [activeTab, selectedWorkflowFilter, minutesFilter, selectedCustomerFilter]);
+  }, [activeTab, logMode, selectedWorkflowFilter, minutesFilter, selectedCustomerFilter]);
   const handleStopTrace = async (e: React.MouseEvent, traceId: string) => {
     e.stopPropagation();
     if (!confirm('Are you sure you want to stop this running execution?')) {
@@ -743,6 +757,27 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteUser = async (targetUser: any) => {
+    if (String(targetUser.id) === String(userId)) {
+      alert('You cannot delete your own account.');
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete ${targetUser.email_id || targetUser.username}?`)) {
+      return;
+    }
+
+    try {
+      await api.deleteUser(targetUser.id);
+      const usrs = await api.getUsers().catch(() => []);
+      setUsers(usrs || []);
+      if (activeTab === 'logs' && logMode === 'audit') {
+        await fetchLogs();
+      }
+    } catch (err: any) {
+      alert('Failed to delete user: ' + err.message);
+    }
+  };
+
   const handleDeleteCustomer = async (id: number) => {
     if (
       !confirm(
@@ -898,14 +933,22 @@ export default function AdminPage() {
   };
 
   const handleDeleteWorkflow = async (workflowId: string) => {
-    if (!confirm('Are you sure you want to delete this workflow?')) return;
-    await api.deleteWorkflow(workflowId, {
-      id: userId || '',
-      role: userRole || '',
-      email: userEmail || '',
-    });
-    const workflowsRes = await api.getSavedAgents();
-    setWorkflows(workflowsRes || []);
+    if (
+      !confirm(
+        'Are you sure you want to delete this workflow? This will remove the workflow, its nodes, node properties, and related workflow settings.',
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await api.deleteWorkflow(workflowId);
+      const workflowsRes = await api.getSavedAgents();
+      setWorkflows(workflowsRes || []);
+    } catch (err) {
+      console.error('Failed to delete workflow', err);
+      alert(err instanceof Error ? err.message : 'Failed to delete workflow.');
+    }
   };
 
   const toggleJsonExpanded = (agent: AgentNode) => {
@@ -2252,15 +2295,13 @@ export default function AdminPage() {
                                 </button>
                               </>
                             )}
-                            {userRole !== 'admin' && userRole !== 'system_admin' && (
-                              <button
-                                onClick={() => handleDeleteWorkflow(wf.id)}
-                                className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                title="Delete"
-                              >
-                                <IconMap.trash2 className="h-4 w-4" />
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleDeleteWorkflow(wf.id)}
+                              className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              title="Delete Workflow"
+                            >
+                              <IconMap.trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -2325,15 +2366,13 @@ export default function AdminPage() {
                               </button>
                             </>
                           )}
-                          {userRole !== 'admin' && userRole !== 'system_admin' && (
-                            <button
-                              onClick={() => handleDeleteWorkflow(wf.id)}
-                              className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                              title="Delete"
-                            >
-                              <IconMap.trash2 className="h-4 w-4" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleDeleteWorkflow(wf.id)}
+                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Delete Workflow"
+                          >
+                            <IconMap.trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -2476,6 +2515,9 @@ export default function AdminPage() {
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Email</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Role</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -2496,6 +2538,21 @@ export default function AdminPage() {
                         >
                           {u.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(u)}
+                          disabled={String(u.id) === String(userId)}
+                          title={
+                            String(u.id) === String(userId)
+                              ? 'You cannot delete your own account'
+                              : 'Delete user'
+                          }
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-100 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-100 disabled:text-gray-300 disabled:hover:bg-white"
+                        >
+                          <IconMap.trash2 className="h-4 w-4" />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -2521,31 +2578,44 @@ export default function AdminPage() {
                 <h2 className="text-xl font-semibold text-black">System Activity Logs</h2>
               </div>
               <div className="flex gap-3">
-                {/* Time Range Selector */}
                 <select
-                  value={minutesFilter}
-                  onChange={(e) => setMinutesFilter(Number(e.target.value))}
+                  value={logMode}
+                  onChange={(e) => setLogMode(e.target.value as 'audit' | 'execution')}
                   className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
                 >
-                  <option value={5}>Last 5 Minutes</option>
-                  <option value={10}>Last 10 Minutes</option>
-                  <option value={30}>Last 30 Minutes</option>
-                  <option value={60}>Last 1 Hour</option>
+                  <option value="audit">Admin Audit</option>
+                  <option value="execution">Execution Traces</option>
                 </select>
 
+                {/* Time Range Selector */}
+                {logMode === 'execution' && (
+                  <select
+                    value={minutesFilter}
+                    onChange={(e) => setMinutesFilter(Number(e.target.value))}
+                    className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+                  >
+                    <option value={5}>Last 5 Minutes</option>
+                    <option value={10}>Last 10 Minutes</option>
+                    <option value={30}>Last 30 Minutes</option>
+                    <option value={60}>Last 1 Hour</option>
+                  </select>
+                )}
+
                 {/* Workflow Selector */}
-                <select
-                  value={selectedWorkflowFilter}
-                  onChange={(e) => setSelectedWorkflowFilter(e.target.value)}
-                  className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
-                >
-                  <option value="all">All Workflows</option>
-                  {workflows?.map((wf: any) => (
-                    <option key={wf.id} value={wf.id}>
-                      {wf.name || wf.id}
-                    </option>
-                  ))}
-                </select>
+                {logMode === 'execution' && (
+                  <select
+                    value={selectedWorkflowFilter}
+                    onChange={(e) => setSelectedWorkflowFilter(e.target.value)}
+                    className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+                  >
+                    <option value="all">All Workflows</option>
+                    {workflows?.map((wf: any) => (
+                      <option key={wf.id} value={wf.id}>
+                        {wf.name || wf.id}
+                      </option>
+                    ))}
+                  </select>
+                )}
 
                 {/* Customer Selector for System Admins */}
                 {userRole === 'system_admin' && (
@@ -2578,8 +2648,76 @@ export default function AdminPage() {
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden p-8 text-center">
                 <IconMap.activity className="mx-auto h-12 w-12 text-gray-200 mb-4" />
                 <p className="text-gray-500 text-sm">
-                  No execution logs found in the selected time range.
+                  No {logMode === 'audit' ? 'admin audit' : 'execution'} logs found.
                 </p>
+              </div>
+            ) : logMode === 'audit' ? (
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead className="bg-gray-50 text-gray-400 uppercase text-xs border-b border-gray-150">
+                    <tr>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Status</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Action</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Resource</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Actor</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Customer ID</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600">Timestamp</th>
+                      <th className="px-6 py-4"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-150">
+                    {logs.map((log: any) => (
+                      <React.Fragment key={log.id}>
+                        <tr
+                          className="hover:bg-gray-50 cursor-pointer transition-colors"
+                          onClick={() =>
+                            setExpandedLogId(expandedLogId === String(log.id) ? null : String(log.id))
+                          }
+                        >
+                          <td className="px-6 py-4">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                log.status === 'denied'
+                                  ? 'bg-red-50 text-red-600 border border-red-100'
+                                  : 'bg-green-50 text-green-600 border border-green-100'
+                              }`}
+                            >
+                              {log.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-gray-900">{log.action}</td>
+                          <td className="px-6 py-4 text-gray-600">
+                            {log.resource_type}
+                            {log.resource_id ? ` #${log.resource_id}` : ''}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            {log.actor_role || 'system'} #{log.actor_user_id || '-'}
+                          </td>
+                          <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                            {log.customer_id || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-gray-500">
+                            {log.created_at ? new Date(log.created_at).toLocaleString() : '-'}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {expandedLogId === String(log.id) ? (
+                              <ChevronUp className="h-4 w-4 text-gray-400 inline" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-gray-400 inline" />
+                            )}
+                          </td>
+                        </tr>
+                        {expandedLogId === String(log.id) && (
+                          <tr className="bg-gray-50/50">
+                            <td colSpan={7} className="px-6 py-6 border-b border-gray-150">
+                              <JsonTreeView data={log.details || {}} />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : (
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">

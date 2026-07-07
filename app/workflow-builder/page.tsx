@@ -581,11 +581,7 @@ function AgentBuilderContent() {
     if (!confirmDelete) return;
 
     try {
-      const success = await api.deleteWorkflow(agentId, {
-        id: userId,
-        role: userRole,
-        email: userEmail,
-      });
+      const success = await api.deleteWorkflow(agentId);
       if (success) {
         setStatus('✅ Workflow deleted successfully.');
         handleNewAgent();
@@ -595,7 +591,7 @@ function AgentBuilderContent() {
     } catch (err: any) {
       setStatus(`❌ Error deleting workflow: ${err.message}`);
     }
-  }, [agentId, handleNewAgent, setStatus, userId, userRole]);
+  }, [agentId, handleNewAgent, setStatus]);
 
   const setNodeExecutionStatus = useCallback(
     (nodeId: string, executionStatus: ExecutionStatus, output?: any) => {
