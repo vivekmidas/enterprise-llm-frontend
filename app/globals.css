@@ -383,3 +383,82 @@
 .transition-smooth {
   @apply transition-all duration-300 ease-out;
 }
+
+/* Phase 2 - Navigation & Organization */
+
+/* Sidebar navigation styling */
+.sidebar-nav-item {
+  @apply flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200;
+  @apply text-gray-400 hover:text-white hover:bg-gray-800;
+}
+
+.sidebar-nav-item.active {
+  @apply bg-blue-600 text-white;
+}
+
+/* Breadcrumb styling */
+.breadcrumb {
+  @apply flex items-center gap-2 text-sm text-gray-600;
+}
+
+.breadcrumb-link {
+  @apply hover:text-gray-900 transition-colors font-medium;
+}
+
+/* Grid layout improvements */
+.grid-cards {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+}
+
+.card-grid-item {
+  @apply rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-all duration-200;
+}
+
+/* Status badges */
+.badge-status-success {
+  @apply inline-flex items-center rounded-full px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold;
+}
+
+.badge-status-warning {
+  @apply inline-flex items-center rounded-full px-3 py-1 bg-yellow-50 text-yellow-700 text-xs font-semibold;
+}
+
+.badge-status-error {
+  @apply inline-flex items-center rounded-full px-3 py-1 bg-red-50 text-red-700 text-xs font-semibold;
+}
+
+.badge-status-info {
+  @apply inline-flex items-center rounded-full px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold;
+}
+
+/* Table improvements */
+.table-container {
+  @apply rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm;
+}
+
+.table-header {
+  @apply bg-gray-50 border-b border-gray-200 text-gray-700 uppercase text-xs;
+}
+
+.table-row {
+  @apply border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150;
+}
+
+.table-row.expanded {
+  @apply bg-gray-100/50;
+}
+
+/* Filter and search bar */
+.search-bar-container {
+  @apply space-y-3;
+}
+
+.search-bar-input {
+  @apply w-full pl-10 pr-10 py-2 rounded-lg border border-gray-200 bg-white text-sm;
+  @apply transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+/* Expandable content */
+.expandable-section {
+  @apply border-l-4 border-l-transparent hover:border-l-blue-500 transition-colors duration-200;
+}
