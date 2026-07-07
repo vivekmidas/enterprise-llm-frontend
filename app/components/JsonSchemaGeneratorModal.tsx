@@ -64,21 +64,25 @@ export default function JsonSchemaGeneratorModal({
   const [fieldTypes, setFieldTypes] = useState<Record<string, string>>({});
   const [requiredFields, setRequiredFields] = useState<Record<string, boolean>>({});
   const [collapsedPaths, setCollapsedPaths] = useState<Record<string, boolean>>({});
+  const [stateableFields, setStateableFields] = useState<Record<string, boolean>>({});
 
-  // When the modal opens with an existing schema, pre-seed requiredFields and fieldTypes
-  // from the saved rules so that Required checkboxes are correctly restored.
+  // When the modal opens with an existing schema, pre-seed requiredFields, fieldTypes, and stateableFields
+  // from the saved rules so that checkboxes are correctly restored.
   useEffect(() => {
     if (isOpen && initialSchema && Array.isArray(initialSchema.rules)) {
       const reqSeed: Record<string, boolean> = {};
       const typeSeed: Record<string, string> = {};
+      const stateSeed: Record<string, boolean> = {};
       initialSchema.rules.forEach((rule: any) => {
         if (rule.field_name) {
           reqSeed[rule.field_name] = Boolean(rule.required);
+          stateSeed[rule.field_name] = Boolean(rule.stateable);
           if (rule.field_type) typeSeed[rule.field_name] = rule.field_type;
         }
       });
       setRequiredFields(reqSeed);
       setFieldTypes(typeSeed);
+      setStateableFields(stateSeed);
     }
   }, [isOpen, initialSchema]);
 
@@ -304,6 +308,14 @@ export default function JsonSchemaGeneratorModal({
         });
         return next;
       });
+
+      setStateableFields((prev) => {
+        const next: Record<string, boolean> = {};
+        Object.keys(flattened).forEach((path) => {
+          next[path] = prev[path] !== undefined ? prev[path] : false;
+        });
+        return next;
+      });
     } catch (e: any) {
       setJsonError(e.message || 'Invalid JSON format');
     }
@@ -322,11 +334,13 @@ export default function JsonSchemaGeneratorModal({
 
       const type = fieldTypes[path] || 'string';
       const isRequired = requiredFields[path] || false;
+      const isStateable = stateableFields[path] || false;
 
       const rule: any = {
         field_name: path,
         field_type: type,
         required: isRequired,
+        stateable: isStateable,
       };
 
       // Array items support
@@ -348,7 +362,7 @@ export default function JsonSchemaGeneratorModal({
       version: '1.0',
       rules,
     };
-  }, [fieldsMap, selectedFields, fieldTypes, requiredFields]);
+  }, [fieldsMap, selectedFields, fieldTypes, requiredFields, stateableFields]);
 
   const toggleSelect = (path: string, val: boolean) => {
     setSelectedFields((prev) => {
@@ -383,6 +397,7 @@ export default function JsonSchemaGeneratorModal({
     const isSelected = selectedFields[path] || false;
     const isExpanded = !collapsedPaths[path];
     const isRequired = requiredFields[path] || false;
+    const isStateable = stateableFields[path] || false;
     const currentType = fieldTypes[path] || 'string';
     const hasChildren = field.children && field.children.length > 0;
 
@@ -453,10 +468,25 @@ export default function JsonSchemaGeneratorModal({
                   onChange={(e) =>
                     setRequiredFields((prev) => ({ ...prev, [path]: e.target.checked }))
                   }
-                  className="w-3 h-3 text-amber-500 rounded border-slate-300 focus:ring-amber-500"
+                  className="w-3 h-3 text-amber-500 rounded border-slate-300 focus:ring-amber-500 cursor-pointer"
                 />
                 <span className="text-[9px] font-bold text-amber-700 uppercase tracking-tighter select-none">
                   Required
+                </span>
+              </label>
+
+              {/* Stateable Toggle */}
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isStateable}
+                  onChange={(e) =>
+                    setStateableFields((prev) => ({ ...prev, [path]: e.target.checked }))
+                  }
+                  className="w-3 h-3 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                />
+                <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-tighter select-none">
+                  Stateable
                 </span>
               </label>
 

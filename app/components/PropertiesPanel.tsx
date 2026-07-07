@@ -16,6 +16,11 @@ import {
   Check,
   Sparkles,
   ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  FileCode,
+  Share2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
@@ -68,6 +73,255 @@ const parseSystemProperties = (value: any): Record<string, any> => {
   }
   return {};
 };
+
+interface ContractTreeNode {
+  name: string;
+  path: string;
+  type: string;
+  required: boolean;
+  stateable: boolean;
+  children?: ContractTreeNode[];
+  isLeaf: boolean;
+}
+
+const normalizeContract = (contract: any): any => {
+  if (!contract) return { type: 'object', properties: {} };
+  let parsed = contract;
+  if (typeof contract === 'string') {
+    try {
+      parsed = JSON.parse(contract);
+    } catch {
+      return { type: 'object', properties: {} };
+    }
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return { type: 'object', properties: {} };
+  }
+
+  // Convert rules array to standard schema
+  if (Array.isArray(parsed.rules)) {
+    const root: any = { type: 'object', properties: {}, required: [] };
+    parsed.rules.forEach((rule: any) => {
+      if (!rule || typeof rule !== 'object') return;
+      const fieldName = rule.field_name || rule.field || '';
+      if (!fieldName) return;
+
+      const fieldSchema: any = {
+        type: rule.field_type || rule.type || 'string',
+        required: rule.required || false,
+        stateable: rule.stateable || false,
+        description: rule.description || '',
+      };
+
+      const parts = fieldName.split('.');
+      let current = root;
+      parts.forEach((part: string, idx: number) => {
+        const isLeaf = idx === parts.length - 1;
+        if (!current.properties) current.properties = {};
+
+        const cleanPart = part.replace('[]', '');
+        if (isLeaf) {
+          current.properties[cleanPart] = {
+            ...current.properties[cleanPart],
+            ...fieldSchema,
+          };
+          if (fieldSchema.required) {
+            if (!current.required) current.required = [];
+            if (!current.required.includes(cleanPart)) {
+              current.required.push(cleanPart);
+            }
+          }
+        } else {
+          if (!current.properties[cleanPart]) {
+            current.properties[cleanPart] = {
+              type: 'object',
+              properties: {},
+              required: [],
+            };
+          }
+          current = current.properties[cleanPart];
+        }
+      });
+    });
+    return root;
+  }
+
+  // Standard JSON schema
+  if (parsed.properties || parsed.type === 'object') {
+    const root = { ...parsed };
+    const normalizeNode = (node: any) => {
+      if (!node || typeof node !== 'object') return;
+      if (node.properties && typeof node.properties === 'object') {
+        const reqList = Array.isArray(node.required) ? node.required : [];
+        Object.entries(node.properties).forEach(([k, v]: [string, any]) => {
+          if (v && typeof v === 'object') {
+            if (reqList.includes(k)) {
+              v.required = true;
+            }
+            normalizeNode(v);
+          }
+        });
+      }
+    };
+    normalizeNode(root);
+    return root;
+  }
+
+  // Legacy flat format (e.g. { symbol: "string" })
+  const root: any = { type: 'object', properties: {}, required: [] };
+  Object.entries(parsed).forEach(([key, val]: [string, any]) => {
+    if (typeof val === 'string') {
+      root.properties[key] = { type: val };
+    } else if (val && typeof val === 'object') {
+      root.properties[key] = {
+        type: val.type || 'string',
+        required: val.required || false,
+        stateable: val.stateable || false,
+      };
+    }
+  });
+  return root;
+};
+
+const buildTreeFromSchema = (schema: any, prefix = ''): ContractTreeNode[] => {
+  if (!schema || typeof schema !== 'object') return [];
+  const props = schema.properties;
+  if (!props || typeof props !== 'object') return [];
+
+  return Object.keys(props).map((key) => {
+    const val = props[key];
+    const path = prefix ? `${prefix}.${key}` : key;
+    const isLeaf = !(val.properties || val.type === 'object');
+    
+    return {
+      name: key,
+      path,
+      type: val.type || 'string',
+      required: Boolean(val.required),
+      stateable: Boolean(val.stateable),
+      isLeaf,
+      children: isLeaf ? undefined : buildTreeFromSchema(val, path),
+    };
+  });
+};
+
+const ContractTreeRenderer: React.FC<{
+  nodes: ContractTreeNode[];
+  depth?: number;
+  isOutput?: boolean;
+  onToggleRequired?: (path: string, isReq: boolean) => void;
+  onToggleStateable?: (path: string, isState: boolean) => void;
+}> = ({ nodes, depth = 0, isOutput = false, onToggleRequired, onToggleStateable }) => {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  return (
+    <div className="space-y-1 font-mono text-[11px] w-full">
+      {nodes.map((node) => {
+        const isExpanded = !collapsed[node.path];
+        const hasChildren = node.children && node.children.length > 0;
+
+        return (
+          <div key={node.path} className="flex flex-col w-full">
+            <div
+              className="flex items-center justify-between py-1 px-2 rounded hover:bg-slate-100/80 gap-2 transition-colors w-full"
+              style={{ paddingLeft: `${depth * 0.75 + 0.25}rem` }}
+            >
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                {hasChildren ? (
+                  <button
+                    onClick={() => setCollapsed((prev) => ({ ...prev, [node.path]: !prev[node.path] }))}
+                    className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors cursor-pointer shrink-0"
+                  >
+                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  </button>
+                ) : (
+                  <span className="w-4 shrink-0" />
+                )}
+
+                {hasChildren ? (
+                  isExpanded ? (
+                    <FolderOpen className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  ) : (
+                    <Folder className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  )
+                ) : (
+                  <FileCode className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                )}
+
+                <span className="text-slate-700 truncate font-semibold">
+                  {node.name}
+                  {node.required && (
+                    <span className="text-red-500 ml-0.5 font-bold" title="Required">*</span>
+                  )}
+                </span>
+                
+                <span className="text-[8px] font-semibold text-slate-500 bg-slate-100 px-1 rounded border border-slate-250/70 uppercase shrink-0">
+                  {node.type}
+                </span>
+              </div>
+
+              {/* Status Badges */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {isOutput ? (
+                  <>
+                    <button
+                      onClick={() => onToggleRequired?.(node.path, !node.required)}
+                      className={`text-[8px] font-bold px-1.5 py-0.5 rounded border transition-colors cursor-pointer shrink-0 uppercase tracking-wider ${
+                        node.required
+                          ? 'text-amber-600 bg-amber-50 border-amber-250 hover:bg-amber-100/80'
+                          : 'text-slate-400 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
+                      }`}
+                      title={node.required ? "Click to make optional" : "Click to make required"}
+                    >
+                      Req
+                    </button>
+                    <button
+                      onClick={() => onToggleStateable?.(node.path, !node.stateable)}
+                      className={`flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded border transition-colors cursor-pointer shrink-0 uppercase tracking-wider ${
+                        node.stateable
+                          ? 'text-emerald-600 bg-emerald-50 border-emerald-250 hover:bg-emerald-100/80'
+                          : 'text-slate-400 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
+                      }`}
+                      title={node.stateable ? "Click to stop sharing state" : "Click to share value to workflow state"}
+                    >
+                      <Share2 className={`w-2 h-2 ${node.stateable ? 'text-emerald-500' : 'text-slate-400'}`} />
+                      Shared
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {node.required && (
+                      <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1 py-0.5 rounded border border-amber-250 tracking-wider uppercase shrink-0" title="Required Parameter">
+                        Req
+                      </span>
+                    )}
+                    {node.stateable && (
+                      <span className="flex items-center gap-0.5 text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-250 tracking-wider uppercase shrink-0" title="State Shared Variable">
+                        <Share2 className="w-2 h-2 text-emerald-500" />
+                        Shared
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {hasChildren && isExpanded && (
+              <ContractTreeRenderer 
+                nodes={node.children!} 
+                depth={depth + 1} 
+                isOutput={isOutput}
+                onToggleRequired={onToggleRequired}
+                onToggleStateable={onToggleStateable}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // Assuming AgentPropertyDefinition and PropertyValue are defined in component-categoriees.ts
 // If not, you would define them here:
 // export type PropertyValue = string | number | boolean | string[] | undefined;
@@ -296,6 +550,26 @@ export default function PropertiesPanel({
       setInputContract(newSchema);
     } else {
       setOutputContract(newSchema);
+
+      // Automatically sync stateable and required fields from visual schema editor rules to node properties
+      const rules = Array.isArray(newSchema?.rules) ? newSchema.rules : [];
+      const stateableFromRules = rules
+        .filter((r: any) => r && r.stateable === true && r.field_name)
+        .map((r: any) => r.field_name);
+      const requiredFromRules = rules
+        .filter((r: any) => r && r.required === true && r.field_name)
+        .map((r: any) => r.field_name);
+
+      const currentProps = { ...((selectedNode.data as any)?.properties || {}) };
+      const updatedProps = {
+        ...currentProps,
+        stateable_fields: stateableFromRules,
+        required_fields: requiredFromRules,
+      };
+
+      setProperties(updatedProps);
+      updatedData.properties = updatedProps;
+      onSaveInstanceProperties(selectedNode.id, updatedProps);
     }
 
     onUpdateNode(selectedNode.id, updatedData);
@@ -478,53 +752,45 @@ export default function PropertiesPanel({
   const handlePropertyChange = (key: string, value: PropertyValue) => {
     if (!selectedNode || !onUpdateNode) return;
 
-    // Update local state for immediate UI feedback so fields are editable
-    setProperties((prev) => ({
-      ...prev,
+    const updatedProps = {
+      ...properties,
       [key]: value,
-    }));
+    };
+
+    setProperties(updatedProps);
 
     const nodeData = selectedNode.data as NodeData;
-    const currentProps = (nodeData.properties || {}) as NodeProperties;
     const newData = {
       ...nodeData,
-      properties: {
-        ...currentProps,
-        [key]: value,
-      },
+      properties: updatedProps,
     };
 
     onUpdateNode(selectedNode.id, newData);
+    onSaveInstanceProperties(selectedNode.id, updatedProps);
   };
 
-  const handleStateMappingChange = (outputField: string, isChecked: boolean, customKey?: string) => {
+  const handleToggleRequiredField = (fieldKey: string, isReq: boolean) => {
     if (!selectedNode || !onUpdateNode) return;
 
-    const currentProps = ((selectedNode.data as any)?.properties || {}) as Record<string, any>;
-    const currentStateMappings = { ...(currentProps.state_mappings || currentProps.output_mappings || {}) };
+    const currentProps = { ...properties };
+    const requiredFields = Array.isArray(currentProps.required_fields) 
+      ? [...currentProps.required_fields] 
+      : [];
 
-    if (!isChecked) {
-      // Find and delete the mapping that resolves to outputField
-      for (const [k, v] of Object.entries(currentStateMappings)) {
-        if (v === outputField || v === `{{ ${outputField} }}`) {
-          delete currentStateMappings[k];
-        }
+    if (isReq) {
+      if (!requiredFields.includes(fieldKey)) {
+        requiredFields.push(fieldKey);
       }
     } else {
-      // Add or update the mapping
-      const keyToUse = customKey || outputField;
-      // First, remove any existing mapping for this field to avoid duplicates
-      for (const [k, v] of Object.entries(currentStateMappings)) {
-        if (v === outputField || v === `{{ ${outputField} }}`) {
-          delete currentStateMappings[k];
-        }
+      const idx = requiredFields.indexOf(fieldKey);
+      if (idx >= 0) {
+        requiredFields.splice(idx, 1);
       }
-      currentStateMappings[keyToUse] = outputField;
     }
 
     const updatedProps = {
       ...currentProps,
-      state_mappings: currentStateMappings,
+      required_fields: requiredFields,
     };
 
     setProperties(updatedProps);
@@ -536,6 +802,72 @@ export default function PropertiesPanel({
     };
 
     onUpdateNode(selectedNode.id, newData);
+    onSaveInstanceProperties(selectedNode.id, updatedProps);
+  };
+
+  const handleToggleStateableField = (fieldKey: string, isState: boolean) => {
+    if (!selectedNode || !onUpdateNode) return;
+
+    // 1. Update stateable_fields list in properties
+    const currentProps = { ...properties };
+    const stateableFields = Array.isArray(currentProps.stateable_fields) 
+      ? [...currentProps.stateable_fields] 
+      : [];
+
+    if (isState) {
+      if (!stateableFields.includes(fieldKey)) {
+        stateableFields.push(fieldKey);
+      }
+    } else {
+      const idx = stateableFields.indexOf(fieldKey);
+      if (idx >= 0) {
+        stateableFields.splice(idx, 1);
+      }
+    }
+
+    const updatedProps = {
+      ...currentProps,
+      stateable_fields: stateableFields,
+    };
+
+    setProperties(updatedProps);
+
+    // 2. Update stateable in output_contract rules
+    const currentContract = { ...(outputContract || {}) };
+    const rules = Array.isArray(currentContract.rules) ? [...currentContract.rules] : [];
+
+    const ruleIdx = rules.findIndex((r: any) => r && r.field_name === fieldKey);
+    if (ruleIdx >= 0) {
+      rules[ruleIdx] = {
+        ...rules[ruleIdx],
+        stateable: isState,
+      };
+    } else {
+      rules.push({
+        field_name: fieldKey,
+        field_type: 'string',
+        required: false,
+        stateable: isState,
+      });
+    }
+
+    const updatedContract = {
+      ...currentContract,
+      rules,
+    };
+
+    setOutputContract(updatedContract);
+
+    // 3. Save both properties and contracts to node data and sync properties
+    const nodeData = selectedNode.data as any;
+    const newData = {
+      ...nodeData,
+      properties: updatedProps,
+      output_contract: updatedContract,
+    };
+
+    onUpdateNode(selectedNode.id, newData);
+    onSaveInstanceProperties(selectedNode.id, updatedProps);
   };
 
   /**
@@ -1188,6 +1520,23 @@ export default function PropertiesPanel({
       <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6">
         {(() => {
           if (viewMode === 'contract') {
+            const requiredFields = (properties as any).required_fields || [];
+            const stateableFields = (properties as any).stateable_fields || [];
+            const enrichTreeNodes = (nodes: ContractTreeNode[]): ContractTreeNode[] => {
+              return nodes.map(node => ({
+                ...node,
+                required: node.required || requiredFields.includes(node.path),
+                stateable: node.stateable || stateableFields.includes(node.path),
+                children: node.children ? enrichTreeNodes(node.children) : undefined
+              }));
+            };
+
+            const normalizedInput = normalizeContract(inputContract);
+            const inputTree = enrichTreeNodes(buildTreeFromSchema(normalizedInput));
+
+            const normalizedOutput = normalizeContract(outputContract);
+            const outputTree = enrichTreeNodes(buildTreeFromSchema(normalizedOutput));
+
             return (
               <div className="space-y-5">
                 <div className="space-y-1.5">
@@ -1200,9 +1549,13 @@ export default function PropertiesPanel({
                       Read-only
                     </span>
                   </div>
-                  <pre className="p-3 bg-slate-905 text-indigo-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
-                    {JSON.stringify(inputContract || {}, null, 2)}
-                  </pre>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 shadow-inner max-h-56 overflow-y-auto custom-scrollbar flex">
+                    {inputTree.length > 0 ? (
+                      <ContractTreeRenderer nodes={inputTree} />
+                    ) : (
+                      <span className="text-[10px] text-slate-500 italic">No input fields defined.</span>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
@@ -1214,83 +1567,24 @@ export default function PropertiesPanel({
                         setGeneratorModalType('output');
                         setIsGeneratorModalOpen(true);
                       }}
-                      className="flex items-center gap-1 text-[11px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
+                      className="flex items-center gap-1 text-[12px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
                     >
                       <Sparkles className="w-2.5 h-2.5" />
                       Define from JSON
                     </button>
                   </div>
-                  {(() => {
-                    const schemaProps = outputContract?.properties || outputContract || {};
-                    const propKeys = Object.keys(schemaProps);
-                    
-                    if (propKeys.length === 0) {
-                      return (
-                        <pre className="p-3 bg-slate-905 text-emerald-400 text-[10px] rounded-xl overflow-x-auto font-mono border border-slate-800 shadow-inner max-h-48 custom-scrollbar">
-                          {JSON.stringify(outputContract || {}, null, 2)}
-                        </pre>
-                      );
-                    }
-                    
-                    const stateMappings = (properties as any).state_mappings || (properties as any).output_mappings || {};
-                    
-                    return (
-                      <div className="space-y-2.5 bg-slate-905 p-4 rounded-xl border border-slate-800">
-                        <div className="text-[10px] font-bold text-slate-400 border-b border-slate-800 pb-1.5 mb-2 uppercase tracking-wide">
-                          Export to Workflow State:
-                        </div>
-                        {propKeys.map((fieldKey) => {
-                          let isMapped = false;
-                          let mappedVarName = fieldKey;
-                          
-                          for (const [k, v] of Object.entries(stateMappings)) {
-                            if (v === fieldKey || v === `{{ ${fieldKey} }}`) {
-                              isMapped = true;
-                              mappedVarName = k;
-                              break;
-                            }
-                          }
-                          
-                          const propType = typeof schemaProps[fieldKey] === 'object' 
-                            ? (schemaProps[fieldKey]?.type || 'any') 
-                            : 'any';
-                          
-                          return (
-                            <div key={fieldKey} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 hover:bg-slate-800/40 rounded-lg transition-colors border border-transparent hover:border-slate-800">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={isMapped}
-                                  id={`chk-state-${fieldKey}`}
-                                  onChange={(e) => handleStateMappingChange(fieldKey, e.target.checked, mappedVarName)}
-                                  className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-950 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                                />
-                                <label htmlFor={`chk-state-${fieldKey}`} className="text-[11px] font-mono font-medium text-emerald-400 cursor-pointer">
-                                  {fieldKey}
-                                </label>
-                                <span className="text-[8px] text-slate-500 bg-slate-950 px-1 rounded border border-slate-800 uppercase">
-                                  {propType}
-                                </span>
-                              </div>
-                              
-                              {isMapped && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[9px] text-slate-500 font-mono">as: state.</span>
-                                  <input
-                                    type="text"
-                                    value={mappedVarName}
-                                    onChange={(e) => handleStateMappingChange(fieldKey, true, e.target.value)}
-                                    placeholder={fieldKey}
-                                    className="px-2 py-0.5 text-[10px] font-mono text-slate-200 bg-slate-950 rounded border border-slate-700 focus:outline-none focus:border-emerald-500 w-24"
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 shadow-inner max-h-56 overflow-y-auto custom-scrollbar flex">
+                    {outputTree.length > 0 ? (
+                      <ContractTreeRenderer
+                        nodes={outputTree}
+                        isOutput={true}
+                        onToggleRequired={(path, isReq) => handleToggleRequiredField(path, isReq)}
+                        onToggleStateable={(path, isState) => handleToggleStateableField(path, isState)}
+                      />
+                    ) : (
+                      <span className="text-[10px] text-slate-500 italic">No output fields defined.</span>
+                    )}
+                  </div>
                 </div>
                 <p className="text-[10px] text-slate-450 leading-relaxed italic bg-indigo-50/40 p-3 rounded-xl border border-indigo-50">
                   Inject data values dynamically from upstream nodes using

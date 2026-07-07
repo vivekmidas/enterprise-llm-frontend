@@ -1,7 +1,7 @@
 import { type NodeProps, type Node, Handle, Position } from '@xyflow/react';
 import { CustomNodeData } from './CustomNodeData';
 import { IconMap } from '@/lib/icons';
-import { Bot, Loader2, CheckCircle2, XCircle, Zap } from 'lucide-react';
+import { Bot, Loader2, CheckCircle2, XCircle, Zap, Share2 } from 'lucide-react';
 
 export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) => {
   const {
@@ -17,6 +17,12 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
     readOnly,
   } = data;
   const title = label || name || 'Untitled Node';
+
+  const outputContractRules = (data as any)?.output_contract?.rules || (data as any)?.outputContract?.rules || [];
+  const contractSharesState = Array.isArray(outputContractRules) && outputContractRules.some((r: any) => r && r.stateable);
+  const sharesState =
+    (Array.isArray((data as any)?.properties?.stateable_fields) && (data as any).properties.stateable_fields.length > 0) ||
+    contractSharesState;
 
   const handleStyle = readOnly ? { opacity: 0, pointerEvents: 'none' as const } : undefined;
 
@@ -164,7 +170,14 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
             <h4 className="text-[11px] font-bold text-slate-800 truncate" title={title}>
               {title}
             </h4>
-            {statusStyles.badge}
+            <div className="flex items-center gap-1 shrink-0">
+              {sharesState && (
+                <span className="flex items-center text-[7px] text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded font-bold border border-emerald-250/70" title="Shares state variables">
+                  <Share2 size={7} className="mr-0.5 text-emerald-500" /> State
+                </span>
+              )}
+              {statusStyles.badge}
+            </div>
           </div>
 
           {description && (
