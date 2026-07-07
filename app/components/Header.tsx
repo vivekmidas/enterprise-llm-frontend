@@ -63,7 +63,11 @@ export default function Header() {
   // but following instructions to add to layout.
 
   return (
-    <nav className="flex items-center justify-between px-8 h-16 bg-white border-b border-gray-200 sticky top-0 z-50 shrink-0 shadow-sm">
+    <>
+      <a href="#main-content" className="sr-only sr-only-focusable">
+        Skip to main content
+      </a>
+      <nav className="flex items-center justify-between px-8 h-16 bg-white border-b border-gray-200 sticky top-0 z-50 shrink-0 shadow-sm">
       <div className="flex items-center gap-2">
         <Link href="/" className="flex items-center gap-2">
           <div className="bg-blue-600 p-1.5 rounded-lg">
@@ -113,7 +117,8 @@ export default function Header() {
             </Link>
           </div>
         )}
-      </div>
-    </nav>
+        </div>
+      </nav>
+    </>
   );
-}
+  }

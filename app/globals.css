@@ -462,3 +462,261 @@
 .expandable-section {
   @apply border-l-4 border-l-transparent hover:border-l-blue-500 transition-colors duration-200;
 }
+
+/* Phase 3 - Polish & Micro-interactions */
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* Animation utility classes */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.animate-pulse-soft {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Loading skeleton */
+.skeleton-loading {
+  background: linear-gradient(
+    90deg,
+    #f3f4f6 25%,
+    #e5e7eb 50%,
+    #f3f4f6 75%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Focus styles for accessibility */
+button,
+input,
+select,
+textarea,
+[role="button"],
+a {
+  @apply focus:outline-none;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  @apply ring-2 ring-blue-500 ring-offset-2 rounded;
+}
+
+/* Skip link for accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Smooth page transitions */
+.page-transition {
+  @apply transition-opacity duration-300;
+}
+
+/* Loading state for buttons */
+.btn-loading {
+  @apply relative pointer-events-none opacity-70;
+}
+
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Tooltip styling */
+.tooltip {
+  @apply relative;
+}
+
+.tooltip-content {
+  @apply absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 rounded-lg;
+  @apply bg-gray-900 text-white text-xs font-medium whitespace-nowrap;
+  @apply opacity-0 pointer-events-none transition-opacity duration-200;
+  @apply z-50;
+}
+
+.tooltip:hover .tooltip-content {
+  @apply opacity-100;
+}
+
+/* Better link underlines */
+a {
+  @apply relative;
+}
+
+a.underline-hover::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: currentColor;
+  transition: width 0.3s ease;
+}
+
+a.underline-hover:hover::after {
+  width: 100%;
+}
+
+/* Divider styling */
+.divider {
+  @apply border-t border-gray-200;
+}
+
+.divider-text {
+  @apply flex items-center gap-3 text-sm text-gray-500;
+}
+
+.divider-text::before,
+.divider-text::after {
+  content: '';
+  @apply flex-1 border-t border-gray-200;
+}
+
+/* Success/error animation */
+.success-fade {
+  animation: slideIn 0.3s ease-out;
+}
+
+.error-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Card animations on hover */
+.card-interactive {
+  @apply transition-all duration-200;
+}
+
+.card-interactive:hover {
+  @apply scale-[1.02] shadow-lg;
+}
+
+/* Button ripple effect placeholder */
+.ripple-container {
+  @apply relative overflow-hidden;
+}
+
+/* Performance: reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
