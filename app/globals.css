@@ -287,3 +287,99 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.24);
 }
+
+/* Phase 1 Quick Wins - Modern Minimal Utilities */
+
+/* Card accent borders - adds visual hierarchy */
+.card-accent {
+  @apply border-l-4 border-primary transition-all;
+}
+
+.card-accent:hover {
+  @apply shadow-md;
+}
+
+/* Buttons with modern hover/press states */
+.btn-primary {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply bg-primary text-primary-foreground;
+  @apply hover:shadow-md hover:scale-[1.02];
+  @apply active:scale-[0.98];
+  @apply focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2;
+}
+
+.btn-secondary {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply bg-secondary/10 text-secondary hover:bg-secondary/20;
+  @apply hover:shadow-sm hover:scale-[1.01];
+  @apply active:scale-[0.98];
+  @apply focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:ring-offset-2;
+}
+
+.btn-ghost {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply text-foreground hover:bg-muted;
+  @apply hover:shadow-sm;
+  @apply active:scale-[0.98];
+  @apply focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2;
+}
+
+/* Form field improvements */
+.form-input {
+  @apply w-full rounded-lg border border-input bg-input px-3 py-2;
+  @apply text-sm text-foreground placeholder:text-muted-foreground;
+  @apply transition-all duration-200;
+  @apply focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.form-label {
+  @apply text-sm font-medium text-foreground;
+  @apply mb-2 block;
+}
+
+.form-helper {
+  @apply text-xs text-muted-foreground;
+  @apply mt-1;
+}
+
+.form-error {
+  @apply text-xs text-destructive;
+  @apply mt-1;
+}
+
+/* Spacing improvements for modern minimal feel */
+.section-spacing {
+  @apply p-6 md:p-8;
+}
+
+.section-gap {
+  @apply space-y-6 md:space-y-8;
+}
+
+/* Card hover effects */
+.card-hover {
+  @apply transition-all duration-200;
+  @apply hover:shadow-lg hover:translate-y-[-2px];
+}
+
+/* Badge/label styling */
+.badge-primary {
+  @apply inline-flex items-center rounded-full px-3 py-1;
+  @apply bg-primary/10 text-primary text-xs font-medium;
+}
+
+.badge-secondary {
+  @apply inline-flex items-center rounded-full px-3 py-1;
+  @apply bg-secondary/10 text-secondary text-xs font-medium;
+}
+
+/* Accessibility improvements */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2;
+}
+
+/* Transition utilities */
+.transition-smooth {
+  @apply transition-all duration-300 ease-out;
+}
