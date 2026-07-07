@@ -164,7 +164,7 @@ export default function AgentSidebar({
         draggable
         onDragStart={(event) => onDragStart(event, node)}
         onDragEnd={onDragEnd}
-        className="cursor-grab rounded-lg border border-slate-150 bg-white p-2 shadow-sm transition-all hover:border-slate-305 hover:shadow-md hover:scale-[1.01] active:cursor-grabbing active:scale-[0.98] flex items-center gap-1.5 text-[10px] font-semibold text-slate-650 min-w-0"
+        className="cursor-grab rounded-lg border border-l-4 border-l-slate-300 border-slate-150 bg-white p-2 shadow-sm transition-all duration-200 hover:border-slate-305 hover:shadow-md hover:scale-[1.01] active:cursor-grabbing active:scale-[0.98] flex items-center gap-1.5 text-[10px] font-semibold text-slate-650 min-w-0"
         title={node.label || node.name}
         style={{ borderLeft: `2.5px solid ${themeColor}` }}
       >
@@ -186,7 +186,7 @@ export default function AgentSidebar({
         draggable
         onDragStart={(event) => onDragStart(event, node)}
         onDragEnd={onDragEnd}
-        className="cursor-grab rounded-lg border border-slate-150 bg-white p-2.5 shadow-sm transition-all hover:border-slate-300 hover:shadow-md hover:translate-y-[-1px] active:cursor-grabbing active:scale-[0.98]"
+        className="cursor-grab rounded-lg border border-l-4 border-l-slate-400 border-slate-150 bg-white p-2.5 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md hover:translate-y-[-1px] active:cursor-grabbing active:scale-[0.98]"
         title={node.label || node.name}
         style={{ borderLeft: `3px solid ${themeColor}` }}
       >
@@ -216,7 +216,7 @@ export default function AgentSidebar({
   };
 
   return (
-    <div className="w-[300px] shrink-0 flex flex-col h-full border-r border-slate-100 bg-white overflow-hidden">
+    <div className="w-[300px] shrink-0 flex flex-col h-full border-r border-slate-150 bg-white overflow-hidden shadow-sm">
       {/* Main scrolling content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-5">
         {/* Saved Workflows Section */}

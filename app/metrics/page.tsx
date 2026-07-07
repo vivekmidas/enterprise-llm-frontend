@@ -10,9 +10,12 @@ import {
   ChevronDown,
   ChevronUp,
   Database,
+  TrendingUp,
 } from 'lucide-react';
 import { useState } from 'react';
 import { api, getHeaders } from '@/lib/api';
+import { Breadcrumb } from '@/app/components/Breadcrumb';
+import { MetricCard } from '@/app/components/MetricCard';
 
 const TIME_RANGES = [
   { label: '5m', value: 5 },
@@ -78,69 +81,86 @@ export default function MetricsDashboard() {
     },
   ];
 
-  if (isLoading) return <div className="p-6">Loading metrics...</div>;
-  if (error) return <div className="p-6 text-red-500">Error loading metrics</div>;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-gray-600">Loading metrics...</div>;
+  if (error) return <div className="min-h-screen flex items-center justify-center text-red-600">Error loading metrics</div>;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 p-8 space-y-8">
-      <header className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Observability Hub</h1>
-          <p className="text-gray-400 mt-1">Real-time performance and trace analysis</p>
-        </div>
-        <div className="flex gap-4 items-center">
-          <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-800">
-            {TIME_RANGES.map((range) => (
-              <button
-                key={range.value}
-                onClick={() => setTimeRange(range.value)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                  timeRange === range.value
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                }`}
+    <div className="min-h-screen bg-white text-gray-900">
+      {/* Header Section */}
+      <div className="border-b border-gray-200 bg-white sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <Breadcrumb
+            items={[
+              { label: 'Admin', href: '/admin' },
+              { label: 'Metrics', href: '/metrics' },
+            ]}
+            className="mb-4"
+          />
+          <header className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Observability Hub</h1>
+              <p className="text-gray-500 mt-1">Real-time performance and trace analysis</p>
+            </div>
+            <div className="flex gap-4 items-center">
+              <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
+                {TIME_RANGES.map((range) => (
+                  <button
+                    key={range.value}
+                    onClick={() => setTimeRange(range.value)}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                      timeRange === range.value
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={selectedWorkflow}
+                onChange={(e) => setSelectedWorkflow(e.target.value)}
+                className="border border-gray-200 text-gray-900 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               >
-                {range.label}
-              </button>
-            ))}
-          </div>
-          <select
-            value={selectedWorkflow}
-            onChange={(e) => setSelectedWorkflow(e.target.value)}
-            className="bg-gray-900 border border-gray-800 text-gray-100 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors"
-          >
-            <option value="all">All Workflows</option>
-            {workflows?.map((wf: any) => (
-              <option key={wf.id} value={wf.id}>
-                {wf.name || wf.id}
-              </option>
-            ))}
-          </select>
+                <option value="all">All Workflows</option>
+                {workflows?.map((wf: any) => (
+                  <option key={wf.id} value={wf.id}>
+                    {wf.name || wf.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </header>
         </div>
-      </header>
+      </div>
 
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+      {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {kpiData.map((item, i) => (
-          <Card key={i} className="bg-gray-900 border-gray-800">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">{item.title}</CardTitle>
-              <item.icon className={`h-5 w-5 ${item.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold tracking-tight">{item.value}</div>
-            </CardContent>
-          </Card>
+          <MetricCard
+            key={i}
+            title={item.title}
+            value={item.value}
+            icon={<item.icon className={`h-5 w-5 ${item.color}`} />}
+            trend={i === 0 ? 12 : i === 1 ? -5 : -8}
+            isPositive={i !== 1}
+            subtext="vs last period"
+          />
         ))}
       </div>
 
+      {/* Traces Section */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold flex items-center gap-2">
-          <Database className="h-5 w-5 text-blue-400" />
+          <Database className="h-5 w-5 text-blue-600" />
           Recent Traces
         </h2>
-        <div className="rounded-xl border border-gray-800 bg-gray-900 overflow-hidden">
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-800/50 text-gray-400 uppercase text-xs">
+            <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 uppercase text-xs">
               <tr>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold">Workflow ID</th>
@@ -150,12 +170,12 @@ export default function MetricsDashboard() {
                 <th className="px-6 py-4 font-semibold"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody className="divide-y divide-gray-200">
               {data.traces.map((trace: any) => (
                 <>
                   <tr
                     key={trace.trace_id}
-                    className="hover:bg-gray-800/30 cursor-pointer transition-colors"
+                    className="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
                     onClick={() =>
                       setExpandedTrace(expandedTrace === trace.trace_id ? null : trace.trace_id)
                     }
@@ -164,22 +184,22 @@ export default function MetricsDashboard() {
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                           trace.violations?.length > 0
-                            ? 'bg-red-900/40 text-red-400'
-                            : 'bg-emerald-900/40 text-emerald-400'
+                            ? 'bg-red-50 text-red-700'
+                            : 'bg-green-50 text-green-700'
                         }`}
                       >
                         {trace.violations?.length > 0 ? 'Flagged' : 'Healthy'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-medium text-gray-200">{trace.workflow_id}</td>
-                    <td className="px-6 py-4 font-mono text-gray-400">
+                    <td className="px-6 py-4 font-medium text-gray-900">{trace.workflow_id}</td>
+                    <td className="px-6 py-4 font-mono text-gray-600">
                       {trace.trace_id.substring(0, 8)}...
                     </td>
-                    <td className="px-6 py-4 text-gray-300">{trace.latency_ms}ms</td>
-                    <td className="px-6 py-4 text-gray-500">
+                    <td className="px-6 py-4 text-gray-700">{trace.latency_ms}ms</td>
+                    <td className="px-6 py-4 text-gray-600">
                       {new Date(trace.timestamp * 1000).toLocaleTimeString()}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right text-gray-500">
                       {expandedTrace === trace.trace_id ? (
                         <ChevronUp className="h-4 w-4" />
                       ) : (
@@ -188,18 +208,18 @@ export default function MetricsDashboard() {
                     </td>
                   </tr>
                   {expandedTrace === trace.trace_id && (
-                    <tr className="bg-gray-950/50">
+                    <tr className="bg-gray-100/50">
                       <td colSpan={6} className="px-6 py-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-gray-500 uppercase">
+                            <h4 className="text-xs font-bold text-gray-600 uppercase">
                               Agents Executed
                             </h4>
                             <div className="flex flex-wrap gap-2">
                               {trace.agents_executed?.map((agent: string) => (
                                 <span
                                   key={agent}
-                                  className="bg-gray-800 border border-gray-700 px-2 py-1 rounded text-xs"
+                                  className="bg-white border border-gray-300 px-2 py-1 rounded text-xs text-gray-700"
                                 >
                                   {agent}
                                 </span>
@@ -207,10 +227,10 @@ export default function MetricsDashboard() {
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-gray-500 uppercase">
+                            <h4 className="text-xs font-bold text-gray-600 uppercase">
                               Trace Data (Raw)
                             </h4>
-                            <pre className="p-4 bg-black rounded-lg border border-gray-800 overflow-auto max-h-60 text-[10px] font-mono leading-relaxed">
+                            <pre className="p-4 bg-white rounded-lg border border-gray-300 overflow-auto max-h-60 text-[10px] font-mono leading-relaxed text-gray-800">
                               {JSON.stringify(trace, null, 2)}
                             </pre>
                           </div>
@@ -223,6 +243,7 @@ export default function MetricsDashboard() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

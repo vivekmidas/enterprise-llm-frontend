@@ -1705,7 +1705,7 @@ export default function AdminPage() {
                     });
                     setIsCategoryModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] shadow-sm transition-all duration-200"
                 >
                   <IconMap.plus className="h-4 w-4" /> Add Category
                 </button>
@@ -1848,7 +1848,7 @@ export default function AdminPage() {
                           output_contract: {},
                         })
                       }
-                      className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                      className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] shadow-sm transition-all duration-200"
                     >
                       <IconMap.plus className="h-4 w-4" /> Add New Node
                     </button>
@@ -3791,7 +3791,7 @@ export default function AdminPage() {
                       Display Label
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       value={editingAgent.label || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, label: e.target.value })}
                       placeholder="e.g. My Custom Agent"
@@ -3802,7 +3802,7 @@ export default function AdminPage() {
                       System Name (Unique ID)
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       value={editingAgent.name || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, name: e.target.value })}
                       placeholder="e.g. custom_llm_agent"
@@ -3815,7 +3815,7 @@ export default function AdminPage() {
                       Node Category
                     </label>
                     <select
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       value={editingAgent.category || ''}
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, category: e.target.value })
@@ -3834,7 +3834,7 @@ export default function AdminPage() {
                       Sub Label
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       value={editingAgent.sub_label || ''}
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, sub_label: e.target.value })
@@ -3847,7 +3847,7 @@ export default function AdminPage() {
                       Node Type (e.g. trigger, tool)
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       value={editingAgent.node_type || ''}
                       onChange={(e) =>
                         setEditingAgent({ ...editingAgent, node_type: e.target.value })
@@ -3860,7 +3860,7 @@ export default function AdminPage() {
                       UI Group
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       value={editingAgent.group || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, group: e.target.value })}
                       disabled={userRole !== 'system_admin'}
@@ -3871,7 +3871,7 @@ export default function AdminPage() {
                       Badge
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       value={editingAgent.badge || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, badge: e.target.value })}
                       disabled={userRole !== 'system_admin'}
@@ -3882,7 +3882,7 @@ export default function AdminPage() {
                       Icon Name (Lucide)
                     </label>
                     <input
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       value={editingAgent.icon || ''}
                       onChange={(e) => setEditingAgent({ ...editingAgent, icon: e.target.value })}
                       disabled={userRole !== 'system_admin'}

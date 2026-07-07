@@ -63,7 +63,11 @@ export default function Header() {
   // but following instructions to add to layout.
 
   return (
-    <nav className="flex items-center justify-between px-8 h-16 bg-white border-b border-gray-100 sticky top-0 z-50 shrink-0">
+    <>
+      <a href="#main-content" className="sr-only sr-only-focusable">
+        Skip to main content
+      </a>
+      <nav className="flex items-center justify-between px-8 h-16 bg-white border-b border-gray-200 sticky top-0 z-50 shrink-0 shadow-sm">
       <div className="flex items-center gap-2">
         <Link href="/" className="flex items-center gap-2">
           <div className="bg-blue-600 p-1.5 rounded-lg">
@@ -90,12 +94,12 @@ export default function Header() {
                 <span className="text-xs font-medium text-gray-500 ml-2">ID: {userId}</span>
               )}
             </div>
-            <Link href="/admin" className="text-sm font-bold text-blue-600 hover:text-blue-700">
+            <Link href="/admin" className="text-sm font-bold text-blue-600 hover:text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-50 transition-all duration-200">
               Console
             </Link>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-red-600 transition-colors"
+              className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-red-600 px-3 py-2 rounded-lg hover:bg-red-50 transition-all duration-200"
             >
               <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Logout</span>
             </button>
@@ -107,13 +111,14 @@ export default function Header() {
             </Link>
             <Link
               href="/signup"
-              className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition-all shadow-sm"
+              className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-sm"
             >
               Sign up
             </Link>
           </div>
         )}
-      </div>
-    </nav>
+        </div>
+      </nav>
+    </>
   );
-}
+  }

@@ -287,3 +287,436 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.24);
 }
+
+/* Phase 1 Quick Wins - Modern Minimal Utilities */
+
+/* Card accent borders - adds visual hierarchy */
+.card-accent {
+  @apply border-l-4 border-primary transition-all;
+}
+
+.card-accent:hover {
+  @apply shadow-md;
+}
+
+/* Buttons with modern hover/press states */
+.btn-primary {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply bg-primary text-primary-foreground;
+  @apply hover:shadow-md hover:scale-[1.02];
+  @apply active:scale-[0.98];
+  @apply focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2;
+}
+
+.btn-secondary {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply bg-secondary/10 text-secondary hover:bg-secondary/20;
+  @apply hover:shadow-sm hover:scale-[1.01];
+  @apply active:scale-[0.98];
+  @apply focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:ring-offset-2;
+}
+
+.btn-ghost {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply text-foreground hover:bg-muted;
+  @apply hover:shadow-sm;
+  @apply active:scale-[0.98];
+  @apply focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2;
+}
+
+/* Form field improvements */
+.form-input {
+  @apply w-full rounded-lg border border-input bg-input px-3 py-2;
+  @apply text-sm text-foreground placeholder:text-muted-foreground;
+  @apply transition-all duration-200;
+  @apply focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.form-label {
+  @apply text-sm font-medium text-foreground;
+  @apply mb-2 block;
+}
+
+.form-helper {
+  @apply text-xs text-muted-foreground;
+  @apply mt-1;
+}
+
+.form-error {
+  @apply text-xs text-destructive;
+  @apply mt-1;
+}
+
+/* Spacing improvements for modern minimal feel */
+.section-spacing {
+  @apply p-6 md:p-8;
+}
+
+.section-gap {
+  @apply space-y-6 md:space-y-8;
+}
+
+/* Card hover effects */
+.card-hover {
+  @apply transition-all duration-200;
+  @apply hover:shadow-lg hover:translate-y-[-2px];
+}
+
+/* Badge/label styling */
+.badge-primary {
+  @apply inline-flex items-center rounded-full px-3 py-1;
+  @apply bg-primary/10 text-primary text-xs font-medium;
+}
+
+.badge-secondary {
+  @apply inline-flex items-center rounded-full px-3 py-1;
+  @apply bg-secondary/10 text-secondary text-xs font-medium;
+}
+
+/* Accessibility improvements */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2;
+}
+
+/* Transition utilities */
+.transition-smooth {
+  @apply transition-all duration-300 ease-out;
+}
+
+/* Phase 2 - Navigation & Organization */
+
+/* Sidebar navigation styling */
+.sidebar-nav-item {
+  @apply flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200;
+  @apply text-gray-400 hover:text-white hover:bg-gray-800;
+}
+
+.sidebar-nav-item.active {
+  @apply bg-blue-600 text-white;
+}
+
+/* Breadcrumb styling */
+.breadcrumb {
+  @apply flex items-center gap-2 text-sm text-gray-600;
+}
+
+.breadcrumb-link {
+  @apply hover:text-gray-900 transition-colors font-medium;
+}
+
+/* Grid layout improvements */
+.grid-cards {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+}
+
+.card-grid-item {
+  @apply rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-all duration-200;
+}
+
+/* Status badges */
+.badge-status-success {
+  @apply inline-flex items-center rounded-full px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold;
+}
+
+.badge-status-warning {
+  @apply inline-flex items-center rounded-full px-3 py-1 bg-yellow-50 text-yellow-700 text-xs font-semibold;
+}
+
+.badge-status-error {
+  @apply inline-flex items-center rounded-full px-3 py-1 bg-red-50 text-red-700 text-xs font-semibold;
+}
+
+.badge-status-info {
+  @apply inline-flex items-center rounded-full px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold;
+}
+
+/* Table improvements */
+.table-container {
+  @apply rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm;
+}
+
+.table-header {
+  @apply bg-gray-50 border-b border-gray-200 text-gray-700 uppercase text-xs;
+}
+
+.table-row {
+  @apply border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150;
+}
+
+.table-row.expanded {
+  @apply bg-gray-100/50;
+}
+
+/* Filter and search bar */
+.search-bar-container {
+  @apply space-y-3;
+}
+
+.search-bar-input {
+  @apply w-full pl-10 pr-10 py-2 rounded-lg border border-gray-200 bg-white text-sm;
+  @apply transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+/* Expandable content */
+.expandable-section {
+  @apply border-l-4 border-l-transparent hover:border-l-blue-500 transition-colors duration-200;
+}
+
+/* Phase 3 - Polish & Micro-interactions */
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* Animation utility classes */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.animate-pulse-soft {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Loading skeleton */
+.skeleton-loading {
+  background: linear-gradient(
+    90deg,
+    #f3f4f6 25%,
+    #e5e7eb 50%,
+    #f3f4f6 75%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Focus styles for accessibility */
+button,
+input,
+select,
+textarea,
+[role="button"],
+a {
+  @apply focus:outline-none;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  @apply ring-2 ring-blue-500 ring-offset-2 rounded;
+}
+
+/* Skip link for accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Smooth page transitions */
+.page-transition {
+  @apply transition-opacity duration-300;
+}
+
+/* Loading state for buttons */
+.btn-loading {
+  @apply relative pointer-events-none opacity-70;
+}
+
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Tooltip styling */
+.tooltip {
+  @apply relative;
+}
+
+.tooltip-content {
+  @apply absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 rounded-lg;
+  @apply bg-gray-900 text-white text-xs font-medium whitespace-nowrap;
+  @apply opacity-0 pointer-events-none transition-opacity duration-200;
+  @apply z-50;
+}
+
+.tooltip:hover .tooltip-content {
+  @apply opacity-100;
+}
+
+/* Better link underlines */
+a {
+  @apply relative;
+}
+
+a.underline-hover::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: currentColor;
+  transition: width 0.3s ease;
+}
+
+a.underline-hover:hover::after {
+  width: 100%;
+}
+
+/* Divider styling */
+.divider {
+  @apply border-t border-gray-200;
+}
+
+.divider-text {
+  @apply flex items-center gap-3 text-sm text-gray-500;
+}
+
+.divider-text::before,
+.divider-text::after {
+  content: '';
+  @apply flex-1 border-t border-gray-200;
+}
+
+/* Success/error animation */
+.success-fade {
+  animation: slideIn 0.3s ease-out;
+}
+
+.error-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Card animations on hover */
+.card-interactive {
+  @apply transition-all duration-200;
+}
+
+.card-interactive:hover {
+  @apply scale-[1.02] shadow-lg;
+}
+
+/* Button ripple effect placeholder */
+.ripple-container {
+  @apply relative overflow-hidden;
+}
+
+/* Performance: reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
