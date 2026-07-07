@@ -19,10 +19,7 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
   const title = label || name || 'Untitled Node';
 
   const outputContractRules = (data as any)?.output_contract?.rules || (data as any)?.outputContract?.rules || [];
-  const contractSharesState = Array.isArray(outputContractRules) && outputContractRules.some((r: any) => r && r.stateable);
-  const sharesState =
-    (Array.isArray((data as any)?.properties?.stateable_fields) && (data as any).properties.stateable_fields.length > 0) ||
-    contractSharesState;
+  const sharesState = Array.isArray(outputContractRules) && outputContractRules.some((r: any) => r && (r.stateable || r.state_required));
 
   const handleStyle = readOnly ? { opacity: 0, pointerEvents: 'none' as const } : undefined;
 

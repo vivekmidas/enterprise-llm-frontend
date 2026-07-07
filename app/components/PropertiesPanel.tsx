@@ -103,13 +103,13 @@ const normalizeContract = (contract: any): any => {
     const root: any = { type: 'object', properties: {}, required: [] };
     parsed.rules.forEach((rule: any) => {
       if (!rule || typeof rule !== 'object') return;
-      const fieldName = rule.field_name || rule.field || '';
+      const fieldName = rule.field_name || rule.field || rule.name || '';
       if (!fieldName) return;
 
       const fieldSchema: any = {
         type: rule.field_type || rule.type || 'string',
         required: rule.required || false,
-        stateable: rule.stateable || false,
+        stateable: rule.stateable || rule.state_required || false,
         description: rule.description || '',
       };
 
@@ -198,7 +198,7 @@ const buildTreeFromSchema = (schema: any, prefix = ''): ContractTreeNode[] => {
       path,
       type: val.type || 'string',
       required: Boolean(val.required),
-      stateable: Boolean(val.stateable),
+      stateable: Boolean(val.stateable || val.state_required),
       isLeaf,
       children: isLeaf ? undefined : buildTreeFromSchema(val, path),
     };
@@ -550,26 +550,6 @@ export default function PropertiesPanel({
       setInputContract(newSchema);
     } else {
       setOutputContract(newSchema);
-
-      // Automatically sync stateable and required fields from visual schema editor rules to node properties
-      const rules = Array.isArray(newSchema?.rules) ? newSchema.rules : [];
-      const stateableFromRules = rules
-        .filter((r: any) => r && r.stateable === true && r.field_name)
-        .map((r: any) => r.field_name);
-      const requiredFromRules = rules
-        .filter((r: any) => r && r.required === true && r.field_name)
-        .map((r: any) => r.field_name);
-
-      const currentProps = { ...((selectedNode.data as any)?.properties || {}) };
-      const updatedProps = {
-        ...currentProps,
-        stateable_fields: stateableFromRules,
-        required_fields: requiredFromRules,
-      };
-
-      setProperties(updatedProps);
-      updatedData.properties = updatedProps;
-      onSaveInstanceProperties(selectedNode.id, updatedProps);
     }
 
     onUpdateNode(selectedNode.id, updatedData);
@@ -772,71 +752,49 @@ export default function PropertiesPanel({
   const handleToggleRequiredField = (fieldKey: string, isReq: boolean) => {
     if (!selectedNode || !onUpdateNode) return;
 
-    const currentProps = { ...properties };
-    const requiredFields = Array.isArray(currentProps.required_fields) 
-      ? [...currentProps.required_fields] 
-      : [];
+    // Update required in output_contract rules
+    const currentContract = { ...(outputContract || {}) };
+    const rules = Array.isArray(currentContract.rules) ? [...currentContract.rules] : [];
 
-    if (isReq) {
-      if (!requiredFields.includes(fieldKey)) {
-        requiredFields.push(fieldKey);
-      }
+    const ruleIdx = rules.findIndex((r: any) => r && (r.field_name === fieldKey || r.name === fieldKey));
+    if (ruleIdx >= 0) {
+      rules[ruleIdx] = {
+        ...rules[ruleIdx],
+        required: isReq,
+      };
     } else {
-      const idx = requiredFields.indexOf(fieldKey);
-      if (idx >= 0) {
-        requiredFields.splice(idx, 1);
-      }
+      rules.push({
+        field_name: fieldKey,
+        field_type: 'string',
+        required: isReq,
+        stateable: false,
+      });
     }
 
-    const updatedProps = {
-      ...currentProps,
-      required_fields: requiredFields,
+    const updatedContract = {
+      ...currentContract,
+      rules,
     };
 
-    setProperties(updatedProps);
+    setOutputContract(updatedContract);
 
     const nodeData = selectedNode.data as any;
     const newData = {
       ...nodeData,
-      properties: updatedProps,
+      output_contract: updatedContract,
     };
 
     onUpdateNode(selectedNode.id, newData);
-    onSaveInstanceProperties(selectedNode.id, updatedProps);
   };
 
   const handleToggleStateableField = (fieldKey: string, isState: boolean) => {
     if (!selectedNode || !onUpdateNode) return;
 
-    // 1. Update stateable_fields list in properties
-    const currentProps = { ...properties };
-    const stateableFields = Array.isArray(currentProps.stateable_fields) 
-      ? [...currentProps.stateable_fields] 
-      : [];
-
-    if (isState) {
-      if (!stateableFields.includes(fieldKey)) {
-        stateableFields.push(fieldKey);
-      }
-    } else {
-      const idx = stateableFields.indexOf(fieldKey);
-      if (idx >= 0) {
-        stateableFields.splice(idx, 1);
-      }
-    }
-
-    const updatedProps = {
-      ...currentProps,
-      stateable_fields: stateableFields,
-    };
-
-    setProperties(updatedProps);
-
-    // 2. Update stateable in output_contract rules
+    // Update stateable in output_contract rules
     const currentContract = { ...(outputContract || {}) };
     const rules = Array.isArray(currentContract.rules) ? [...currentContract.rules] : [];
 
-    const ruleIdx = rules.findIndex((r: any) => r && r.field_name === fieldKey);
+    const ruleIdx = rules.findIndex((r: any) => r && (r.field_name === fieldKey || r.name === fieldKey));
     if (ruleIdx >= 0) {
       rules[ruleIdx] = {
         ...rules[ruleIdx],
@@ -858,16 +816,13 @@ export default function PropertiesPanel({
 
     setOutputContract(updatedContract);
 
-    // 3. Save both properties and contracts to node data and sync properties
     const nodeData = selectedNode.data as any;
     const newData = {
       ...nodeData,
-      properties: updatedProps,
       output_contract: updatedContract,
     };
 
     onUpdateNode(selectedNode.id, newData);
-    onSaveInstanceProperties(selectedNode.id, updatedProps);
   };
 
   /**
@@ -1520,22 +1475,8 @@ export default function PropertiesPanel({
       <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6">
         {(() => {
           if (viewMode === 'contract') {
-            const requiredFields = (properties as any).required_fields || [];
-            const stateableFields = (properties as any).stateable_fields || [];
-            const enrichTreeNodes = (nodes: ContractTreeNode[]): ContractTreeNode[] => {
-              return nodes.map(node => ({
-                ...node,
-                required: node.required || requiredFields.includes(node.path),
-                stateable: node.stateable || stateableFields.includes(node.path),
-                children: node.children ? enrichTreeNodes(node.children) : undefined
-              }));
-            };
-
-            const normalizedInput = normalizeContract(inputContract);
-            const inputTree = enrichTreeNodes(buildTreeFromSchema(normalizedInput));
-
-            const normalizedOutput = normalizeContract(outputContract);
-            const outputTree = enrichTreeNodes(buildTreeFromSchema(normalizedOutput));
+            const inputTree = buildTreeFromSchema(normalizeContract(inputContract));
+            const outputTree = buildTreeFromSchema(normalizeContract(outputContract));
 
             return (
               <div className="space-y-5">
