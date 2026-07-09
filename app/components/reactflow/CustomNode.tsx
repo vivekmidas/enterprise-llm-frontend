@@ -18,8 +18,11 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
   } = data;
   const title = label || name || 'Untitled Node';
 
-  const outputContractRules = (data as any)?.output_contract?.rules || (data as any)?.outputContract?.rules || [];
-  const sharesState = Array.isArray(outputContractRules) && outputContractRules.some((r: any) => r && (r.stateable || r.state_required));
+  const outputContractRules =
+    (data as any)?.output_contract?.rules || (data as any)?.outputContract?.rules || [];
+  const sharesState =
+    Array.isArray(outputContractRules) &&
+    outputContractRules.some((r: any) => r && (r.stateable || r.state_required));
 
   const handleStyle = readOnly ? { opacity: 0, pointerEvents: 'none' as const } : undefined;
 
@@ -88,12 +91,15 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
 
   const renderOutput = () => {
     if (executionStatus === 'error') {
-      const errorMsg = typeof data.output === 'string'
-        ? data.output
-        : data.output?.error || data.error || 'Execution failed';
+      const errorMsg =
+        typeof data.output === 'string'
+          ? data.output
+          : data.output?.error || data.error || 'Execution failed';
       return (
         <div className="mt-2.5 pt-2 border-t border-rose-100 w-full text-left animate-in fade-in duration-200">
-          <span className="font-bold text-[8px] text-rose-500 uppercase tracking-wider block mb-1">Error</span>
+          <span className="font-bold text-[8px] text-rose-500 uppercase tracking-wider block mb-1">
+            Error
+          </span>
           <pre className="bg-rose-50/50 border border-rose-100 rounded-lg p-1.5 font-mono text-[8px] text-rose-700 max-h-20 overflow-y-auto whitespace-pre-wrap break-all custom-scrollbar leading-normal">
             {errorMsg}
           </pre>
@@ -128,7 +134,9 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
 
     return (
       <div className="mt-2.5 pt-2 border-t border-slate-100 w-full text-left animate-in fade-in duration-200">
-        <span className="font-bold text-[8px] text-slate-400 uppercase tracking-wider block mb-1">Output</span>
+        <span className="font-bold text-[8px] text-slate-400 uppercase tracking-wider block mb-1">
+          Output
+        </span>
         <pre className="bg-slate-50 border border-slate-100 rounded-lg p-1.5 font-mono text-[8px] text-slate-600 max-h-20 overflow-y-auto whitespace-pre-wrap break-all custom-scrollbar leading-normal">
           {displayContent}
         </pre>
@@ -169,7 +177,10 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
             </h4>
             <div className="flex items-center gap-1 shrink-0">
               {sharesState && (
-                <span className="flex items-center text-[7px] text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded font-bold border border-emerald-250/70" title="Shares state variables">
+                <span
+                  className="flex items-center text-[7px] text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded font-bold border border-emerald-250/70"
+                  title="Shares state variables"
+                >
                   <Share2 size={7} className="mr-0.5 text-emerald-500" /> State
                 </span>
               )}

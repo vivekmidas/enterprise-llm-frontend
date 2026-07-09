@@ -12,6 +12,8 @@ import { AgentNode, NodeCategory } from '@components/component-categoriees';
 import { JsonTreeView } from '@components/JsonTreeView';
 import JsonSchemaGeneratorModal from '@components/JsonSchemaGeneratorModal';
 import RunVisualizerModal from '@components/RunVisualizerModal';
+import { MetricCard } from '@/app/components/MetricCard';
+import { Clock, Activity, AlertTriangle } from 'lucide-react';
 
 type PropertyTarget = 'user' | 'system';
 
@@ -316,7 +318,7 @@ export default function AdminPage() {
   const [editingCategory, setEditingCategory] = useState<NodeCategory | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    'nodes' | 'workflows' | 'users' | 'oauth' | 'logs' | 'customers'
+    'nodes' | 'workflows' | 'users' | 'oauth' | 'logs' | 'customers' | 'metrics'
   >('nodes');
   const [users, setUsers] = useState<any[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -379,6 +381,15 @@ export default function AdminPage() {
   const [traceViewMode, setTraceViewMode] = useState<'tree' | 'raw'>('tree');
   const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
 
+  // Metrics Tab States
+  const [metricsData, setMetricsData] = useState<any>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [metricsTimeRange, setMetricsTimeRange] = useState(30);
+  const [metricsSelectedWorkflow, setMetricsSelectedWorkflow] = useState('all');
+  const [metricsSelectedCustomer, setMetricsSelectedCustomer] = useState('all');
+  const [metricsExpandedTrace, setMetricsExpandedTrace] = useState<string | null>(null);
+
   const handleCopyLog = (logData: any) => {
     navigator.clipboard.writeText(JSON.stringify(logData, null, 2));
     setCopiedLogId(logData.trace_id);
@@ -408,27 +419,43 @@ export default function AdminPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    const token = localStorage.getItem('admin_token');
-    const role = localStorage.getItem('user_role');
+    const token = localStorage.getItem('token');
 
-    if (token) {
-      if (role !== 'admin' && role !== 'system_admin') {
-        router.push('/workflow-builder');
-        return;
+    if (!token) {
+      setIsAuthenticated(false);
+      setLoading(false);
+      return;
+    }
+
+    async function initializeUser() {
+      try {
+        const userData = await api.getCurrentUser();
+
+        if (userData.role !== 'admin' && userData.role !== 'system_admin') {
+          router.push('/workflow-builder');
+          return;
+        }
+
+        setUserRole(userData.role);
+        setUserEmail(userData.email);
+        setUserId(userData.id);
+        setCustomerId(
+          userData.customer_id !== null && userData.customer_id !== undefined
+            ? String(userData.customer_id)
+            : null,
+        );
+        setIsAuthenticated(true);
+      } catch (err) {
+        console.error('Failed to authenticate in Admin Console:', err);
+        api.logout();
+        setIsAuthenticated(false);
+        setLoading(false);
+        router.push('/login');
       }
-      setIsAuthenticated(true);
-      setUserRole(localStorage.getItem('user_role'));
-      setUserEmail(localStorage.getItem('user_email'));
-      setUserId(localStorage.getItem('user_id'));
-      setCustomerId(localStorage.getItem('customer_id') || null);
     }
 
     async function loadAdminData() {
       try {
-        const roleCustomerId = localStorage.getItem('customer_id');
-        const user_role = localStorage.getItem('user_role');
-        setCustomerId(roleCustomerId || null);
-
         const promises: Promise<any>[] = [
           api.getNodes(),
           api.getNodesCategories(),
@@ -437,7 +464,7 @@ export default function AdminPage() {
           api.getUsers().catch(() => []),
         ];
 
-        if (user_role === 'system_admin') {
+        if (userRole === 'system_admin') {
           promises.push(api.getCustomers().catch(() => []));
         }
 
@@ -464,7 +491,7 @@ export default function AdminPage() {
         setProviders(providersRes || []);
         setWorkflows(workflowsRes || []);
         setUsers(usersRes || []);
-        if (user_role === 'system_admin') {
+        if (userRole === 'system_admin') {
           setCustomers(customersRes || []);
         }
       } catch (error) {
@@ -474,12 +501,76 @@ export default function AdminPage() {
       }
     }
 
-    if (isAuthenticated) {
-      loadAdminData();
+    if (!isAuthenticated) {
+      initializeUser();
     } else {
-      setLoading(false);
+      loadAdminData();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userRole, customerId, router]);
+
+  const fetchMetrics = async () => {
+    setMetricsLoading(true);
+    setMetricsError(null);
+    try {
+      const url = new URL('http://localhost:8000/api/observability/traces');
+      url.searchParams.append('minutes', metricsTimeRange.toString());
+      if (metricsSelectedWorkflow && metricsSelectedWorkflow !== 'all') {
+        url.searchParams.append('workflow_id', metricsSelectedWorkflow);
+      }
+      if (
+        userRole === 'system_admin' &&
+        metricsSelectedCustomer &&
+        metricsSelectedCustomer !== 'all'
+      ) {
+        url.searchParams.append('customer_id', metricsSelectedCustomer);
+      }
+      const response = await fetch(url.toString(), {
+        headers: getHeaders({
+          'Content-Type': 'application/json',
+        }),
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setMetricsData(result);
+      } else {
+        setMetricsError('Failed to fetch metrics data');
+      }
+    } catch (err) {
+      console.error('Failed to fetch metrics', err);
+      setMetricsError('Error connecting to metrics server');
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'metrics') {
+      fetchMetrics();
+    }
+  }, [activeTab, metricsTimeRange, metricsSelectedWorkflow, metricsSelectedCustomer]);
+
+  // Load initial tab from URL search parameters on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (
+        tab &&
+        ['nodes', 'workflows', 'users', 'oauth', 'logs', 'customers', 'metrics'].includes(tab)
+      ) {
+        setActiveTab(tab as any);
+      }
+    }
+  }, []);
+
+  const handleTabChange = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      window.history.replaceState(null, '', url.pathname + url.search);
+    }
+  };
 
   const fetchLogs = async () => {
     setLogsLoading(true);
@@ -502,11 +593,17 @@ export default function AdminPage() {
       if (selectedWorkflowFilter && selectedWorkflowFilter !== 'all') {
         url.searchParams.append('workflow_id', selectedWorkflowFilter);
       }
-      if (userRole === 'system_admin' && selectedCustomerFilter && selectedCustomerFilter !== 'all') {
+      if (
+        userRole === 'system_admin' &&
+        selectedCustomerFilter &&
+        selectedCustomerFilter !== 'all'
+      ) {
         url.searchParams.append('customer_id', selectedCustomerFilter);
       }
       const response = await fetch(url.toString(), {
-        headers: getHeaders(),
+        headers: getHeaders({
+          'Content-Type': 'application/json',
+        }),
       });
       if (response.ok) {
         const result = await response.json();
@@ -530,10 +627,16 @@ export default function AdminPage() {
       return;
     }
     try {
-      const response = await fetch(`http://localhost:8000/api/observability/traces/${traceId}/stop`, {
-        method: 'POST',
-        headers: getHeaders(),
-      });
+      const response = await fetch(
+        `http://localhost:8000/api/observability/traces/${traceId}/stop`,
+        {
+          method: 'POST',
+
+          headers: getHeaders({
+            'Content-Type': 'application/json',
+          }),
+        },
+      );
       if (response.ok) {
         alert('Stop signal sent successfully.');
         fetchLogs();
@@ -553,10 +656,15 @@ export default function AdminPage() {
       return;
     }
     try {
-      const response = await fetch(`http://localhost:8000/api/observability/traces/${traceId}/restart`, {
-        method: 'POST',
-        headers: getHeaders(),
-      });
+      const response = await fetch(
+        `http://localhost:8000/api/observability/traces/${traceId}/restart`,
+        {
+          method: 'POST',
+          headers: getHeaders({
+            'Content-Type': 'application/json',
+          }),
+        },
+      );
       if (response.ok) {
         const data = await response.json();
         alert(`Execution successfully restarted! New Trace ID: ${data.new_trace_id}`);
@@ -589,17 +697,9 @@ export default function AdminPage() {
         setIsRegistering(false);
       } else {
         const data = await api.login({ email: loginEmail, password: loginPassword });
-        localStorage.setItem('admin_token', data.token);
-        localStorage.setItem('user_role', data.role);
-        localStorage.setItem('user_email', loginEmail);
-        localStorage.setItem(
-          'customer_id',
-          data.customer_id !== null && data.customer_id !== undefined
-            ? String(data.customer_id)
-            : '',
-        );
+        localStorage.setItem('token', data.token);
 
-        document.cookie = `admin_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+        document.cookie = `token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 
         if (data.role === 'admin' || data.role === 'system_admin') {
           setUserRole(data.role);
@@ -762,7 +862,9 @@ export default function AdminPage() {
       alert('You cannot delete your own account.');
       return;
     }
-    if (!confirm(`Are you sure you want to delete ${targetUser.email_id || targetUser.username}?`)) {
+    if (
+      !confirm(`Are you sure you want to delete ${targetUser.email_id || targetUser.username}?`)
+    ) {
       return;
     }
 
@@ -903,25 +1005,37 @@ export default function AdminPage() {
 
   const handleClearWorkflowCache = async (workflowId?: string) => {
     if (workflowId) {
-      if (!confirm('Are you sure you want to clear the compiled graph cache for this workflow?')) return;
+      if (!confirm('Are you sure you want to clear the compiled graph cache for this workflow?'))
+        return;
     } else {
-      if (!confirm('Are you sure you want to clear the entire compiled graph cache? This will cause all workflows to rebuild on their next run.')) return;
+      if (
+        !confirm(
+          'Are you sure you want to clear the entire compiled graph cache? This will cause all workflows to rebuild on their next run.',
+        )
+      )
+        return;
     }
-    
+
     try {
-      const token = localStorage.getItem('admin_token');
+      const token = localStorage.getItem('token');
       const url = new URL('http://localhost:8000/workflows/cache/clear');
       if (workflowId) {
         url.searchParams.append('workflow_id', workflowId);
       }
-      
+
       const response = await fetch(url.toString(), {
         method: 'POST',
-        headers: getHeaders(),
+        headers: getHeaders({
+          'Content-Type': 'application/json',
+        }),
       });
-      
+
       if (response.ok) {
-        alert(workflowId ? 'Workflow cache cleared successfully.' : 'Entire graph cache cleared successfully.');
+        alert(
+          workflowId
+            ? 'Workflow cache cleared successfully.'
+            : 'Entire graph cache cleared successfully.',
+        );
       } else {
         const errorData = await response.json();
         alert(`Failed to clear cache: ${errorData.detail || response.statusText}`);
@@ -1683,7 +1797,7 @@ export default function AdminPage() {
         <div className="flex border-b border-gray-200">
           {userRole === 'system_admin' && (
             <button
-              onClick={() => setActiveTab('customers')}
+              onClick={() => handleTabChange('customers')}
               className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'customers' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
               Customer Management
@@ -1691,14 +1805,14 @@ export default function AdminPage() {
           )}
           {(userRole === 'admin' || userRole === 'system_admin') && (
             <button
-              onClick={() => setActiveTab('nodes')}
+              onClick={() => handleTabChange('nodes')}
               className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'nodes' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
               Node Management
             </button>
           )}
           <button
-            onClick={() => setActiveTab('workflows')}
+            onClick={() => handleTabChange('workflows')}
             className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'workflows' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
             Workflow Management
@@ -1706,22 +1820,28 @@ export default function AdminPage() {
           {(userRole === 'admin' || userRole === 'system_admin') && (
             <>
               <button
-                onClick={() => setActiveTab('users')}
+                onClick={() => handleTabChange('users')}
                 className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 User Management
               </button>
               <button
-                onClick={() => setActiveTab('oauth')}
+                onClick={() => handleTabChange('oauth')}
                 className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'oauth' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 OAuth Management
               </button>
               <button
-                onClick={() => setActiveTab('logs')}
+                onClick={() => handleTabChange('logs')}
                 className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'logs' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 System Logs
+              </button>
+              <button
+                onClick={() => handleTabChange('metrics')}
+                className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'metrics' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Metrics
               </button>
             </>
           )}
@@ -2521,7 +2641,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {users.map((u, i) => (
+                  {users?.map((u, i) => (
                     <tr key={i} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-black font-medium">{u.username}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{u.email_id}</td>
@@ -2671,7 +2791,9 @@ export default function AdminPage() {
                         <tr
                           className="hover:bg-gray-50 cursor-pointer transition-colors"
                           onClick={() =>
-                            setExpandedLogId(expandedLogId === String(log.id) ? null : String(log.id))
+                            setExpandedLogId(
+                              expandedLogId === String(log.id) ? null : String(log.id),
+                            )
                           }
                         >
                           <td className="px-6 py-4">
@@ -2751,7 +2873,9 @@ export default function AdminPage() {
                                   ? 'bg-blue-50 text-blue-600 border border-blue-100 animate-pulse'
                                   : log.status === 'stopped'
                                     ? 'bg-gray-100 text-gray-600 border border-gray-200'
-                                    : log.status === 'failure' || log.status === 'failed' || log.violations?.length > 0
+                                    : log.status === 'failure' ||
+                                        log.status === 'failed' ||
+                                        log.violations?.length > 0
                                       ? 'bg-red-50 text-red-600 border border-red-100'
                                       : 'bg-green-50 text-green-600 border border-green-100'
                               }`}
@@ -2760,7 +2884,9 @@ export default function AdminPage() {
                                 ? 'Running'
                                 : log.status === 'stopped'
                                   ? 'Stopped'
-                                  : log.status === 'failure' || log.status === 'failed' || log.violations?.length > 0
+                                  : log.status === 'failure' ||
+                                      log.status === 'failed' ||
+                                      log.violations?.length > 0
                                     ? 'Failed'
                                     : 'Completed'}
                             </span>
@@ -2929,6 +3055,306 @@ export default function AdminPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </section>
+        ) : activeTab === 'metrics' ? (
+          <section className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-150 pb-4">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-blue-600 animate-pulse" />
+                <h2 className="text-xl font-semibold text-black font-sans">Performance Metrics & Traces</h2>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Time Range Selector */}
+                <select
+                  value={metricsTimeRange}
+                  onChange={(e) => setMetricsTimeRange(Number(e.target.value))}
+                  className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+                >
+                  <option value={5}>Last 5 Minutes</option>
+                  <option value={10}>Last 10 Minutes</option>
+                  <option value={30}>Last 30 Minutes</option>
+                  <option value={60}>Last 1 Hour</option>
+                </select>
+
+                {/* Workflow Selector */}
+                <select
+                  value={metricsSelectedWorkflow}
+                  onChange={(e) => setMetricsSelectedWorkflow(e.target.value)}
+                  className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+                >
+                  <option value="all">All Workflows</option>
+                  {workflows?.map((wf: any) => (
+                    <option key={wf.id} value={wf.id}>
+                      {wf.name || wf.id}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Customer Selector for System Admins */}
+                {userRole === 'system_admin' && (
+                  <select
+                    value={metricsSelectedCustomer}
+                    onChange={(e) => setMetricsSelectedCustomer(e.target.value)}
+                    className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+                  >
+                    <option value="all">All Customers</option>
+                    {customers?.map((cust: any) => (
+                      <option key={cust.id} value={cust.id}>
+                        {cust.name || cust.domain}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                <button
+                  onClick={fetchMetrics}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            {metricsLoading && !metricsData ? (
+              <div className="p-12 text-center text-gray-500 text-sm">Loading metrics data...</div>
+            ) : metricsError ? (
+              <div className="p-12 text-center text-red-500 text-sm">{metricsError}</div>
+            ) : (
+              <div className="space-y-6">
+                {/* Metrics Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <MetricCard
+                    title="Total Requests"
+                    value={metricsData?.summary?.total_requests ?? 0}
+                    icon={<Activity className="h-5 w-5 text-blue-500" />}
+                  />
+                  <MetricCard
+                    title="Avg Latency"
+                    value={`${metricsData?.summary?.avg_latency_ms ?? 0}ms`}
+                    icon={<Clock className="h-5 w-5 text-amber-500" />}
+                  />
+                  <MetricCard
+                    title="Error Rate"
+                    value={`${metricsData?.summary?.error_rate ?? 0}%`}
+                    icon={<AlertTriangle className="h-5 w-5 text-red-500" />}
+                  />
+                </div>
+
+                {/* Traces Table */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-black flex items-center gap-2">
+                    <IconMap.database className="h-5 w-5 text-blue-600" />
+                    Recent Traces
+                  </h3>
+                  {(!metricsData?.traces || metricsData.traces.length === 0) ? (
+                    <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden p-8 text-center">
+                      <IconMap.activity className="mx-auto h-12 w-12 text-gray-200 mb-4" />
+                      <p className="text-gray-500 text-sm">No traces found for the selected filters.</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                      <table className="w-full text-left text-sm border-collapse">
+                        <thead className="bg-gray-50 text-gray-400 uppercase text-xs border-b border-gray-150">
+                          <tr>
+                            <th className="px-6 py-4 font-semibold text-gray-600">Status</th>
+                            <th className="px-6 py-4 font-semibold text-gray-600">Workflow ID / Name</th>
+                            <th className="px-6 py-4 font-semibold text-gray-600">Trace ID</th>
+                            <th className="px-6 py-4 font-semibold text-gray-600">Customer ID</th>
+                            <th className="px-6 py-4 font-semibold text-gray-600">Latency</th>
+                            <th className="px-6 py-4 font-semibold text-gray-600">Timestamp</th>
+                            <th className="px-6 py-4"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-150">
+                          {metricsData.traces.map((trace: any) => (
+                            <React.Fragment key={trace.trace_id}>
+                              <tr
+                                className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                onClick={() =>
+                                  setMetricsExpandedTrace(
+                                    metricsExpandedTrace === trace.trace_id ? null : trace.trace_id
+                                  )
+                                }
+                              >
+                                <td className="px-6 py-4">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                      trace.status === 'running'
+                                        ? 'bg-blue-50 text-blue-600 border border-blue-100 animate-pulse'
+                                        : trace.status === 'stopped'
+                                          ? 'bg-gray-100 text-gray-600 border border-gray-200'
+                                          : trace.status === 'failure' ||
+                                              trace.status === 'failed' ||
+                                              trace.violations?.length > 0
+                                            ? 'bg-red-50 text-red-600 border border-red-100'
+                                            : 'bg-green-50 text-green-600 border border-green-100'
+                                    }`}
+                                  >
+                                    {trace.status === 'running'
+                                      ? 'Running'
+                                      : trace.status === 'stopped'
+                                        ? 'Stopped'
+                                        : trace.status === 'failure' ||
+                                            trace.status === 'failed' ||
+                                            trace.violations?.length > 0
+                                          ? 'Failed'
+                                          : 'Completed'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 font-semibold text-gray-900">
+                                  {trace.workflow_name || trace.workflow_id}
+                                </td>
+                                <td className="px-6 py-4 font-mono text-gray-500 text-xs">
+                                  {trace.trace_id?.substring(0, 8)}...
+                                </td>
+                                <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                                  {trace.customer_id || '-'}
+                                </td>
+                                <td className="px-6 py-4 text-gray-950 font-semibold">
+                                  {trace.latency_ms}ms
+                                </td>
+                                <td className="px-6 py-4 text-gray-500">
+                                  {new Date(trace.timestamp * 1000).toLocaleString()}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <div className="inline-flex items-center gap-3 justify-end w-full">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedTraceForVisualizer(trace);
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 px-2 py-1 text-xs font-semibold transition-colors"
+                                    >
+                                      Graph
+                                    </button>
+                                    {trace.status === 'running' && (
+                                      <button
+                                        onClick={(e) => handleStopTrace(e, trace.trace_id)}
+                                        className="inline-flex items-center gap-1 rounded bg-red-50 hover:bg-red-100 text-red-700 px-2 py-1 text-xs font-semibold transition-colors"
+                                      >
+                                        Stop
+                                      </button>
+                                    )}
+                                    {trace.status !== 'running' && (
+                                      <button
+                                        onClick={(e) => handleRestartTrace(e, trace.trace_id)}
+                                        className="inline-flex items-center gap-1 rounded bg-green-50 hover:bg-green-100 text-green-700 px-2 py-1 text-xs font-semibold transition-colors"
+                                      >
+                                        Restart
+                                      </button>
+                                    )}
+                                    {metricsExpandedTrace === trace.trace_id ? (
+                                      <ChevronUp className="h-4 w-4 text-gray-400 inline" />
+                                    ) : (
+                                      <ChevronDown className="h-4 w-4 text-gray-400 inline" />
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                              {metricsExpandedTrace === trace.trace_id && (
+                                <tr className="bg-gray-50/50 w-full">
+                                  <td colSpan={7} className="px-6 py-6 border-b border-gray-150 max-w-0">
+                                    <div className="w-full overflow-hidden">
+                                      {trace.violations?.length > 0 && (
+                                        <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-lg text-xs flex flex-col gap-2">
+                                          <span className="text-red-700 font-bold uppercase tracking-wider">
+                                            Violations Detected
+                                          </span>
+                                          <div className="flex flex-wrap gap-1.5">
+                                            {trace.violations.map((v: string) => (
+                                              <span
+                                                key={v}
+                                                className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded text-[10px] border border-red-100"
+                                              >
+                                                {v}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                              Trace Payload
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-3">
+                                            <div className="inline-flex rounded-lg bg-gray-200 p-0.5">
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setTraceViewMode('tree');
+                                                }}
+                                                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                                                  traceViewMode === 'tree'
+                                                    ? 'bg-white text-gray-900 shadow-sm'
+                                                    : 'text-gray-600 hover:text-gray-900'
+                                                }`}
+                                              >
+                                                JSON Tree
+                                              </button>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setTraceViewMode('raw');
+                                                }}
+                                                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                                                  traceViewMode === 'raw'
+                                                    ? 'bg-white text-gray-900 shadow-sm'
+                                                    : 'text-gray-600 hover:text-gray-900'
+                                                }`}
+                                              >
+                                                Raw JSON
+                                              </button>
+                                            </div>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleCopyLog(trace);
+                                              }}
+                                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+                                            >
+                                              {copiedLogId === trace.trace_id ? (
+                                                <>
+                                                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                                  <span className="text-emerald-500 font-semibold font-sans">
+                                                    Copied!
+                                                  </span>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <Copy className="h-3.5 w-3.5 text-gray-400" />
+                                                  <span className="font-sans">Copy JSON</span>
+                                                </>
+                                              )}
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <div className="p-4 bg-gray-950 overflow-x-auto">
+                                          {traceViewMode === 'tree' ? (
+                                            <JsonTreeView data={trace} />
+                                          ) : (
+                                            <pre className="p-4 bg-gray-950 text-gray-100 rounded-lg overflow-x-auto max-h-[500px] text-[10px] font-mono leading-relaxed select-text w-full min-w-0">
+                                              {JSON.stringify(trace, null, 2)}
+                                            </pre>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </section>
@@ -4088,7 +4514,9 @@ export default function AdminPage() {
                           <th className="px-4 py-3">UI Label</th>
                           <th className="px-4 py-3">Type</th>
                           <th className="px-4 py-3">Default Value</th>
-                          {userRole === 'system_admin' && <th className="px-4 py-3 text-right">Actions</th>}
+                          {userRole === 'system_admin' && (
+                            <th className="px-4 py-3 text-right">Actions</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 bg-white">

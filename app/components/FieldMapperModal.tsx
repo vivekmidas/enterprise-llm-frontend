@@ -221,7 +221,7 @@ const formatMappingExpression = (paths: string | string[]): string | string[] =>
 
   // Produce standard Jinja2 variable syntax: {{path}}
   // The backend resolves these against the predecessor node's output data.
-  const formatted = pathList.map(p => `{{${p}}}`);
+  const formatted = pathList.map((p) => `{{${p}}}`);
   if (pathList.length === 1) {
     return formatted[0];
   }
@@ -247,11 +247,15 @@ const extractPathsFromExpression = (expr: any): string[] => {
 
   const matches = [...trimmed.matchAll(/\{\{\s*['"]?([^'"}]+)['"]?\s*\}\}/g)];
   if (matches.length > 0) {
-    return matches.map(m => m[1].trim());
+    return matches.map((m) => m[1].trim());
   }
 
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    return trimmed.slice(1, -1).split(',').map(s => s.trim()).filter(Boolean);
+    return trimmed
+      .slice(1, -1)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
 
   return [trimmed];
@@ -265,13 +269,21 @@ interface SourceTreePopoverProps {
   currentValue?: any;
 }
 
-function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose, currentValue }: SourceTreePopoverProps) {
+function SourceTreePopover({
+  sourceTree,
+  targetPath,
+  onSelect,
+  onClose,
+  currentValue,
+}: SourceTreePopoverProps) {
   const [search, setSearch] = useState('');
   const [popoverExpanded, setPopoverExpanded] = useState<Record<string, boolean>>({});
   const [selectedPaths, setSelectedPaths] = useState<string[]>(() => {
     return Array.from(new Set(extractPathsFromExpression(currentValue)));
   });
-  const [fixedPos, setFixedPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
+  const [fixedPos, setFixedPos] = useState<{ top?: number; bottom?: number; right: number } | null>(
+    null,
+  );
 
   // Calculate fixed position from trigger button so the popover escapes overflow containers
   useEffect(() => {
@@ -281,7 +293,10 @@ function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose, currentV
       const popoverHeight = 280;
       const spaceBelow = window.innerHeight - rect.bottom;
       if (spaceBelow < popoverHeight) {
-        setFixedPos({ bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right });
+        setFixedPos({
+          bottom: window.innerHeight - rect.top + 4,
+          right: window.innerWidth - rect.right,
+        });
       } else {
         setFixedPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
       }
@@ -345,7 +360,7 @@ function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose, currentV
           <div
             onClick={() => {
               if (isLeaf) {
-                setSelectedPaths(prev => {
+                setSelectedPaths((prev) => {
                   const unique = new Set(prev);
                   if (isChecked) {
                     unique.delete(node.path);
@@ -460,7 +475,7 @@ function SourceTreePopover({ sourceTree, targetPath, onSelect, onClose, currentV
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -732,7 +747,9 @@ export default function FieldMapperModal({
               <div className="flex items-center gap-1.5 relative w-[340px] flex-shrink-0">
                 <div className="flex-1 flex items-center bg-white border border-slate-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 shadow-sm transition-all overflow-hidden">
                   {/* Jinja2 template prefix indicator */}
-                  <span className="pl-2 pr-1 text-[10px] font-mono text-blue-400 select-none flex-shrink-0">{'{{ }}'}</span>
+                  <span className="pl-2 pr-1 text-[10px] font-mono text-blue-400 select-none flex-shrink-0">
+                    {'{{ }}'}
+                  </span>
                   <input
                     type="text"
                     value={
@@ -919,11 +936,12 @@ export default function FieldMapperModal({
                         : path.startsWith('data.')
                           ? path.slice(5)
                           : path;
-                      
-                      return sourceFields.some(field => 
-                        cleanPath === field ||
-                        cleanPath.startsWith(field + '.') ||
-                        cleanPath.startsWith(field + '[')
+
+                      return sourceFields.some(
+                        (field) =>
+                          cleanPath === field ||
+                          cleanPath.startsWith(field + '.') ||
+                          cleanPath.startsWith(field + '['),
                       );
                     };
 

@@ -192,7 +192,7 @@ const buildTreeFromSchema = (schema: any, prefix = ''): ContractTreeNode[] => {
     const val = props[key];
     const path = prefix ? `${prefix}.${key}` : key;
     const isLeaf = !(val.properties || val.type === 'object');
-    
+
     return {
       name: key,
       path,
@@ -229,10 +229,16 @@ const ContractTreeRenderer: React.FC<{
               <div className="flex items-center gap-1.5 flex-1 min-w-0">
                 {hasChildren ? (
                   <button
-                    onClick={() => setCollapsed((prev) => ({ ...prev, [node.path]: !prev[node.path] }))}
+                    onClick={() =>
+                      setCollapsed((prev) => ({ ...prev, [node.path]: !prev[node.path] }))
+                    }
                     className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors cursor-pointer shrink-0"
                   >
-                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                    {isExpanded ? (
+                      <ChevronDown className="w-3 h-3" />
+                    ) : (
+                      <ChevronRight className="w-3 h-3" />
+                    )}
                   </button>
                 ) : (
                   <span className="w-4 shrink-0" />
@@ -251,10 +257,12 @@ const ContractTreeRenderer: React.FC<{
                 <span className="text-slate-700 truncate font-semibold">
                   {node.name}
                   {node.required && (
-                    <span className="text-red-500 ml-0.5 font-bold" title="Required">*</span>
+                    <span className="text-red-500 ml-0.5 font-bold" title="Required">
+                      *
+                    </span>
                   )}
                 </span>
-                
+
                 <span className="text-[8px] font-semibold text-slate-500 bg-slate-100 px-1 rounded border border-slate-250/70 uppercase shrink-0">
                   {node.type}
                 </span>
@@ -271,7 +279,7 @@ const ContractTreeRenderer: React.FC<{
                           ? 'text-amber-600 bg-amber-50 border-amber-250 hover:bg-amber-100/80'
                           : 'text-slate-400 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
                       }`}
-                      title={node.required ? "Click to make optional" : "Click to make required"}
+                      title={node.required ? 'Click to make optional' : 'Click to make required'}
                     >
                       Req
                     </button>
@@ -282,21 +290,33 @@ const ContractTreeRenderer: React.FC<{
                           ? 'text-emerald-600 bg-emerald-50 border-emerald-250 hover:bg-emerald-100/80'
                           : 'text-slate-400 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
                       }`}
-                      title={node.stateable ? "Click to stop sharing state" : "Click to share value to workflow state"}
+                      title={
+                        node.stateable
+                          ? 'Click to stop sharing state'
+                          : 'Click to share value to workflow state'
+                      }
                     >
-                      <Share2 className={`w-2 h-2 ${node.stateable ? 'text-emerald-500' : 'text-slate-400'}`} />
+                      <Share2
+                        className={`w-2 h-2 ${node.stateable ? 'text-emerald-500' : 'text-slate-400'}`}
+                      />
                       Shared
                     </button>
                   </>
                 ) : (
                   <>
                     {node.required && (
-                      <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1 py-0.5 rounded border border-amber-250 tracking-wider uppercase shrink-0" title="Required Parameter">
+                      <span
+                        className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1 py-0.5 rounded border border-amber-250 tracking-wider uppercase shrink-0"
+                        title="Required Parameter"
+                      >
                         Req
                       </span>
                     )}
                     {node.stateable && (
-                      <span className="flex items-center gap-0.5 text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-250 tracking-wider uppercase shrink-0" title="State Shared Variable">
+                      <span
+                        className="flex items-center gap-0.5 text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-250 tracking-wider uppercase shrink-0"
+                        title="State Shared Variable"
+                      >
                         <Share2 className="w-2 h-2 text-emerald-500" />
                         Shared
                       </span>
@@ -307,9 +327,9 @@ const ContractTreeRenderer: React.FC<{
             </div>
 
             {hasChildren && isExpanded && (
-              <ContractTreeRenderer 
-                nodes={node.children!} 
-                depth={depth + 1} 
+              <ContractTreeRenderer
+                nodes={node.children!}
+                depth={depth + 1}
                 isOutput={isOutput}
                 onToggleRequired={onToggleRequired}
                 onToggleStateable={onToggleStateable}
@@ -688,14 +708,20 @@ export default function PropertiesPanel({
     }
   }, [stringifiedNodeProps, selectedNode?.id]);
 
-  const stringifiedInputContract = JSON.stringify((selectedNode?.data as any)?.input_contract || (selectedNode?.data as any)?.inputContract || {});
-  const stringifiedOutputContract = JSON.stringify((selectedNode?.data as any)?.output_contract || (selectedNode?.data as any)?.outputContract || {});
+  const stringifiedInputContract = JSON.stringify(
+    (selectedNode?.data as any)?.input_contract || (selectedNode?.data as any)?.inputContract || {},
+  );
+  const stringifiedOutputContract = JSON.stringify(
+    (selectedNode?.data as any)?.output_contract ||
+      (selectedNode?.data as any)?.outputContract ||
+      {},
+  );
   useEffect(() => {
     if (selectedNode) {
       const localData = selectedNode.data as any;
-      const nodeInput = (localData.input_contract || localData.inputContract || {});
-      const nodeOutput = (localData.output_contract || localData.outputContract || {});
-      
+      const nodeInput = localData.input_contract || localData.inputContract || {};
+      const nodeOutput = localData.output_contract || localData.outputContract || {};
+
       if (JSON.stringify(inputContract) !== JSON.stringify(nodeInput)) {
         setInputContract(nodeInput);
       }
@@ -756,7 +782,9 @@ export default function PropertiesPanel({
     const currentContract = { ...(outputContract || {}) };
     const rules = Array.isArray(currentContract.rules) ? [...currentContract.rules] : [];
 
-    const ruleIdx = rules.findIndex((r: any) => r && (r.field_name === fieldKey || r.name === fieldKey));
+    const ruleIdx = rules.findIndex(
+      (r: any) => r && (r.field_name === fieldKey || r.name === fieldKey),
+    );
     if (ruleIdx >= 0) {
       rules[ruleIdx] = {
         ...rules[ruleIdx],
@@ -794,7 +822,9 @@ export default function PropertiesPanel({
     const currentContract = { ...(outputContract || {}) };
     const rules = Array.isArray(currentContract.rules) ? [...currentContract.rules] : [];
 
-    const ruleIdx = rules.findIndex((r: any) => r && (r.field_name === fieldKey || r.name === fieldKey));
+    const ruleIdx = rules.findIndex(
+      (r: any) => r && (r.field_name === fieldKey || r.name === fieldKey),
+    );
     if (ruleIdx >= 0) {
       rules[ruleIdx] = {
         ...rules[ruleIdx],
@@ -871,15 +901,20 @@ export default function PropertiesPanel({
     setIsSaving(true);
     try {
       const localData = selectedNode.data as any;
-      const userPropsArray = Array.isArray(localData.user_properties) ? (localData.user_properties as any[]) : [];
-      const systemPropsArray = Array.isArray(localData.system_properties) ? (localData.system_properties as any[]) : [];
+      const userPropsArray = Array.isArray(localData.user_properties)
+        ? (localData.user_properties as any[])
+        : [];
+      const systemPropsArray = Array.isArray(localData.system_properties)
+        ? (localData.system_properties as any[])
+        : [];
       const schemaArray = (localData.propertySchema || localData.property_schema || []) as any[];
 
       const sanitizedProps = { ...properties };
       Object.keys(sanitizedProps).forEach((key) => {
-        const fieldSchema = schemaArray.find((f: any) => f.key === key) ||
-                            userPropsArray.find((f: any) => f.key === key) ||
-                            systemPropsArray.find((f: any) => f.key === key);
+        const fieldSchema =
+          schemaArray.find((f: any) => f.key === key) ||
+          userPropsArray.find((f: any) => f.key === key) ||
+          systemPropsArray.find((f: any) => f.key === key);
         if (fieldSchema) {
           const fieldType = fieldSchema.type || fieldSchema.field_type;
           if (fieldType === 'choice' && !fieldSchema.multiple) {
@@ -927,8 +962,10 @@ export default function PropertiesPanel({
           properties: res?.properties || {},
           input_contract: res?.input_contract || res?.inputContract || {},
           output_contract: res?.output_contract || res?.outputContract || {},
-          property_schema: res?.property_schema || res?.propertySchema || nodeData.property_schema || [],
-          propertySchema: res?.property_schema || res?.propertySchema || nodeData.propertySchema || [],
+          property_schema:
+            res?.property_schema || res?.propertySchema || nodeData.property_schema || [],
+          propertySchema:
+            res?.property_schema || res?.propertySchema || nodeData.propertySchema || [],
         };
         onUpdateNode(selectedNode.id, newData);
       }
@@ -1251,9 +1288,7 @@ export default function PropertiesPanel({
           )}
         </label>
         <input
-          type={
-            fieldType === 'password' ? 'password' : fieldType === 'number' ? 'number' : 'text'
-          }
+          type={fieldType === 'password' ? 'password' : fieldType === 'number' ? 'number' : 'text'}
           disabled={isDisabled}
           value={displayValue}
           placeholder={field.placeholder}
@@ -1494,7 +1529,9 @@ export default function PropertiesPanel({
                     {inputTree.length > 0 ? (
                       <ContractTreeRenderer nodes={inputTree} />
                     ) : (
-                      <span className="text-[10px] text-slate-500 italic">No input fields defined.</span>
+                      <span className="text-[10px] text-slate-500 italic">
+                        No input fields defined.
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1520,10 +1557,14 @@ export default function PropertiesPanel({
                         nodes={outputTree}
                         isOutput={true}
                         onToggleRequired={(path, isReq) => handleToggleRequiredField(path, isReq)}
-                        onToggleStateable={(path, isState) => handleToggleStateableField(path, isState)}
+                        onToggleStateable={(path, isState) =>
+                          handleToggleStateableField(path, isState)
+                        }
                       />
                     ) : (
-                      <span className="text-[10px] text-slate-500 italic">No output fields defined.</span>
+                      <span className="text-[10px] text-slate-500 italic">
+                        No output fields defined.
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1546,7 +1587,6 @@ export default function PropertiesPanel({
             String(
               (selectedNode?.data as any)?.node_type || (selectedNode?.data as any)?.nodeType || '',
             ).toUpperCase() === 'TRIGGER';
-
 
           return (
             <div className="space-y-4">
@@ -1582,14 +1622,27 @@ export default function PropertiesPanel({
                                 ? 'number'
                                 : 'string';
 
-                          const userPropsArray = Array.isArray((selectedNode?.data as any)?.user_properties) ? (selectedNode?.data as any)?.user_properties : [];
-                          const systemPropsArray = Array.isArray((selectedNode?.data as any)?.system_properties) ? (selectedNode?.data as any)?.system_properties : [];
-                          const schemaArray = (selectedNode?.data as any)?.propertySchema || (selectedNode?.data as any)?.property_schema || [];
+                          const userPropsArray = Array.isArray(
+                            (selectedNode?.data as any)?.user_properties,
+                          )
+                            ? (selectedNode?.data as any)?.user_properties
+                            : [];
+                          const systemPropsArray = Array.isArray(
+                            (selectedNode?.data as any)?.system_properties,
+                          )
+                            ? (selectedNode?.data as any)?.system_properties
+                            : [];
+                          const schemaArray =
+                            (selectedNode?.data as any)?.propertySchema ||
+                            (selectedNode?.data as any)?.property_schema ||
+                            [];
 
-                          const fieldSchema = schemaArray.find((f: any) => f.key === key) ||
-                                              userPropsArray.find((f: any) => f.key === key) ||
-                                              systemPropsArray.find((f: any) => f.key === key);
-                          const fieldType = fieldSchema?.type || fieldSchema?.field_type || valueType;
+                          const fieldSchema =
+                            schemaArray.find((f: any) => f.key === key) ||
+                            userPropsArray.find((f: any) => f.key === key) ||
+                            systemPropsArray.find((f: any) => f.key === key);
+                          const fieldType =
+                            fieldSchema?.type || fieldSchema?.field_type || valueType;
 
                           if (fieldType === 'choice') {
                             const rawOptions = fieldSchema?.options || fieldSchema?.value;
@@ -1626,7 +1679,10 @@ export default function PropertiesPanel({
                                     multiple
                                     value={Array.isArray(value) ? value.map(String) : []}
                                     onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                                      const values = Array.from(event.target.selectedOptions, (option) => option.value);
+                                      const values = Array.from(
+                                        event.target.selectedOptions,
+                                        (option) => option.value,
+                                      );
                                       handlePropertyChange(key, values);
                                     }}
                                     className="h-28 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm"
@@ -1655,7 +1711,11 @@ export default function PropertiesPanel({
                                   )}
                                 </label>
                                 <select
-                                  value={options.includes(String(value)) ? String(value) : (options[0] || '')}
+                                  value={
+                                    options.includes(String(value))
+                                      ? String(value)
+                                      : options[0] || ''
+                                  }
                                   onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
                                     handlePropertyChange(key, event.target.value)
                                   }
@@ -1697,7 +1757,9 @@ export default function PropertiesPanel({
                                 <input
                                   type="number"
                                   value={Number(value ?? 0)}
-                                  onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
+                                  onChange={(e) =>
+                                    handlePropertyChange(key, Number(e.target.value))
+                                  }
                                   placeholder="Value"
                                   className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 />

@@ -38,7 +38,7 @@ import {
   History,
   Bell,
   Blocks,
-  RefreshCcw
+  RefreshCcw,
 } from 'lucide-react';
 
 export const IconMap: Record<string, any> = {

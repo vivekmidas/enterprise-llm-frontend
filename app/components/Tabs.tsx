@@ -31,39 +31,27 @@ export const Tabs: React.FC<TabsProps> = ({
   };
 
   const variantClasses = {
-    default:
-      'border-b border-gray-200 gap-0',
-    pill:
-      'gap-2 bg-gray-100 p-1 rounded-lg inline-flex',
-    underline:
-      'border-b border-gray-200 gap-4',
+    default: 'border-b border-gray-200 gap-0',
+    pill: 'gap-2 bg-gray-100 p-1 rounded-lg inline-flex',
+    underline: 'border-b border-gray-200 gap-4',
   };
 
   const tabButtonClasses = {
-    default:
-      'px-4 py-3 text-sm font-medium border-b-2 transition-colors duration-200',
-    pill:
-      'px-4 py-2 text-sm font-medium rounded-md transition-all duration-200',
-    underline:
-      'px-0 py-2 text-sm font-medium border-b-2 transition-colors duration-200',
+    default: 'px-4 py-3 text-sm font-medium border-b-2 transition-colors duration-200',
+    pill: 'px-4 py-2 text-sm font-medium rounded-md transition-all duration-200',
+    underline: 'px-0 py-2 text-sm font-medium border-b-2 transition-colors duration-200',
   };
 
   const activeClasses = {
-    default:
-      'text-gray-900 border-b-blue-600',
-    pill:
-      'bg-white text-gray-900 shadow-sm',
-    underline:
-      'text-gray-900 border-b-blue-600',
+    default: 'text-gray-900 border-b-blue-600',
+    pill: 'bg-white text-gray-900 shadow-sm',
+    underline: 'text-gray-900 border-b-blue-600',
   };
 
   const inactiveClasses = {
-    default:
-      'text-gray-600 border-b-transparent hover:text-gray-900 hover:border-b-gray-300',
-    pill:
-      'text-gray-600 hover:text-gray-900',
-    underline:
-      'text-gray-600 border-b-transparent hover:text-gray-900 hover:border-b-gray-300',
+    default: 'text-gray-600 border-b-transparent hover:text-gray-900 hover:border-b-gray-300',
+    pill: 'text-gray-600 hover:text-gray-900',
+    underline: 'text-gray-600 border-b-transparent hover:text-gray-900 hover:border-b-gray-300',
   };
 
   return (
@@ -94,7 +82,7 @@ export const Tabs: React.FC<TabsProps> = ({
               <div key={item.id} className="py-4">
                 {item.content}
               </div>
-            )
+            ),
         )}
       </div>
     </div>

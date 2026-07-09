@@ -23,11 +23,10 @@ export default function LandingPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    const email = localStorage.getItem('user_email');
+    const token = localStorage.getItem('token');
+
     if (token) {
       setIsAuthenticated(true);
-      setUserEmail(email);
     }
   }, []);
 

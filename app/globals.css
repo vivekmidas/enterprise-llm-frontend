@@ -500,7 +500,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -536,12 +537,7 @@
 
 /* Loading skeleton */
 .skeleton-loading {
-  background: linear-gradient(
-    90deg,
-    #f3f4f6 25%,
-    #e5e7eb 50%,
-    #f3f4f6 75%
-  );
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
   background-size: 1000px 100%;
   animation: shimmer 2s infinite;
 }
@@ -551,7 +547,7 @@ button,
 input,
 select,
 textarea,
-[role="button"],
+[role='button'],
 a {
   @apply focus:outline-none;
 }
@@ -560,7 +556,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
-[role="button"]:focus-visible,
+[role='button']:focus-visible,
 a:focus-visible {
   @apply ring-2 ring-blue-500 ring-offset-2 rounded;
 }
@@ -679,7 +675,8 @@ a.underline-hover:hover::after {
 }
 
 @keyframes shake {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateX(0);
   }
   25% {

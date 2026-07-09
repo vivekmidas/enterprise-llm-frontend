@@ -66,12 +66,21 @@ function AgentBuilderContent() {
 
   useEffect(() => {
     setIsMounted(true);
-    const storedUserId = localStorage.getItem('user_id');
-    if (storedUserId) setUserId(storedUserId);
-    const storedRole = localStorage.getItem('user_role');
-    if (storedRole) setUserRole(storedRole || '');
-    const storedEmail = localStorage.getItem('user_email');
-    if (storedRole) setUserEmail(storedEmail || '');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (token) {
+      api
+        .getCurrentUser()
+        .then((userData) => {
+          setUserId(userData.id);
+          setUserRole(userData.role || '');
+          setUserEmail(userData.email || '');
+        })
+        .catch((err) => {
+          console.error('Failed to fetch user in workflow builder:', err);
+          api.logout();
+          window.location.href = '/login';
+        });
+    }
   }, []);
 
   // Sync all existing nodes on the canvas if the list of available agents refreshes
@@ -217,8 +226,16 @@ function AgentBuilderContent() {
                 data: {
                   ...n.data,
                   properties: { ...(n.data.properties || {}), ...fetchedProperties },
-                  property_schema: response.property_schema || response.propertySchema || n.data.property_schema || [],
-                  propertySchema: response.property_schema || response.propertySchema || n.data.propertySchema || [],
+                  property_schema:
+                    response.property_schema ||
+                    response.propertySchema ||
+                    n.data.property_schema ||
+                    [],
+                  propertySchema:
+                    response.property_schema ||
+                    response.propertySchema ||
+                    n.data.propertySchema ||
+                    [],
                 },
               };
               // Sync the selectedNode state with the newly fetched data
@@ -603,8 +620,13 @@ function AgentBuilderContent() {
                 data: {
                   ...node.data,
                   executionStatus,
-                  output: executionStatus === 'error' ? undefined : (output?.output || output),
-                  error: executionStatus === 'error' ? (typeof output === 'string' ? output : output?.message || 'Execution failed') : undefined,
+                  output: executionStatus === 'error' ? undefined : output?.output || output,
+                  error:
+                    executionStatus === 'error'
+                      ? typeof output === 'string'
+                        ? output
+                        : output?.message || 'Execution failed'
+                      : undefined,
                 },
               }
             : node,

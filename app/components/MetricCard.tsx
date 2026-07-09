@@ -26,11 +26,7 @@ export function MetricCard({
     <div className="rounded-xl border border-l-4 border-l-blue-500 border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          {icon && (
-            <div className="p-2 rounded-lg bg-blue-50">
-              {icon}
-            </div>
-          )}
+          {icon && <div className="p-2 rounded-lg bg-blue-50">{icon}</div>}
           <h3 className="text-sm font-medium text-gray-600">{title}</h3>
         </div>
         {trend !== undefined && (
@@ -39,11 +35,7 @@ export function MetricCard({
               trendIsGood ? 'text-green-600' : 'text-red-600'
             }`}
           >
-            {trendIsGood ? (
-              <ArrowUp className="h-3 w-3" />
-            ) : (
-              <ArrowDown className="h-3 w-3" />
-            )}
+            {trendIsGood ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
             {Math.abs(trend)}%
           </div>
         )}

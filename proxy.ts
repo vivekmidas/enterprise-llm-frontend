@@ -12,8 +12,8 @@ export function proxy(request: NextRequest) {
   const isPublicPath = publicPaths.includes(pathname);
 
   // Check if the user has an authentication token in their cookies
-  // This assumes your backend sets an httpOnly cookie named 'admin_token' upon login.
-  const isAuthenticated = request.cookies.has('admin_token');
+  // This assumes your backend sets an httpOnly cookie named 'token' upon login.
+  const isAuthenticated = request.cookies.has('token');
 
   // Case 1: User is NOT authenticated
   if (!isAuthenticated) {

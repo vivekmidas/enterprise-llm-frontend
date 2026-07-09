@@ -2,17 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import {
-  Menu,
-  X,
-  Home,
-  Workflow,
-  Database,
-  Settings,
-  BarChart3,
-  ChevronDown,
-} from 'lucide-react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Menu, X, Home, Workflow, Database, Settings, BarChart3, ChevronDown } from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -31,7 +22,7 @@ const navSections: NavSection[] = [
     title: 'Navigation',
     items: [
       { label: 'Dashboard', href: '/admin', icon: <Home className="w-4 h-4" /> },
-      { label: 'Metrics', href: '/metrics', icon: <BarChart3 className="w-4 h-4" /> },
+      { label: 'Metrics', href: '/admin?tab=metrics', icon: <BarChart3 className="w-4 h-4" /> },
     ],
   },
   {
@@ -55,8 +46,19 @@ export function AdminSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string>('Navigation');
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get('tab');
 
-  const isActive = (href: string) => pathname === href;
+  const isActive = (href: string) => {
+    if (href.startsWith('/admin?tab=')) {
+      const targetTab = href.split('tab=')[1];
+      return pathname === '/admin' && currentTab === targetTab;
+    }
+    if (href === '/admin') {
+      return pathname === '/admin' && currentTab !== 'metrics';
+    }
+    return pathname === href;
+  };
 
   return (
     <>
@@ -139,9 +141,7 @@ export function AdminSidebar() {
       </aside>
 
       {/* Overlay for mobile */}
-      {!isCollapsed && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" />
-      )}
+      {!isCollapsed && <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" />}
     </>
   );
 }

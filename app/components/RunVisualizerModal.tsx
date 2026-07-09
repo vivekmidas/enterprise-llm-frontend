@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  ReactFlow, 
-  Background, 
-  Controls, 
-  type Node, 
-  type Edge, 
-  useNodesState, 
-  useEdgesState 
+import {
+  ReactFlow,
+  Background,
+  Controls,
+  type Node,
+  type Edge,
+  useNodesState,
+  useEdgesState,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { CustomNode } from './reactflow/CustomNode';
@@ -26,7 +26,10 @@ interface RunVisualizerModalProps {
   onClose: () => void;
 }
 
-export default function RunVisualizerModal({ trace: initialTrace, onClose }: RunVisualizerModalProps) {
+export default function RunVisualizerModal({
+  trace: initialTrace,
+  onClose,
+}: RunVisualizerModalProps) {
   const [trace, setTrace] = useState<any>(initialTrace);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -38,12 +41,15 @@ export default function RunVisualizerModal({ trace: initialTrace, onClose }: Run
   // Fetch full trace details
   const fetchTraceDetails = useCallback(async () => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch(`http://localhost:8000/api/observability/traces/${initialTrace.trace_id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `http://localhost:8000/api/observability/traces/${initialTrace.trace_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
       if (response.ok) {
         const data = await response.json();
         setTrace(data);
@@ -156,7 +162,7 @@ export default function RunVisualizerModal({ trace: initialTrace, onClose }: Run
                 readOnly: true,
               },
             };
-          })
+          }),
         );
 
         // If the workflow is no longer running, clear interval
@@ -174,13 +180,16 @@ export default function RunVisualizerModal({ trace: initialTrace, onClose }: Run
     if (!confirm('Are you sure you want to stop this running workflow?')) return;
     setIsStopping(true);
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch(`http://localhost:8000/api/observability/traces/${trace.trace_id}/stop`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `http://localhost:8000/api/observability/traces/${trace.trace_id}/stop`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
       if (response.ok) {
         alert('Stop signal sent.');
         await fetchTraceDetails();
@@ -215,7 +224,6 @@ export default function RunVisualizerModal({ trace: initialTrace, onClose }: Run
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/70 backdrop-blur-sm p-6">
       <div className="relative flex flex-col w-full h-full max-w-6xl bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-gray-150 px-6 py-4 bg-gray-50">
           <div className="flex items-center gap-3">
@@ -226,12 +234,10 @@ export default function RunVisualizerModal({ trace: initialTrace, onClose }: Run
               <h2 className="text-base font-bold text-gray-900">
                 Observability Visualizer: {trace.workflow_name || trace.workflow_id}
               </h2>
-              <p className="text-xs text-gray-500 font-mono">
-                Trace ID: {trace.trace_id}
-              </p>
+              <p className="text-xs text-gray-500 font-mono">Trace ID: {trace.trace_id}</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {/* Status Indicator */}
             <span
@@ -271,11 +277,12 @@ export default function RunVisualizerModal({ trace: initialTrace, onClose }: Run
 
         {/* Modal Main Area */}
         <div className="flex flex-1 relative overflow-hidden bg-gray-50/50">
-          
           {loading ? (
             <div className="flex flex-col items-center justify-center w-full h-full gap-3">
               <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
-              <span className="text-sm font-semibold text-gray-500">Loading execution graph...</span>
+              <span className="text-sm font-semibold text-gray-500">
+                Loading execution graph...
+              </span>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center w-full h-full gap-3 p-6 text-center">
@@ -285,7 +292,6 @@ export default function RunVisualizerModal({ trace: initialTrace, onClose }: Run
             </div>
           ) : (
             <div className="flex w-full h-full relative">
-              
               {/* ReactFlow Canvas */}
               <div className="flex-1 h-full relative">
                 <ReactFlow
@@ -300,7 +306,6 @@ export default function RunVisualizerModal({ trace: initialTrace, onClose }: Run
                   edgesFocusable={false}
                   elementsSelectable={true}
                   fitView
-                  
                   minZoom={0.2}
                   maxZoom={1.5}
                 >
@@ -340,7 +345,8 @@ export default function RunVisualizerModal({ trace: initialTrace, onClose }: Run
                               ? 'text-emerald-600'
                               : selectedNode.status === 'running'
                                 ? 'text-blue-600 animate-pulse'
-                                : selectedNode.status === 'exception' || selectedNode.status === 'failure'
+                                : selectedNode.status === 'exception' ||
+                                    selectedNode.status === 'failure'
                                   ? 'text-rose-600'
                                   : 'text-gray-500'
                           }`}

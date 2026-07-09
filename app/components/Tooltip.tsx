@@ -44,9 +44,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       {children}
 
       {isVisible && (
-        <div
-          className={`absolute ${positionClasses[position]} animate-fade-in`}
-        >
+        <div className={`absolute ${positionClasses[position]} animate-fade-in`}>
           <div
             className={`px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-medium whitespace-nowrap z-50 shadow-lg ${className}`}
           >
@@ -57,10 +55,10 @@ export const Tooltip: React.FC<TooltipProps> = ({
                 position === 'top'
                   ? 'top-full left-1/2 -translate-x-1/2 border-t-gray-900 border-l-transparent border-r-transparent border-b-transparent'
                   : position === 'bottom'
-                  ? 'bottom-full left-1/2 -translate-x-1/2 border-b-gray-900 border-l-transparent border-r-transparent border-t-transparent'
-                  : position === 'left'
-                  ? 'right-full top-1/2 -translate-y-1/2 border-l-gray-900 border-t-transparent border-b-transparent border-r-transparent'
-                  : 'left-full top-1/2 -translate-y-1/2 border-r-gray-900 border-t-transparent border-b-transparent border-l-transparent'
+                    ? 'bottom-full left-1/2 -translate-x-1/2 border-b-gray-900 border-l-transparent border-r-transparent border-t-transparent'
+                    : position === 'left'
+                      ? 'right-full top-1/2 -translate-y-1/2 border-l-gray-900 border-t-transparent border-b-transparent border-r-transparent'
+                      : 'left-full top-1/2 -translate-y-1/2 border-r-gray-900 border-t-transparent border-b-transparent border-l-transparent'
               }`}
             />
           </div>
