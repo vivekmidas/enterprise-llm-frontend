@@ -1,4 +1,5 @@
 # Visual Comparison Guide
+
 ## UI Changes Before & After
 
 ---
@@ -6,6 +7,7 @@
 ## 1. FEATURE CARDS ON LANDING PAGE
 
 ### BEFORE
+
 ```
 ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
 │                 │  │                 │  │                 │
@@ -25,6 +27,7 @@
 ```
 
 ### AFTER
+
 ```
 ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
 │ ┃               │  │ ┃               │  │ ┃               │
@@ -51,6 +54,7 @@
 ## 2. BUTTONS
 
 ### BEFORE
+
 ```
 ┌────────────────────────────────────────────┐
 │        Start Building Free →               │  (blue, no feedback)
@@ -66,6 +70,7 @@
 ```
 
 ### AFTER
+
 ```
 On hover:                          On click:
 ┌──────────────────────────────┐   ┌──────────────────────────────┐
@@ -91,6 +96,7 @@ On hover:                          On click:
 ## 3. ADMIN PANEL - BEFORE & AFTER
 
 ### BEFORE
+
 ```
 ┌──────────────────────────────────────────────────────┐
 │ Logo    Search    Docs    [User]                    │  Header
@@ -112,6 +118,7 @@ On hover:                          On click:
 ```
 
 ### AFTER
+
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │ Logo    [⌘K Search]    [Documentation]    [Settings] [User ▼]  │  Header
@@ -150,6 +157,7 @@ On hover:                          On click:
 ## 4. METRICS DASHBOARD
 
 ### BEFORE
+
 ```
 ┌──────────────────────────────────────────────────────┐
 │ Metrics Dashboard                                     │
@@ -176,6 +184,7 @@ Issues:
 ```
 
 ### AFTER
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ Metrics Dashboard  │ Last 24h ▼ │ Last 7d │ Custom │ [CSV] [⟳] │  Top Bar
@@ -242,6 +251,7 @@ Issues:
 ## 5. FORM FIELD IMPROVEMENTS
 
 ### BEFORE
+
 ```
 ┌───────────────────┐
 │ Email Address     │  (plain label)
@@ -262,6 +272,7 @@ On error:
 ```
 
 ### AFTER
+
 ```
 Normal state:
 ┌────────────────────────────────────┐
@@ -317,6 +328,7 @@ On success:
 ### Node Types Visual Language
 
 **Before:**
+
 ```
 All nodes look similar with maybe different icons
 - Generic appearance
@@ -324,6 +336,7 @@ All nodes look similar with maybe different icons
 ```
 
 **After:**
+
 ```
 ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
 │ ┃        │  │ ┃        │  │ ┃        │  │ ┃        │
@@ -343,6 +356,7 @@ All nodes look similar with maybe different icons
 ## 7. RESPONSIVE BEHAVIOR
 
 ### Before
+
 ```
 Mobile (375px):
 ┌─────────────┐
@@ -359,6 +373,7 @@ Mobile (375px):
 ```
 
 ### After
+
 ```
 Desktop (1440px):
 ┌─────────────────────────────────────────────────────┐
@@ -424,6 +439,7 @@ Mobile (375px):
 ## 8. WORKFLOW BUILDER CANVAS
 
 ### Before
+
 ```
 ┌──────────────────────────────────────────┐
 │ Simple toolbar at top                    │
@@ -454,6 +470,7 @@ Mobile (375px):
 ```
 
 ### After
+
 ```
 ┌────────────────────────────────────────────────────────────┐
 │ Home / Workflows / My Workflow  │ [100%] [+] [-] │ [Save] │  Breadcrumb & Controls
@@ -509,6 +526,7 @@ Mobile (375px):
 ## Color Reference
 
 ### Accent System
+
 ```
 ┌─────────────┬─────────────┬──────────────┐
 │ Blue        │ Green       │ Amber        │
@@ -522,6 +540,7 @@ Mobile (375px):
 ```
 
 ### Shadow System
+
 ```
 Shadow-sm:  0 1px 2px rgba(0,0,0,0.05)    (subtle hover)
 Shadow:     0 4px 6px rgba(0,0,0,0.07)    (normal cards)
@@ -544,18 +563,18 @@ px-4 py-2       │ px-6 py-3        │ px-8 py-4
 
 ## Summary of All Changes
 
-| Area | Before | After | Impact |
-|------|--------|-------|--------|
-| **Cards** | Plain white | Colored accent border + hover shadow | High visual polish |
-| **Buttons** | Static | Hover effect + press feedback | Better UX |
-| **Navigation** | None | Persistent sidebar | Better wayfinding |
-| **Forms** | Minimal labels | Clear labels + helper text + errors | Higher usability |
-| **Spacing** | Cramped | Generous padding (1.5rem → 2rem) | Modern/minimal feel |
-| **Color** | Inconsistent | Systematic accent colors | Professional appearance |
-| **Icons** | Generic | Color-coded by type | Faster comprehension |
-| **Responsive** | Basic | Mobile/tablet/desktop optimized | Better experience |
-| **Accessibility** | Basic | Focus rings + ARIA labels | WCAG AA compliant |
-| **Animations** | None | Smooth transitions | Polish & feedback |
+| Area              | Before         | After                                | Impact                  |
+| ----------------- | -------------- | ------------------------------------ | ----------------------- |
+| **Cards**         | Plain white    | Colored accent border + hover shadow | High visual polish      |
+| **Buttons**       | Static         | Hover effect + press feedback        | Better UX               |
+| **Navigation**    | None           | Persistent sidebar                   | Better wayfinding       |
+| **Forms**         | Minimal labels | Clear labels + helper text + errors  | Higher usability        |
+| **Spacing**       | Cramped        | Generous padding (1.5rem → 2rem)     | Modern/minimal feel     |
+| **Color**         | Inconsistent   | Systematic accent colors             | Professional appearance |
+| **Icons**         | Generic        | Color-coded by type                  | Faster comprehension    |
+| **Responsive**    | Basic          | Mobile/tablet/desktop optimized      | Better experience       |
+| **Accessibility** | Basic          | Focus rings + ARIA labels            | WCAG AA compliant       |
+| **Animations**    | None           | Smooth transitions                   | Polish & feedback       |
 
 ---
 

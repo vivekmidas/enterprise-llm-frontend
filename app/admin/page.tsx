@@ -2786,8 +2786,8 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-150">
-                    {logs.map((log: any) => (
-                      <React.Fragment key={log.id}>
+                    {logs.map((log: any, index: number) => (
+                      <React.Fragment key={log.id || `audit-fallback-${index}`}>
                         <tr
                           className="hover:bg-gray-50 cursor-pointer transition-colors"
                           onClick={() =>
@@ -2858,8 +2858,8 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-150">
-                    {logs.map((log: any) => (
-                      <React.Fragment key={log.trace_id}>
+                    {logs.map((log: any, index: number) => (
+                      <React.Fragment key={log.trace_id || `trace-fallback-${index}`}>
                         <tr
                           className="hover:bg-gray-50 cursor-pointer transition-colors"
                           onClick={() =>
@@ -2961,9 +2961,9 @@ export default function AdminPage() {
                                       Violations Detected
                                     </span>
                                     <div className="flex flex-wrap gap-1.5">
-                                      {log.violations.map((v: string) => (
+                                      {log.violations.map((v: string, idx: number) => (
                                         <span
-                                          key={v}
+                                          key={`${v}-${idx}`}
                                           className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded text-[10px] border border-red-100"
                                         >
                                           {v}
@@ -3063,7 +3063,9 @@ export default function AdminPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-150 pb-4">
               <div className="flex items-center gap-2">
                 <Activity className="h-5 w-5 text-blue-600 animate-pulse" />
-                <h2 className="text-xl font-semibold text-black font-sans">Performance Metrics & Traces</h2>
+                <h2 className="text-xl font-semibold text-black font-sans">
+                  Performance Metrics & Traces
+                </h2>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 {/* Time Range Selector */}
@@ -3148,10 +3150,12 @@ export default function AdminPage() {
                     <IconMap.database className="h-5 w-5 text-blue-600" />
                     Recent Traces
                   </h3>
-                  {(!metricsData?.traces || metricsData.traces.length === 0) ? (
+                  {!metricsData?.traces || metricsData.traces.length === 0 ? (
                     <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden p-8 text-center">
                       <IconMap.activity className="mx-auto h-12 w-12 text-gray-200 mb-4" />
-                      <p className="text-gray-500 text-sm">No traces found for the selected filters.</p>
+                      <p className="text-gray-500 text-sm">
+                        No traces found for the selected filters.
+                      </p>
                     </div>
                   ) : (
                     <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -3159,7 +3163,9 @@ export default function AdminPage() {
                         <thead className="bg-gray-50 text-gray-400 uppercase text-xs border-b border-gray-150">
                           <tr>
                             <th className="px-6 py-4 font-semibold text-gray-600">Status</th>
-                            <th className="px-6 py-4 font-semibold text-gray-600">Workflow ID / Name</th>
+                            <th className="px-6 py-4 font-semibold text-gray-600">
+                              Workflow ID / Name
+                            </th>
                             <th className="px-6 py-4 font-semibold text-gray-600">Trace ID</th>
                             <th className="px-6 py-4 font-semibold text-gray-600">Customer ID</th>
                             <th className="px-6 py-4 font-semibold text-gray-600">Latency</th>
@@ -3168,13 +3174,15 @@ export default function AdminPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-150">
-                          {metricsData.traces.map((trace: any) => (
-                            <React.Fragment key={trace.trace_id}>
+                          {metricsData.traces.map((trace: any, index: number) => (
+                            <React.Fragment
+                              key={trace.trace_id || `metric-trace-fallback-${index}`}
+                            >
                               <tr
                                 className="hover:bg-gray-50 cursor-pointer transition-colors"
                                 onClick={() =>
                                   setMetricsExpandedTrace(
-                                    metricsExpandedTrace === trace.trace_id ? null : trace.trace_id
+                                    metricsExpandedTrace === trace.trace_id ? null : trace.trace_id,
                                   )
                                 }
                               >
@@ -3255,7 +3263,10 @@ export default function AdminPage() {
                               </tr>
                               {metricsExpandedTrace === trace.trace_id && (
                                 <tr className="bg-gray-50/50 w-full">
-                                  <td colSpan={7} className="px-6 py-6 border-b border-gray-150 max-w-0">
+                                  <td
+                                    colSpan={7}
+                                    className="px-6 py-6 border-b border-gray-150 max-w-0"
+                                  >
                                     <div className="w-full overflow-hidden">
                                       {trace.violations?.length > 0 && (
                                         <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-lg text-xs flex flex-col gap-2">
@@ -3263,9 +3274,9 @@ export default function AdminPage() {
                                             Violations Detected
                                           </span>
                                           <div className="flex flex-wrap gap-1.5">
-                                            {trace.violations.map((v: string) => (
+                                            {trace.violations.map((v: string, idx: number) => (
                                               <span
-                                                key={v}
+                                                key={`${v}-${idx}`}
                                                 className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded text-[10px] border border-red-100"
                                               >
                                                 {v}

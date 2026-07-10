@@ -1,4 +1,5 @@
 # Quick Win Implementation Guide
+
 ## Actionable UI Improvements for Enterprise LLM Frontend
 
 This guide provides **copy-paste ready** code snippets to implement Phase 1 improvements without breaking changes.
@@ -72,6 +73,7 @@ Add these custom utilities at the end of your globals.css for consistency:
 ### Change 1: Feature Grid Cards Enhancement
 
 **Find this section:**
+
 ```tsx
 <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
   <div className="space-y-4">
@@ -81,6 +83,7 @@ Add these custom utilities at the end of your globals.css for consistency:
 ```
 
 **Replace with:**
+
 ```tsx
 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
   {/* Visual Orchestration */}
@@ -90,8 +93,8 @@ Add these custom utilities at the end of your globals.css for consistency:
     </div>
     <h3 className="text-lg font-semibold text-gray-900">Visual Orchestration</h3>
     <p className="text-gray-600 leading-relaxed text-sm">
-      Build complex multi-node workflows using our drag-and-drop interface. Seamlessly
-      connect triggers to agents with visual feedback.
+      Build complex multi-node workflows using our drag-and-drop interface. Seamlessly connect
+      triggers to agents with visual feedback.
     </p>
   </div>
 
@@ -102,8 +105,8 @@ Add these custom utilities at the end of your globals.css for consistency:
     </div>
     <h3 className="text-lg font-semibold text-gray-900">Enterprise Security</h3>
     <p className="text-gray-600 leading-relaxed text-sm">
-      Manage API keys, define strict RBAC rules, and ensure data integrity
-      with internal validation nodes.
+      Manage API keys, define strict RBAC rules, and ensure data integrity with internal validation
+      nodes.
     </p>
   </div>
 
@@ -114,14 +117,15 @@ Add these custom utilities at the end of your globals.css for consistency:
     </div>
     <h3 className="text-lg font-semibold text-gray-900">Deep Observability</h3>
     <p className="text-gray-600 leading-relaxed text-sm">
-      Full MELT support (Metrics, Events, Logs, Traces). Monitor latency and token usage
-      across every execution with real-time insights.
+      Full MELT support (Metrics, Events, Logs, Traces). Monitor latency and token usage across
+      every execution with real-time insights.
     </p>
   </div>
 </div>
 ```
 
 **What changed:**
+
 - ✅ Added left border accent colors (blue, green, amber)
 - ✅ Changed icon bg from white to light gray (`bg-gray-50`)
 - ✅ Reduced icon size from 2xl to xl rounded corners
@@ -134,6 +138,7 @@ Add these custom utilities at the end of your globals.css for consistency:
 ### Change 2: Button Styling Enhancement
 
 **Find buttons:**
+
 ```tsx
 <Link
   href="/signup"
@@ -142,6 +147,7 @@ Add these custom utilities at the end of your globals.css for consistency:
 ```
 
 **Replace with:**
+
 ```tsx
 <Link
   href="/signup"
@@ -158,6 +164,7 @@ Add these custom utilities at the end of your globals.css for consistency:
 ```
 
 **What changed:**
+
 - ✅ Used `.btn-primary` and `.btn-secondary` classes
 - ✅ Better hover transitions
 - ✅ Added active state scale effect (visual feedback)
@@ -235,7 +242,7 @@ export default function AdminSidebar() {
 
   const toggleExpand = (label: string) => {
     setExpandedItems((prev) =>
-      prev.includes(label) ? prev.filter((i) => i !== label) : [...prev, label]
+      prev.includes(label) ? prev.filter((i) => i !== label) : [...prev, label],
     );
   };
 
@@ -330,6 +337,7 @@ export default function AdminSidebar() {
 ```
 
 **Add to your admin layout or page:**
+
 ```tsx
 import AdminSidebar from '@/components/AdminSidebar';
 
@@ -337,9 +345,7 @@ export default function AdminPage() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
-      <main className="flex-1 p-8">
-        {/* Your existing admin content */}
-      </main>
+      <main className="flex-1 p-8">{/* Your existing admin content */}</main>
     </div>
   );
 }
@@ -364,8 +370,8 @@ export default function AdminPage() {
 // After
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
   {nodes.map(node => (
-    <div 
-      key={node.id} 
+    <div
+      key={node.id}
       className="card-base border-accent-blue hover:shadow-lg transition-all hover:scale-[1.02]"
     >
       <div className="flex items-start justify-between mb-4">
@@ -397,6 +403,7 @@ export default function AdminPage() {
 ```
 
 **What changed:**
+
 - ✅ Card-based layout (3 columns on desktop)
 - ✅ Hover effects with scale
 - ✅ Status badge with color
@@ -460,6 +467,7 @@ export function FormField({
 ```
 
 **Usage:**
+
 ```tsx
 <FormField
   label="Workflow Name"
@@ -512,11 +520,7 @@ export function MetricCard({
               trendIsGood ? 'text-green-600' : 'text-red-600'
             }`}
           >
-            {trendIsGood ? (
-              <ArrowUp className="h-3 w-3" />
-            ) : (
-              <ArrowDown className="h-3 w-3" />
-            )}
+            {trendIsGood ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
             {Math.abs(trend)}%
           </div>
         )}
@@ -536,6 +540,7 @@ export function MetricCard({
 ```
 
 **Usage:**
+
 ```tsx
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
   <MetricCard
@@ -586,7 +591,7 @@ export function MetricCard({
   input,
   select,
   textarea,
-  [role="button"],
+  [role='button'],
   a {
     @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
   }
@@ -602,11 +607,7 @@ export function MetricCard({
 ### Add Skip Link to Layout
 
 ```tsx
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <body>
@@ -614,9 +615,7 @@ export default function RootLayout({
           Skip to main content
         </a>
         {/* Header, nav, etc */}
-        <main id="main-content">
-          {children}
-        </main>
+        <main id="main-content">{children}</main>
       </body>
     </html>
   );
@@ -628,6 +627,7 @@ export default function RootLayout({
 ## 7. IMPLEMENTATION CHECKLIST
 
 ### Phase 1 - Foundation (1-2 hours)
+
 - [ ] Add global utility classes to `globals.css`
 - [ ] Update landing page feature cards
 - [ ] Update button styles
@@ -635,6 +635,7 @@ export default function RootLayout({
 - [ ] Test all buttons for hover states
 
 ### Phase 2 - Admin Panel (2-3 hours)
+
 - [ ] Create AdminSidebar component
 - [ ] Add sidebar to admin layout
 - [ ] Update node management grid to cards
@@ -642,12 +643,14 @@ export default function RootLayout({
 - [ ] Add quick action buttons
 
 ### Phase 3 - Metrics (1-2 hours)
+
 - [ ] Create MetricCard component
 - [ ] Update metrics dashboard layout
 - [ ] Add trend indicators
 - [ ] Test responsive design
 
 ### Phase 4 - Polish (1-2 hours)
+
 - [ ] Add accessibility features (focus rings, skip link)
 - [ ] Test on mobile devices
 - [ ] Verify color contrast (use Axe DevTools)
@@ -679,6 +682,7 @@ export default function RootLayout({
 ## Questions?
 
 If you need help implementing any of these changes:
+
 1. Check the specific section above
 2. Copy the code snippet
 3. Paste into your component

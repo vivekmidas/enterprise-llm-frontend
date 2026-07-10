@@ -42,14 +42,11 @@ export const api = {
   },
 
   getCurrentUser: async () => {
-    const headers = getHeaders({
-      'Content-Type': 'application/json',
-    });
+    const headers = getHeaders();
     console.log(headers);
     const res = await fetch(`${BACKEND_URL}/auth/me`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      method: 'GET',
+      headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch user details');
     return res.json();
@@ -82,36 +79,32 @@ export const api = {
   /** Fetches all available agent definitions that can be used as components */
   getNodes: async (): Promise<{ agents: any[] }> => {
     const res = await fetch(`${BACKEND_URL}/nodes`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      method: 'GET',
+      headers: getHeaders(),
     });
     return res.json();
   },
 
   getNodesByName: async (name: string): Promise<any> => {
     const res = await fetch(`${BACKEND_URL}/nodes/${name}`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      method: 'GET',
+      headers: getHeaders(),
     });
     return res.json();
   },
 
   getNodesById: async (id: number): Promise<any> => {
     const res = await fetch(`${BACKEND_URL}/nodes/${id}`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      method: 'GET',
+      headers: getHeaders(),
     });
     return res.json();
   },
 
   getNodesForCategories: async (category_id: number): Promise<{ nodes: CategoryItem[] }> => {
     const res = await fetch(`${BACKEND_URL}/nodes/categories/${category_id}`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
+      method: 'GET',
     });
     return res.json();
   },
@@ -119,18 +112,16 @@ export const api = {
   /** Retrieves defined categories to organize workflows in the UI */
   getNodesCategories: async (): Promise<string[] | { categories: string[] }> => {
     const res = await fetch(`${BACKEND_URL}/categories`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
+      method: 'GET',
     });
     return res.json();
   },
 
   getCategory: async (category_id: number): Promise<{ category: CategoryItem }> => {
     const res = await fetch(`${BACKEND_URL}/categories/${category_id}`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
+      method: 'GET',
     });
     return res.json();
   },
@@ -148,9 +139,8 @@ export const api = {
   /** Fetches the full graph data (nodes/edges) for a specific agent ID */
   getAgentById: async (agentId: string = 'default') => {
     const res = await fetch(`${BACKEND_URL}/workflows/${agentId}`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
+      method: 'GET',
     });
     return res.json();
   },
@@ -158,9 +148,7 @@ export const api = {
   /** Reads persisted properties for one node instance inside a workflow */
   getAgentNodeProperties: async (agentId: string, nodeId: string) => {
     const res = await fetch(`${BACKEND_URL}/workflows/${agentId}/nodes/${nodeId}/properties`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to load workflow node properties');
     return res.json();
@@ -184,18 +172,16 @@ export const api = {
   /** Lists all saved workflows stored in the database */
   getSavedAgents: async () => {
     const res = await fetch(`${BACKEND_URL}/workflows`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
+      method: 'GET',
     });
     return res.json();
   },
 
   getAgentsByUser: async (userId: string) => {
     const res = await fetch(`${BACKEND_URL}/agents/user/${userId}`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
+      method: 'GET',
     });
     return res.json();
   },
@@ -223,7 +209,7 @@ export const api = {
 
   /** Deletes a workflow */
   deleteWorkflow: async (workflowId: string) => {
-      const res = await fetch(`${BACKEND_URL}/workflows/${workflowId}`, {
+    const res = await fetch(`${BACKEND_URL}/workflows/${workflowId}`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
@@ -295,7 +281,7 @@ export const api = {
   getUsers: async () => {
     const res = await fetch(`${BACKEND_URL}/admin/users`, {
       headers: getHeaders(),
-      method: 'GET'
+      method: 'GET',
     });
     return res.json();
   },
@@ -337,9 +323,7 @@ export const api = {
       url.searchParams.append('action', params.action);
     }
     const res = await fetch(url.toString(), {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to load audit logs');
     return res.json();
@@ -347,9 +331,8 @@ export const api = {
 
   getCustomers: async () => {
     const res = await fetch(`${BACKEND_URL}/admin/customers`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
+      method: 'GET',
     });
     return res.json();
   },
@@ -393,9 +376,8 @@ export const api = {
 
   getCustomerNodesAdmin: async (customerId: number) => {
     const res = await fetch(`${BACKEND_URL}/admin/customers/${customerId}/nodes`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
+      method: 'GET',
     });
     return res.json();
   },
@@ -412,9 +394,8 @@ export const api = {
   // Admin Trigger Management
   getTriggerInstances: async (): Promise<any[]> => {
     const res = await fetch(`${BACKEND_URL}/admin/triggers`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
+      method: 'GET',
     });
     return res.json();
   },
@@ -480,9 +461,8 @@ export const api = {
 
   getProviders: async () => {
     const res = await fetch(`${BACKEND_URL}/admin/oauth/providers`, {
-      headers: getHeaders({
-        'Content-Type': 'application/json',
-      }),
+      headers: getHeaders(),
+      method: 'GET',
     });
     return res.json();
   },

@@ -3,6 +3,7 @@
 ## Cards - Before & After
 
 ### BEFORE
+
 ```
 ┌─────────────────────────────┐
 │  Simple Card                │
@@ -13,6 +14,7 @@
 ```
 
 ### AFTER
+
 ```
 ┌─────────────────────────────┐
 │ ▌ Modern Card               │
@@ -26,6 +28,7 @@
 ```
 
 **CSS Changes:**
+
 ```diff
 - className="rounded-xl border bg-card text-card-foreground shadow"
 + className="rounded-xl border border-l-4 border-l-primary bg-card text-card-foreground shadow transition-all duration-200 hover:shadow-md"
@@ -36,6 +39,7 @@
 ## Buttons - Before & After
 
 ### BEFORE: Button Hover State
+
 ```
 ┌────────────────────────┐
 │      Save Action       │  ← Just color change
@@ -45,6 +49,7 @@
 ```
 
 ### AFTER: Button Hover State
+
 ```
                            ← Scale up 2% + shadow
     ┌─────────────────┐
@@ -57,14 +62,15 @@
 
 **Interaction States:**
 
-| State | Before | After |
-|-------|--------|-------|
-| **Default** | bg-blue-600 | bg-blue-600 |
-| **Hover** | bg-blue-700 only | bg-blue-700 + scale[1.02] + shadow-md |
-| **Active** | No feedback | scale[0.98] (press effect) |
-| **Transition** | Generic | 200ms smooth |
+| State          | Before           | After                                 |
+| -------------- | ---------------- | ------------------------------------- |
+| **Default**    | bg-blue-600      | bg-blue-600                           |
+| **Hover**      | bg-blue-700 only | bg-blue-700 + scale[1.02] + shadow-md |
+| **Active**     | No feedback      | scale[0.98] (press effect)            |
+| **Transition** | Generic          | 200ms smooth                          |
 
 **CSS Changes:**
+
 ```diff
 - hover:bg-blue-700 shadow-sm transition-all
 + hover:bg-blue-700 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] shadow-sm transition-all duration-200
@@ -75,6 +81,7 @@
 ## Form Inputs - Before & After
 
 ### BEFORE: Focus State
+
 ```
 ┌─────────────────────────┐
 │ [Input field]           │  ← Only ring change
@@ -84,6 +91,7 @@
 ```
 
 ### AFTER: Focus State
+
 ```
 ┌─────────────────────────┐
 │ [Input field]           │  ← Ring + smooth transition
@@ -94,6 +102,7 @@
 ```
 
 **CSS Changes:**
+
 ```diff
 - focus:outline-none focus:ring-2 focus:ring-blue-500
 + focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200
@@ -104,6 +113,7 @@
 ## Header - Before & After
 
 ### BEFORE
+
 ```
 ┌───────────────────────────────────────────────────┐ ← No shadow
 │  LLM Gateway  |  [Console]  [Logout]  [Sign up]  │
@@ -112,6 +122,7 @@
 ```
 
 ### AFTER
+
 ```
 ╭───────────────────────────────────────────────────╮
 │  LLM Gateway  |  [Console]  [Logout]  [Sign up]  │  ← Subtle shadow
@@ -123,6 +134,7 @@
 ```
 
 **CSS Changes:**
+
 ```diff
 - px-8 h-16 bg-white border-b border-gray-100 sticky top-0
 + px-8 h-16 bg-white border-b border-gray-200 shadow-sm sticky top-0
@@ -137,6 +149,7 @@
 ## Sidebar Items - Before & After
 
 ### BEFORE: Node Items
+
 ```
 ┌──────────────────────┐
 │ 🎯 Component A       │  ← Plain border, basic shadow
@@ -145,6 +158,7 @@
 ```
 
 ### AFTER: Node Items
+
 ```
 │ ┌──────────────────────┐
 │ │ 🎯 Component A       │  ← Left accent + improved hover
@@ -156,6 +170,7 @@
 ```
 
 **CSS Changes:**
+
 ```diff
 - className="cursor-grab rounded-lg border border-slate-150 bg-white p-2.5 shadow-sm transition-all"
 + className="cursor-grab rounded-lg border border-l-4 border-l-slate-400 border-slate-150 bg-white p-2.5 shadow-sm transition-all duration-200"
@@ -166,6 +181,7 @@
 ## Compact Node Items - Before & After
 
 ### BEFORE
+
 ```
 ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
 │ Trigger Item  │ │ Logic Item    │ │ Action Item   │
@@ -174,6 +190,7 @@
 ```
 
 ### AFTER
+
 ```
 │┌───────────────┐ │┌───────────────┐ │┌───────────────┐
 ││ Trigger Item  │ ││ Logic Item    │ ││ Action Item   │
@@ -187,6 +204,7 @@
 ## Overall Design Impact
 
 ### BEFORE: Appearance
+
 ```
 ☐ Flat design
 ☐ Minimal visual hierarchy
@@ -196,6 +214,7 @@
 ```
 
 ### AFTER: Appearance
+
 ```
 ✓ Layered design with depth
 ✓ Clear visual hierarchy
@@ -212,6 +231,7 @@
 ## Color & Spacing Updates
 
 ### Before
+
 ```
 Spacing: Standard 1rem margins
 Borders: Single gray borders
@@ -220,6 +240,7 @@ Colors: Basic primary/secondary
 ```
 
 ### After
+
 ```
 Spacing: 1rem with 200ms transitions
 Borders: Accent left borders (4px primary)
@@ -234,6 +255,7 @@ Animations: Smooth scale transforms
 ## Interaction Timeline
 
 ### Button Click - BEFORE
+
 ```
 Click
   ↓
@@ -242,6 +264,7 @@ Color changes immediately
 ```
 
 ### Button Click - AFTER
+
 ```
 Hover
   ↓
@@ -261,6 +284,7 @@ Scale back 1.02 + shadow (smooth return)
 ## Accessibility Improvements
 
 ### BEFORE
+
 ```
 Focus: Ring only (abrupt)
 Contrast: Basic
@@ -269,6 +293,7 @@ Animations: None
 ```
 
 ### AFTER
+
 ```
 Focus: Ring + smooth border transition
 Contrast: Maintained + improved
@@ -282,6 +307,7 @@ Interactions: Clear visual feedback
 ## Browser Compatibility
 
 ### All Changes Are:
+
 - ✅ CSS3 standard features
 - ✅ Widely supported (all modern browsers)
 - ✅ No JavaScript required
@@ -289,6 +315,7 @@ Interactions: Clear visual feedback
 - ✅ Graceful degradation for older browsers
 
 ### Tested On:
+
 - ✅ Chrome/Edge (v90+)
 - ✅ Firefox (v88+)
 - ✅ Safari (v14+)
@@ -299,29 +326,34 @@ Interactions: Clear visual feedback
 ## Performance Metrics
 
 ### CSS Classes Added: 15
+
 ### Lines of Code: ~100
+
 ### Bundle Size Impact: <2KB
+
 ### Runtime Performance: No impact
+
 ### Animation FPS: 60fps (GPU accelerated)
 
 ---
 
 ## Summary of Visual Changes
 
-| Feature | Impact | Improvement |
-|---------|--------|-------------|
-| Card Borders | High | Professional polish |
-| Button Hover | High | Better affordance |
-| Form Focus | Medium | Smoother transitions |
-| Header Shadow | Low | Subtle elevation |
-| Sidebar Accents | Medium | Visual hierarchy |
-| Overall Feel | High | Modern & professional |
+| Feature         | Impact | Improvement           |
+| --------------- | ------ | --------------------- |
+| Card Borders    | High   | Professional polish   |
+| Button Hover    | High   | Better affordance     |
+| Form Focus      | Medium | Smoother transitions  |
+| Header Shadow   | Low    | Subtle elevation      |
+| Sidebar Accents | Medium | Visual hierarchy      |
+| Overall Feel    | High   | Modern & professional |
 
 ---
 
 ## Next Steps to Visualize
 
 1. **View the changes live:**
+
    ```bash
    npm run dev
    # Visit http://localhost:3000/admin
