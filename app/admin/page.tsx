@@ -329,6 +329,29 @@ export default function AdminPage() {
   const [newCustomerDomain, setNewCustomerDomain] = useState('');
   const [newCustomerIcon, setNewCustomerIcon] = useState('Building');
   const [newCustomerColor, setNewCustomerColor] = useState('#2563eb');
+  const [newCustomerPluginsEnabled, setNewCustomerPluginsEnabled] = useState(false);
+  const [newCustomerStoragePath, setNewCustomerStoragePath] = useState('');
+  const [newCustomerEmail, setNewCustomerEmail] = useState('');
+  const [newCustomerAddress, setNewCustomerAddress] = useState('');
+  const [newCustomerContactPerson, setNewCustomerContactPerson] = useState('');
+
+  // Selected Customer Management
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+  const [customerDetailTab, setCustomerDetailTab] = useState<'details' | 'users' | 'nodes' | 'metrics'>('details');
+  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+  const [editCustomerName, setEditCustomerName] = useState('');
+  const [editCustomerDomain, setEditCustomerDomain] = useState('');
+  const [editCustomerEmail, setEditCustomerEmail] = useState('');
+  const [editCustomerAddress, setEditCustomerAddress] = useState('');
+  const [editCustomerContactPerson, setEditCustomerContactPerson] = useState('');
+  const [editCustomerStatus, setEditCustomerStatus] = useState('active');
+  const [editCustomerPluginsEnabled, setEditCustomerPluginsEnabled] = useState(false);
+  const [editCustomerStoragePath, setEditCustomerStoragePath] = useState('');
+  const [customerNodes, setCustomerNodes] = useState<any[]>([]);
+  const [customerNodesLoading, setCustomerNodesLoading] = useState(false);
+  const [customerTraces, setCustomerTraces] = useState<any[]>([]);
+  const [customerMetricsSummary, setCustomerMetricsSummary] = useState<any>(null);
+  const [customerTracesLoading, setCustomerTracesLoading] = useState(false);
 
   // Customer Node Scoping States
   const [selectedCustomerForNodes, setSelectedCustomerForNodes] = useState<any | null>(null);
@@ -790,6 +813,117 @@ export default function AdminPage() {
     }
   };
 
+  const handleTogglePlugins = async (customer: any) => {
+    try {
+      await api.updateCustomer(customer.id, {
+        custom_plugins_enabled: !customer.custom_plugins_enabled,
+      });
+      const custs = await api.getCustomers().catch(() => []);
+      setCustomers(custs || []);
+    } catch (err: any) {
+      alert('Failed to update custom plugins: ' + err.message);
+    }
+  };
+
+  const handleUpdateStoragePath = async (customer: any) => {
+    const path = prompt('Enter custom plugin storage path for ' + customer.name + ':', customer.plugin_storage_path || '');
+    if (path === null) return;
+    try {
+      await api.updateCustomer(customer.id, {
+        plugin_storage_path: path.trim() || null,
+      });
+      const custs = await api.getCustomers().catch(() => []);
+      setCustomers(custs || []);
+    } catch (err: any) {
+      alert('Failed to update storage path: ' + err.message);
+    }
+  };
+
+  const loadCustomerNodes = async (cid: number) => {
+    setCustomerNodesLoading(true);
+    try {
+      const nodes = await api.getCustomerNodesAdmin(cid);
+      setCustomerNodes(nodes || []);
+    } catch (err: any) {
+      alert('Failed to load customer nodes: ' + err.message);
+    } finally {
+      setCustomerNodesLoading(false);
+    }
+  };
+
+  const saveCustomerNodesConfig = async () => {
+    if (!selectedCustomer) return;
+    try {
+      const parsedNodes = customerNodes.map(node => {
+        let props = node.properties;
+        if (typeof props === 'string') {
+          try {
+            props = JSON.parse(props);
+          } catch (e) {
+            throw new Error(`Invalid JSON in property overrides for node ${node.label || node.node_name}`);
+          }
+        }
+        return {
+          node_name: node.node_name,
+          is_enabled: node.is_enabled,
+          properties: props,
+          label: node.label,
+        };
+      });
+      await api.configureCustomerNodesAdmin(selectedCustomer.id, parsedNodes);
+      alert('Nodes configured successfully!');
+      loadCustomerNodes(selectedCustomer.id);
+    } catch (err: any) {
+      alert('Failed to save nodes config: ' + err.message);
+    }
+  };
+
+  const loadCustomerTraces = async (cid: number) => {
+    setCustomerTracesLoading(true);
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    try {
+      const token = localStorage.getItem('token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${backendUrl}/api/observability/traces?customer_id=${cid}`, {
+        headers,
+      });
+      const result = await res.json();
+      setCustomerTraces(result.traces || []);
+      setCustomerMetricsSummary(result.summary || null);
+    } catch (err: any) {
+      console.error('Failed to load customer traces:', err);
+    } finally {
+      setCustomerTracesLoading(false);
+    }
+  };
+
+  const handleSaveCustomerDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCustomer) return;
+    try {
+      const updated = await api.updateCustomer(selectedCustomer.id, {
+        name: editCustomerName,
+        domain: editCustomerDomain,
+        email: editCustomerEmail || null,
+        address: editCustomerAddress || null,
+        contact_person: editCustomerContactPerson || null,
+        status: editCustomerStatus,
+        custom_plugins_enabled: editCustomerPluginsEnabled,
+        plugin_storage_path: editCustomerPluginsEnabled ? editCustomerStoragePath : null,
+      });
+      setSelectedCustomer(updated);
+      setIsEditingCustomer(false);
+      // Refresh customer list
+      const custs = await api.getCustomers().catch(() => []);
+      setCustomers(custs || []);
+    } catch (err: any) {
+      alert('Failed to update customer: ' + err.message);
+    }
+  };
+
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -798,6 +932,11 @@ export default function AdminPage() {
         domain: newCustomerDomain,
         icon: newCustomerIcon,
         color_schema: newCustomerColor,
+        custom_plugins_enabled: newCustomerPluginsEnabled,
+        plugin_storage_path: newCustomerPluginsEnabled ? newCustomerStoragePath : null,
+        email: newCustomerEmail || null,
+        address: newCustomerAddress || null,
+        contact_person: newCustomerContactPerson || null,
       });
       <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
         Customer created successfully!
@@ -805,6 +944,11 @@ export default function AdminPage() {
       setShowAddCustomerModal(false);
       setNewCustomerName('');
       setNewCustomerDomain('');
+      setNewCustomerEmail('');
+      setNewCustomerAddress('');
+      setNewCustomerContactPerson('');
+      setNewCustomerPluginsEnabled(false);
+      setNewCustomerStoragePath('');
       const custs = await api.getCustomers().catch(() => []);
       setCustomers(custs || []);
     } catch (err: any) {
@@ -2200,42 +2344,26 @@ export default function AdminPage() {
                                   </div>
                                 ) : (
                                   <button
-                                    // onClick={async () => {
-                                    //   try {
-                                    //     const overrides: Record<string, any> = {};
-                                    //     const userProps = propertyEntriesFromValue(
-                                    //       agent.user_properties,
-                                    //     );
-                                    //     const sysProps = propertyEntriesFromValue(
-                                    //       agent.system_properties,
-                                    //     );
-                                    //     [...userProps, ...sysProps].forEach((entry: any) => {
-                                    //       if (entry.key) {
-                                    //         overrides[entry.key] =
-                                    //           entry.value !== undefined
-                                    //             ? entry.value
-                                    //             : entry.default;
-                                    //       }
-                                    //     });
-                                    //     await api.configureCustomerNode(
-                                    //       agent.name,
-                                    //       {
-                                    //         properties: overrides,
-                                    //         is_enabled: false,
-                                    //         label: agent.label,
-                                    //       },
-                                    //       customerId || undefined,
-                                    //     );
-                                    //     const agentsRes = await api.getNodes();
-                                    //     setAgents(
-                                    //       (agentsRes as any).nodes ||
-                                    //         (agentsRes as any).agents ||
-                                    //         [],
-                                    //     );
-                                    //   } catch (err: any) {
-                                    //     alert('Failed to toggle status: ' + err.message);
-                                    //   }
-                                    // }}
+                                    onClick={async () => {
+                                      try {
+                                        await api.configureCustomerNode(
+                                          agent.name,
+                                          {
+                                            fieldname: 'is_enabled',
+                                            value: false,
+                                          },
+                                          customerId || undefined,
+                                        );
+                                        const agentsRes = await api.getNodes();
+                                        setAgents(
+                                          (agentsRes as any).nodes ||
+                                            (agentsRes as any).agents ||
+                                            [],
+                                        );
+                                      } catch (err: any) {
+                                        alert('Failed to toggle status: ' + err.message);
+                                      }
+                                    }}
                                     className="px-2.5 py-1 text-xs font-bold rounded-lg border transition-all bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                                     title="Click to Disable"
                                   >
@@ -2534,83 +2662,556 @@ export default function AdminPage() {
             )}
           </section>
         ) : activeTab === 'customers' ? (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <IconMap.users className="h-5 w-5 text-gray-400" />
-                <h2 className="text-xl font-semibold text-black">Customer Management</h2>
-              </div>
-              <button
-                onClick={() => setShowAddCustomerModal(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
-              >
-                <IconMap.plus className="h-4 w-4" /> Add Customer
-              </button>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Name</th>
-                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Domain</th>
-                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Status</th>
-                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {customers.map((c, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-black font-medium flex items-center gap-3">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: c.color_schema || '#2563eb' }}
-                        ></span>
-                        {c.name}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.domain}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <span
-                          className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${c.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
-                        >
-                          {c.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm flex gap-3">
-                        <button
-                          onClick={() => {
-                            setSelectedCustomerIdForUser(c.id);
-                            setShowAddCustomerUserModal(true);
-                          }}
-                          className="text-blue-600 hover:text-blue-800 font-semibold"
-                        >
-                          Add Admin User
-                        </button>
-                        <button
-                          onClick={() => handleManageCustomerNodes(c)}
-                          className="text-indigo-600 hover:text-indigo-800 font-semibold"
-                        >
-                          Manage Nodes
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCustomer(c.id)}
-                          className="text-red-600 hover:text-red-800 font-semibold"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {customers.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="py-12 text-center text-gray-500 text-sm">
-                        No customers configured. Click "Add Customer" to configure the first tenant.
-                      </td>
-                    </tr>
+          selectedCustomer ? (
+            <div className="space-y-6">
+              {/* Back Button and Header */}
+              <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setSelectedCustomer(null)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm"
+                  >
+                    ← Back to Customers
+                  </button>
+                  <div>
+                    <h2 className="text-2xl font-bold text-black flex items-center gap-2">
+                      <span
+                        className="h-3 w-3 rounded-full"
+                        style={{ backgroundColor: selectedCustomer.color_schema || '#2563eb' }}
+                      ></span>
+                      {selectedCustomer.name}
+                    </h2>
+                    <span className="text-xs text-gray-500 font-mono">ID: {selectedCustomer.id} | Domain: {selectedCustomer.domain}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setEditCustomerName(selectedCustomer.name);
+                      setEditCustomerDomain(selectedCustomer.domain || '');
+                      setEditCustomerEmail(selectedCustomer.email || '');
+                      setEditCustomerAddress(selectedCustomer.address || '');
+                      setEditCustomerContactPerson(selectedCustomer.contact_person || '');
+                      setEditCustomerStatus(selectedCustomer.status || 'active');
+                      setEditCustomerPluginsEnabled(selectedCustomer.custom_plugins_enabled || false);
+                      setEditCustomerStoragePath(selectedCustomer.plugin_storage_path || '');
+                      setIsEditingCustomer(true);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm"
+                  >
+                  Edit
+                  </button>
+                  
+                  {selectedCustomer.id !== 0  && (
+                    <button
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this customer?')) {
+                          handleDeleteCustomer(selectedCustomer.id);
+                          setSelectedCustomer(null);
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-755 shadow-sm"
+                    >
+                      Delete
+                    </button>
                   )}
-                </tbody>
-              </table>
+                </div>
+              </div>
+
+              {/* Sub navigation tabs */}
+              <div className="flex border-b border-gray-200 gap-6">
+                {[
+                  { id: 'details', label: 'Details & Info' },
+                  { id: 'users', label: 'Users Management' },
+                  { id: 'nodes', label: 'Allowed Nodes' },
+                  { id: 'metrics', label: 'Activity & Metrics' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setCustomerDetailTab(tab.id as any);
+                      if (tab.id === 'nodes') {
+                        loadCustomerNodes(selectedCustomer.id);
+                      } else if (tab.id === 'metrics') {
+                        loadCustomerTraces(selectedCustomer.id);
+                      }
+                    }}
+                    className={`pb-3 text-sm font-semibold border-b-2 transition-all ${
+                      customerDetailTab === tab.id
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab Contents */}
+              {customerDetailTab === 'details' && (
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  {isEditingCustomer ? (
+                    <form onSubmit={handleSaveCustomerDetails} className="space-y-4 max-w-lg">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={editCustomerName}
+                            onChange={e => setEditCustomerName(e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Domain</label>
+                          <input
+                            type="text"
+                            required
+                            value={editCustomerDomain}
+                            onChange={e => setEditCustomerDomain(e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Email</label>
+                          <input
+                            type="email"
+                            value={editCustomerEmail}
+                            onChange={e => setEditCustomerEmail(e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                            placeholder="billing@tenant.com"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Contact Person</label>
+                          <input
+                            type="text"
+                            value={editCustomerContactPerson}
+                            onChange={e => setEditCustomerContactPerson(e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                            placeholder="John Doe"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Address</label>
+                        <textarea
+                          rows={2}
+                          value={editCustomerAddress}
+                          onChange={e => setEditCustomerAddress(e.target.value)}
+                          className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                          placeholder="123 Business Rd, Suite 100"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Status</label>
+                          <select
+                            value={editCustomerStatus}
+                            onChange={e => setEditCustomerStatus(e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                          >
+                            <option value="active">Active</option>
+                            <option value="suspended">Suspended</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Custom Plugins</label>
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              type="checkbox"
+                              id="editCustomerPluginsEnabled"
+                              checked={editCustomerPluginsEnabled}
+                              onChange={e => setEditCustomerPluginsEnabled(e.target.checked)}
+                              className="rounded text-blue-600 focus:ring-blue-500"
+                            />
+                            <label htmlFor="editCustomerPluginsEnabled" className="text-sm text-gray-600 font-medium">Enabled</label>
+                          </div>
+                        </div>
+                      </div>
+                      {editCustomerPluginsEnabled && (
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Plugin Storage Path</label>
+                          <input
+                            type="text"
+                            value={editCustomerStoragePath}
+                            onChange={e => setEditCustomerStoragePath(e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                            placeholder="plugins/nodes/client/1"
+                          />
+                        </div>
+                      )}
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="submit"
+                          className="bg-blue-600 px-4 py-2 text-sm font-bold text-white rounded-lg hover:bg-blue-700 shadow-sm"
+                        >
+                          Save Changes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingCustomer(false)}
+                          className="border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 rounded-lg hover:bg-gray-50 shadow-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Domain name</span>
+                          <span className="text-sm font-semibold text-black">{selectedCustomer.domain}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Email address</span>
+                          <span className="text-sm font-semibold text-black">{selectedCustomer.email || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Contact person</span>
+                          <span className="text-sm font-semibold text-black">{selectedCustomer.contact_person || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Status</span>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase inline-block mt-1 ${selectedCustomer.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                            {selectedCustomer.status}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Address</span>
+                          <span className="text-sm font-semibold text-black block whitespace-pre-line leading-relaxed">{selectedCustomer.address || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Custom Plugins</span>
+                          <span className="text-sm font-semibold text-black block mt-1">{selectedCustomer.custom_plugins_enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        {selectedCustomer.custom_plugins_enabled && (
+                          <div>
+                            <span className="block text-[10px] text-gray-400 uppercase font-bold">Plugin Storage Path</span>
+                            <span className="text-sm font-mono font-semibold text-black block mt-1">{selectedCustomer.plugin_storage_path || 'Default'}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {customerDetailTab === 'users' && (
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm p-6 space-y-4">
+                  <div className="flex justify-between items-center pb-2">
+                    <div>
+                      <h4 className="text-md font-bold text-black">Customer Users</h4>
+                      <p className="text-xs text-gray-500">Manage directory users and admins associated with this tenant.</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedCustomerIdForUser(selectedCustomer.id);
+                        setShowAddCustomerUserModal(true);
+                      }}
+                      className="bg-blue-600 px-3 py-1.5 text-xs font-bold text-white rounded-lg hover:bg-blue-700 shadow-sm"
+                    >
+                      + Add Tenant User
+                    </button>
+                  </div>
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Username</th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Email</th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Role</th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {users.filter(u => u.customer_id === selectedCustomer.id).map((u, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-black font-semibold">{u.name} ({u.username})</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{u.email_id}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 font-mono capitalize">{u.role}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                              {u.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right">
+                            {u.role !== 'system_admin' && (
+                              <button
+                                onClick={() => handleDeleteUser(u)}
+                                className="text-red-650 hover:text-red-750 font-semibold"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {users.filter(u => u.customer_id === selectedCustomer.id).length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-gray-500 text-xs">
+                            No users registered for this tenant.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {customerDetailTab === 'nodes' && (
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                    <div>
+                      <h4 className="text-md font-bold text-black">Nodes Catalog Access</h4>
+                      <p className="text-xs text-gray-500">Enable or disable specific node access and customize parameters for this tenant.</p>
+                    </div>
+                    <button
+                      onClick={saveCustomerNodesConfig}
+                      className="bg-blue-600 px-4 py-2 text-xs font-bold text-white rounded-lg hover:bg-blue-700 flex items-center gap-1 shadow-sm"
+                    >
+                      💾 Save Config
+                    </button>
+                  </div>
+                  {customerNodesLoading ? (
+                    <div className="py-8 text-center text-sm text-gray-500">Loading customer nodes...</div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      {customerNodes.map((n, idx) => (
+                        <div key={idx} className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/50">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="text-sm font-semibold text-black">{n.label || n.node_name}</h5>
+                              <span className="text-[10px] text-gray-400 font-mono">Type: {n.node_name}</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={n.is_enabled}
+                                onChange={(e) => {
+                                  const updated = [...customerNodes];
+                                  updated[idx] = { ...updated[idx], is_enabled: e.target.checked };
+                                  setCustomerNodes(updated);
+                                }}
+                                className="sr-only peer"
+                              />
+                              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 font-bold uppercase"></div>
+                            </label>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">Custom Overrides (JSON)</label>
+                            <textarea
+                              rows={2}
+                              value={typeof n.properties === 'string' ? n.properties : JSON.stringify(n.properties || {})}
+                              onChange={(e) => {
+                                const updated = [...customerNodes];
+                                updated[idx] = { ...updated[idx], properties: e.target.value };
+                                setCustomerNodes(updated);
+                              }}
+                              placeholder="{}"
+                              className="w-full text-xs font-mono rounded-lg border border-gray-200 p-2 text-black focus:border-blue-600 focus:outline-none bg-white"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {customerDetailTab === 'metrics' && (
+                <div className="bg-white border border-gray-250 rounded-xl p-6 shadow-sm space-y-6">
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-150">
+                    <div>
+                      <h4 className="text-md font-bold text-black font-semibold">Observability Trace Log</h4>
+                      <p className="text-xs text-gray-500">Live trace records for workflows running on {selectedCustomer.name}.</p>
+                    </div>
+                  </div>
+                  {customerMetricsSummary && (
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4">
+                        <span className="block text-xs font-bold text-gray-500 uppercase">Total Requests</span>
+                        <span className="text-2xl font-bold text-blue-600">{customerMetricsSummary.total_requests}</span>
+                      </div>
+                      <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4">
+                        <span className="block text-xs font-bold text-gray-500 uppercase">Avg Latency</span>
+                        <span className="text-2xl font-bold text-blue-600">{customerMetricsSummary.avg_latency_ms}ms</span>
+                      </div>
+                      <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4">
+                        <span className="block text-xs font-bold text-gray-500 uppercase">Error Rate</span>
+                        <span className="text-2xl font-bold text-red-600">{customerMetricsSummary.error_rate}%</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      <table className="w-full text-left">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Timestamp</th>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Trace ID</th>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Workflow</th>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 font-mono text-xs">
+                          {customerTracesLoading ? (
+                            <tr>
+                              <td colSpan={4} className="py-6 text-center text-gray-500 text-xs">
+                                Loading traces...
+                              </td>
+                            </tr>
+                          ) : (
+                            customerTraces.map((m, idx) => (
+                              <tr key={idx} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-gray-600">{new Date(m.timestamp * 1000).toLocaleString()}</td>
+                                <td className="px-4 py-3 text-gray-800 font-semibold">{m.trace_id}</td>
+                                <td className="px-4 py-3 text-gray-800 font-semibold">{m.workflow_id}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${m.status === 'success' || m.status === 'completed' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                    {m.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                          {!customerTracesLoading && customerTraces.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="py-8 text-center text-gray-500 text-xs">
+                                No activity or execution traces recorded in current time range.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </section>
+          ) : (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <IconMap.users className="h-5 w-5 text-gray-400" />
+                  <h2 className="text-xl font-semibold text-black">Customer Management</h2>
+                </div>
+                <button
+                  onClick={() => setShowAddCustomerModal(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                >
+                  <IconMap.plus className="h-4 w-4" /> Add Customer
+                </button>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden animate-fade-in">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Plugin Name</th>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Domain Name</th>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Custom Plugins</th>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Plugins Storage Path</th>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Status</th>
+                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {customers.map((c, i) => (
+                      <tr
+                        key={i}
+                        onClick={() => {
+                          setSelectedCustomer(c);
+                          setCustomerDetailTab('details');
+                        }}
+                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      >
+                        <td className="px-6 py-4 text-sm text-black font-medium flex items-center gap-3">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: c.color_schema || '#2563eb' }}
+                          ></span>
+                          {c.name}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{c.domain}</td>
+                        <td className="px-6 py-4 text-sm" onClick={e => e.stopPropagation()}>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={c.custom_plugins_enabled || false}
+                              onChange={() => handleTogglePlugins(c)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                          </label>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs">{c.plugin_storage_path || 'Default'}</span>
+                            <button
+                              onClick={() => handleUpdateStoragePath(c)}
+                              className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
+                              title="Edit Storage Path"
+                            >
+                              ✏️
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${c.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
+                          >
+                            {c.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm flex gap-3" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => {
+                              setSelectedCustomerIdForUser(c.id);
+                              setShowAddCustomerUserModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-semibold"
+                          >
+                            Add Admin User
+                          </button>
+                          <button
+                            onClick={() => handleManageCustomerNodes(c)}
+                            className="text-indigo-600 hover:text-indigo-800 font-semibold"
+                          >
+                            Manage Nodes
+                          </button>
+                          {c.id !== 0 && 
+                           c.name?.toLowerCase() !== 'system' && 
+                           c.name?.toLowerCase() !== 'system account' && 
+                           c.name?.toLowerCase() !== 'system_account' && 
+                           c.domain?.toLowerCase() !== 'system' && (
+                            <button
+                              onClick={() => handleDeleteCustomer(c.id)}
+                              className="text-red-650 hover:text-red-750 font-semibold"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {customers.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-gray-500 text-sm">
+                          No customers configured. Click "Add Customer" to configure the first tenant.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )
         ) : activeTab === 'users' ? (
           <section className="space-y-4">
             <div className="flex items-center justify-between">
@@ -2663,10 +3264,12 @@ export default function AdminPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteUser(u)}
-                          disabled={String(u.id) === String(userId)}
+                          disabled={String(u.id) === String(userId) || u.role === 'system_admin'}
                           title={
                             String(u.id) === String(userId)
                               ? 'You cannot delete your own account'
+                              : u.role === 'system_admin'
+                              ? 'System admin users cannot be deleted'
                               : 'Delete user'
                           }
                           className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-100 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-100 disabled:text-gray-300 disabled:hover:bg-white"
@@ -3594,6 +4197,71 @@ export default function AdminPage() {
                     placeholder="e.g. #2563eb"
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={newCustomerEmail}
+                      onChange={(e) => setNewCustomerEmail(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                      placeholder="e.g. contact@acme.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                      Contact Person
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomerContactPerson}
+                      onChange={(e) => setNewCustomerContactPerson(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                      placeholder="e.g. John Doe"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={newCustomerAddress}
+                    onChange={(e) => setNewCustomerAddress(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                    placeholder="e.g. 123 Business Way, Suite A"
+                  />
+                </div>
+                <div className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    id="newCustomerPluginsEnabled"
+                    checked={newCustomerPluginsEnabled}
+                    onChange={(e) => setNewCustomerPluginsEnabled(e.target.checked)}
+                    className="rounded text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="newCustomerPluginsEnabled" className="text-xs font-bold uppercase text-gray-500 cursor-pointer">
+                    Enable Custom Plugins
+                  </label>
+                </div>
+                {newCustomerPluginsEnabled && (
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                      Plugin Storage Path
+                    </label>
+                    <input
+                      type="text"
+                      required={newCustomerPluginsEnabled}
+                      value={newCustomerStoragePath}
+                      onChange={(e) => setNewCustomerStoragePath(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                      placeholder="e.g. plugins/nodes/client/42 or s3://my-bucket/plugins"
+                    />
+                  </div>
+                )}
                 <div className="flex justify-end gap-3 pt-4">
                   <button
                     type="button"
