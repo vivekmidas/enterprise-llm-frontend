@@ -2375,141 +2375,177 @@ export default function AdminPage() {
             )}
           </section>
         ) : activeTab === 'customers' ? (
-          <section className="space-y-4">
+          <section className="space-y-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <IconMap.users className="h-5 w-5 text-gray-400" />
-                <h2 className="text-xl font-semibold text-black">Customer Management</h2>
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <IconMap.users className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">Customer Management</h2>
+                </div>
+                <p className="text-sm text-gray-500 ml-11">Manage your customer organizations and tenants</p>
               </div>
               <button
                 onClick={() => setShowAddCustomerModal(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 hover:shadow-md active:scale-95 shadow-sm transition-all duration-200"
               >
                 <IconMap.plus className="h-4 w-4" /> Add Customer
               </button>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Name</th>
-                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Domain</th>
-                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Status</th>
-                    <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {customers.map((c, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-black font-medium flex items-center gap-3">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
+            
+            {customers.length === 0 ? (
+              <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
+                <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                  <IconMap.users className="h-6 w-6 text-gray-400" />
+                </div>
+                <p className="text-gray-700 font-medium mb-1">No customers yet</p>
+                <p className="text-gray-500 text-sm mb-4">Get started by creating your first customer organization</p>
+                <button
+                  onClick={() => setShowAddCustomerModal(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-all"
+                >
+                  <IconMap.plus className="h-4 w-4" /> Create First Customer
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {customers.map((c, i) => (
+                  <div key={i} className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div 
+                          className="mt-1 h-3 w-3 rounded-full flex-shrink-0 ring-2 ring-offset-2 ring-gray-200"
                           style={{ backgroundColor: c.color_schema || '#2563eb' }}
-                        ></span>
-                        {c.name}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{c.domain}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <span
-                          className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${c.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
-                        >
-                          {c.status}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 text-base truncate">{c.name}</h3>
+                          <p className="text-sm text-gray-500 truncate">{c.domain}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${
+                          c.status === 'active' 
+                            ? 'bg-green-50 text-green-700' 
+                            : 'bg-gray-50 text-gray-700'
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${c.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                          {c.status === 'active' ? 'Active' : 'Inactive'}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm flex gap-3">
-                        <button
-                          onClick={() => {
-                            setSelectedCustomerIdForUser(c.id);
-                            setShowAddCustomerUserModal(true);
-                          }}
-                          className="text-blue-600 hover:text-blue-800 font-semibold"
-                        >
-                          Add Admin User
-                        </button>
-                        <button
-                          onClick={() => handleManageCustomerNodes(c)}
-                          className="text-indigo-600 hover:text-indigo-800 font-semibold"
-                        >
-                          Manage Nodes
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCustomer(c.id)}
-                          className="text-red-600 hover:text-red-800 font-semibold"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {customers.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="py-12 text-center text-gray-500 text-sm">
-                        No customers configured. Click "Add Customer" to configure the first tenant.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => {
+                          setSelectedCustomerIdForUser(c.id);
+                          setShowAddCustomerUserModal(true);
+                        }}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors"
+                      >
+                        Add User
+                      </button>
+                      <button
+                        onClick={() => handleManageCustomerNodes(c)}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-1.5 rounded-md transition-colors"
+                      >
+                        Manage Nodes
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCustomer(c.id)}
+                        className="text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-md transition-colors ml-auto"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         ) : activeTab === 'users' ? (
-          <section className="space-y-4">
+          <section className="space-y-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <IconMap.users className="h-5 w-5 text-gray-400" />
-                <h2 className="text-xl font-semibold text-black">User Management</h2>
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-50 rounded-lg">
+                    <IconMap.users className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+                </div>
+                <p className="text-sm text-gray-500 ml-11">Manage system users and their roles</p>
               </div>
               <button
                 onClick={() => setShowAddUserModal(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 hover:shadow-md active:scale-95 shadow-sm transition-all duration-200"
               >
                 <IconMap.plus className="h-4 w-4" /> Add User
               </button>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">
-                      Username
-                    </th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Email</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Role</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {users.map((u, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-black font-medium">{u.username}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{u.email_id}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-bold uppercase ${u.role === 'admin' || u.role === 'system_admin' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}
-                        >
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`text-sm font-medium ${u.status === 'active' ? 'text-green-600' : 'text-red-600'}`}
-                        >
-                          {u.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-8 flex justify-center gap-4">
-              <div className="rounded-lg bg-gray-50 px-4 py-2 text-left border border-gray-100">
-                <div className="text-[10px] font-bold text-gray-400 uppercase">Current Session</div>
-                <div className="text-sm font-bold text-black">{loginEmail}</div>
+
+            {users.length === 0 ? (
+              <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
+                <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                  <IconMap.users className="h-6 w-6 text-gray-400" />
+                </div>
+                <p className="text-gray-700 font-medium mb-1">No users yet</p>
+                <p className="text-gray-500 text-sm mb-4">Invite team members to get started</p>
               </div>
-              <div className="rounded-lg bg-gray-50 px-4 py-2 text-left border border-gray-100">
-                <div className="text-[10px] font-bold text-gray-400 uppercase">Account Status</div>
-                <div className="text-sm font-bold text-green-600">Verified</div>
+            ) : (
+              <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wide">Username</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wide">Email</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wide">Role</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {users.map((u, i) => (
+                      <tr key={i} className="hover:bg-gray-50 transition-colors duration-150">
+                        <td className="px-6 py-4 font-medium text-gray-900">{u.username}</td>
+                        <td className="px-6 py-4 text-gray-600">{u.email_id}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium inline-flex items-center ${
+                            u.role === 'admin' || u.role === 'system_admin'
+                              ? 'bg-purple-50 text-purple-700'
+                              : 'bg-blue-50 text-blue-700'
+                          }`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${
+                              u.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
+                            }`} />
+                            <span className={`text-sm font-medium ${
+                              u.status === 'active' ? 'text-green-700' : 'text-gray-600'
+                            }`}>
+                              {u.status === 'active' ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-200">
+              <div className="rounded-lg bg-gradient-to-br from-blue-50 to-white p-4 border border-blue-100">
+                <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">Current Session</div>
+                <div className="text-sm font-semibold text-gray-900 truncate">{loginEmail}</div>
+              </div>
+              <div className="rounded-lg bg-gradient-to-br from-green-50 to-white p-4 border border-green-100">
+                <div className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">Account Status</div>
+                <div className="text-sm font-semibold text-green-700 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-green-500" />
+                  Verified
+                </div>
               </div>
             </div>
           </section>
