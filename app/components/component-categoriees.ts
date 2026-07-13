@@ -15,7 +15,7 @@ export type PropertyValue = string | number | boolean | string[];
 export interface NodePropertyDefinition {
   key: string;
   label: string;
-  type: 'string' | 'boolean' | 'choice' | 'password' | 'textarea' | 'number' | 'oauth';
+  type: 'string' | 'boolean' | 'choice' | 'password' | 'textarea' | 'number' | 'oauth' | 'source';
   placeholder?: string;
   options?: string[];
   multiple?: boolean;

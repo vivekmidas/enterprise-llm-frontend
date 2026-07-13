@@ -540,7 +540,7 @@ export const api = {
   uploadDocument: async (
     kbId: number | string,
     file: File,
-    metadata?: { description?: string; tags?: string; doc_type?: string }
+    metadata?: { description?: string; tags?: string; doc_type?: string },
   ) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -582,7 +582,13 @@ export const api = {
     return res.json();
   },
 
-  retrieveKnowledge: async (payload: { query: string; knowledge_base_ids: number[]; top_k?: number; min_score?: number; enable_reranking?: boolean }) => {
+  retrieveKnowledge: async (payload: {
+    query: string;
+    knowledge_base_ids: number[];
+    top_k?: number;
+    min_score?: number;
+    enable_reranking?: boolean;
+  }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieve`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),

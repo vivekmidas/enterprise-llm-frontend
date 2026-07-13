@@ -39,7 +39,7 @@ import {
   Bell,
   Blocks,
   RefreshCcw,
-  BookOpen
+  BookOpen,
 } from 'lucide-react';
 
 export const IconMap: Record<string, any> = {

@@ -13,7 +13,195 @@ import { JsonTreeView } from '@components/JsonTreeView';
 import JsonSchemaGeneratorModal from '@components/JsonSchemaGeneratorModal';
 import RunVisualizerModal from '@components/RunVisualizerModal';
 import { MetricCard } from '@/app/components/MetricCard';
-import { Clock, Activity, AlertTriangle, BookOpen, FileText, Database, Plus, Trash2, Upload, RefreshCw, CheckCircle, Info, FolderOpen, Search, FlaskConical, X, SlidersHorizontal } from 'lucide-react';
+import {
+  Clock,
+  Activity,
+  AlertTriangle,
+  BookOpen,
+  FileText,
+  Database,
+  Plus,
+  Trash2,
+  Upload,
+  RefreshCw,
+  CheckCircle,
+  Info,
+  FolderOpen,
+  Search,
+  FlaskConical,
+  X,
+  SlidersHorizontal,
+} from 'lucide-react';
+
+interface AdminSourcePropertyFieldProps {
+  label: string;
+  description?: string;
+  isDisabled?: boolean;
+  sourceVal: string;
+  propVal: any;
+  onSourceChange: (v: string) => void;
+  onValueChange: (v: any) => void;
+}
+
+const AdminSourcePropertyField = ({
+  label,
+  description,
+  isDisabled,
+  sourceVal,
+  propVal,
+  onSourceChange,
+  onValueChange,
+}: AdminSourcePropertyFieldProps) => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sourceVal || !sourceVal.trim()) {
+      setData(null);
+      return;
+    }
+
+    const isUrl = sourceVal.startsWith('/') || sourceVal.startsWith('http');
+    if (!isUrl) {
+      try {
+        setData(JSON.parse(sourceVal));
+        setError(null);
+      } catch {
+        if (sourceVal.includes(',')) {
+          setData(sourceVal.split(',').map((s) => s.trim()).filter(Boolean));
+        } else {
+          setData(sourceVal);
+        }
+        setError(null);
+      }
+      return;
+    }
+
+    let active = true;
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+        const fullUrl = sourceVal.startsWith('http')
+          ? sourceVal
+          : `${BACKEND_URL}${sourceVal.startsWith('/') ? '' : '/'}${sourceVal}`;
+
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        };
+
+        const res = await fetch(fullUrl, { headers });
+        if (!res.ok) {
+          throw new Error(`Fetch failed: ${res.statusText}`);
+        }
+        const json = await res.json();
+        if (active) {
+          setData(json);
+        }
+      } catch (err: any) {
+        if (active) {
+          setError(err.message || 'Failed to fetch');
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+    return () => {
+      active = false;
+    };
+  }, [sourceVal]);
+
+  let resolvedData = data;
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const arrayKey = Object.keys(data).find((k) => Array.isArray(data[k]));
+    if (arrayKey) {
+      resolvedData = data[arrayKey];
+    }
+  }
+
+  const isList = Array.isArray(resolvedData);
+  const isDict = resolvedData !== null && typeof resolvedData === 'object' && !isList;
+
+  const commonClasses =
+    'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
+
+  return (
+    <div className="space-y-2 p-2.5 border rounded-lg bg-gray-50/50 w-full">
+      <div className="space-y-1">
+        <span className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+          Source URL Config (Internal)
+        </span>
+        <input
+          type="text"
+          className={`${commonClasses} text-black font-mono`}
+          value={sourceVal}
+          placeholder="e.g. /api/knowledge/bases"
+          onChange={(e) => onSourceChange(e.target.value)}
+          disabled={isDisabled}
+        />
+      </div>
+      <div className="space-y-1">
+        <div className="flex justify-between items-center">
+          <span className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+            Value Selection
+          </span>
+          {loading && <span className="text-[9px] text-blue-500 animate-pulse">Loading...</span>}
+          {error && <span className="text-[9px] text-red-500" title={error}>Error</span>}
+        </div>
+        {isList ? (
+          <select
+            className={`${commonClasses} text-black`}
+            value={String(propVal)}
+            onChange={(e) => onValueChange(e.target.value)}
+            disabled={isDisabled}
+          >
+            <option value="">Select option...</option>
+            {resolvedData.map((opt: any) => {
+              const val = opt && typeof opt === 'object' ? (opt.id ?? opt.key ?? opt.value ?? opt.name ?? '') : opt;
+              const label = opt && typeof opt === 'object' ? (opt.name ?? opt.label ?? opt.title ?? opt.key ?? opt.id ?? '') : opt;
+              return (
+                <option key={String(val)} value={String(val)}>
+                  {String(label)}
+                </option>
+              );
+            })}
+          </select>
+        ) : isDict ? (
+          <select
+            className={`${commonClasses} text-black`}
+            value={String(propVal)}
+            onChange={(e) => onValueChange(e.target.value)}
+            disabled={isDisabled}
+          >
+            <option value="">Select option...</option>
+            {Object.entries(resolvedData).map(([k, v]) => (
+              <option key={k} value={k}>
+                {String(v)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            className={`${commonClasses} text-black`}
+            value={String(propVal)}
+            onChange={(e) => onValueChange(e.target.value)}
+            disabled={isDisabled}
+            placeholder="Single value..."
+          />
+        )}
+      </div>
+    </div>
+  );
+};
 
 type PropertyTarget = 'user' | 'system';
 
@@ -337,7 +525,9 @@ export default function AdminPage() {
 
   // Selected Customer Management
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
-  const [customerDetailTab, setCustomerDetailTab] = useState<'details' | 'users' | 'nodes' | 'metrics'>('details');
+  const [customerDetailTab, setCustomerDetailTab] = useState<
+    'details' | 'users' | 'nodes' | 'metrics'
+  >('details');
   const [isEditingCustomer, setIsEditingCustomer] = useState(false);
   const [editCustomerName, setEditCustomerName] = useState('');
   const [editCustomerDomain, setEditCustomerDomain] = useState('');
@@ -599,7 +789,16 @@ export default function AdminPage() {
       const tab = params.get('tab');
       if (
         tab &&
-        ['nodes', 'workflows', 'users', 'oauth', 'logs', 'customers', 'metrics', 'knowledge'].includes(tab)
+        [
+          'nodes',
+          'workflows',
+          'users',
+          'oauth',
+          'logs',
+          'customers',
+          'metrics',
+          'knowledge',
+        ].includes(tab)
       ) {
         setActiveTab(tab as any);
       }
@@ -846,7 +1045,10 @@ export default function AdminPage() {
   };
 
   const handleUpdateStoragePath = async (customer: any) => {
-    const path = prompt('Enter custom plugin storage path for ' + customer.name + ':', customer.plugin_storage_path || '');
+    const path = prompt(
+      'Enter custom plugin storage path for ' + customer.name + ':',
+      customer.plugin_storage_path || '',
+    );
     if (path === null) return;
     try {
       await api.updateCustomer(customer.id, {
@@ -874,13 +1076,15 @@ export default function AdminPage() {
   const saveCustomerNodesConfig = async () => {
     if (!selectedCustomer) return;
     try {
-      const parsedNodes = customerNodes.map(node => {
+      const parsedNodes = customerNodes.map((node) => {
         let props = node.properties;
         if (typeof props === 'string') {
           try {
             props = JSON.parse(props);
           } catch (e) {
-            throw new Error(`Invalid JSON in property overrides for node ${node.label || node.node_name}`);
+            throw new Error(
+              `Invalid JSON in property overrides for node ${node.label || node.node_name}`,
+            );
           }
         }
         return {
@@ -1689,6 +1893,73 @@ export default function AdminPage() {
       );
     }
 
+    if (field.type === 'source') {
+      const sourceKey = `${field.key}_source`;
+      const isUser = field.category === 'user';
+      const siblingEntries = propertyEntriesFromValue(
+        isUser ? editingAgent?.user_properties : editingAgent?.system_properties
+      );
+      const sourceEntry = siblingEntries.find((e: any) => e.key === sourceKey);
+      const sourceVal = String(sourceEntry?.value !== undefined ? sourceEntry.value : sourceEntry?.default || '');
+      const propVal = value !== undefined && value !== null ? value : '';
+
+      return (
+        <AdminSourcePropertyField
+          label={field.label || ''}
+          description={field.description}
+          isDisabled={isDisabled}
+          sourceVal={sourceVal}
+          propVal={propVal}
+          onSourceChange={(newSourceVal) => {
+            const sourceIndex = siblingEntries.findIndex((item: any) => item.key === sourceKey);
+            if (sourceIndex >= 0) {
+              const rowToUpdate = {
+                ...field,
+                key: sourceKey,
+                sourceIndex,
+              };
+              updateProperty(rowToUpdate, newSourceVal);
+            } else {
+              setEditingAgent((prev) => {
+                if (!prev) return null;
+                const userProps = propertyEntriesFromValue(prev.user_properties);
+                const sysProps = propertyEntriesFromValue(prev.system_properties);
+                const entries = isUser ? userProps : sysProps;
+                entries.push({
+                  key: sourceKey,
+                  label: `${field.label} Source`,
+                  type: 'string',
+                  value: newSourceVal,
+                  default: '',
+                  description: `Source configuration for ${field.label}`,
+                });
+                return {
+                  ...prev,
+                  user_properties: propertyEntriesToJsonStrings(userProps),
+                  system_properties: propertyEntriesToJsonStrings(sysProps),
+                };
+              });
+            }
+            // Auto-resolve if single value
+            let parsed;
+            try {
+              parsed = JSON.parse(newSourceVal);
+            } catch {
+              if (newSourceVal.includes(',')) {
+                parsed = newSourceVal.split(',').map((s) => s.trim()).filter(Boolean);
+              } else {
+                parsed = newSourceVal;
+              }
+            }
+            if (typeof parsed !== 'object' || parsed === null) {
+              handleValChange(newSourceVal);
+            }
+          }}
+          onValueChange={(newVal) => handleValChange(newVal)}
+        />
+      );
+    }
+
     if (field.type === 'boolean') {
       return (
         <select
@@ -1787,6 +2058,46 @@ export default function AdminPage() {
           placeholder="••••••••"
           autoComplete="new-password"
           onChange={(e) => handleValChange(e.target.value)}
+        />
+      );
+    }
+
+    if (entry.type === 'source') {
+      const sourceKey = `${entry.key}_source`;
+      const sourceVal = String(customerNodeProperties[nodeName]?.[sourceKey] || entry.default || '');
+      const propVal = val !== undefined && val !== null ? val : '';
+
+      return (
+        <AdminSourcePropertyField
+          label={entry.label || ''}
+          description={entry.description}
+          sourceVal={sourceVal}
+          propVal={propVal}
+          onSourceChange={(newSourceVal) => {
+            // Update source key
+            setCustomerNodeProperties((prev) => ({
+              ...prev,
+              [nodeName]: {
+                ...(prev[nodeName] || {}),
+                [sourceKey]: newSourceVal,
+              },
+            }));
+            // If single value, update main field directly
+            let parsed;
+            try {
+              parsed = JSON.parse(newSourceVal);
+            } catch {
+              if (newSourceVal.includes(',')) {
+                parsed = newSourceVal.split(',').map((s) => s.trim()).filter(Boolean);
+              } else {
+                parsed = newSourceVal;
+              }
+            }
+            if (typeof parsed !== 'object' || parsed === null) {
+              handleValChange(newSourceVal);
+            }
+          }}
+          onValueChange={(newVal) => handleValChange(newVal)}
         />
       );
     }
@@ -2707,7 +3018,9 @@ export default function AdminPage() {
                       ></span>
                       {selectedCustomer.name}
                     </h2>
-                    <span className="text-xs text-gray-500 font-mono">ID: {selectedCustomer.id} | Domain: {selectedCustomer.domain}</span>
+                    <span className="text-xs text-gray-500 font-mono">
+                      ID: {selectedCustomer.id} | Domain: {selectedCustomer.domain}
+                    </span>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -2719,16 +3032,18 @@ export default function AdminPage() {
                       setEditCustomerAddress(selectedCustomer.address || '');
                       setEditCustomerContactPerson(selectedCustomer.contact_person || '');
                       setEditCustomerStatus(selectedCustomer.status || 'active');
-                      setEditCustomerPluginsEnabled(selectedCustomer.custom_plugins_enabled || false);
+                      setEditCustomerPluginsEnabled(
+                        selectedCustomer.custom_plugins_enabled || false,
+                      );
                       setEditCustomerStoragePath(selectedCustomer.plugin_storage_path || '');
                       setIsEditingCustomer(true);
                     }}
                     className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm"
                   >
-                  Edit
+                    Edit
                   </button>
-                  
-                  {selectedCustomer.id !== 0  && (
+
+                  {selectedCustomer.id !== 0 && (
                     <button
                       onClick={() => {
                         if (confirm('Are you sure you want to delete this customer?')) {
@@ -2750,8 +3065,8 @@ export default function AdminPage() {
                   { id: 'details', label: 'Details & Info' },
                   { id: 'users', label: 'Users Management' },
                   { id: 'nodes', label: 'Allowed Nodes' },
-                  { id: 'metrics', label: 'Activity & Metrics' }
-                ].map(tab => (
+                  { id: 'metrics', label: 'Activity & Metrics' },
+                ].map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => {
@@ -2780,64 +3095,76 @@ export default function AdminPage() {
                     <form onSubmit={handleSaveCustomerDetails} className="space-y-4 max-w-lg">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Name</label>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                            Name
+                          </label>
                           <input
                             type="text"
                             required
                             value={editCustomerName}
-                            onChange={e => setEditCustomerName(e.target.value)}
+                            onChange={(e) => setEditCustomerName(e.target.value)}
                             className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Domain</label>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                            Domain
+                          </label>
                           <input
                             type="text"
                             required
                             value={editCustomerDomain}
-                            onChange={e => setEditCustomerDomain(e.target.value)}
+                            onChange={(e) => setEditCustomerDomain(e.target.value)}
                             className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
                           />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Email</label>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                            Email
+                          </label>
                           <input
                             type="email"
                             value={editCustomerEmail}
-                            onChange={e => setEditCustomerEmail(e.target.value)}
+                            onChange={(e) => setEditCustomerEmail(e.target.value)}
                             className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
                             placeholder="billing@tenant.com"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Contact Person</label>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                            Contact Person
+                          </label>
                           <input
                             type="text"
                             value={editCustomerContactPerson}
-                            onChange={e => setEditCustomerContactPerson(e.target.value)}
+                            onChange={(e) => setEditCustomerContactPerson(e.target.value)}
                             className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
                             placeholder="John Doe"
                           />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Address</label>
+                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                          Address
+                        </label>
                         <textarea
                           rows={2}
                           value={editCustomerAddress}
-                          onChange={e => setEditCustomerAddress(e.target.value)}
+                          onChange={(e) => setEditCustomerAddress(e.target.value)}
                           className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
                           placeholder="123 Business Rd, Suite 100"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Status</label>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                            Status
+                          </label>
                           <select
                             value={editCustomerStatus}
-                            onChange={e => setEditCustomerStatus(e.target.value)}
+                            onChange={(e) => setEditCustomerStatus(e.target.value)}
                             className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
                           >
                             <option value="active">Active</option>
@@ -2845,26 +3172,35 @@ export default function AdminPage() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Custom Plugins</label>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                            Custom Plugins
+                          </label>
                           <div className="flex items-center gap-2 mt-2">
                             <input
                               type="checkbox"
                               id="editCustomerPluginsEnabled"
                               checked={editCustomerPluginsEnabled}
-                              onChange={e => setEditCustomerPluginsEnabled(e.target.checked)}
+                              onChange={(e) => setEditCustomerPluginsEnabled(e.target.checked)}
                               className="rounded text-blue-600 focus:ring-blue-500"
                             />
-                            <label htmlFor="editCustomerPluginsEnabled" className="text-sm text-gray-600 font-medium">Enabled</label>
+                            <label
+                              htmlFor="editCustomerPluginsEnabled"
+                              className="text-sm text-gray-600 font-medium"
+                            >
+                              Enabled
+                            </label>
                           </div>
                         </div>
                       </div>
                       {editCustomerPluginsEnabled && (
                         <div>
-                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Plugin Storage Path</label>
+                          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                            Plugin Storage Path
+                          </label>
                           <input
                             type="text"
                             value={editCustomerStoragePath}
-                            onChange={e => setEditCustomerStoragePath(e.target.value)}
+                            onChange={(e) => setEditCustomerStoragePath(e.target.value)}
                             className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
                             placeholder="plugins/nodes/client/1"
                           />
@@ -2890,37 +3226,65 @@ export default function AdminPage() {
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-4">
                         <div>
-                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Domain name</span>
-                          <span className="text-sm font-semibold text-black">{selectedCustomer.domain}</span>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                            Domain name
+                          </span>
+                          <span className="text-sm font-semibold text-black">
+                            {selectedCustomer.domain}
+                          </span>
                         </div>
                         <div>
-                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Email address</span>
-                          <span className="text-sm font-semibold text-black">{selectedCustomer.email || 'N/A'}</span>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                            Email address
+                          </span>
+                          <span className="text-sm font-semibold text-black">
+                            {selectedCustomer.email || 'N/A'}
+                          </span>
                         </div>
                         <div>
-                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Contact person</span>
-                          <span className="text-sm font-semibold text-black">{selectedCustomer.contact_person || 'N/A'}</span>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                            Contact person
+                          </span>
+                          <span className="text-sm font-semibold text-black">
+                            {selectedCustomer.contact_person || 'N/A'}
+                          </span>
                         </div>
                         <div>
-                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Status</span>
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase inline-block mt-1 ${selectedCustomer.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                            Status
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs font-bold uppercase inline-block mt-1 ${selectedCustomer.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
+                          >
                             {selectedCustomer.status}
                           </span>
                         </div>
                       </div>
                       <div className="space-y-4">
                         <div>
-                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Address</span>
-                          <span className="text-sm font-semibold text-black block whitespace-pre-line leading-relaxed">{selectedCustomer.address || 'N/A'}</span>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                            Address
+                          </span>
+                          <span className="text-sm font-semibold text-black block whitespace-pre-line leading-relaxed">
+                            {selectedCustomer.address || 'N/A'}
+                          </span>
                         </div>
                         <div>
-                          <span className="block text-[10px] text-gray-400 uppercase font-bold">Custom Plugins</span>
-                          <span className="text-sm font-semibold text-black block mt-1">{selectedCustomer.custom_plugins_enabled ? 'Enabled' : 'Disabled'}</span>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                            Custom Plugins
+                          </span>
+                          <span className="text-sm font-semibold text-black block mt-1">
+                            {selectedCustomer.custom_plugins_enabled ? 'Enabled' : 'Disabled'}
+                          </span>
                         </div>
                         {selectedCustomer.custom_plugins_enabled && (
                           <div>
-                            <span className="block text-[10px] text-gray-400 uppercase font-bold">Plugin Storage Path</span>
-                            <span className="text-sm font-mono font-semibold text-black block mt-1">{selectedCustomer.plugin_storage_path || 'Default'}</span>
+                            <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                              Plugin Storage Path
+                            </span>
+                            <span className="text-sm font-mono font-semibold text-black block mt-1">
+                              {selectedCustomer.plugin_storage_path || 'Default'}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -2934,7 +3298,9 @@ export default function AdminPage() {
                   <div className="flex justify-between items-center pb-2">
                     <div>
                       <h4 className="text-md font-bold text-black">Customer Users</h4>
-                      <p className="text-xs text-gray-500">Manage directory users and admins associated with this tenant.</p>
+                      <p className="text-xs text-gray-500">
+                        Manage directory users and admins associated with this tenant.
+                      </p>
                     </div>
                     <button
                       onClick={() => {
@@ -2949,37 +3315,55 @@ export default function AdminPage() {
                   <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Username</th>
-                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Email</th>
-                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Role</th>
-                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
-                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                          Username
+                        </th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                          Email
+                        </th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                          Role
+                        </th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {users.filter(u => u.customer_id === selectedCustomer.id).map((u, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-black font-semibold">{u.name} ({u.username})</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{u.email_id}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 font-mono capitalize">{u.role}</td>
-                          <td className="px-4 py-3 text-sm">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                              {u.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right">
-                            {u.role !== 'system_admin' && (
-                              <button
-                                onClick={() => handleDeleteUser(u)}
-                                className="text-red-650 hover:text-red-750 font-semibold"
+                      {users
+                        .filter((u) => u.customer_id === selectedCustomer.id)
+                        .map((u, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-black font-semibold">
+                              {u.name} ({u.username})
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{u.email_id}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 font-mono capitalize">
+                              {u.role}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
                               >
-                                Delete
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                      {users.filter(u => u.customer_id === selectedCustomer.id).length === 0 && (
+                                {u.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right">
+                              {u.role !== 'system_admin' && (
+                                <button
+                                  onClick={() => handleDeleteUser(u)}
+                                  className="text-red-650 hover:text-red-750 font-semibold"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      {users.filter((u) => u.customer_id === selectedCustomer.id).length === 0 && (
                         <tr>
                           <td colSpan={5} className="py-8 text-center text-gray-500 text-xs">
                             No users registered for this tenant.
@@ -2996,7 +3380,10 @@ export default function AdminPage() {
                   <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                     <div>
                       <h4 className="text-md font-bold text-black">Nodes Catalog Access</h4>
-                      <p className="text-xs text-gray-500">Enable or disable specific node access and customize parameters for this tenant.</p>
+                      <p className="text-xs text-gray-500">
+                        Enable or disable specific node access and customize parameters for this
+                        tenant.
+                      </p>
                     </div>
                     <button
                       onClick={saveCustomerNodesConfig}
@@ -3006,15 +3393,24 @@ export default function AdminPage() {
                     </button>
                   </div>
                   {customerNodesLoading ? (
-                    <div className="py-8 text-center text-sm text-gray-500">Loading customer nodes...</div>
+                    <div className="py-8 text-center text-sm text-gray-500">
+                      Loading customer nodes...
+                    </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-4 pt-2">
                       {customerNodes.map((n, idx) => (
-                        <div key={idx} className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/50">
+                        <div
+                          key={idx}
+                          className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/50"
+                        >
                           <div className="flex justify-between items-start">
                             <div>
-                              <h5 className="text-sm font-semibold text-black">{n.label || n.node_name}</h5>
-                              <span className="text-[10px] text-gray-400 font-mono">Type: {n.node_name}</span>
+                              <h5 className="text-sm font-semibold text-black">
+                                {n.label || n.node_name}
+                              </h5>
+                              <span className="text-[10px] text-gray-400 font-mono">
+                                Type: {n.node_name}
+                              </span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                               <input
@@ -3031,10 +3427,16 @@ export default function AdminPage() {
                             </label>
                           </div>
                           <div>
-                            <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">Custom Overrides (JSON)</label>
+                            <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                              Custom Overrides (JSON)
+                            </label>
                             <textarea
                               rows={2}
-                              value={typeof n.properties === 'string' ? n.properties : JSON.stringify(n.properties || {})}
+                              value={
+                                typeof n.properties === 'string'
+                                  ? n.properties
+                                  : JSON.stringify(n.properties || {})
+                              }
                               onChange={(e) => {
                                 const updated = [...customerNodes];
                                 updated[idx] = { ...updated[idx], properties: e.target.value };
@@ -3055,23 +3457,39 @@ export default function AdminPage() {
                 <div className="bg-white border border-gray-250 rounded-xl p-6 shadow-sm space-y-6">
                   <div className="flex justify-between items-center pb-2 border-b border-gray-150">
                     <div>
-                      <h4 className="text-md font-bold text-black font-semibold">Observability Trace Log</h4>
-                      <p className="text-xs text-gray-500">Live trace records for workflows running on {selectedCustomer.name}.</p>
+                      <h4 className="text-md font-bold text-black font-semibold">
+                        Observability Trace Log
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        Live trace records for workflows running on {selectedCustomer.name}.
+                      </p>
                     </div>
                   </div>
                   {customerMetricsSummary && (
                     <div className="grid grid-cols-3 gap-4">
                       <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4">
-                        <span className="block text-xs font-bold text-gray-500 uppercase">Total Requests</span>
-                        <span className="text-2xl font-bold text-blue-600">{customerMetricsSummary.total_requests}</span>
+                        <span className="block text-xs font-bold text-gray-500 uppercase">
+                          Total Requests
+                        </span>
+                        <span className="text-2xl font-bold text-blue-600">
+                          {customerMetricsSummary.total_requests}
+                        </span>
                       </div>
                       <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4">
-                        <span className="block text-xs font-bold text-gray-500 uppercase">Avg Latency</span>
-                        <span className="text-2xl font-bold text-blue-600">{customerMetricsSummary.avg_latency_ms}ms</span>
+                        <span className="block text-xs font-bold text-gray-500 uppercase">
+                          Avg Latency
+                        </span>
+                        <span className="text-2xl font-bold text-blue-600">
+                          {customerMetricsSummary.avg_latency_ms}ms
+                        </span>
                       </div>
                       <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4">
-                        <span className="block text-xs font-bold text-gray-500 uppercase">Error Rate</span>
-                        <span className="text-2xl font-bold text-red-600">{customerMetricsSummary.error_rate}%</span>
+                        <span className="block text-xs font-bold text-gray-500 uppercase">
+                          Error Rate
+                        </span>
+                        <span className="text-2xl font-bold text-red-600">
+                          {customerMetricsSummary.error_rate}%
+                        </span>
                       </div>
                     </div>
                   )}
@@ -3080,10 +3498,18 @@ export default function AdminPage() {
                       <table className="w-full text-left">
                         <thead className="bg-gray-50 border-b border-gray-200">
                           <tr>
-                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Timestamp</th>
-                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Trace ID</th>
-                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Workflow</th>
-                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                              Timestamp
+                            </th>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                              Trace ID
+                            </th>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                              Workflow
+                            </th>
+                            <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                              Status
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 font-mono text-xs">
@@ -3096,11 +3522,19 @@ export default function AdminPage() {
                           ) : (
                             customerTraces.map((m, idx) => (
                               <tr key={idx} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 text-gray-600">{new Date(m.timestamp * 1000).toLocaleString()}</td>
-                                <td className="px-4 py-3 text-gray-800 font-semibold">{m.trace_id}</td>
-                                <td className="px-4 py-3 text-gray-800 font-semibold">{m.workflow_id}</td>
+                                <td className="px-4 py-3 text-gray-600">
+                                  {new Date(m.timestamp * 1000).toLocaleString()}
+                                </td>
+                                <td className="px-4 py-3 text-gray-800 font-semibold">
+                                  {m.trace_id}
+                                </td>
+                                <td className="px-4 py-3 text-gray-800 font-semibold">
+                                  {m.workflow_id}
+                                </td>
                                 <td className="px-4 py-3">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${m.status === 'success' || m.status === 'completed' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                  <span
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${m.status === 'success' || m.status === 'completed' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
+                                  >
                                     {m.status}
                                   </span>
                                 </td>
@@ -3139,12 +3573,24 @@ export default function AdminPage() {
                 <table className="w-full text-left">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Plugin Name</th>
-                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Domain Name</th>
-                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Custom Plugins</th>
-                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Plugins Storage Path</th>
-                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Status</th>
-                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Actions</th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                        Plugin Name
+                      </th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                        Domain Name
+                      </th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                        Custom Plugins
+                      </th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                        Plugins Storage Path
+                      </th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -3165,7 +3611,7 @@ export default function AdminPage() {
                           {c.name}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{c.domain}</td>
-                        <td className="px-4 py-3 text-sm" onClick={e => e.stopPropagation()}>
+                        <td className="px-4 py-3 text-sm" onClick={(e) => e.stopPropagation()}>
                           <label className="relative inline-flex items-center cursor-pointer">
                             <input
                               type="checkbox"
@@ -3176,9 +3622,14 @@ export default function AdminPage() {
                             <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                           </label>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600" onClick={e => e.stopPropagation()}>
+                        <td
+                          className="px-4 py-3 text-sm text-gray-600"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs">{c.plugin_storage_path || 'Default'}</span>
+                            <span className="font-mono text-xs">
+                              {c.plugin_storage_path || 'Default'}
+                            </span>
                             <button
                               onClick={() => handleUpdateStoragePath(c)}
                               className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
@@ -3195,7 +3646,10 @@ export default function AdminPage() {
                             {c.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm flex gap-3" onClick={e => e.stopPropagation()}>
+                        <td
+                          className="px-4 py-3 text-sm flex gap-3"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
                             onClick={() => {
                               setSelectedCustomerIdForUser(c.id);
@@ -3211,25 +3665,26 @@ export default function AdminPage() {
                           >
                             Manage Nodes
                           </button>
-                          {c.id !== 0 && 
-                           c.name?.toLowerCase() !== 'system' && 
-                           c.name?.toLowerCase() !== 'system account' && 
-                           c.name?.toLowerCase() !== 'system_account' && 
-                           c.domain?.toLowerCase() !== 'system' && (
-                            <button
-                              onClick={() => handleDeleteCustomer(c.id)}
-                              className="text-red-650 hover:text-red-750 font-semibold"
-                            >
-                              Delete
-                            </button>
-                          )}
+                          {c.id !== 0 &&
+                            c.name?.toLowerCase() !== 'system' &&
+                            c.name?.toLowerCase() !== 'system account' &&
+                            c.name?.toLowerCase() !== 'system_account' &&
+                            c.domain?.toLowerCase() !== 'system' && (
+                              <button
+                                onClick={() => handleDeleteCustomer(c.id)}
+                                className="text-red-650 hover:text-red-750 font-semibold"
+                              >
+                                Delete
+                              </button>
+                            )}
                         </td>
                       </tr>
                     ))}
                     {customers.length === 0 && (
                       <tr>
                         <td colSpan={6} className="py-12 text-center text-gray-500 text-sm">
-                          No customers configured. Click "Add Customer" to configure the first tenant.
+                          No customers configured. Click "Add Customer" to configure the first
+                          tenant.
                         </td>
                       </tr>
                     )}
@@ -3295,8 +3750,8 @@ export default function AdminPage() {
                             String(u.id) === String(userId)
                               ? 'You cannot delete your own account'
                               : u.role === 'system_admin'
-                              ? 'System admin users cannot be deleted'
-                              : 'Delete user'
+                                ? 'System admin users cannot be deleted'
+                                : 'Delete user'
                           }
                           className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-100 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-100 disabled:text-gray-300 disabled:hover:bg-white"
                         >
@@ -3436,7 +3891,9 @@ export default function AdminPage() {
                               {log.status}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-xs font-semibold text-gray-900">{log.action}</td>
+                          <td className="px-4 py-3 text-xs font-semibold text-gray-900">
+                            {log.action}
+                          </td>
                           <td className="px-4 py-3  text-xs text-gray-600">
                             {log.resource_type}
                             {log.resource_id ? ` #${log.resource_id}` : ''}
@@ -4303,7 +4760,10 @@ export default function AdminPage() {
                     onChange={(e) => setNewCustomerPluginsEnabled(e.target.checked)}
                     className="rounded text-blue-600 focus:ring-blue-500"
                   />
-                  <label htmlFor="newCustomerPluginsEnabled" className="text-xs font-bold uppercase text-gray-500 cursor-pointer">
+                  <label
+                    htmlFor="newCustomerPluginsEnabled"
+                    className="text-xs font-bold uppercase text-gray-500 cursor-pointer"
+                  >
                     Enable Custom Plugins
                   </label>
                 </div>
@@ -5911,6 +6371,7 @@ export default function AdminPage() {
                       <option value="password">Password</option>
                       <option value="textarea">Textarea</option>
                       <option value="choice">Choice</option>
+                      <option value="source">Source</option>
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -6199,13 +6660,16 @@ function KnowledgeBasesTab() {
   useEffect(() => {
     fetchKBs();
     // Load users for name resolution
-    api.getUsers().then((users: any[]) => {
-      const map: Record<number, string> = {};
-      (users || []).forEach((u: any) => {
-        map[u.id] = u.name || u.username || u.email || `User #${u.id}`;
-      });
-      setUsersMap(map);
-    }).catch(() => {});
+    api
+      .getUsers()
+      .then((users: any[]) => {
+        const map: Record<number, string> = {};
+        (users || []).forEach((u: any) => {
+          map[u.id] = u.name || u.username || u.email || `User #${u.id}`;
+        });
+        setUsersMap(map);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -6293,9 +6757,7 @@ function KnowledgeBasesTab() {
 
     // Validate extension
     const allowedExtensions = ['.txt', '.pdf', '.doc', '.docx'];
-    const extension = uploadFile.name
-      .substring(uploadFile.name.lastIndexOf('.'))
-      .toLowerCase();
+    const extension = uploadFile.name.substring(uploadFile.name.lastIndexOf('.')).toLowerCase();
     if (!allowedExtensions.includes(extension)) {
       alert(`Invalid file extension. Allowed extensions: ${allowedExtensions.join(', ')}`);
       return;
@@ -6349,9 +6811,7 @@ function KnowledgeBasesTab() {
   const handleUploadNewVersion = (doc: any) => {
     setSelectedKb(kbList.find((kb) => kb.id === doc.knowledge_base_id));
     setDocDescription(doc.metadata_json?.description || '');
-    setDocTags(
-      Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags.join(', ') : '',
-    );
+    setDocTags(Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags.join(', ') : '');
     setDocType(doc.metadata_json?.type || 'general');
     setShowUploadModal(true);
   };
@@ -6368,7 +6828,7 @@ function KnowledgeBasesTab() {
   return (
     <div className="flex bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-[750px] font-sans text-gray-800">
       {/* Left KB Sidebar */}
-      <div className="w-1/3 border-r border-gray-200 flex flex-col h-full bg-slate-50/20">
+      <div className="w-1/4 border-r border-gray-200 flex flex-col h-full bg-slate-50/20">
         <div className="p-4 border-b border-gray-250 bg-gray-50/50 flex items-center justify-between">
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
             Knowledge Bases
@@ -6428,12 +6888,32 @@ function KnowledgeBasesTab() {
                     {/* Details row: uploader, date, version */}
                     <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-gray-400">
                       <span className="inline-flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
                         <span className="font-medium text-gray-500">{uploaderName}</span>
                       </span>
                       <span className="text-gray-300">·</span>
                       <span className="inline-flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
                         {createdDate}
                       </span>
                       {version && (
@@ -6558,7 +7038,7 @@ function KnowledgeBasesTab() {
                         <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
                           Created By
                         </th>
-                           <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
                           Created On
                         </th>
                         <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -6586,10 +7066,8 @@ function KnowledgeBasesTab() {
                         </tr>
                       ) : (
                         docList.map((doc) => {
-                          const isCompleted =
-                            doc.status === 'completed' || doc.status === 'ready';
-                          const isPending =
-                            doc.status === 'pending' || doc.status === 'processing';
+                          const isCompleted = doc.status === 'completed' || doc.status === 'ready';
+                          const isPending = doc.status === 'pending' || doc.status === 'processing';
                           const isFailed = doc.status === 'failed';
                           const isArchived = doc.status === 'archived';
                           const tags = Array.isArray(doc.metadata_json?.tags)
@@ -6597,119 +7075,144 @@ function KnowledgeBasesTab() {
                             : [];
 
                           return (
-                            <>
-                            <tr
-                              key={doc.id}
-                              className={isArchived ? 'bg-gray-50/50 opacity-60' : ''}
-                            >
-                              <td className="px-5 py-4 max-w-xs font-semibold text-xs text-slate-800">
-                                <div className="flex items-center gap-2">
-                                  <FileText
-                                    className={`w-4 h-4 shrink-0 ${isArchived ? 'text-gray-400' : 'text-blue-500'}`}
-                                  />
-                                  <span className="truncate" title={doc.name}>
-                                    {doc.name}
-                                  </span>
+                            <React.Fragment key={doc.id}>
+                              {/* Row 1: Main columns */}
+                              <tr
+                                className={isArchived ? 'bg-gray-50/50 opacity-60' : ''}
+                              >
+                                <td className="px-5 pt-4 pb-1 max-w-xs font-semibold text-xs text-slate-800">
+                                  <div className="flex items-center gap-2">
+                                    <FileText
+                                      className={`w-4 h-4 shrink-0 ${isArchived ? 'text-gray-400' : 'text-blue-500'}`}
+                                    />
+                                    <span className="truncate" title={doc.name}>
+                                      {doc.name}
+                                    </span>
+                                    {isArchived && (
+                                      <span className="text-[9px] bg-slate-200 px-1 py-0.5 rounded text-slate-500">
+                                        Archived
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-5 py-4 whitespace-nowrap text-xs text-gray-500 capitalize">
+                                  {doc.metadata_json?.type || 'general'}
+                                </td>
+                                <td
+                                  className="px-5 py-4 max-w-xs truncate text-xs text-gray-550"
+                                  title={doc.metadata_json?.description || ''}
+                                >
+                                  {doc.metadata_json?.description || '-'}
+                                </td>
+                                <td
+                                  className="px-5 py-4 max-w-xs truncate text-xs text-gray-550"
+                                  title={doc.created_by || ''}
+                                >
+                                  {doc.created_by || '-'}
+                                </td>{' '}
+                                <td
+                                  className="px-5 py-4 max-w-xs truncate text-xs text-gray-550"
+                                  title={doc.created_by || ''}
+                                >
+                                  {doc.created_at || '-'}
+                                </td>
+                                <td className="px-5 py-4 whitespace-nowrap text-xs">
+                                  {isCompleted && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-50 border border-green-200 text-green-700">
+                                      <CheckCircle className="w-3 h-3 text-green-500" /> Completed
+                                    </span>
+                                  )}
+                                  {isPending && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 border border-amber-200 text-amber-700">
+                                      <Clock className="w-3 h-3 text-amber-500 animate-pulse" />{' '}
+                                      Processing
+                                    </span>
+                                  )}
+                                  {isFailed && (
+                                    <span
+                                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 border border-red-200 text-red-700 cursor-help"
+                                      title={doc.error_message || 'Ingestion failed.'}
+                                    >
+                                      <AlertTriangle className="w-3 h-3 text-red-500" /> Failed
+                                    </span>
+                                  )}
                                   {isArchived && (
-                                    <span className="text-[9px] bg-slate-200 px-1 py-0.5 rounded text-slate-500">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 border border-slate-200 text-slate-500">
                                       Archived
                                     </span>
                                   )}
-                              
-                                </div>
-                                <div className='py-2'> {tags.map((tag: string) => (
-                                    <span
-                                      key={tag}
-                                      className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200"
+                                </td>
+                                <td className="px-5 py-4 whitespace-nowrap text-right text-xs">
+                                  <div className="flex items-center justify-end gap-2">
+                                    {!isArchived && (
+                                      <>
+                                        <button
+                                          onClick={() => refreshDocStatus(doc.id)}
+                                          className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors disabled:opacity-50"
+                                          title="Refresh Status"
+                                          disabled={fetchingDocIds[doc.id]}
+                                        >
+                                          <RefreshCw
+                                            className={`w-3.5 h-3.5 ${fetchingDocIds[doc.id] ? 'animate-spin text-blue-500' : ''}`}
+                                          />
+                                        </button>
+                                        <button
+                                          onClick={() => handleUploadNewVersion(doc)}
+                                          className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                                          title="Upload New Version"
+                                        >
+                                          <Upload className="w-3.5 h-3.5" />
+                                        </button>
+                                      </>
+                                    )}
+                                    <button
+                                      onClick={() => handleDeleteDoc(doc.id)}
+                                      className="p-1 text-gray-400 hover:text-red-650 rounded transition-colors"
+                                      title="Delete Document"
                                     >
-                                      {tag}
-                                    </span>
-                                  ))}
-                            </div>
-                              </td>
-                              <td className="px-5 py-4 whitespace-nowrap text-xs text-gray-500 capitalize">
-                                {doc.metadata_json?.type || 'general'}
-                              </td>
-                              <td
-                                className="px-5 py-4 max-w-xs truncate text-xs text-gray-550"
-                                title={doc.metadata_json?.description || ''}
-                              >
-                                {doc.metadata_json?.description || '-'}
-                              </td>
-                                <td
-                                className="px-5 py-4 max-w-xs truncate text-xs text-gray-550"
-                                title={doc.created_by || ''}
-                              >
-                                {doc.created_by || '-'}
-                              </td>  <td
-                                className="px-5 py-4 max-w-xs truncate text-xs text-gray-550"
-                                title={doc.created_by || ''}
-                              >
-                                {doc.created_at || '-'}
-                              </td>
-                              <td className="px-5 py-4 whitespace-nowrap text-xs">
-                                {isCompleted && (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-50 border border-green-200 text-green-700">
-                                    <CheckCircle className="w-3 h-3 text-green-500" />{' '}
-                                    Completed
-                                  </span>
-                                )}
-                                {isPending && (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 border border-amber-200 text-amber-700">
-                                    <Clock className="w-3 h-3 text-amber-500 animate-pulse" />{' '}
-                                    Processing
-                                  </span>
-                                )}
-                                {isFailed && (
-                                  <span
-                                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 border border-red-200 text-red-700 cursor-help"
-                                    title={doc.error_message || 'Ingestion failed.'}
-                                  >
-                                    <AlertTriangle className="w-3 h-3 text-red-500" /> Failed
-                                  </span>
-                                )}
-                                {isArchived && (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 border border-slate-200 text-slate-500">
-                                    Archived
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-5 py-4 whitespace-nowrap text-right text-xs">
-                                <div className="flex items-center justify-end gap-2">
-                                  {!isArchived && (
-                                    <>
-                                      <button
-                                        onClick={() => refreshDocStatus(doc.id)}
-                                        className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors disabled:opacity-50"
-                                        title="Refresh Status"
-                                        disabled={fetchingDocIds[doc.id]}
-                                      >
-                                        <RefreshCw
-                                          className={`w-3.5 h-3.5 ${fetchingDocIds[doc.id] ? 'animate-spin text-blue-500' : ''}`}
-                                        />
-                                      </button>
-                                      <button
-                                        onClick={() => handleUploadNewVersion(doc)}
-                                        className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
-                                        title="Upload New Version"
-                                      >
-                                        <Upload className="w-3.5 h-3.5" />
-                                      </button>
-                                    </>
-                                  )}
-                                  <button
-                                    onClick={() => handleDeleteDoc(doc.id)}
-                                    className="p-1 text-gray-400 hover:text-red-650 rounded transition-colors"
-                                    title="Delete Document"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                             
-                                 
-                            </>
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                              {/* Row 2: Detail metadata spanning full width */}
+                              <tr className={`border-b border-gray-100 ${isArchived ? 'bg-gray-50/50 opacity-60' : 'bg-slate-50/40'}`}>
+                                <td colSpan={7} className="px-5 pb-3 pt-1">
+                                  <div className="flex items-center gap-3 flex-wrap text-[11px] text-gray-500">
+                                    {tags.length > 0 && (
+                                      <div className="flex items-center gap-1.5">
+                                        {tags.map((tag: string) => (
+                                          <span
+                                            key={tag}
+                                            className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {doc.file_path && (
+                                      <span className="flex items-center gap-1" title={doc.file_path}>
+                                        <FolderOpen className="w-3 h-3 text-gray-400" />
+                                        <span className="truncate max-w-[280px]">{doc.file_path}</span>
+                                      </span>
+                                    )}
+                                    {doc.file_size != null && (
+                                      <span className="flex items-center gap-1">
+                                        <Database className="w-3 h-3 text-gray-400" />
+                                        {(doc.file_size / 1024).toFixed(1)} KB
+                                      </span>
+                                    )}
+                                    {doc.chunk_count != null && (
+                                      <span className="flex items-center gap-1">
+                                        <List className="w-3 h-3 text-gray-400" />
+                                        {doc.chunk_count} chunks
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            </React.Fragment>
                           );
                         })
                       )}
@@ -6718,15 +7221,11 @@ function KnowledgeBasesTab() {
                 </div>
               </div>
             </div>
-
-
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-gray-400">
             <BookOpen className="w-12 h-12 text-gray-250 mb-3" />
-            <h3 className="font-semibold text-gray-700 text-sm mb-1">
-              No Knowledge Base Selected
-            </h3>
+            <h3 className="font-semibold text-gray-700 text-sm mb-1">No Knowledge Base Selected</h3>
             <p className="text-xs text-gray-400 max-w-sm">
               Select or create a knowledge base on the left to start uploading and managing
               documents.
@@ -6752,7 +7251,9 @@ function KnowledgeBasesTab() {
             </div>
             <form onSubmit={handleCreateKB} className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-650">Knowledge Base Name</label>
+                <label className="block text-xs font-semibold text-gray-650">
+                  Knowledge Base Name
+                </label>
                 <input
                   type="text"
                   required
@@ -6914,16 +7415,16 @@ function KnowledgeBasesTab() {
                   <FlaskConical className="w-4 h-4 text-violet-600" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-800 text-sm">
-                    Test Retrieval
-                  </h3>
-                  <p className="text-[10px] text-gray-500 font-medium mt-0.5">
-                    {selectedKb.name}
-                  </p>
+                  <h3 className="font-bold text-gray-800 text-sm">Test Retrieval</h3>
+                  <p className="text-[10px] text-gray-500 font-medium mt-0.5">{selectedKb.name}</p>
                 </div>
               </div>
               <button
-                onClick={() => { setShowTestModal(false); setSearchResults([]); setSearchError(null); }}
+                onClick={() => {
+                  setShowTestModal(false);
+                  setSearchResults([]);
+                  setSearchError(null);
+                }}
                 className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -7082,7 +7583,8 @@ function KnowledgeBasesTab() {
                         {(result.document_name || result.metadata?.document_name) && (
                           <div className="text-[9px] text-gray-400 font-semibold flex items-center gap-1 pt-0.5">
                             <FileText className="w-3 h-3 text-gray-300" />
-                            {result.document_name || result.metadata?.document_name} (ID: {result.document_id})
+                            {result.document_name || result.metadata?.document_name} (ID:{' '}
+                            {result.document_id})
                           </div>
                         )}
                       </div>
@@ -7094,7 +7596,9 @@ function KnowledgeBasesTab() {
                   <div className="flex-1 flex flex-col items-center justify-center text-center py-12 text-gray-400">
                     <Search className="w-10 h-10 text-gray-200 mb-3" />
                     <p className="text-xs font-semibold text-gray-500 mb-1">
-                      {searchQuery && !searchLoading ? 'No results found' : 'Enter a query to begin'}
+                      {searchQuery && !searchLoading
+                        ? 'No results found'
+                        : 'Enter a query to begin'}
                     </p>
                     <p className="text-[10px] text-gray-400">
                       Test how the retrieval pipeline performs with different settings

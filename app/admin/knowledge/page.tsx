@@ -3,20 +3,20 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  BookOpen, 
-  Plus, 
-  Trash2, 
-  Upload, 
-  RefreshCw, 
-  FileText, 
-  CheckCircle, 
-  Clock, 
-  AlertTriangle, 
+import {
+  BookOpen,
+  Plus,
+  Trash2,
+  Upload,
+  RefreshCw,
+  FileText,
+  CheckCircle,
+  Clock,
+  AlertTriangle,
   ChevronRight,
   Database,
   ArrowLeft,
-  Info
+  Info,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -69,7 +69,8 @@ export default function KnowledgeBasePage() {
       return;
     }
 
-    api.getCurrentUser()
+    api
+      .getCurrentUser()
       .then((user) => {
         if (user.role !== 'admin' && user.role !== 'system_admin') {
           router.push('/workflow-builder');
@@ -135,9 +136,9 @@ export default function KnowledgeBasePage() {
     try {
       const newKb = await api.createKnowledgeBase({
         name: newKbName,
-        description: newKbDesc
+        description: newKbDesc,
       });
-      setKbList(prev => [...pr
+      setKbList((prev) => [...prev, newKb]);
       setSelectedKb(newKb);
       setShowCreateModal(false);
       setNewKbName('');
@@ -151,14 +152,18 @@ export default function KnowledgeBasePage() {
   };
 
   const handleDeleteKB = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this Knowledge Base? This will permanently drop its physical Qdrant vector collection and clean up all metadata, database chunks, and documents.')) {
+    if (
+      !confirm(
+        'Are you sure you want to delete this Knowledge Base? This will permanently drop its physical Qdrant vector collection and clean up all metadata, database chunks, and documents.',
+      )
+    ) {
       return;
     }
 
     setError(null);
     try {
       await api.deleteKnowledgeBase(id);
-      const updatedList = kbList.filter(kb => kb.id !== id);
+      const updatedList = kbList.filter((kb) => kb.id !== id);
       setKbList(updatedList);
       if (selectedKb?.id === id) {
         setSelectedKb(updatedList.length > 0 ? updatedList[0] : null);
@@ -196,7 +201,7 @@ export default function KnowledgeBasePage() {
       // Reset input element
       const fileInput = document.getElementById('kb-file-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
-      
+
       // Reload document list
       fetchDocs(selectedKb.id);
       setUploadProgress(null);
@@ -211,14 +216,18 @@ export default function KnowledgeBasePage() {
 
   const handleDeleteDoc = async (docId: number) => {
     if (!selectedKb) return;
-    if (!confirm('Are you sure you want to delete this document? This will remove all chunks and Qdrant points.')) {
+    if (
+      !confirm(
+        'Are you sure you want to delete this document? This will remove all chunks and Qdrant points.',
+      )
+    ) {
       return;
     }
 
     setDocError(null);
     try {
       await api.deleteDocument(selectedKb.id, docId);
-      setDocList(prev => prev.filter(doc => doc.id !== docId));
+      setDocList((prev) => prev.filter((doc) => doc.id !== docId));
     } catch (err: any) {
       console.error(err);
       setDocError('Failed to delete document.');
@@ -239,7 +248,10 @@ export default function KnowledgeBasePage() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex items-center gap-3">
-          <Link href="/admin?tab=nodes" className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors">
+          <Link
+            href="/admin?tab=nodes"
+            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors"
+          >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div className="h-6 w-[1px] bg-slate-200" />
@@ -270,7 +282,9 @@ export default function KnowledgeBasePage() {
         {/* Left Side: Knowledge Base List */}
         <section className="w-1/3 bg-white border-r border-slate-200 flex flex-col h-full overflow-hidden">
           <div className="p-4 bg-slate-50/50 border-b border-slate-200">
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Databases</h2>
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Active Databases
+            </h2>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
@@ -296,7 +310,9 @@ export default function KnowledgeBasePage() {
                     }`}
                   >
                     <div className="space-y-1 pr-3">
-                      <h3 className={`font-semibold text-sm ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}>
+                      <h3
+                        className={`font-semibold text-sm ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}
+                      >
                         {kb.name}
                       </h3>
                       {kb.description && (
@@ -339,21 +355,33 @@ export default function KnowledgeBasePage() {
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">{selectedKb.name}</h2>
                   {selectedKb.description && (
-                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">{selectedKb.description}</p>
+                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                      {selectedKb.description}
+                    </p>
                   )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Collection Name</span>
-                    <span className="text-xs font-semibold text-slate-700 font-mono">kb_collection_{selectedKb.id}</span>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase">
+                      Collection Name
+                    </span>
+                    <span className="text-xs font-semibold text-slate-700 font-mono">
+                      kb_collection_{selectedKb.id}
+                    </span>
                   </div>
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Embedding Model</span>
-                    <span className="text-xs font-semibold text-slate-700">{selectedKb.embedding_model || 'text-embedding-3-small'}</span>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase">
+                      Embedding Model
+                    </span>
+                    <span className="text-xs font-semibold text-slate-700">
+                      {selectedKb.embedding_model || 'text-embedding-3-small'}
+                    </span>
                   </div>
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Status</span>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase">
+                      Status
+                    </span>
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 capitalize mt-0.5">
                       <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                       {selectedKb.status}
@@ -367,7 +395,9 @@ export default function KnowledgeBasePage() {
                 {/* Document Table (List View) */}
                 <div className="flex-1 p-6 flex flex-col overflow-hidden">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ingested Documents</h3>
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Ingested Documents
+                    </h3>
                     <span className="text-xs text-slate-500 font-medium bg-white px-2.5 py-1 rounded-full border border-slate-200">
                       {docList.length} total files
                     </span>
@@ -385,11 +415,21 @@ export default function KnowledgeBasePage() {
                       <table className="min-w-full divide-y divide-slate-200">
                         <thead className="bg-slate-50 sticky top-0">
                           <tr>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">File Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Size</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Chunks</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                              File Name
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                              Size
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                              Chunks
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
+                              Actions
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 bg-white">
@@ -415,12 +455,24 @@ export default function KnowledgeBasePage() {
                               const isArchived = doc.status === 'archived';
 
                               return (
-                                <tr key={doc.id} className={isArchived ? 'bg-slate-50 opacity-60' : ''}>
-                                  <td className="px-6 py-4 max-w-xs truncate font-medium text-xs text-slate-800" title={doc.name}>
+                                <tr
+                                  key={doc.id}
+                                  className={isArchived ? 'bg-slate-50 opacity-60' : ''}
+                                >
+                                  <td
+                                    className="px-6 py-4 max-w-xs truncate font-medium text-xs text-slate-800"
+                                    title={doc.name}
+                                  >
                                     <div className="flex items-center gap-2">
-                                      <FileText className={`w-4 h-4 shrink-0 ${isArchived ? 'text-slate-400' : 'text-blue-500'}`} />
+                                      <FileText
+                                        className={`w-4 h-4 shrink-0 ${isArchived ? 'text-slate-400' : 'text-blue-500'}`}
+                                      />
                                       <span className="truncate">{doc.name}</span>
-                                      {isArchived && <span className="text-[9px] bg-slate-200 px-1 py-0.5 rounded text-slate-500">Archived</span>}
+                                      {isArchived && (
+                                        <span className="text-[9px] bg-slate-200 px-1 py-0.5 rounded text-slate-500">
+                                          Archived
+                                        </span>
+                                      )}
                                     </div>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
@@ -437,11 +489,12 @@ export default function KnowledgeBasePage() {
                                     )}
                                     {isPending && (
                                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 border border-amber-200 text-amber-700">
-                                        <Clock className="w-3 h-3 text-amber-500 animate-pulse" /> Pending
+                                        <Clock className="w-3 h-3 text-amber-500 animate-pulse" />{' '}
+                                        Pending
                                       </span>
                                     )}
                                     {isFailed && (
-                                      <span 
+                                      <span
                                         className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 border border-red-200 text-red-700 cursor-help"
                                         title={doc.error_message || 'Ingestion failed.'}
                                       >
@@ -477,7 +530,9 @@ export default function KnowledgeBasePage() {
                 <div className="w-80 border-l border-slate-200 bg-white p-6 shrink-0 flex flex-col h-full justify-between">
                   <form onSubmit={handleUploadFile} className="space-y-4">
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Ingest Document</h4>
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Ingest Document
+                      </h4>
                       <p className="text-[10px] text-slate-400 leading-normal">
                         Upload text, markdown, or PDF files to index them inside the vector store.
                       </p>
@@ -495,13 +550,19 @@ export default function KnowledgeBasePage() {
                       <Upload className="w-8 h-8 text-slate-350 mb-2" />
                       {uploadFile ? (
                         <div className="space-y-1">
-                          <p className="text-xs font-bold text-slate-800 line-clamp-1">{uploadFile.name}</p>
-                          <p className="text-[10px] text-slate-400">{formatBytes(uploadFile.size)}</p>
+                          <p className="text-xs font-bold text-slate-800 line-clamp-1">
+                            {uploadFile.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            {formatBytes(uploadFile.size)}
+                          </p>
                         </div>
                       ) : (
                         <div className="space-y-1">
                           <p className="text-xs font-bold text-slate-600">Select file to upload</p>
-                          <p className="text-[9px] text-slate-400 font-medium">PDF, TXT, DOC, DOCX up to 50MB</p>
+                          <p className="text-[9px] text-slate-400 font-medium">
+                            PDF, TXT, DOC, DOCX up to 50MB
+                          </p>
                         </div>
                       )}
                     </div>
@@ -529,7 +590,8 @@ export default function KnowledgeBasePage() {
                       Version control info
                     </h5>
                     <p className="text-[10px] text-slate-450 leading-normal">
-                      Uploading a document with the exact same name will archive the old version and delete its indices, keeping only the latest version searchable.
+                      Uploading a document with the exact same name will archive the old version and
+                      delete its indices, keeping only the latest version searchable.
                     </p>
                   </div>
                 </div>
@@ -538,7 +600,9 @@ export default function KnowledgeBasePage() {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-slate-400">
               <Database className="w-12 h-12 text-slate-200 mb-3" />
-              <h3 className="font-semibold text-slate-700 text-sm mb-1">No Knowledge Base Selected</h3>
+              <h3 className="font-semibold text-slate-700 text-sm mb-1">
+                No Knowledge Base Selected
+              </h3>
               <p className="text-xs text-slate-400 max-w-sm leading-normal">
                 Select a knowledge base on the left or create a new one to start indexing files.
               </p>
@@ -552,7 +616,9 @@ export default function KnowledgeBasePage() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-150">
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">New Knowledge Base</h3>
+              <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">
+                New Knowledge Base
+              </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="text-slate-400 hover:text-slate-600 font-bold text-xs"
@@ -562,7 +628,9 @@ export default function KnowledgeBasePage() {
             </div>
             <form onSubmit={handleCreateKB} className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600">Knowledge Base Name</label>
+                <label className="block text-xs font-semibold text-slate-600">
+                  Knowledge Base Name
+                </label>
                 <input
                   type="text"
                   required

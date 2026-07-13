@@ -26,6 +26,186 @@ import { api } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
 import JsonSchemaGeneratorModal from './JsonSchemaGeneratorModal';
 
+interface SourcePropertyFieldProps {
+  field: NodePropertyDefinition;
+  isDisabled: boolean;
+  sourceVal: string;
+  propVal: any;
+  handlePropertyChange: (key: string, value: any) => void;
+  sourceKey: string;
+}
+
+const SourcePropertyField = ({
+  field,
+  isDisabled,
+  sourceVal,
+  propVal,
+  handlePropertyChange,
+  sourceKey,
+}: SourcePropertyFieldProps) => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sourceVal || !sourceVal.trim()) {
+      setData(null);
+      return;
+    }
+
+    const isUrl = sourceVal.startsWith('/') || sourceVal.startsWith('http');
+    if (!isUrl) {
+      try {
+        setData(JSON.parse(sourceVal));
+        setError(null);
+      } catch {
+        if (sourceVal.includes(',')) {
+          setData(sourceVal.split(',').map((s) => s.trim()).filter(Boolean));
+        } else {
+          setData(sourceVal);
+        }
+        setError(null);
+      }
+      return;
+    }
+
+    let active = true;
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+        const fullUrl = sourceVal.startsWith('http')
+          ? sourceVal
+          : `${BACKEND_URL}${sourceVal.startsWith('/') ? '' : '/'}${sourceVal}`;
+
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        };
+
+        const res = await fetch(fullUrl, { headers });
+        if (!res.ok) {
+          throw new Error(`Fetch failed: ${res.statusText}`);
+        }
+        const json = await res.json();
+        if (active) {
+          setData(json);
+        }
+      } catch (err: any) {
+        if (active) {
+          setError(err.message || 'Failed to fetch');
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+    return () => {
+      active = false;
+    };
+  }, [sourceVal]);
+
+  let resolvedData = data;
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const arrayKey = Object.keys(data).find((k) => Array.isArray(data[k]));
+    if (arrayKey) {
+      resolvedData = data[arrayKey];
+    }
+  }
+
+  const isList = Array.isArray(resolvedData);
+  const isDict = resolvedData !== null && typeof resolvedData === 'object' && !isList;
+
+  return (
+    <div className="space-y-3.5 p-4 border border-gray-200 rounded-xl bg-slate-50/50 shadow-sm w-full">
+      <div className="flex items-center justify-between">
+        <label
+          className="block text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1.5 cursor-help"
+          title={field.description}
+        >
+          {field.label}
+          {field.description && (
+            <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+              i
+            </span>
+          )}
+        </label>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+          Source URL Configuration (Internal)
+        </label>
+        <input
+          type="text"
+          disabled={isDisabled}
+          value={sourceVal}
+          placeholder="e.g. /api/knowledge/bases"
+          onChange={(e) => !isDisabled && handlePropertyChange(sourceKey, e.target.value)}
+          className="w-full text-xs font-mono rounded-lg border border-gray-300 px-3 py-2 text-black focus:outline-none focus:border-blue-500 bg-white"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex justify-between items-center">
+          <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+            Value Selection
+          </label>
+          {loading && <span className="text-[10px] text-blue-500 animate-pulse">Loading...</span>}
+          {error && <span className="text-[10px] text-red-500" title={error}>Error loading source</span>}
+        </div>
+        {isList ? (
+          <select
+            disabled={isDisabled}
+            value={String(propVal)}
+            onChange={(e) => !isDisabled && handlePropertyChange(field.key, e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white text-black"
+          >
+            <option value="">Select option...</option>
+            {resolvedData.map((opt: any) => {
+              const val = opt && typeof opt === 'object' ? (opt.id ?? opt.key ?? opt.value ?? opt.name ?? '') : opt;
+              const label = opt && typeof opt === 'object' ? (opt.name ?? opt.label ?? opt.title ?? opt.key ?? opt.id ?? '') : opt;
+              return (
+                <option key={String(val)} value={String(val)}>
+                  {String(label)}
+                </option>
+              );
+            })}
+          </select>
+        ) : isDict ? (
+          <select
+            disabled={isDisabled}
+            value={String(propVal)}
+            onChange={(e) => !isDisabled && handlePropertyChange(field.key, e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white text-black"
+          >
+            <option value="">Select option...</option>
+            {Object.entries(resolvedData).map(([k, v]) => (
+              <option key={k} value={k}>
+                {String(v)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            disabled={isDisabled}
+            value={String(propVal)}
+            onChange={(e) => !isDisabled && handlePropertyChange(field.key, e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500"
+            placeholder="Enter value..."
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Helper to normalize and parse system properties from different database formats
 const parseSystemProperties = (value: any): Record<string, any> => {
   if (!value) return {};
@@ -558,7 +738,8 @@ export default function PropertiesPanel({
     const propertySchema = (selectedNode.data as any)?.propertySchema || [];
     const hasKbField = propertySchema.some((f: any) => f.key === 'knowledge_base_ids');
     if (hasKbField) {
-      api.getKnowledgeBases()
+      api
+        .getKnowledgeBases()
         .then((res) => {
           setKbList(res || []);
         })
@@ -1037,13 +1218,18 @@ export default function PropertiesPanel({
           </label>
           <div className="border rounded-lg p-2.5 bg-white space-y-2 max-h-48 overflow-y-auto border-gray-300">
             {kbList.length === 0 ? (
-              <p className="text-xs text-gray-400 italic">No active knowledge bases found. Create one in the admin menu.</p>
+              <p className="text-xs text-gray-400 italic">
+                No active knowledge bases found. Create one in the admin menu.
+              </p>
             ) : (
               kbList.map((kb) => {
                 const currentVal = Array.isArray(value) ? (value as any[]).map(String) : [];
                 const isChecked = currentVal.includes(String(kb.id));
                 return (
-                  <label key={kb.id} className="flex items-center gap-2 text-xs font-medium text-black cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <label
+                    key={kb.id}
+                    className="flex items-center gap-2 text-xs font-medium text-black cursor-pointer hover:bg-gray-50 p-1 rounded"
+                  >
                     <input
                       type="checkbox"
                       checked={isChecked}
@@ -1060,13 +1246,18 @@ export default function PropertiesPanel({
                       }}
                       className="h-3.5 w-3.5 accent-blue-600 rounded text-blue-600"
                     />
-                    <span>{kb.name} <span className="text-[10px] text-gray-400 font-normal">(ID: {kb.id})</span></span>
+                    <span>
+                      {kb.name}{' '}
+                      <span className="text-[10px] text-gray-400 font-normal">(ID: {kb.id})</span>
+                    </span>
                   </label>
                 );
               })
             )}
           </div>
-          <p className="text-[10px] text-gray-450 italic mt-1">Leave unselected to query all active knowledge bases.</p>
+          <p className="text-[10px] text-gray-450 italic mt-1">
+            Leave unselected to query all active knowledge bases.
+          </p>
         </div>
       );
     }
@@ -1224,6 +1415,27 @@ export default function PropertiesPanel({
             </p>
           )} */}
         </div>
+      );
+    }
+
+    // Source Configuration
+    if (fieldType === 'source') {
+      const sourceKey = `${field.key}_source`;
+      const sourceVal = String(
+        (hasUserValue ? userProps[sourceKey] : systemProps[sourceKey]) || field.default || ''
+      );
+      const propVal = value !== undefined && value !== null ? value : '';
+
+      return (
+        <SourcePropertyField
+          key={field.key}
+          field={field}
+          isDisabled={isDisabled}
+          sourceVal={sourceVal}
+          propVal={propVal}
+          handlePropertyChange={handlePropertyChange}
+          sourceKey={sourceKey}
+        />
       );
     }
 
