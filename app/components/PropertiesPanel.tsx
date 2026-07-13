@@ -551,6 +551,20 @@ export default function PropertiesPanel({
   const [properties, setProperties] = useState<NodeProperties>({});
   const [systemProperties, setSystemProperties] = useState<NodeProperties>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [kbList, setKbList] = useState<{ id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!selectedNode) return;
+    const propertySchema = (selectedNode.data as any)?.propertySchema || [];
+    const hasKbField = propertySchema.some((f: any) => f.key === 'knowledge_base_ids');
+    if (hasKbField) {
+      api.getKnowledgeBases()
+        .then((res) => {
+          setKbList(res || []);
+        })
+        .catch((err) => console.error('Failed to load KBs for properties panel:', err));
+    }
+  }, [selectedNode?.id]);
 
   const systemKeys = Object.keys(systemProperties);
   const entries = Object.entries(properties).filter(
@@ -1005,6 +1019,57 @@ export default function PropertiesPanel({
       (isSystem || hasUserValue) && fieldType === 'password' && value
         ? '••••••••'
         : String(value ?? '');
+
+    // Custom check for knowledge base selector
+    if (field.key === 'knowledge_base_ids') {
+      return (
+        <div key={field.key} className="space-y-1.5">
+          <label
+            className="block text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1.5 cursor-help"
+            title={field.description}
+          >
+            {field.label}
+            {field.description && (
+              <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+                i
+              </span>
+            )}
+          </label>
+          <div className="border rounded-lg p-2.5 bg-white space-y-2 max-h-48 overflow-y-auto border-gray-300">
+            {kbList.length === 0 ? (
+              <p className="text-xs text-gray-400 italic">No active knowledge bases found. Create one in the admin menu.</p>
+            ) : (
+              kbList.map((kb) => {
+                const currentVal = Array.isArray(value) ? (value as any[]).map(String) : [];
+                const isChecked = currentVal.includes(String(kb.id));
+                return (
+                  <label key={kb.id} className="flex items-center gap-2 text-xs font-medium text-black cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      disabled={isDisabled}
+                      onChange={(e) => {
+                        if (isDisabled) return;
+                        let nextVal: string[];
+                        if (e.target.checked) {
+                          nextVal = [...currentVal, String(kb.id)];
+                        } else {
+                          nextVal = currentVal.filter((id) => id !== String(kb.id));
+                        }
+                        handlePropertyChange(field.key, nextVal);
+                      }}
+                      className="h-3.5 w-3.5 accent-blue-600 rounded text-blue-600"
+                    />
+                    <span>{kb.name} <span className="text-[10px] text-gray-400 font-normal">(ID: {kb.id})</span></span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+          <p className="text-[10px] text-gray-450 italic mt-1">Leave unselected to query all active knowledge bases.</p>
+        </div>
+      );
+    }
 
     // Boolean Toggle
     if (fieldType === 'boolean') {

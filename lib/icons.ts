@@ -39,6 +39,7 @@ import {
   Bell,
   Blocks,
   RefreshCcw,
+  BookOpen
 } from 'lucide-react';
 
 export const IconMap: Record<string, any> = {
@@ -85,6 +86,6 @@ export const IconMap: Record<string, any> = {
   save: Save,
   power: Power,
   refreshCw: RefreshCcw,
-  search: Search,
+  search: BookOpen,
 };
 export default IconMap;

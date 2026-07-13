@@ -499,4 +499,69 @@ export const api = {
     });
     return res.json();
   },
+
+  getKnowledgeBases: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases`, {
+      headers: getHeaders(),
+      method: 'GET',
+    });
+    if (!res.ok) throw new Error('Failed to fetch knowledge bases');
+    return res.json();
+  },
+
+  createKnowledgeBase: async (payload: { name: string; description?: string; settings?: any }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to create knowledge base');
+    return res.json();
+  },
+
+  deleteKnowledgeBase: async (id: number | string) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete knowledge base');
+    return res.json();
+  },
+
+  getKnowledgeBaseDocuments: async (kbId: number | string) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents`, {
+      headers: getHeaders(),
+      method: 'GET',
+    });
+    if (!res.ok) throw new Error('Failed to fetch documents');
+    return res.json();
+  },
+
+  uploadDocument: async (kbId: number | string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents`, {
+      method: 'POST',
+      headers: getHeaders(), // Let browser set boundary for multipart/form-data
+      body: formData,
+    });
+    if (!res.ok) {
+      let msg = 'Failed to upload document';
+      try {
+        const errData = await res.json();
+        msg = errData.detail || msg;
+      } catch {}
+      throw new Error(msg);
+    }
+    return res.json();
+  },
+
+  deleteDocument: async (kbId: number | string, docId: number | string) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete document');
+    return res.json();
+  },
 };

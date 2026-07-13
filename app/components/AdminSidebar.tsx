@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Menu, X, Home, Workflow, Database, Settings, BarChart3, ChevronDown } from 'lucide-react';
+import { Menu, X, Home, Workflow, Database, Settings, BarChart3, ChevronDown, BookOpen } from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -29,6 +29,7 @@ const navSections: NavSection[] = [
     title: 'Management',
     items: [
       { label: 'Node Registry', href: '/admin', icon: <Database className="w-4 h-4" /> },
+      { label: 'Knowledge Bases', href: '/admin/knowledge', icon: <BookOpen className="w-4 h-4" /> },
       {
         label: 'Workflows',
         href: '/workflow-builder',

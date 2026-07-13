@@ -13,7 +13,7 @@ import { JsonTreeView } from '@components/JsonTreeView';
 import JsonSchemaGeneratorModal from '@components/JsonSchemaGeneratorModal';
 import RunVisualizerModal from '@components/RunVisualizerModal';
 import { MetricCard } from '@/app/components/MetricCard';
-import { Clock, Activity, AlertTriangle } from 'lucide-react';
+import { Clock, Activity, AlertTriangle, BookOpen, FileText, Database } from 'lucide-react';
 
 type PropertyTarget = 'user' | 'system';
 
@@ -412,6 +412,7 @@ export default function AdminPage() {
   const [metricsSelectedWorkflow, setMetricsSelectedWorkflow] = useState('all');
   const [metricsSelectedCustomer, setMetricsSelectedCustomer] = useState('all');
   const [metricsExpandedTrace, setMetricsExpandedTrace] = useState<string | null>(null);
+  const [kbMetrics, setKbMetrics] = useState<any>(null);
 
   const handleCopyLog = (logData: any) => {
     navigator.clipboard.writeText(JSON.stringify(logData, null, 2));
@@ -557,6 +558,25 @@ export default function AdminPage() {
         setMetricsData(result);
       } else {
         setMetricsError('Failed to fetch metrics data');
+      }
+
+      // Also fetch Knowledge Base metrics
+      const kbUrl = new URL('http://localhost:8000/api/observability/knowledge-metrics');
+      if (
+        (userRole === 'system_admin' || userRole === 'admin') &&
+        metricsSelectedCustomer &&
+        metricsSelectedCustomer !== 'all'
+      ) {
+        kbUrl.searchParams.append('customer_id', metricsSelectedCustomer);
+      }
+      const kbRes = await fetch(kbUrl.toString(), {
+        headers: getHeaders({
+          'Content-Type': 'application/json',
+        }),
+      });
+      if (kbRes.ok) {
+        const kbResult = await kbRes.json();
+        setKbMetrics(kbResult);
       }
     } catch (err) {
       console.error('Failed to fetch metrics', err);
@@ -1942,7 +1962,7 @@ export default function AdminPage() {
           {userRole === 'system_admin' && (
             <button
               onClick={() => handleTabChange('customers')}
-              className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'customers' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'customers' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
               Customer Management
             </button>
@@ -1950,14 +1970,14 @@ export default function AdminPage() {
           {(userRole === 'admin' || userRole === 'system_admin') && (
             <button
               onClick={() => handleTabChange('nodes')}
-              className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'nodes' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'nodes' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
               Node Management
             </button>
           )}
           <button
             onClick={() => handleTabChange('workflows')}
-            className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'workflows' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'workflows' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
             Workflow Management
           </button>
@@ -1965,25 +1985,25 @@ export default function AdminPage() {
             <>
               <button
                 onClick={() => handleTabChange('users')}
-                className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 User Management
               </button>
               <button
                 onClick={() => handleTabChange('oauth')}
-                className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'oauth' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'oauth' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 OAuth Management
               </button>
               <button
                 onClick={() => handleTabChange('logs')}
-                className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'logs' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'logs' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 System Logs
               </button>
               <button
                 onClick={() => handleTabChange('metrics')}
-                className={`px-6 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'metrics' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'metrics' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 Metrics
               </button>
@@ -2463,22 +2483,22 @@ export default function AdminPage() {
                 <table className="w-full text-left">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
                         Workflow Name / ID
                       </th>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
                         Description
                       </th>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold text-center">
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold text-center">
                         Nodes
                       </th>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold text-center">
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold text-center">
                         Edges
                       </th>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
                         Status
                       </th>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold text-right">
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold text-right">
                         Actions
                       </th>
                     </tr>
@@ -2486,7 +2506,7 @@ export default function AdminPage() {
                   <tbody className="divide-y divide-gray-200">
                     {workflows.map((wf) => (
                       <tr key={wf.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-sm font-medium text-black">
+                        <td className="px-4 py-3 text-sm font-medium text-black">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100 flex-shrink-0">
                               <Workflow className="h-4 w-4" />
@@ -2497,18 +2517,18 @@ export default function AdminPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                        <td className="px-4 py-3 text-xs text-gray-600 max-w-xs truncate">
                           {wf.description || (
                             <span className="text-gray-400 italic">No description provided.</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700 font-semibold text-center">
+                        <td className="px-4 py-3 text-xs text-gray-700 font-semibold text-center">
                           {wf.graph?.nodes?.length || 0}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700 font-semibold text-center">
+                        <td className="px-4 py-3 text-xs text-gray-700 font-semibold text-center">
                           {wf.graph?.edges?.length || 0}
                         </td>
-                        <td className="px-6 py-4 text-sm">
+                        <td className="px-4 py-3 text-xs">
                           <span
                             className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border ${
                               wf.is_enabled !== false
@@ -2519,7 +2539,7 @@ export default function AdminPage() {
                             {wf.is_enabled !== false ? 'Active' : 'Disabled'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-right">
+                        <td className="px-4 py-3 text-xs text-right">
                           <div className="flex items-center justify-end gap-2">
                             {(userRole === 'admin' || userRole === 'system_admin') && (
                               <>
@@ -3113,12 +3133,12 @@ export default function AdminPage() {
                 <table className="w-full text-left">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Plugin Name</th>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Domain Name</th>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Custom Plugins</th>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Plugins Storage Path</th>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Status</th>
-                      <th className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">Actions</th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Plugin Name</th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Domain Name</th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Custom Plugins</th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Plugins Storage Path</th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Status</th>
+                      <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -3131,15 +3151,15 @@ export default function AdminPage() {
                         }}
                         className="hover:bg-gray-50 cursor-pointer transition-colors"
                       >
-                        <td className="px-6 py-4 text-sm text-black font-medium flex items-center gap-3">
+                        <td className="px-4 py-3 text-sm text-black font-medium flex items-center gap-3">
                           <span
                             className="h-2.5 w-2.5 rounded-full"
                             style={{ backgroundColor: c.color_schema || '#2563eb' }}
                           ></span>
                           {c.name}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{c.domain}</td>
-                        <td className="px-6 py-4 text-sm" onClick={e => e.stopPropagation()}>
+                        <td className="px-4 py-3 text-sm text-gray-600">{c.domain}</td>
+                        <td className="px-4 py-3 text-sm" onClick={e => e.stopPropagation()}>
                           <label className="relative inline-flex items-center cursor-pointer">
                             <input
                               type="checkbox"
@@ -3150,7 +3170,7 @@ export default function AdminPage() {
                             <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                           </label>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600" onClick={e => e.stopPropagation()}>
+                        <td className="px-4 py-3 text-sm text-gray-600" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-xs">{c.plugin_storage_path || 'Default'}</span>
                             <button
@@ -3162,14 +3182,14 @@ export default function AdminPage() {
                             </button>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm">
+                        <td className="px-4 py-3 text-sm">
                           <span
                             className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${c.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
                           >
                             {c.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm flex gap-3" onClick={e => e.stopPropagation()}>
+                        <td className="px-4 py-3 text-sm flex gap-3" onClick={e => e.stopPropagation()}>
                           <button
                             onClick={() => {
                               setSelectedCustomerIdForUser(c.id);
@@ -3230,13 +3250,13 @@ export default function AdminPage() {
               <table className="w-full text-left">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
                       Username
                     </th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Email</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Role</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Email</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Role</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">
                       Actions
                     </th>
                   </tr>
@@ -3244,23 +3264,23 @@ export default function AdminPage() {
                 <tbody className="divide-y divide-gray-200">
                   {users?.map((u, i) => (
                     <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-black font-medium">{u.username}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{u.email_id}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3 text-sm text-black font-medium">{u.username}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{u.email_id}</td>
+                      <td className="px-4 py-3">
                         <span
                           className={`px-2 py-1 rounded text-xs font-bold uppercase ${u.role === 'admin' || u.role === 'system_admin' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}
                         >
                           {u.role}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         <span
                           className={`text-sm font-medium ${u.status === 'active' ? 'text-green-600' : 'text-red-600'}`}
                         >
                           {u.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 py-3 text-right">
                         <button
                           type="button"
                           onClick={() => handleDeleteUser(u)}
@@ -3379,13 +3399,13 @@ export default function AdminPage() {
                 <table className="w-full text-left text-sm border-collapse">
                   <thead className="bg-gray-50 text-gray-400 uppercase text-xs border-b border-gray-150">
                     <tr>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Status</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Action</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Resource</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Actor</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Customer ID</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Timestamp</th>
-                      <th className="px-6 py-4"></th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Status</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Action</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Resource</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Actor</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Customer ID</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Timestamp</th>
+                      <th className="px-4 py-3"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-150">
@@ -3399,7 +3419,7 @@ export default function AdminPage() {
                             )
                           }
                         >
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-3 text-xs">
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                 log.status === 'denied'
@@ -3410,21 +3430,21 @@ export default function AdminPage() {
                               {log.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 font-semibold text-gray-900">{log.action}</td>
-                          <td className="px-6 py-4 text-gray-600">
+                          <td className="px-4 py-3 text-xs font-semibold text-gray-900">{log.action}</td>
+                          <td className="px-4 py-3  text-xs text-gray-600">
                             {log.resource_type}
                             {log.resource_id ? ` #${log.resource_id}` : ''}
                           </td>
-                          <td className="px-6 py-4 text-gray-600">
+                          <td className="px-4 py-3  text-xs text-gray-600">
                             {log.actor_role || 'system'} #{log.actor_user_id || '-'}
                           </td>
-                          <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                          <td className="px-4 py-3 font-mono text-xs text-gray-600">
                             {log.customer_id || '-'}
                           </td>
-                          <td className="px-6 py-4 text-gray-500">
+                          <td className="px-4 py-3  text-xs text-gray-500">
                             {log.created_at ? new Date(log.created_at).toLocaleString() : '-'}
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-4 py-3  text-xs  text-right">
                             {expandedLogId === String(log.id) ? (
                               <ChevronUp className="h-4 w-4 text-gray-400 inline" />
                             ) : (
@@ -3449,15 +3469,15 @@ export default function AdminPage() {
                 <table className="w-full text-left text-sm border-collapse">
                   <thead className="bg-gray-50 text-gray-400 uppercase text-xs border-b border-gray-150">
                     <tr>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Status</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Workflow ID / Name</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Trace ID</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Customer ID</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">User ID</th>
-                      {/* <th className="px-6 py-4 font-semibold text-gray-600">User Email</th>*/}
-                      <th className="px-6 py-4 font-semibold text-gray-600">Latency</th>
-                      <th className="px-6 py-4 font-semibold text-gray-600">Timestamp</th>
-                      <th className="px-6 py-4"></th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Status</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Workflow ID / Name</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Trace ID</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Customer ID</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">User ID</th>
+                      {/* <th className="px-4 py-3 font-semibold text-gray-600">User Email</th>*/}
+                      <th className="px-4 py-3 font-semibold text-gray-600">Latency</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Timestamp</th>
+                      <th className="px-4 py-3"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-150">
@@ -3469,7 +3489,7 @@ export default function AdminPage() {
                             setExpandedLogId(expandedLogId === log.trace_id ? null : log.trace_id)
                           }
                         >
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-3">
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                 log.status === 'running'
@@ -3494,26 +3514,26 @@ export default function AdminPage() {
                                     : 'Completed'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 font-semibold text-gray-900">
+                          <td className="px-4 py-3 font-semibold text-gray-900">
                             {log.workflow_name || log.workflow_id}
                           </td>
-                          <td className="px-6 py-4 font-mono text-gray-500">
+                          <td className="px-4 py-3 font-mono text-gray-500">
                             {log.trace_id?.substring(0, 8)}...
                           </td>
-                          <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                          <td className="px-4 py-3 font-mono text-xs text-gray-600">
                             {log.customer_id || '-'}
                           </td>
-                          <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                          <td className="px-4 py-3 font-mono text-xs text-gray-600">
                             {log.user_id || '-'}
                           </td>
-                          {/* <td className="px-6 py-4 text-gray-600">{log.user_email || log.user_id || 'system'}</td> */}
-                          <td className="px-6 py-4 text-gray-950 font-semibold">
+                          {/* <td className="px-4 py-3 text-gray-600">{log.user_email || log.user_id || 'system'}</td> */}
+                          <td className="px-4 py-3 text-gray-950 font-semibold">
                             {log.latency_ms}ms
                           </td>
-                          <td className="px-6 py-4 text-gray-500">
+                          <td className="px-4 py-3 text-gray-500">
                             {new Date(log.timestamp * 1000).toLocaleString()}
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-4 py-3 text-right">
                             <div className="inline-flex items-center gap-3 justify-end w-full">
                               {/* Visualizer Graph Button */}
                               <button
@@ -3747,6 +3767,38 @@ export default function AdminPage() {
                   />
                 </div>
 
+                {/* Knowledge Base Metrics Cards Grid */}
+                {kbMetrics && (
+                  <div className="space-y-4 border-t pt-6 border-slate-200">
+                    <h3 className="text-lg font-semibold text-black flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-blue-600" />
+                      Knowledge Ingestion Metrics
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <MetricCard
+                        title="Active Knowledge Bases"
+                        value={kbMetrics.total_kbs}
+                        icon={<BookOpen className="h-5 w-5 text-blue-500" />}
+                      />
+                      <MetricCard
+                        title="Total Indexed Chunks"
+                        value={kbMetrics.total_chunks}
+                        icon={<Database className="h-5 w-5 text-cyan-500" />}
+                      />
+                      <MetricCard
+                        title="Ingested Documents"
+                        value={`${kbMetrics.documents_by_status?.completed ?? 0} active / ${kbMetrics.total_docs} total`}
+                        icon={<FileText className="h-5 w-5 text-green-500" />}
+                      />
+                      <MetricCard
+                        title="Failed Ingestions"
+                        value={kbMetrics.documents_by_status?.failed ?? 0}
+                        icon={<AlertTriangle className="h-5 w-5 text-red-500" />}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Traces Table */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-black flex items-center gap-2">
@@ -3765,15 +3817,15 @@ export default function AdminPage() {
                       <table className="w-full text-left text-sm border-collapse">
                         <thead className="bg-gray-50 text-gray-400 uppercase text-xs border-b border-gray-150">
                           <tr>
-                            <th className="px-6 py-4 font-semibold text-gray-600">Status</th>
-                            <th className="px-6 py-4 font-semibold text-gray-600">
+                            <th className="px-4 py-3 font-semibold text-gray-600">Status</th>
+                            <th className="px-4 py-3 font-semibold text-gray-600">
                               Workflow ID / Name
                             </th>
-                            <th className="px-6 py-4 font-semibold text-gray-600">Trace ID</th>
-                            <th className="px-6 py-4 font-semibold text-gray-600">Customer ID</th>
-                            <th className="px-6 py-4 font-semibold text-gray-600">Latency</th>
-                            <th className="px-6 py-4 font-semibold text-gray-600">Timestamp</th>
-                            <th className="px-6 py-4"></th>
+                            <th className="px-4 py-3 font-semibold text-gray-600">Trace ID</th>
+                            <th className="px-4 py-3 font-semibold text-gray-600">Customer ID</th>
+                            <th className="px-4 py-3 font-semibold text-gray-600">Latency</th>
+                            <th className="px-4 py-3 font-semibold text-gray-600">Timestamp</th>
+                            <th className="px-4 py-3"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-150">
@@ -3789,7 +3841,7 @@ export default function AdminPage() {
                                   )
                                 }
                               >
-                                <td className="px-6 py-4">
+                                <td className="px-4 py-3">
                                   <span
                                     className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                       trace.status === 'running'
@@ -3814,22 +3866,22 @@ export default function AdminPage() {
                                           : 'Completed'}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 font-semibold text-gray-900">
+                                <td className="px-4 py-3 font-semibold text-gray-900">
                                   {trace.workflow_name || trace.workflow_id}
                                 </td>
-                                <td className="px-6 py-4 font-mono text-gray-500 text-xs">
+                                <td className="px-4 py-3 font-mono text-gray-500 text-xs">
                                   {trace.trace_id?.substring(0, 8)}...
                                 </td>
-                                <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                                <td className="px-4 py-3 font-mono text-xs text-gray-600">
                                   {trace.customer_id || '-'}
                                 </td>
-                                <td className="px-6 py-4 text-gray-950 font-semibold">
+                                <td className="px-4 py-3 text-gray-950 font-semibold">
                                   {trace.latency_ms}ms
                                 </td>
-                                <td className="px-6 py-4 text-gray-500">
+                                <td className="px-4 py-3 text-gray-500">
                                   {new Date(trace.timestamp * 1000).toLocaleString()}
                                 </td>
-                                <td className="px-6 py-4 text-right">
+                                <td className="px-4 py-3 text-right">
                                   <div className="inline-flex items-center gap-3 justify-end w-full">
                                     <button
                                       onClick={(e) => {
@@ -4035,7 +4087,7 @@ export default function AdminPage() {
         {editingProvider && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
             <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden">
-              <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
+              <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3">
                 <h3 className="text-xl font-bold text-black">
                   {editingProvider.id ? 'Edit Provider' : 'New Provider'}
                 </h3>
@@ -4134,7 +4186,7 @@ export default function AdminPage() {
                   />
                 </div>
               </div>
-              <div className="border-t bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              <div className="border-t bg-gray-50 px-4 py-3 flex justify-end gap-3">
                 <button
                   onClick={() => setEditingProvider(null)}
                   className="px-4 py-2 text-sm font-semibold text-gray-600"
@@ -4430,7 +4482,7 @@ export default function AdminPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
             <div className="flex h-[85vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
               {/* Modal Header */}
-              <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
+              <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3">
                 <div>
                   <h3 className="text-lg font-bold text-black">
                     Manage Customer Nodes: {selectedCustomerForNodes.name}
@@ -4454,7 +4506,7 @@ export default function AdminPage() {
                 {configuringNode ? (
                   /* Designing/Configuring Single Node Sub-view */
                   <div className="flex-1 flex flex-col h-full bg-white">
-                    <div className="border-b px-6 py-3 bg-gray-50/50 flex items-center justify-between">
+                    <div className="border-b px-4 py-3 bg-gray-50/50 flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
                         <button
                           type="button"
@@ -4588,7 +4640,7 @@ export default function AdminPage() {
                   /* Node Assignment Grid (Multiple select, search, toggle) */
                   <div className="flex-1 flex flex-col h-full bg-white">
                     {/* Toolbar */}
-                    <div className="border-b px-6 py-3 bg-gray-50/50 flex flex-wrap items-center justify-between gap-3">
+                    <div className="border-b px-4 py-3 bg-gray-50/50 flex flex-wrap items-center justify-between gap-3">
                       {/* Search and View Mode Switcher */}
                       <div className="flex items-center gap-3">
                         <div className="relative w-72">
@@ -4897,7 +4949,7 @@ export default function AdminPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="border-t bg-gray-50 px-6 py-4 flex items-center justify-between">
+              <div className="border-t bg-gray-50 px-4 py-3 flex items-center justify-between">
                 <div className="text-xs text-gray-500 font-semibold">
                   {Object.values(customerNodeAssignments).filter(Boolean).length} of {agents.length}{' '}
                   nodes assigned
@@ -4928,7 +4980,7 @@ export default function AdminPage() {
         {editingAgent && (
           <div className="fixed max-w-full inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
             <div className="flex h-[90vh] w-full flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
-              <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
+              <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3">
                 <div className="flex flex-col">
                   <h3 className="text-xl font-bold font-mono text-black">
                     {customerId
@@ -5771,7 +5823,7 @@ export default function AdminPage() {
         {propModal.isOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-200">
-              <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
+              <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3">
                 <h3 className="text-lg font-bold text-black flex items-center gap-2">
                   <IconMap.settings className="h-5 w-5 text-blue-600" />
                   {isEditingProp ? 'Edit Property' : 'Add Property'}
@@ -5879,7 +5931,7 @@ export default function AdminPage() {
                   />
                 </div>
               </div>
-              <div className="border-t bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              <div className="border-t bg-gray-50 px-4 py-3 flex justify-end gap-3">
                 <button
                   onClick={() => setPropModal({ ...propModal, isOpen: false })}
                   className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800"
@@ -5901,7 +5953,7 @@ export default function AdminPage() {
         {isCategoryModalOpen && editingCategory && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
-              <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
+              <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3">
                 <h3 className="text-xl font-bold text-black">
                   {editingCategory.id ? 'Edit Category' : 'Add New Category'}
                 </h3>
@@ -5992,7 +6044,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="border-t bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              <div className="border-t bg-gray-50 px-4 py-3 flex justify-end gap-3">
                 <button
                   onClick={() => setIsCategoryModalOpen(false)}
                   className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100"
