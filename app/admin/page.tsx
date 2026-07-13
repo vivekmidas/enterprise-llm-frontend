@@ -13,7 +13,7 @@ import { JsonTreeView } from '@components/JsonTreeView';
 import JsonSchemaGeneratorModal from '@components/JsonSchemaGeneratorModal';
 import RunVisualizerModal from '@components/RunVisualizerModal';
 import { MetricCard } from '@/app/components/MetricCard';
-import { Clock, Activity, AlertTriangle, BookOpen, FileText, Database } from 'lucide-react';
+import { Clock, Activity, AlertTriangle, BookOpen, FileText, Database, Plus, Trash2, Upload, RefreshCw, CheckCircle, Info, FolderOpen, Search, FlaskConical, X, SlidersHorizontal } from 'lucide-react';
 
 type PropertyTarget = 'user' | 'system';
 
@@ -318,7 +318,7 @@ export default function AdminPage() {
   const [editingCategory, setEditingCategory] = useState<NodeCategory | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    'nodes' | 'workflows' | 'users' | 'oauth' | 'logs' | 'customers' | 'metrics'
+    'nodes' | 'workflows' | 'users' | 'oauth' | 'logs' | 'customers' | 'metrics' | 'knowledge'
   >('nodes');
   const [users, setUsers] = useState<any[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -599,7 +599,7 @@ export default function AdminPage() {
       const tab = params.get('tab');
       if (
         tab &&
-        ['nodes', 'workflows', 'users', 'oauth', 'logs', 'customers', 'metrics'].includes(tab)
+        ['nodes', 'workflows', 'users', 'oauth', 'logs', 'customers', 'metrics', 'knowledge'].includes(tab)
       ) {
         setActiveTab(tab as any);
       }
@@ -2006,6 +2006,12 @@ export default function AdminPage() {
                 className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'metrics' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 Metrics
+              </button>
+              <button
+                onClick={() => handleTabChange('knowledge')}
+                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'knowledge' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Knowledge Bases
               </button>
             </>
           )}
@@ -3776,7 +3782,7 @@ export default function AdminPage() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                       <MetricCard
-                        title="Active Knowledge Bases"
+                        title="Knowledge Bases"
                         value={kbMetrics.total_kbs}
                         icon={<BookOpen className="h-5 w-5 text-blue-500" />}
                       />
@@ -4024,7 +4030,7 @@ export default function AdminPage() {
               </div>
             )}
           </section>
-        ) : (
+        ) : activeTab === 'oauth' ? (
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -4081,7 +4087,9 @@ export default function AdminPage() {
               ))}
             </div>
           </section>
-        )}
+        ) : activeTab === 'knowledge' ? (
+          <KnowledgeBasesTab />
+        ) : null}
 
         {/* Provider Modal */}
         {editingProvider && (
@@ -6073,6 +6081,1040 @@ export default function AdminPage() {
           />
         )}
       </div>
+    </div>
+  );
+}
+
+function KnowledgeBasesTab() {
+  const [kbList, setKbList] = useState<any[]>([]);
+  const [selectedKb, setSelectedKb] = useState<any>(null);
+  const [docList, setDocList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
+
+  // KB Form state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newKbName, setNewKbName] = useState('');
+  const [newKbPurpose, setNewKbPurpose] = useState('');
+  const [newKbTags, setNewKbTags] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  // Doc Form state
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [docDescription, setDocDescription] = useState('');
+  const [docTags, setDocTags] = useState('');
+  const [docType, setDocType] = useState('general');
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+
+  // Auto-refresh and status checking states
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [fetchingDocIds, setFetchingDocIds] = useState<Record<number, boolean>>({});
+
+  // Ingestion Testing state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [topK, setTopK] = useState(5);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [minScore, setMinScore] = useState(0.65);
+  const [enableReranking, setEnableReranking] = useState(true);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+
+  // Users map for resolving created_by IDs
+  const [usersMap, setUsersMap] = useState<Record<number, string>>({});
+
+  const fetchKBs = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getKnowledgeBases();
+      setKbList(data || []);
+      if (data && data.length > 0 && !selectedKb) {
+        setSelectedKb(data[0]);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to load Knowledge Bases.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDocs = async (kbId: number) => {
+    setDocsLoading(true);
+    setDocError(null);
+    try {
+      const data = await api.getKnowledgeBaseDocuments(kbId);
+      setDocList(data || []);
+    } catch (err: any) {
+      console.error(err);
+      setDocError('Failed to load documents.');
+    } finally {
+      setDocsLoading(false);
+    }
+  };
+
+  const refreshDocStatus = async (docId: number) => {
+    if (!selectedKb) return;
+    setFetchingDocIds((prev) => ({ ...prev, [docId]: true }));
+    try {
+      const updatedDoc = await api.getDocumentStatus(selectedKb.id, docId);
+      setDocList((prev) => prev.map((d) => (d.id === docId ? updatedDoc : d)));
+    } catch (err) {
+      console.error('Failed to refresh document status', err);
+    } finally {
+      setFetchingDocIds((prev) => ({ ...prev, [docId]: false }));
+    }
+  };
+
+  const handleTestRetrieval = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedKb || !searchQuery.trim()) return;
+
+    setSearchLoading(true);
+    setSearchError(null);
+    setSearchResults([]);
+    try {
+      const response = await api.retrieveKnowledge({
+        query: searchQuery,
+        knowledge_base_ids: [selectedKb.id],
+        top_k: topK,
+        min_score: minScore,
+        enable_reranking: enableReranking,
+      });
+      setSearchResults(response.context?.chunks || []);
+    } catch (err: any) {
+      console.error(err);
+      setSearchError(err.message || 'Retrieval test failed.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchKBs();
+    // Load users for name resolution
+    api.getUsers().then((users: any[]) => {
+      const map: Record<number, string> = {};
+      (users || []).forEach((u: any) => {
+        map[u.id] = u.name || u.username || u.email || `User #${u.id}`;
+      });
+      setUsersMap(map);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (selectedKb) {
+      fetchDocs(selectedKb.id);
+    } else {
+      setDocList([]);
+    }
+  }, [selectedKb]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (autoRefresh && selectedKb) {
+      interval = setInterval(() => {
+        fetchDocs(selectedKb.id);
+      }, 5000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh, selectedKb]);
+
+  const handleCreateKB = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newKbName.trim()) return;
+
+    setCreating(true);
+    setError(null);
+    try {
+      const tagsList = newKbTags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const newKb = await api.createKnowledgeBase({
+        name: newKbName,
+        description: newKbPurpose,
+        settings: { tags: tagsList },
+      });
+      setKbList((prev) => [...prev, newKb]);
+      setSelectedKb(newKb);
+      setShowCreateModal(false);
+      setNewKbName('');
+      setNewKbPurpose('');
+      setNewKbTags('');
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to create Knowledge Base.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteKB = async (id: number) => {
+    if (
+      !confirm(
+        'Are you sure you want to delete this Knowledge Base? This will permanently drop its physical Qdrant vector collection and clean up all metadata, database chunks, and documents.',
+      )
+    ) {
+      return;
+    }
+
+    setError(null);
+    try {
+      await api.deleteKnowledgeBase(id);
+      const updatedList = kbList.filter((kb) => kb.id !== id);
+      setKbList(updatedList);
+      if (selectedKb?.id === id) {
+        setSelectedKb(updatedList.length > 0 ? updatedList[0] : null);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to delete Knowledge Base.');
+    }
+  };
+
+  const handleUploadFile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedKb || !uploadFile) return;
+
+    // Validate size (50MB check)
+    if (uploadFile.size > 50 * 1024 * 1024) {
+      alert('File size exceeds the 50 MB limit.');
+      return;
+    }
+
+    // Validate extension
+    const allowedExtensions = ['.txt', '.pdf', '.doc', '.docx'];
+    const extension = uploadFile.name
+      .substring(uploadFile.name.lastIndexOf('.'))
+      .toLowerCase();
+    if (!allowedExtensions.includes(extension)) {
+      alert(`Invalid file extension. Allowed extensions: ${allowedExtensions.join(', ')}`);
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress('Uploading & chunking document...');
+    setDocError(null);
+    try {
+      await api.uploadDocument(selectedKb.id, uploadFile, {
+        description: docDescription,
+        tags: docTags,
+        doc_type: docType,
+      });
+      setUploadFile(null);
+      setDocDescription('');
+      setDocTags('');
+      setDocType('general');
+      setShowUploadModal(false);
+      fetchDocs(selectedKb.id);
+      setUploadProgress(null);
+    } catch (err: any) {
+      console.error(err);
+      setDocError(err.message || 'Ingestion failed.');
+      setUploadProgress(null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteDoc = async (docId: number) => {
+    if (!selectedKb) return;
+    if (
+      !confirm(
+        'Are you sure you want to delete this document? This will remove all chunks and Qdrant points.',
+      )
+    ) {
+      return;
+    }
+
+    setDocError(null);
+    try {
+      await api.deleteDocument(selectedKb.id, docId);
+      setDocList((prev) => prev.filter((doc) => doc.id !== docId));
+    } catch (err: any) {
+      console.error(err);
+      setDocError('Failed to delete document.');
+    }
+  };
+
+  const handleUploadNewVersion = (doc: any) => {
+    setSelectedKb(kbList.find((kb) => kb.id === doc.knowledge_base_id));
+    setDocDescription(doc.metadata_json?.description || '');
+    setDocTags(
+      Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags.join(', ') : '',
+    );
+    setDocType(doc.metadata_json?.type || 'general');
+    setShowUploadModal(true);
+  };
+
+  const formatBytes = (bytes?: number) => {
+    if (bytes === undefined || bytes === null) return '-';
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  return (
+    <div className="flex bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-[750px] font-sans text-gray-800">
+      {/* Left KB Sidebar */}
+      <div className="w-1/3 border-r border-gray-200 flex flex-col h-full bg-slate-50/20">
+        <div className="p-4 border-b border-gray-250 bg-gray-50/50 flex items-center justify-between">
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+            Knowledge Bases
+          </h3>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="p-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
+            title="Create Knowledge Base"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+          {loading ? (
+            <div className="p-6 text-center text-gray-400 text-sm">
+              <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-500" />
+              Loading...
+            </div>
+          ) : kbList.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">
+              <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              No knowledge bases found.
+            </div>
+          ) : (
+            kbList.map((kb) => {
+              const isSelected = selectedKb?.id === kb.id;
+              const tags = Array.isArray(kb.settings?.tags) ? kb.settings.tags : [];
+              const uploaderName = usersMap[kb.created_by] || `User #${kb.created_by}`;
+              const createdDate = kb.created_at
+                ? new Date(kb.created_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : '-';
+              const version = kb.settings?.version || null;
+              return (
+                <div
+                  key={kb.id}
+                  onClick={() => setSelectedKb(kb)}
+                  className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
+                    isSelected ? 'bg-blue-50/40 border-l-4 border-blue-600' : ''
+                  }`}
+                >
+                  <div className="space-y-1.5 pr-2 min-w-0 flex-1">
+                    <h4
+                      className={`font-bold text-sm ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}
+                    >
+                      {kb.name}
+                    </h4>
+                    {kb.description && (
+                      <p className="text-xs text-gray-550 line-clamp-2 leading-relaxed">
+                        {kb.description}
+                      </p>
+                    )}
+                    {/* Details row: uploader, date, version */}
+                    <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-gray-400">
+                      <span className="inline-flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                        <span className="font-medium text-gray-500">{uploaderName}</span>
+                      </span>
+                      <span className="text-gray-300">·</span>
+                      <span className="inline-flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                        {createdDate}
+                      </span>
+                      {version && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span className="inline-flex items-center gap-0.5 font-semibold text-indigo-500">
+                            v{version}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {/* Tags row */}
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {tags.map((tag: string) => (
+                          <span
+                            key={tag}
+                            className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 font-semibold uppercase tracking-tight"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteKB(kb.id);
+                    }}
+                    className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Right Documents Panel */}
+      <div className="flex-1 flex flex-col h-full bg-white">
+        {selectedKb ? (
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {/* Header Details */}
+            <div className="p-5 border-b border-gray-200 bg-gray-50/30 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-gray-800">{selectedKb.name}</h3>
+                {selectedKb.description && (
+                  <p className="text-xs text-gray-555 mt-0.5">{selectedKb.description}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Auto Refresh Toggle */}
+                <button
+                  onClick={() => setAutoRefresh((prev) => !prev)}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border ${
+                    autoRefresh
+                      ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                  title="Auto-refresh document list every 5s"
+                >
+                  <Clock
+                    className={`w-3.5 h-3.5 ${autoRefresh ? 'animate-pulse text-blue-500' : ''}`}
+                  />
+                  {autoRefresh ? 'Auto-Refresh: On' : 'Auto-Refresh: Off'}
+                </button>
+
+                {/* Manual Refresh */}
+                <button
+                  onClick={() => fetchDocs(selectedKb.id)}
+                  className="p-2 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-800 border border-gray-300 rounded-lg text-xs transition-colors cursor-pointer"
+                  title="Refresh Documents"
+                  disabled={docsLoading}
+                >
+                  <RefreshCw className={`w-4 h-4 ${docsLoading ? 'animate-spin' : ''}`} />
+                </button>
+
+                <button
+                  onClick={() => setShowTestModal(true)}
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                  title="Test retrieval with different settings"
+                >
+                  <FlaskConical className="w-4 h-4" />
+                  Test Retrieval
+                </button>
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  Add Document
+                </button>
+              </div>
+            </div>
+
+            {/* Document Table list */}
+            <div className="flex-1 p-5 flex flex-col overflow-hidden">
+              {docError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-xs font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  {docError}
+                </div>
+              )}
+
+              <div className="flex-1 border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col bg-white">
+                <div className="overflow-x-auto flex-1">
+                  <table className="min-w-full divide-y divide-gray-250">
+                    <thead className="bg-slate-50 sticky top-0">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          File Name
+                        </th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Description
+                        </th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Created By
+                        </th>
+                           <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Created On
+                        </th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-5 py-3 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {docsLoading && docList.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
+                            <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-500" />
+                            Loading documents...
+                          </td>
+                        </tr>
+                      ) : docList.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
+                            <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                            No documents uploaded in this knowledge base.
+                          </td>
+                        </tr>
+                      ) : (
+                        docList.map((doc) => {
+                          const isCompleted =
+                            doc.status === 'completed' || doc.status === 'ready';
+                          const isPending =
+                            doc.status === 'pending' || doc.status === 'processing';
+                          const isFailed = doc.status === 'failed';
+                          const isArchived = doc.status === 'archived';
+                          const tags = Array.isArray(doc.metadata_json?.tags)
+                            ? doc.metadata_json.tags
+                            : [];
+
+                          return (
+                            <>
+                            <tr
+                              key={doc.id}
+                              className={isArchived ? 'bg-gray-50/50 opacity-60' : ''}
+                            >
+                              <td className="px-5 py-4 max-w-xs font-semibold text-xs text-slate-800">
+                                <div className="flex items-center gap-2">
+                                  <FileText
+                                    className={`w-4 h-4 shrink-0 ${isArchived ? 'text-gray-400' : 'text-blue-500'}`}
+                                  />
+                                  <span className="truncate" title={doc.name}>
+                                    {doc.name}
+                                  </span>
+                                  {isArchived && (
+                                    <span className="text-[9px] bg-slate-200 px-1 py-0.5 rounded text-slate-500">
+                                      Archived
+                                    </span>
+                                  )}
+                              
+                                </div>
+                                <div className='py-2'> {tags.map((tag: string) => (
+                                    <span
+                                      key={tag}
+                                      className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                            </div>
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap text-xs text-gray-500 capitalize">
+                                {doc.metadata_json?.type || 'general'}
+                              </td>
+                              <td
+                                className="px-5 py-4 max-w-xs truncate text-xs text-gray-550"
+                                title={doc.metadata_json?.description || ''}
+                              >
+                                {doc.metadata_json?.description || '-'}
+                              </td>
+                                <td
+                                className="px-5 py-4 max-w-xs truncate text-xs text-gray-550"
+                                title={doc.created_by || ''}
+                              >
+                                {doc.created_by || '-'}
+                              </td>  <td
+                                className="px-5 py-4 max-w-xs truncate text-xs text-gray-550"
+                                title={doc.created_by || ''}
+                              >
+                                {doc.created_at || '-'}
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap text-xs">
+                                {isCompleted && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-50 border border-green-200 text-green-700">
+                                    <CheckCircle className="w-3 h-3 text-green-500" />{' '}
+                                    Completed
+                                  </span>
+                                )}
+                                {isPending && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 border border-amber-200 text-amber-700">
+                                    <Clock className="w-3 h-3 text-amber-500 animate-pulse" />{' '}
+                                    Processing
+                                  </span>
+                                )}
+                                {isFailed && (
+                                  <span
+                                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 border border-red-200 text-red-700 cursor-help"
+                                    title={doc.error_message || 'Ingestion failed.'}
+                                  >
+                                    <AlertTriangle className="w-3 h-3 text-red-500" /> Failed
+                                  </span>
+                                )}
+                                {isArchived && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 border border-slate-200 text-slate-500">
+                                    Archived
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap text-right text-xs">
+                                <div className="flex items-center justify-end gap-2">
+                                  {!isArchived && (
+                                    <>
+                                      <button
+                                        onClick={() => refreshDocStatus(doc.id)}
+                                        className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors disabled:opacity-50"
+                                        title="Refresh Status"
+                                        disabled={fetchingDocIds[doc.id]}
+                                      >
+                                        <RefreshCw
+                                          className={`w-3.5 h-3.5 ${fetchingDocIds[doc.id] ? 'animate-spin text-blue-500' : ''}`}
+                                        />
+                                      </button>
+                                      <button
+                                        onClick={() => handleUploadNewVersion(doc)}
+                                        className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                                        title="Upload New Version"
+                                      >
+                                        <Upload className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                  <button
+                                    onClick={() => handleDeleteDoc(doc.id)}
+                                    className="p-1 text-gray-400 hover:text-red-650 rounded transition-colors"
+                                    title="Delete Document"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                             
+                                 
+                            </>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-gray-400">
+            <BookOpen className="w-12 h-12 text-gray-250 mb-3" />
+            <h3 className="font-semibold text-gray-700 text-sm mb-1">
+              No Knowledge Base Selected
+            </h3>
+            <p className="text-xs text-gray-400 max-w-sm">
+              Select or create a knowledge base on the left to start uploading and managing
+              documents.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* KB Creation Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
+              <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wider">
+                New Knowledge Base
+              </h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleCreateKB} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-650">Knowledge Base Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newKbName}
+                  onChange={(e) => setNewKbName(e.target.value)}
+                  placeholder="e.g. Sales Documentation"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-650">Purpose</label>
+                <textarea
+                  value={newKbPurpose}
+                  onChange={(e) => setNewKbPurpose(e.target.value)}
+                  placeholder="What is the purpose of this database?"
+                  className="h-20 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-650">
+                  Tags (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={newKbTags}
+                  onChange={(e) => setNewKbTags(e.target.value)}
+                  placeholder="e.g. sales, guide, internal"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={creating || !newKbName.trim()}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {creating ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+                Create Database
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Doc Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
+              <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
+                Upload Document
+              </h3>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleUploadFile} className="p-6 space-y-4">
+              <div className="border-2 border-dashed border-gray-200 hover:border-blue-400 rounded-xl p-6 transition-colors relative flex flex-col items-center justify-center text-center cursor-pointer min-h-[120px]">
+                <input
+                  type="file"
+                  required={!uploadFile}
+                  disabled={uploading}
+                  accept=".txt,.pdf,.doc,.docx"
+                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <Upload className="w-8 h-8 text-gray-300 mb-2" />
+                {uploadFile ? (
+                  <div>
+                    <p className="text-xs font-bold text-gray-800 line-clamp-1">
+                      {uploadFile.name}
+                    </p>
+                    <p className="text-[10px] text-gray-400">{formatBytes(uploadFile.size)}</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-xs font-bold text-gray-650">Select file to upload</p>
+                    <p className="text-[9px] text-gray-400">PDF, TXT, DOC, DOCX up to 50MB</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-650">Document Type</label>
+                <select
+                  value={docType}
+                  onChange={(e) => setDocType(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="general">General</option>
+                  <option value="policy">Policy</option>
+                  <option value="faq">FAQ</option>
+                  <option value="technical">Technical</option>
+                  <option value="contract">Contract</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-650">Description</label>
+                <input
+                  type="text"
+                  value={docDescription}
+                  onChange={(e) => setDocDescription(e.target.value)}
+                  placeholder="A short description of the file..."
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-650">
+                  Tags (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={docTags}
+                  onChange={(e) => setDocTags(e.target.value)}
+                  placeholder="e.g. sales, guide, internal"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {uploadProgress && (
+                <div className="bg-blue-50 border border-blue-100 text-blue-700 p-2.5 rounded-lg text-[10px] font-semibold flex items-center gap-2">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0 text-blue-500" />
+                  {uploadProgress}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={uploading || !uploadFile}
+                className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+              >
+                <Upload className="w-4 h-4" />
+                Upload File
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Test Retrieval Modal */}
+      {showTestModal && selectedKb && (
+        <div className="fixed inset-0 bg-slate-900/60 w-full backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-7xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90%]">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-violet-50 to-indigo-50 border-b border-gray-200 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-violet-100 rounded-lg">
+                  <FlaskConical className="w-4 h-4 text-violet-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800 text-sm">
+                    Test Retrieval
+                  </h3>
+                  <p className="text-[10px] text-gray-500 font-medium mt-0.5">
+                    {selectedKb.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowTestModal(false); setSearchResults([]); setSearchError(null); }}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Search Form + Settings */}
+            <div className="px-6 py-4 border-b border-gray-100 shrink-0 space-y-3">
+              <form onSubmit={handleTestRetrieval} className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    Search Query
+                  </label>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Enter a natural language query to test retrieval…"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-xs bg-white text-black focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                    required
+                    autoFocus
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={searchLoading || !searchQuery.trim()}
+                  className="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50 cursor-pointer h-[38px]"
+                >
+                  {searchLoading ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Search className="w-3.5 h-3.5" />
+                  )}
+                  Search
+                </button>
+              </form>
+
+              {/* Settings Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowAdvancedSettings((p) => !p)}
+                className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider hover:text-violet-600 transition-colors cursor-pointer"
+              >
+                <SlidersHorizontal className="w-3 h-3" />
+                {showAdvancedSettings ? 'Hide Settings ▲' : 'Retrieval Settings ▼'}
+              </button>
+
+              {showAdvancedSettings && (
+                <div className="grid grid-cols-3 gap-4 p-3 bg-slate-50/80 rounded-xl border border-gray-150">
+                  {/* Top K */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                      Top K Results
+                    </label>
+                    <select
+                      value={topK}
+                      onChange={(e) => setTopK(Number(e.target.value))}
+                      className="w-full border border-gray-300 rounded-lg px-2.5 py-2 text-xs bg-white text-black focus:outline-none focus:border-violet-500 cursor-pointer"
+                    >
+                      <option value={1}>1</option>
+                      <option value={3}>3</option>
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </div>
+
+                  {/* Min Score */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                      Min Score: <span className="text-violet-600">{minScore.toFixed(2)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={minScore}
+                      onChange={(e) => setMinScore(parseFloat(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-600"
+                    />
+                    <div className="flex justify-between text-[9px] text-gray-400 font-medium">
+                      <span>0.0</span>
+                      <span>1.0</span>
+                    </div>
+                  </div>
+
+                  {/* Reranking Toggle */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                      Reranking
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEnableReranking((p) => !p)}
+                      className={`w-full px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                        enableReranking
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                          : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {enableReranking ? '✓ Enabled' : '✗ Disabled'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Results Panel */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+              {searchError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-xs font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
+                  {searchError}
+                </div>
+              )}
+
+              {searchResults.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                      Retrieved Chunks
+                    </h4>
+                    <span className="text-[10px] font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100">
+                      {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl bg-white overflow-hidden shadow-sm">
+                    {searchResults.map((result: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 space-y-2 text-xs hover:bg-slate-50/50 transition-all"
+                      >
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100 uppercase tracking-tight">
+                            Rank #{idx + 1}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-tight">
+                              Score: {result.score?.toFixed(4) || 'N/A'}
+                            </span>
+                            {result.vector_score != null && (
+                              <span className="font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase tracking-tight">
+                                Vec: {result.vector_score?.toFixed(4)}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-gray-400 font-semibold">
+                            Chunk {result.chunk_index !== undefined ? result.chunk_index : idx}
+                          </span>
+                        </div>
+                        <p className="text-slate-700 leading-relaxed font-sans select-all whitespace-pre-wrap text-[11px]">
+                          {result.content}
+                        </p>
+                        {(result.document_name || result.metadata?.document_name) && (
+                          <div className="text-[9px] text-gray-400 font-semibold flex items-center gap-1 pt-0.5">
+                            <FileText className="w-3 h-3 text-gray-300" />
+                            {result.document_name || result.metadata?.document_name} (ID: {result.document_id})
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                !searchLoading && (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center py-12 text-gray-400">
+                    <Search className="w-10 h-10 text-gray-200 mb-3" />
+                    <p className="text-xs font-semibold text-gray-500 mb-1">
+                      {searchQuery && !searchLoading ? 'No results found' : 'Enter a query to begin'}
+                    </p>
+                    <p className="text-[10px] text-gray-400">
+                      Test how the retrieval pipeline performs with different settings
+                    </p>
+                  </div>
+                )
+              )}
+
+              {searchLoading && (
+                <div className="flex items-center justify-center py-10">
+                  <div className="flex items-center gap-2 text-xs text-violet-600 font-semibold">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Searching…
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

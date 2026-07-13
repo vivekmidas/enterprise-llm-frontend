@@ -29,7 +29,7 @@ const navSections: NavSection[] = [
     title: 'Management',
     items: [
       { label: 'Node Registry', href: '/admin', icon: <Database className="w-4 h-4" /> },
-      { label: 'Knowledge Bases', href: '/admin/knowledge', icon: <BookOpen className="w-4 h-4" /> },
+      { label: 'Knowledge Bases', href: '/admin?tab=knowledge', icon: <BookOpen className="w-4 h-4" /> },
       {
         label: 'Workflows',
         href: '/workflow-builder',

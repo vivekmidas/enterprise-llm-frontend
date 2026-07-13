@@ -137,7 +137,7 @@ export default function KnowledgeBasePage() {
         name: newKbName,
         description: newKbDesc
       });
-      setKbList(prev => [...prev, newKb]);
+      setKbList(prev => [...pr
       setSelectedKb(newKb);
       setShowCreateModal(false);
       setNewKbName('');
@@ -562,7 +562,7 @@ export default function KnowledgeBasePage() {
             </div>
             <form onSubmit={handleCreateKB} className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600">Database Name</label>
+                <label className="block text-xs font-semibold text-slate-600">Knowledge Base Name</label>
                 <input
                   type="text"
                   required

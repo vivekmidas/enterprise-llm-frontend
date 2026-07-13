@@ -537,9 +537,17 @@ export const api = {
     return res.json();
   },
 
-  uploadDocument: async (kbId: number | string, file: File) => {
+  uploadDocument: async (
+    kbId: number | string,
+    file: File,
+    metadata?: { description?: string; tags?: string; doc_type?: string }
+  ) => {
     const formData = new FormData();
     formData.append('file', file);
+    if (metadata?.description) formData.append('description', metadata.description);
+    if (metadata?.tags) formData.append('tags', metadata.tags);
+    if (metadata?.doc_type) formData.append('doc_type', metadata.doc_type);
+
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents`, {
       method: 'POST',
       headers: getHeaders(), // Let browser set boundary for multipart/form-data
@@ -562,6 +570,25 @@ export const api = {
       headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to delete document');
+    return res.json();
+  },
+
+  getDocumentStatus: async (kbId: number | string, docId: number | string) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}`, {
+      headers: getHeaders(),
+      method: 'GET',
+    });
+    if (!res.ok) throw new Error('Failed to fetch document status');
+    return res.json();
+  },
+
+  retrieveKnowledge: async (payload: { query: string; knowledge_base_ids: number[]; top_k?: number; min_score?: number; enable_reranking?: boolean }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieve`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to retrieve knowledge');
     return res.json();
   },
 };
