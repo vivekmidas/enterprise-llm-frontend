@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Node, Edge } from '@xyflow/react';
 import {
   X,
@@ -26,43 +26,122 @@ import { api } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
 import JsonSchemaGeneratorModal from './JsonSchemaGeneratorModal';
 
+/** Compact dropdown with checkboxes for multi-select. Replaces tall <select multiple>. */
+const MultiSelectDropdown = ({
+  options,
+  selected,
+  onChange,
+  disabled,
+  placeholder = 'Select options...',
+  className = '',
+}: {
+  options: { key: string; label: string }[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+  disabled?: boolean;
+  placeholder?: string;
+  className?: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as HTMLElement)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (key: string) => {
+    if (disabled) return;
+    const next = selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key];
+    onChange(next);
+  };
+
+  const selectedLabels = options
+    .filter((o) => selected.includes(o.key))
+    .map((o) => o.label);
+
+  return (
+    <div ref={dropdownRef} className={`relative w-full ${className}`}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(!open)}
+        className={`w-full flex items-center justify-between rounded-lg border px-3 py-2 text-sm text-left transition-all ${
+          open ? 'border-blue-500 ring-1 ring-blue-100' : 'border-gray-300 hover:border-gray-400'
+        } ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'bg-white cursor-pointer'}`}
+      >
+        <span className={`truncate ${selectedLabels.length ? 'text-gray-800' : 'text-gray-400'}`}>
+          {selectedLabels.length ? selectedLabels.join(', ') : placeholder}
+        </span>
+        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 ml-2 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full max-h-48 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+          {options.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-gray-400 italic">No options</div>
+          ) : (
+            options.map((opt) => (
+              <label
+                key={opt.key}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.includes(opt.key)}
+                  onChange={() => toggle(opt.key)}
+                  className="h-3.5 w-3.5 rounded accent-blue-600"
+                />
+                <span className="truncate">{opt.label}</span>
+              </label>
+            ))
+          )}
+        </div>
+      )}
+      {selected.length > 0 && (
+        <div className="text-[10px] text-gray-400 mt-1">{selected.length} selected</div>
+      )}
+    </div>
+  );
+};
+
 interface SourcePropertyFieldProps {
   field: NodePropertyDefinition;
   isDisabled: boolean;
-  sourceVal: string;
   propVal: any;
   handlePropertyChange: (key: string, value: any) => void;
-  sourceKey: string;
 }
 
 const SourcePropertyField = ({
   field,
   isDisabled,
-  sourceVal,
   propVal,
   handlePropertyChange,
-  sourceKey,
 }: SourcePropertyFieldProps) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const effectiveSourceUrl = field.source || '';
+
   useEffect(() => {
-    if (!sourceVal || !sourceVal.trim()) {
+    if (!effectiveSourceUrl || !effectiveSourceUrl.trim()) {
       setData(null);
       return;
     }
 
-    const isUrl = sourceVal.startsWith('/') || sourceVal.startsWith('http');
+    const isUrl = effectiveSourceUrl.startsWith('/') || effectiveSourceUrl.startsWith('http');
     if (!isUrl) {
       try {
-        setData(JSON.parse(sourceVal));
+        setData(JSON.parse(effectiveSourceUrl));
         setError(null);
       } catch {
-        if (sourceVal.includes(',')) {
-          setData(sourceVal.split(',').map((s) => s.trim()).filter(Boolean));
+        if (effectiveSourceUrl.includes(',')) {
+          setData(effectiveSourceUrl.split(',').map((s: string) => s.trim()).filter(Boolean));
         } else {
-          setData(sourceVal);
+          setData(effectiveSourceUrl);
         }
         setError(null);
       }
@@ -75,9 +154,9 @@ const SourcePropertyField = ({
       setError(null);
       try {
         const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-        const fullUrl = sourceVal.startsWith('http')
-          ? sourceVal
-          : `${BACKEND_URL}${sourceVal.startsWith('/') ? '' : '/'}${sourceVal}`;
+        const fullUrl = effectiveSourceUrl.startsWith('http')
+          ? effectiveSourceUrl
+          : `${BACKEND_URL}${effectiveSourceUrl.startsWith('/') ? '' : '/'}${effectiveSourceUrl}`;
 
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const headers: Record<string, string> = {
@@ -108,7 +187,7 @@ const SourcePropertyField = ({
     return () => {
       active = false;
     };
-  }, [sourceVal]);
+  }, [effectiveSourceUrl]);
 
   let resolvedData = data;
   if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -120,6 +199,48 @@ const SourcePropertyField = ({
 
   const isList = Array.isArray(resolvedData);
   const isDict = resolvedData !== null && typeof resolvedData === 'object' && !isList;
+
+  const isMultiple = !!field.multiple;
+
+  // Helper: extract key and label from an option item
+  const getOptKeyLabel = (opt: any): { key: string; label: string } => {
+    if (opt && typeof opt === 'object') {
+      const key = String(opt.id ?? opt.key ?? opt.value ?? opt.name ?? '');
+      const label = String(opt.name ?? opt.label ?? opt.title ?? opt.key ?? opt.id ?? '');
+      return { key, label };
+    }
+    return { key: String(opt), label: String(opt) };
+  };
+
+  // Build a key→label lookup from resolved data
+  const keyLabelMap: Record<string, string> = {};
+  if (isList) {
+    for (const opt of resolvedData) {
+      const { key, label } = getOptKeyLabel(opt);
+      keyLabelMap[key] = label;
+    }
+  } else if (isDict) {
+    for (const [k, v] of Object.entries(resolvedData)) {
+      keyLabelMap[k] = String(v);
+    }
+  }
+
+  // Resolve the currently saved key(s) to display label(s)
+  const resolveLabel = (val: any): string => {
+    if (val === undefined || val === null || val === '') return '';
+    const strVal = String(val);
+    return keyLabelMap[strVal] || strVal;
+  };
+
+  // For the select value, always use the stored key
+  const selectValue = isMultiple
+    ? (Array.isArray(propVal) ? propVal.map(String) : typeof propVal === 'string' && propVal.trim() ? propVal.split(',') : [])
+    : String(propVal ?? '');
+
+  // Show the currently selected label(s) while loading or as a subtitle
+  const currentLabel = isMultiple
+    ? (Array.isArray(propVal) ? propVal.map((v: any) => resolveLabel(v)).filter(Boolean).join(', ') : resolveLabel(propVal))
+    : resolveLabel(propVal);
 
   return (
     <div className="space-y-3.5 p-4 border border-gray-200 rounded-xl bg-slate-50/50 shadow-sm w-full">
@@ -137,61 +258,70 @@ const SourcePropertyField = ({
         </label>
       </div>
 
-      <div className="space-y-1.5">
-        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-          Source URL Configuration (Internal)
-        </label>
-        <input
-          type="text"
-          disabled={isDisabled}
-          value={sourceVal}
-          placeholder="e.g. /api/knowledge/bases"
-          onChange={(e) => !isDisabled && handlePropertyChange(sourceKey, e.target.value)}
-          className="w-full text-xs font-mono rounded-lg border border-gray-300 px-3 py-2 text-black focus:outline-none focus:border-blue-500 bg-white"
-        />
-      </div>
+      {/* Show current selection label */}
+      {propVal && (
+        <div className="text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-1.5">
+          <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1.5">Selected:</span>
+          <span className="font-medium text-gray-800">
+            {loading ? String(propVal) : (currentLabel || String(propVal))}
+          </span>
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <div className="flex justify-between items-center">
           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-            Value Selection
+            {isMultiple ? 'Select Values (Multi)' : 'Change Selection'}
           </label>
-          {loading && <span className="text-[10px] text-blue-500 animate-pulse">Loading...</span>}
+          {loading && <span className="text-[10px] text-blue-500 animate-pulse">Loading options...</span>}
           {error && <span className="text-[10px] text-red-500" title={error}>Error loading source</span>}
         </div>
         {isList ? (
-          <select
-            disabled={isDisabled}
-            value={String(propVal)}
-            onChange={(e) => !isDisabled && handlePropertyChange(field.key, e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white text-black"
-          >
-            <option value="">Select option...</option>
-            {resolvedData.map((opt: any) => {
-              const val = opt && typeof opt === 'object' ? (opt.id ?? opt.key ?? opt.value ?? opt.name ?? '') : opt;
-              const label = opt && typeof opt === 'object' ? (opt.name ?? opt.label ?? opt.title ?? opt.key ?? opt.id ?? '') : opt;
-              return (
-                <option key={String(val)} value={String(val)}>
-                  {String(label)}
-                </option>
-              );
-            })}
-          </select>
+          isMultiple ? (
+            <MultiSelectDropdown
+              disabled={isDisabled}
+              selected={Array.isArray(propVal) ? propVal.map(String) : typeof propVal === 'string' && propVal.trim() ? propVal.split(',') : []}
+              options={resolvedData.map((opt: any) => getOptKeyLabel(opt))}
+              onChange={(values) => !isDisabled && handlePropertyChange(field.key, values)}
+              placeholder="Select options..."
+            />
+          ) : (
+            <select
+              disabled={isDisabled}
+              value={selectValue}
+              onChange={(e) => !isDisabled && handlePropertyChange(field.key, e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white text-black"
+            >
+              <option value="">Select option...</option>
+              {resolvedData.map((opt: any) => {
+                const { key, label } = getOptKeyLabel(opt);
+                return <option key={key} value={key}>{label}</option>;
+              })}
+            </select>
+          )
         ) : isDict ? (
-          <select
-            disabled={isDisabled}
-            value={String(propVal)}
-            onChange={(e) => !isDisabled && handlePropertyChange(field.key, e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white text-black"
-          >
-            <option value="">Select option...</option>
-            {Object.entries(resolvedData).map(([k, v]) => (
-              <option key={k} value={k}>
-                {String(v)}
-              </option>
-            ))}
-          </select>
-        ) : (
+          isMultiple ? (
+            <MultiSelectDropdown
+              disabled={isDisabled}
+              selected={Array.isArray(propVal) ? propVal.map(String) : typeof propVal === 'string' && propVal.trim() ? propVal.split(',') : []}
+              options={Object.entries(resolvedData).map(([k, v]) => ({ key: k, label: String(v) }))}
+              onChange={(values) => !isDisabled && handlePropertyChange(field.key, values)}
+              placeholder="Select options..."
+            />
+          ) : (
+            <select
+              disabled={isDisabled}
+              value={selectValue}
+              onChange={(e) => !isDisabled && handlePropertyChange(field.key, e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white text-black"
+            >
+              <option value="">Select option...</option>
+              {Object.entries(resolvedData).map(([k, v]) => (
+                <option key={k} value={k}>{String(v)}</option>
+              ))}
+            </select>
+          )
+        ) : !loading && !error ? (
           <input
             type="text"
             disabled={isDisabled}
@@ -200,7 +330,7 @@ const SourcePropertyField = ({
             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500"
             placeholder="Enter value..."
           />
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -1420,10 +1550,6 @@ export default function PropertiesPanel({
 
     // Source Configuration
     if (fieldType === 'source') {
-      const sourceKey = `${field.key}_source`;
-      const sourceVal = String(
-        (hasUserValue ? userProps[sourceKey] : systemProps[sourceKey]) || field.default || ''
-      );
       const propVal = value !== undefined && value !== null ? value : '';
 
       return (
@@ -1431,10 +1557,8 @@ export default function PropertiesPanel({
           key={field.key}
           field={field}
           isDisabled={isDisabled}
-          sourceVal={sourceVal}
           propVal={propVal}
           handlePropertyChange={handlePropertyChange}
-          sourceKey={sourceKey}
         />
       );
     }
@@ -1470,22 +1594,12 @@ export default function PropertiesPanel({
                 </span>
               )}
             </label>
-            <select
-              multiple
+            <MultiSelectDropdown
               disabled={isDisabled}
-              value={Array.isArray(value) ? value.map(String) : []}
-              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                const values = Array.from(event.target.selectedOptions, (option) => option.value);
-                !isDisabled && handlePropertyChange(field.key, values);
-              }}
-              className="h-28 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-            >
-              {options.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+              selected={Array.isArray(value) ? value.map(String) : []}
+              options={options.map((o) => ({ key: o, label: o }))}
+              onChange={(values) => !isDisabled && handlePropertyChange(field.key, values)}
+            />
           </div>
         );
       }
@@ -1921,6 +2035,27 @@ export default function PropertiesPanel({
                           const fieldType =
                             fieldSchema?.type || fieldSchema?.field_type || valueType;
 
+                          // Source type: show label, save key
+                          if (fieldType === 'source') {
+                            const propVal = value !== undefined && value !== null ? value : '';
+                            return (
+                              <SourcePropertyField
+                                key={key}
+                                field={{
+                                  key,
+                                  label: fieldSchema?.label || formatLabel(key),
+                                  type: 'source',
+                                  source: fieldSchema?.source || '',
+                                  multiple: fieldSchema?.multiple,
+                                  description: fieldSchema?.description,
+                                }}
+                                isDisabled={false}
+                                propVal={propVal}
+                                handlePropertyChange={handlePropertyChange}
+                              />
+                            );
+                          }
+
                           if (fieldType === 'choice') {
                             const rawOptions = fieldSchema?.options || fieldSchema?.value;
                             const options: string[] = Array.isArray(rawOptions)
@@ -1952,24 +2087,11 @@ export default function PropertiesPanel({
                                       </span>
                                     )}
                                   </label>
-                                  <select
-                                    multiple
-                                    value={Array.isArray(value) ? value.map(String) : []}
-                                    onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                                      const values = Array.from(
-                                        event.target.selectedOptions,
-                                        (option) => option.value,
-                                      );
-                                      handlePropertyChange(key, values);
-                                    }}
-                                    className="h-28 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm"
-                                  >
-                                    {options.map((option) => (
-                                      <option key={option} value={option}>
-                                        {option}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  <MultiSelectDropdown
+                                    selected={Array.isArray(value) ? value.map(String) : []}
+                                    options={options.map((o) => ({ key: o, label: o }))}
+                                    onChange={(values) => handlePropertyChange(key, values)}
+                                  />
                                 </div>
                               );
                             }
@@ -2093,10 +2215,17 @@ export default function PropertiesPanel({
               {/* Accordion Item: Field Mapping */}
               {!isTrigger && (
                 <div className="border border-slate-150 rounded-xl overflow-hidden shadow-sm bg-white">
-                  <button
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggleSection('mapping')}
-                    className="w-full flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors text-left"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleSection('mapping');
+                      }
+                    }}
+                    className="w-full flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors text-left cursor-pointer select-none"
                   >
                     <div className="flex items-center gap-2">
                       <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-500" />
@@ -2124,7 +2253,7 @@ export default function PropertiesPanel({
                         }`}
                       />
                     </div>
-                  </button>
+                  </div>
                   {!collapsedSections.mapping && (
                     <div className="p-4 space-y-4 border-t border-slate-100 bg-white">
                       {hasPredecessor ? (

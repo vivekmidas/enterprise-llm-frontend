@@ -33,175 +33,130 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 
-interface AdminSourcePropertyFieldProps {
-  label: string;
-  description?: string;
-  isDisabled?: boolean;
-  sourceVal: string;
-  propVal: any;
-  onSourceChange: (v: string) => void;
-  onValueChange: (v: any) => void;
-}
-
-const AdminSourcePropertyField = ({
-  label,
-  description,
-  isDisabled,
-  sourceVal,
+/** Lightweight value selector for source-type properties in customer config.
+ *  Admin sets the URL on the property definition; users just pick values here. */
+const SourceValueSelector = ({
+  sourceUrl,
   propVal,
-  onSourceChange,
+  multiple,
   onValueChange,
-}: AdminSourcePropertyFieldProps) => {
+}: {
+  sourceUrl: string;
+  propVal: any;
+  multiple: boolean;
+  onValueChange: (v: any) => void;
+}) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sourceVal || !sourceVal.trim()) {
+    if (!sourceUrl || !sourceUrl.trim()) {
       setData(null);
       return;
     }
-
-    const isUrl = sourceVal.startsWith('/') || sourceVal.startsWith('http');
+    const isUrl = sourceUrl.startsWith('/') || sourceUrl.startsWith('http');
     if (!isUrl) {
-      try {
-        setData(JSON.parse(sourceVal));
-        setError(null);
-      } catch {
-        if (sourceVal.includes(',')) {
-          setData(sourceVal.split(',').map((s) => s.trim()).filter(Boolean));
-        } else {
-          setData(sourceVal);
-        }
-        setError(null);
-      }
+      try { setData(JSON.parse(sourceUrl)); } catch { setData(sourceUrl); }
       return;
     }
-
     let active = true;
-    const fetchData = async () => {
+    (async () => {
       setLoading(true);
       setError(null);
       try {
         const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-        const fullUrl = sourceVal.startsWith('http')
-          ? sourceVal
-          : `${BACKEND_URL}${sourceVal.startsWith('/') ? '' : '/'}${sourceVal}`;
-
+        const fullUrl = sourceUrl.startsWith('http')
+          ? sourceUrl
+          : `${BACKEND_URL}${sourceUrl.startsWith('/') ? '' : '/'}${sourceUrl}`;
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           ...(token && { Authorization: `Bearer ${token}` }),
         };
-
         const res = await fetch(fullUrl, { headers });
-        if (!res.ok) {
-          throw new Error(`Fetch failed: ${res.statusText}`);
-        }
+        if (!res.ok) throw new Error(`Fetch failed: ${res.statusText}`);
         const json = await res.json();
-        if (active) {
-          setData(json);
-        }
+        if (active) setData(json);
       } catch (err: any) {
-        if (active) {
-          setError(err.message || 'Failed to fetch');
-        }
+        if (active) setError(err.message || 'Failed to fetch');
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
-    };
-
-    fetchData();
-    return () => {
-      active = false;
-    };
-  }, [sourceVal]);
+    })();
+    return () => { active = false; };
+  }, [sourceUrl]);
 
   let resolvedData = data;
   if (data && typeof data === 'object' && !Array.isArray(data)) {
     const arrayKey = Object.keys(data).find((k) => Array.isArray(data[k]));
-    if (arrayKey) {
-      resolvedData = data[arrayKey];
-    }
+    if (arrayKey) resolvedData = data[arrayKey];
   }
 
   const isList = Array.isArray(resolvedData);
   const isDict = resolvedData !== null && typeof resolvedData === 'object' && !isList;
+  const selectValue = multiple
+    ? (Array.isArray(propVal) ? propVal.map(String) : typeof propVal === 'string' && propVal.trim() ? propVal.split(',') : [])
+    : String(propVal ?? '');
 
-  const commonClasses =
-    'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
+  const cls = 'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
+
+  if (!sourceUrl) return <span className="text-xs text-gray-400 italic">No source URL configured</span>;
 
   return (
-    <div className="space-y-2 p-2.5 border rounded-lg bg-gray-50/50 w-full">
-      <div className="space-y-1">
-        <span className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">
-          Source URL Config (Internal)
+    <div className="space-y-1 w-full">
+      <div className="flex justify-between items-center">
+        <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+          {multiple ? 'Multi-Select' : 'Select Value'}
         </span>
-        <input
-          type="text"
-          className={`${commonClasses} text-black font-mono`}
-          value={sourceVal}
-          placeholder="e.g. /api/knowledge/bases"
-          onChange={(e) => onSourceChange(e.target.value)}
-          disabled={isDisabled}
-        />
+        {loading && <span className="text-[9px] text-blue-500 animate-pulse">Loading...</span>}
+        {error && <span className="text-[9px] text-red-500" title={error}>Error</span>}
       </div>
-      <div className="space-y-1">
-        <div className="flex justify-between items-center">
-          <span className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">
-            Value Selection
-          </span>
-          {loading && <span className="text-[9px] text-blue-500 animate-pulse">Loading...</span>}
-          {error && <span className="text-[9px] text-red-500" title={error}>Error</span>}
-        </div>
-        {isList ? (
-          <select
-            className={`${commonClasses} text-black`}
-            value={String(propVal)}
-            onChange={(e) => onValueChange(e.target.value)}
-            disabled={isDisabled}
-          >
-            <option value="">Select option...</option>
-            {resolvedData.map((opt: any) => {
-              const val = opt && typeof opt === 'object' ? (opt.id ?? opt.key ?? opt.value ?? opt.name ?? '') : opt;
-              const label = opt && typeof opt === 'object' ? (opt.name ?? opt.label ?? opt.title ?? opt.key ?? opt.id ?? '') : opt;
-              return (
-                <option key={String(val)} value={String(val)}>
-                  {String(label)}
-                </option>
-              );
-            })}
-          </select>
-        ) : isDict ? (
-          <select
-            className={`${commonClasses} text-black`}
-            value={String(propVal)}
-            onChange={(e) => onValueChange(e.target.value)}
-            disabled={isDisabled}
-          >
-            <option value="">Select option...</option>
-            {Object.entries(resolvedData).map(([k, v]) => (
-              <option key={k} value={k}>
-                {String(v)}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <input
-            type="text"
-            className={`${commonClasses} text-black`}
-            value={String(propVal)}
-            onChange={(e) => onValueChange(e.target.value)}
-            disabled={isDisabled}
-            placeholder="Single value..."
-          />
-        )}
-      </div>
+      {isList ? (
+        <select
+          className={`${cls} ${multiple ? 'h-24' : ''}`}
+          multiple={multiple}
+          value={selectValue}
+          onChange={(e) => {
+            if (multiple) {
+              onValueChange(Array.from(e.target.selectedOptions, (o) => o.value));
+            } else {
+              onValueChange(e.target.value);
+            }
+          }}
+        >
+          {!multiple && <option value="">Select option...</option>}
+          {resolvedData.map((opt: any) => {
+            const val = opt && typeof opt === 'object' ? (opt.id ?? opt.key ?? opt.value ?? opt.name ?? '') : opt;
+            const label = opt && typeof opt === 'object' ? (opt.name ?? opt.label ?? opt.title ?? opt.key ?? opt.id ?? '') : opt;
+            return <option key={String(val)} value={String(val)}>{String(label)}</option>;
+          })}
+        </select>
+      ) : isDict ? (
+        <select
+          className={`${cls} ${multiple ? 'h-24' : ''}`}
+          multiple={multiple}
+          value={selectValue}
+          onChange={(e) => {
+            if (multiple) {
+              onValueChange(Array.from(e.target.selectedOptions, (o) => o.value));
+            } else {
+              onValueChange(e.target.value);
+            }
+          }}
+        >
+          {!multiple && <option value="">Select option...</option>}
+          {Object.entries(resolvedData).map(([k, v]) => (
+            <option key={k} value={k}>{String(v)}</option>
+          ))}
+        </select>
+      ) : (
+        <input type="text" className={cls} value={String(propVal ?? '')} onChange={(e) => onValueChange(e.target.value)} placeholder="Value..." />
+      )}
     </div>
   );
 };
+
 
 type PropertyTarget = 'user' | 'system';
 
@@ -213,6 +168,7 @@ type PropertyEntry = {
   default?: any;
   multiple?: boolean;
   description?: string;
+  source?: string;
 };
 
 type PropertyRow = PropertyEntry & {
@@ -332,6 +288,8 @@ const propertyEntriesToJsonStrings = (entries: PropertyEntry[]): any[] =>
     value: entry.value ?? '',
     default: entry.default ?? '',
     description: entry.description ?? '',
+    source: entry.source || undefined,
+    multiple: entry.multiple || undefined,
   }));
 
 const boolFromValue = (value: any) =>
@@ -618,9 +576,11 @@ export default function AdminPage() {
     key: '',
     label: '',
     type: 'string',
-    defaultValue: '',
-    value: '',
+    defaultValue: '' as any,
+    value: '' as any,
     description: '',
+    source: '',
+    multiple: false,
   });
 
   // Auth state
@@ -1516,6 +1476,8 @@ export default function AdminPage() {
         defaultValue: field.default || '',
         value: field.value ?? '',
         description: field.description || '',
+        source: field.source || '',
+        multiple: !!field.multiple,
       });
       setIsEditingProp(true);
     } else {
@@ -1530,6 +1492,8 @@ export default function AdminPage() {
         defaultValue: '',
         value: '',
         description: '',
+        source: '',
+        multiple: false,
       });
       setIsEditingProp(false);
     }
@@ -1551,6 +1515,8 @@ export default function AdminPage() {
         value: propModal.value,
         default: propModal.defaultValue,
         description: propModal.description || '',
+        source: propModal.source || undefined,
+        multiple: propModal.multiple || undefined,
       };
 
       if (isEditingProp && propModal.sourceIndex >= 0) {
@@ -1894,69 +1860,37 @@ export default function AdminPage() {
     }
 
     if (field.type === 'source') {
-      const sourceKey = `${field.key}_source`;
       const isUser = field.category === 'user';
-      const siblingEntries = propertyEntriesFromValue(
-        isUser ? editingAgent?.user_properties : editingAgent?.system_properties
-      );
-      const sourceEntry = siblingEntries.find((e: any) => e.key === sourceKey);
-      const sourceVal = String(sourceEntry?.value !== undefined ? sourceEntry.value : sourceEntry?.default || '');
-      const propVal = value !== undefined && value !== null ? value : '';
-
       return (
-        <AdminSourcePropertyField
-          label={field.label || ''}
-          description={field.description}
-          isDisabled={isDisabled}
-          sourceVal={sourceVal}
-          propVal={propVal}
-          onSourceChange={(newSourceVal) => {
-            const sourceIndex = siblingEntries.findIndex((item: any) => item.key === sourceKey);
-            if (sourceIndex >= 0) {
-              const rowToUpdate = {
-                ...field,
-                key: sourceKey,
-                sourceIndex,
-              };
-              updateProperty(rowToUpdate, newSourceVal);
-            } else {
+        <div className="space-y-1 w-full font-sans">
+          <input
+            type="text"
+            className={`${commonClasses} text-black font-mono`}
+            value={field.source || ''}
+            placeholder="e.g. /api/knowledge/bases"
+            disabled={isDisabled}
+            onChange={(e) => {
+              const newSourceVal = e.target.value;
               setEditingAgent((prev) => {
                 if (!prev) return null;
                 const userProps = propertyEntriesFromValue(prev.user_properties);
                 const sysProps = propertyEntriesFromValue(prev.system_properties);
                 const entries = isUser ? userProps : sysProps;
-                entries.push({
-                  key: sourceKey,
-                  label: `${field.label} Source`,
-                  type: 'string',
-                  value: newSourceVal,
-                  default: '',
-                  description: `Source configuration for ${field.label}`,
-                });
+                if (field.sourceIndex >= 0 && entries[field.sourceIndex]) {
+                  entries[field.sourceIndex] = {
+                    ...entries[field.sourceIndex],
+                    source: newSourceVal,
+                  };
+                }
                 return {
                   ...prev,
                   user_properties: propertyEntriesToJsonStrings(userProps),
                   system_properties: propertyEntriesToJsonStrings(sysProps),
                 };
               });
-            }
-            // Auto-resolve if single value
-            let parsed;
-            try {
-              parsed = JSON.parse(newSourceVal);
-            } catch {
-              if (newSourceVal.includes(',')) {
-                parsed = newSourceVal.split(',').map((s) => s.trim()).filter(Boolean);
-              } else {
-                parsed = newSourceVal;
-              }
-            }
-            if (typeof parsed !== 'object' || parsed === null) {
-              handleValChange(newSourceVal);
-            }
-          }}
-          onValueChange={(newVal) => handleValChange(newVal)}
-        />
+            }}
+          />
+        </div>
       );
     }
 
@@ -2063,41 +1997,18 @@ export default function AdminPage() {
     }
 
     if (entry.type === 'source') {
-      const sourceKey = `${entry.key}_source`;
-      const sourceVal = String(customerNodeProperties[nodeName]?.[sourceKey] || entry.default || '');
+      // In customer node configuration, the admin has already set the source URL
+      // on the property definition. Here we just show the source URL as read-only info
+      // and let the user select values from the fetched data.
+      const sourceUrl = entry.source || '';
       const propVal = val !== undefined && val !== null ? val : '';
 
       return (
-        <AdminSourcePropertyField
-          label={entry.label || ''}
-          description={entry.description}
-          sourceVal={sourceVal}
+        <SourceValueSelector
+          sourceUrl={sourceUrl}
           propVal={propVal}
-          onSourceChange={(newSourceVal) => {
-            // Update source key
-            setCustomerNodeProperties((prev) => ({
-              ...prev,
-              [nodeName]: {
-                ...(prev[nodeName] || {}),
-                [sourceKey]: newSourceVal,
-              },
-            }));
-            // If single value, update main field directly
-            let parsed;
-            try {
-              parsed = JSON.parse(newSourceVal);
-            } catch {
-              if (newSourceVal.includes(',')) {
-                parsed = newSourceVal.split(',').map((s) => s.trim()).filter(Boolean);
-              } else {
-                parsed = newSourceVal;
-              }
-            }
-            if (typeof parsed !== 'object' || parsed === null) {
-              handleValChange(newSourceVal);
-            }
-          }}
-          onValueChange={(newVal) => handleValChange(newVal)}
+          multiple={!!entry.multiple}
+          onValueChange={(newVal: any) => handleValChange(newVal)}
         />
       );
     }
@@ -6386,6 +6297,34 @@ export default function AdminPage() {
                     />
                   </div>
                 </div>
+
+                {propModal.type === 'source' && (
+                  <div className="space-y-3 p-3 border rounded bg-gray-50/50">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">
+                        Source URL (Internal API)
+                      </label>
+                      <input
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={propModal.source || ''}
+                        onChange={(e) => setPropModal({ ...propModal, source: e.target.value })}
+                        placeholder="e.g. /api/knowledge/bases"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="prop-multiple"
+                        checked={!!propModal.multiple}
+                        onChange={(e) => setPropModal({ ...propModal, multiple: e.target.checked })}
+                        className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+                      />
+                      <label htmlFor="prop-multiple" className="text-[10px] font-bold text-gray-500 uppercase cursor-pointer selection:bg-transparent">
+                        Allow Multiple Values Selection (List)
+                      </label>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-500 uppercase">

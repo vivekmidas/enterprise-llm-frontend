@@ -21,6 +21,7 @@ export interface NodePropertyDefinition {
   multiple?: boolean;
   default?: PropertyValue;
   description?: string;
+  source?: string;
 }
 
 export interface NodeDefinition {
