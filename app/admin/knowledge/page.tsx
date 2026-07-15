@@ -1,50 +1,27 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+import { TagInput } from '@/lib/tag-utils';
 import {
   BookOpen,
   Plus,
   Trash2,
   Upload,
   RefreshCw,
-  FileText,
   CheckCircle,
-  Clock,
-  AlertTriangle,
-  ChevronRight,
-  Database,
-  ArrowLeft,
   Info,
+  Search,
+  SlidersHorizontal,
+  Pencil,
+  Settings,
+  X,
 } from 'lucide-react';
-import { api } from '@/lib/api';
 
-type KnowledgeBase = {
-  id: number;
-  name: string;
-  description?: string;
-  status: string;
-  embedding_model?: string;
-  vector_dimension?: number;
-  created_at: string;
-};
-
-type KnowledgeDocument = {
-  id: number;
-  name: string;
-  status: string;
-  file_size?: number;
-  chunk_count: number;
-  error_message?: string;
-  created_at: string;
-};
-
-export default function KnowledgeBasePage() {
-  const router = useRouter();
-  const [kbList, setKbList] = useState<KnowledgeBase[]>([]);
-  const [selectedKb, setSelectedKb] = useState<KnowledgeBase | null>(null);
-  const [docList, setDocList] = useState<KnowledgeDocument[]>([]);
+export default function KnowledgeBasesTab() {
+  const [kbList, setKbList] = useState<any[]>([]);
+  const [selectedKb, setSelectedKb] = useState<any>(null);
+  const [docList, setDocList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [docsLoading, setDocsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,36 +30,90 @@ export default function KnowledgeBasePage() {
   // KB Form state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newKbName, setNewKbName] = useState('');
-  const [newKbDesc, setNewKbDesc] = useState('');
+  const [newKbPurpose, setNewKbPurpose] = useState('');
+  const [newKbTags, setNewKbTags] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // File Upload State
+  // Doc Form state
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [docDescription, setDocDescription] = useState('');
+  const [docTags, setDocTags] = useState('');
+  const [docType, setDocType] = useState('general');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
-  // Auth checking
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
+  // Custom Doc Types state
+  const [showDocTypesModal, setShowDocTypesModal] = useState(false);
+  const [docTypes, setDocTypes] = useState<string[]>([]);
+  const [newDocType, setNewDocType] = useState('');
+  const [savingDocTypes, setSavingDocTypes] = useState(false);
 
-    api
-      .getCurrentUser()
-      .then((user) => {
-        if (user.role !== 'admin' && user.role !== 'system_admin') {
-          router.push('/workflow-builder');
+  const fetchDocTypes = async () => {
+    try {
+      const types = await api.getDocumentTypes();
+      setDocTypes(types || []);
+      if (types && types.length > 0) {
+        const lowercaseTypes = types.map((t: string) => t.toLowerCase());
+        if (!lowercaseTypes.includes(docType.toLowerCase())) {
+          setDocType(types[0].toLowerCase());
         }
-      })
-      .catch(() => {
-        api.logout();
-        router.push('/login');
-      });
-  }, [router]);
+      }
+    } catch (err) {
+      console.error('Failed to load document types', err);
+    }
+  };
 
-  // Load KBs on mount
+  const handleSaveDocTypes = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingDocTypes(true);
+    try {
+      const updated = await api.updateDocumentTypes(docTypes);
+      setDocTypes(updated || []);
+      setShowDocTypesModal(false);
+    } catch (err) {
+      console.error('Failed to save document types', err);
+      alert('Failed to save document types');
+    } finally {
+      setSavingDocTypes(false);
+    }
+  };
+
+  // Auto-refresh and status checking states
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [fetchingDocIds, setFetchingDocIds] = useState<Record<number, boolean>>({});
+
+  // Ingestion Testing state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [topK, setTopK] = useState(5);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [minScore, setMinScore] = useState(0.65);
+  const [enableReranking, setEnableReranking] = useState(true);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+
+  // Users map for resolving created_by IDs
+  const [usersMap, setUsersMap] = useState<Record<number, string>>({});
+
+  // KB Edit State
+  const [showEditKbModal, setShowEditKbModal] = useState(false);
+  const [editKbName, setEditKbName] = useState('');
+  const [editKbDesc, setEditKbDesc] = useState('');
+  const [editKbPurpose, setEditKbPurpose] = useState('');
+  const [editKbTags, setEditKbTags] = useState<string[]>([]);
+  const [savingKb, setSavingKb] = useState(false);
+
+  // Doc Edit State
+  const [showEditDocModal, setShowEditDocModal] = useState(false);
+  const [editDoc, setEditDoc] = useState<any>(null);
+  const [editDocName, setEditDocName] = useState('');
+  const [editDocDesc, setEditDocDesc] = useState('');
+  const [editDocTags, setEditDocTags] = useState<string[]>([]);
+  const [editDocType, setEditDocType] = useState('');
+  const [savingDoc, setSavingDoc] = useState(false);
+
   const fetchKBs = async () => {
     setLoading(true);
     setError(null);
@@ -100,11 +131,6 @@ export default function KnowledgeBasePage() {
     }
   };
 
-  useEffect(() => {
-    fetchKBs();
-  }, []);
-
-  // Load Documents when KB selection changes
   const fetchDocs = async (kbId: number) => {
     setDocsLoading(true);
     setDocError(null);
@@ -119,6 +145,59 @@ export default function KnowledgeBasePage() {
     }
   };
 
+  const refreshDocStatus = async (docId: number) => {
+    if (!selectedKb) return;
+    setFetchingDocIds((prev) => ({ ...prev, [docId]: true }));
+    try {
+      const updatedDoc = await api.getDocumentStatus(selectedKb.id, docId);
+      setDocList((prev) => prev.map((d) => (d.id === docId ? updatedDoc : d)));
+    } catch (err) {
+      console.error('Failed to refresh document status', err);
+    } finally {
+      setFetchingDocIds((prev) => ({ ...prev, [docId]: false }));
+    }
+  };
+
+  const handleTestRetrieval = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedKb || !searchQuery.trim()) return;
+
+    setSearchLoading(true);
+    setSearchError(null);
+    setSearchResults([]);
+    try {
+      const response = await api.retrieveKnowledge({
+        query: searchQuery,
+        knowledge_base_ids: [selectedKb.id],
+        top_k: topK,
+        min_score: minScore,
+        enable_reranking: enableReranking,
+      });
+      setSearchResults(response.context?.chunks || []);
+    } catch (err: any) {
+      console.error(err);
+      setSearchError(err.message || 'Retrieval test failed.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchKBs();
+    fetchDocTypes();
+    // Load users for name resolution
+    api
+      .getUsers()
+      .then((users: any[]) => {
+        const map: Record<number, string> = {};
+        (users || []).forEach((u: any) => {
+          map[u.id] = u.name || u.username || u.email || `User #${u.id}`;
+        });
+        setUsersMap(map);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (selectedKb) {
       fetchDocs(selectedKb.id);
@@ -127,6 +206,18 @@ export default function KnowledgeBasePage() {
     }
   }, [selectedKb]);
 
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (autoRefresh && selectedKb) {
+      interval = setInterval(() => {
+        fetchDocs(selectedKb.id);
+      }, 5000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh, selectedKb]);
+
   const handleCreateKB = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKbName.trim()) return;
@@ -134,15 +225,21 @@ export default function KnowledgeBasePage() {
     setCreating(true);
     setError(null);
     try {
+      const tagsList = newKbTags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
       const newKb = await api.createKnowledgeBase({
         name: newKbName,
-        description: newKbDesc,
+        description: newKbPurpose,
+        settings: { tags: tagsList },
       });
       setKbList((prev) => [...prev, newKb]);
       setSelectedKb(newKb);
       setShowCreateModal(false);
       setNewKbName('');
-      setNewKbDesc('');
+      setNewKbPurpose('');
+      setNewKbTags('');
     } catch (err: any) {
       console.error(err);
       setError('Failed to create Knowledge Base.');
@@ -196,13 +293,16 @@ export default function KnowledgeBasePage() {
     setUploadProgress('Uploading & chunking document...');
     setDocError(null);
     try {
-      await api.uploadDocument(selectedKb.id, uploadFile);
+      await api.uploadDocument(selectedKb.id, uploadFile, {
+        description: docDescription,
+        tags: docTags,
+        doc_type: docType,
+      });
       setUploadFile(null);
-      // Reset input element
-      const fileInput = document.getElementById('kb-file-upload') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-
-      // Reload document list
+      setDocDescription('');
+      setDocTags('');
+      setDocType('general');
+      setShowUploadModal(false);
       fetchDocs(selectedKb.id);
       setUploadProgress(null);
     } catch (err: any) {
@@ -234,6 +334,89 @@ export default function KnowledgeBasePage() {
     }
   };
 
+  const handleUploadNewVersion = (doc: any) => {
+    setSelectedKb(kbList.find((kb) => kb.id === doc.knowledge_base_id));
+    setDocDescription(doc.metadata_json?.description || '');
+    setDocTags(Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags.join(', ') : '');
+    setDocType(doc.metadata_json?.type || 'general');
+    setShowUploadModal(true);
+  };
+
+  // ── KB Edit Handlers ─────────────────────────────────────────────────────
+
+  const openEditKbModal = (kb: any) => {
+    setEditKbName(kb.name);
+    setEditKbDesc(kb.description || '');
+    setEditKbPurpose(kb.settings?.purpose || '');
+    setEditKbTags(Array.isArray(kb.settings?.tags) ? kb.settings.tags : []);
+    setShowEditKbModal(true);
+  };
+
+  const handleSaveKb = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedKb || !editKbName.trim()) return;
+
+    setSavingKb(true);
+    setError(null);
+    try {
+      const updatedKb = await api.updateKnowledgeBase(selectedKb.id, {
+        name: editKbName,
+        description: editKbDesc || undefined,
+        settings: {
+          ...(selectedKb.settings || {}),
+          purpose: editKbPurpose || undefined,
+          tags: editKbTags.length > 0 ? editKbTags : undefined,
+        },
+      });
+      setKbList((prev) => prev.map((kb) => (kb.id === updatedKb.id ? updatedKb : kb)));
+      setSelectedKb(updatedKb);
+      setShowEditKbModal(false);
+    } catch (err: any) {
+      console.error(err);
+      setError('Failed to update Knowledge Base.');
+    } finally {
+      setSavingKb(false);
+    }
+  };
+
+  // ── Doc Edit Handlers ────────────────────────────────────────────────────
+
+  const openEditDocModal = (doc: any) => {
+    setEditDoc(doc);
+    setEditDocName(doc.name);
+    setEditDocDesc(doc.metadata_json?.description || '');
+    setEditDocTags(Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags : []);
+    setEditDocType(doc.metadata_json?.type || doc.metadata_json?.doc_type || '');
+    setShowEditDocModal(true);
+  };
+
+  const handleSaveDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedKb || !editDoc || !editDocName.trim()) return;
+
+    setSavingDoc(true);
+    setDocError(null);
+    try {
+      await api.updateDocument(selectedKb.id, editDoc.id, {
+        name: editDocName,
+        metadata: {
+          ...(editDoc.metadata_json || {}),
+          description: editDocDesc || undefined,
+          tags: editDocTags.length > 0 ? editDocTags : undefined,
+          doc_type: editDocType || undefined,
+        },
+      });
+      fetchDocs(selectedKb.id);
+      setShowEditDocModal(false);
+      setEditDoc(null);
+    } catch (err: any) {
+      console.error(err);
+      setDocError('Failed to update document.');
+    } finally {
+      setSavingDoc(false);
+    }
+  };
+
   const formatBytes = (bytes?: number) => {
     if (bytes === undefined || bytes === null) return '-';
     if (bytes === 0) return '0 Bytes';
@@ -244,425 +427,923 @@ export default function KnowledgeBasePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-gray-900">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin?tab=nodes"
-            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div className="h-6 w-[1px] bg-slate-200" />
-          <Database className="w-6 h-6 text-blue-600" />
-          <h1 className="text-xl font-bold tracking-tight text-slate-800">Knowledge Bases</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => selectedKb && fetchDocs(selectedKb.id)}
-            disabled={docsLoading || !selectedKb}
-            className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors flex items-center gap-2 text-xs font-semibold cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${docsLoading ? 'animate-spin' : ''}`} />
-            Refresh status
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-all shadow-sm cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            Create Knowledge Base
-          </button>
-        </div>
-      </header>
-
-      {/* Main Workspace Layout */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Left Side: Knowledge Base List */}
-        <section className="w-1/3 bg-white border-r border-slate-200 flex flex-col h-full overflow-hidden">
-          <div className="p-4 bg-slate-50/50 border-b border-slate-200">
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Active Databases
-            </h2>
+    <div className="flex bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-[750px] font-sans text-gray-800">
+      {/* Left KB Sidebar */}
+      <div className="w-1/4 border-r border-gray-200 flex flex-col h-full bg-slate-50/20">
+        <div className="p-4 border-b border-gray-250 bg-gray-50/50 flex items-center justify-between">
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+            Knowledge Bases
+          </h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setNewDocType('');
+                if (!docTypes || docTypes.length === 0) {
+                  setDocTypes(['General', 'Policy', 'FAQ', 'Technical', 'Contract']);
+                }
+                setShowDocTypesModal(true);
+              }}
+              className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-750 rounded-md transition-colors cursor-pointer"
+              title="Manage Document Types"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="p-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
+              title="Create Knowledge Base"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
+        </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-            {loading ? (
-              <div className="p-8 text-center text-slate-400">
-                <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                Loading knowledge bases...
-              </div>
-            ) : kbList.length === 0 ? (
-              <div className="p-8 text-center text-slate-400">
-                <BookOpen className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                No knowledge bases found. Create one to begin.
-              </div>
-            ) : (
-              kbList.map((kb) => {
-                const isSelected = selectedKb?.id === kb.id;
-                return (
-                  <div
-                    key={kb.id}
-                    onClick={() => setSelectedKb(kb)}
-                    className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
-                      isSelected ? 'bg-blue-50/40 border-l-4 border-blue-600' : ''
-                    }`}
-                  >
-                    <div className="space-y-1 pr-3">
-                      <h3
-                        className={`font-semibold text-sm ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}
-                      >
-                        {kb.name}
-                      </h3>
-                      {kb.description && (
-                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                          {kb.description}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2 pt-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">
-                          ID: {kb.id}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-500 font-medium">
-                          {kb.embedding_model || 'Standard Embeddings'}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteKB(kb.id);
-                      }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-md hover:bg-slate-100 transition-colors"
-                      title="Delete Knowledge Base"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </section>
-
-        {/* Right Side: Selected Knowledge Base Details & Documents */}
-        <section className="flex-1 bg-slate-50 flex flex-col h-full overflow-hidden">
-          {selectedKb ? (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* KB Meta Header */}
-              <div className="bg-white border-b border-slate-200 p-6 space-y-4">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-800">{selectedKb.name}</h2>
-                  {selectedKb.description && (
-                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                      {selectedKb.description}
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">
-                      Collection Name
-                    </span>
-                    <span className="text-xs font-semibold text-slate-700 font-mono">
-                      kb_collection_{selectedKb.id}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">
-                      Embedding Model
-                    </span>
-                    <span className="text-xs font-semibold text-slate-700">
-                      {selectedKb.embedding_model || 'text-embedding-3-small'}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">
-                      Status
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 capitalize mt-0.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                      {selectedKb.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Documents Area */}
-              <div className="flex-1 flex overflow-hidden">
-                {/* Document Table (List View) */}
-                <div className="flex-1 p-6 flex flex-col overflow-hidden">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Ingested Documents
-                    </h3>
-                    <span className="text-xs text-slate-500 font-medium bg-white px-2.5 py-1 rounded-full border border-slate-200">
-                      {docList.length} total files
-                    </span>
-                  </div>
-
-                  {docError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-xs font-medium flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 shrink-0" />
-                      {docError}
-                    </div>
-                  )}
-
-                  <div className="flex-1 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
-                    <div className="overflow-x-auto flex-1">
-                      <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50 sticky top-0">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                              File Name
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                              Size
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                              Chunks
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                          {docsLoading && docList.length === 0 ? (
-                            <tr>
-                              <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
-                                <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-500" />
-                                Loading documents...
-                              </td>
-                            </tr>
-                          ) : docList.length === 0 ? (
-                            <tr>
-                              <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
-                                <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                                No documents uploaded. Drag and drop a file on the right side.
-                              </td>
-                            </tr>
-                          ) : (
-                            docList.map((doc) => {
-                              const isPending = doc.status === 'pending';
-                              const isCompleted = doc.status === 'completed';
-                              const isFailed = doc.status === 'failed';
-                              const isArchived = doc.status === 'archived';
-
-                              return (
-                                <tr
-                                  key={doc.id}
-                                  className={isArchived ? 'bg-slate-50 opacity-60' : ''}
-                                >
-                                  <td
-                                    className="px-6 py-4 max-w-xs truncate font-medium text-xs text-slate-800"
-                                    title={doc.name}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <FileText
-                                        className={`w-4 h-4 shrink-0 ${isArchived ? 'text-slate-400' : 'text-blue-500'}`}
-                                      />
-                                      <span className="truncate">{doc.name}</span>
-                                      {isArchived && (
-                                        <span className="text-[9px] bg-slate-200 px-1 py-0.5 rounded text-slate-500">
-                                          Archived
-                                        </span>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
-                                    {formatBytes(doc.file_size)}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
-                                    {doc.chunk_count}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-xs">
-                                    {isCompleted && (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-50 border border-green-200 text-green-700">
-                                        <CheckCircle className="w-3 h-3 text-green-500" /> Completed
-                                      </span>
-                                    )}
-                                    {isPending && (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 border border-amber-200 text-amber-700">
-                                        <Clock className="w-3 h-3 text-amber-500 animate-pulse" />{' '}
-                                        Pending
-                                      </span>
-                                    )}
-                                    {isFailed && (
-                                      <span
-                                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 border border-red-200 text-red-700 cursor-help"
-                                        title={doc.error_message || 'Ingestion failed.'}
-                                      >
-                                        <AlertTriangle className="w-3 h-3 text-red-500" /> Failed
-                                      </span>
-                                    )}
-                                    {isArchived && (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 border border-slate-200 text-slate-500">
-                                        Archived
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-right text-xs">
-                                    <button
-                                      onClick={() => handleDeleteDoc(doc.id)}
-                                      className="p-1 text-slate-400 hover:text-red-600 rounded hover:bg-slate-50 transition-colors"
-                                      title="Delete Document"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Upload Side Panel */}
-                <div className="w-80 border-l border-slate-200 bg-white p-6 shrink-0 flex flex-col h-full justify-between">
-                  <form onSubmit={handleUploadFile} className="space-y-4">
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                        Ingest Document
-                      </h4>
-                      <p className="text-[10px] text-slate-400 leading-normal">
-                        Upload text, markdown, or PDF files to index them inside the vector store.
-                      </p>
-                    </div>
-
-                    <div className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-6 transition-colors relative flex flex-col items-center justify-center text-center cursor-pointer min-h-[160px]">
-                      <input
-                        type="file"
-                        id="kb-file-upload"
-                        disabled={uploading}
-                        accept=".txt,.pdf,.doc,.docx"
-                        onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      />
-                      <Upload className="w-8 h-8 text-slate-350 mb-2" />
-                      {uploadFile ? (
-                        <div className="space-y-1">
-                          <p className="text-xs font-bold text-slate-800 line-clamp-1">
-                            {uploadFile.name}
-                          </p>
-                          <p className="text-[10px] text-slate-400">
-                            {formatBytes(uploadFile.size)}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          <p className="text-xs font-bold text-slate-600">Select file to upload</p>
-                          <p className="text-[9px] text-slate-400 font-medium">
-                            PDF, TXT, DOC, DOCX up to 50MB
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {uploadProgress && (
-                      <div className="bg-blue-50 border border-blue-100 text-blue-700 p-3 rounded-lg text-[10px] font-medium flex items-center gap-2">
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0 text-blue-500" />
-                        {uploadProgress}
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={uploading || !uploadFile}
-                      className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Upload File
-                    </button>
-                  </form>
-
-                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-2">
-                    <h5 className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                      <Info className="w-3.5 h-3.5 text-blue-500" />
-                      Version control info
-                    </h5>
-                    <p className="text-[10px] text-slate-450 leading-normal">
-                      Uploading a document with the exact same name will archive the old version and
-                      delete its indices, keeping only the latest version searchable.
-                    </p>
-                  </div>
-                </div>
-              </div>
+        <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+          {loading ? (
+            <div className="p-6 text-center text-gray-400 text-sm">
+              <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-500" />
+              Loading...
+            </div>
+          ) : kbList.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">
+              <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              No knowledge bases found.
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-slate-400">
-              <Database className="w-12 h-12 text-slate-200 mb-3" />
-              <h3 className="font-semibold text-slate-700 text-sm mb-1">
-                No Knowledge Base Selected
-              </h3>
-              <p className="text-xs text-slate-400 max-w-sm leading-normal">
-                Select a knowledge base on the left or create a new one to start indexing files.
-              </p>
-            </div>
-          )}
-        </section>
-      </main>
+            kbList.map((kb) => {
+              const isSelected = selectedKb?.id === kb.id;
+              const tags = Array.isArray(kb.settings?.tags) ? kb.settings.tags : [];
+              const uploaderName = usersMap[kb.created_by] || `User #${kb.created_by}`;
+              const createdDate = kb.created_at
+                ? new Date(kb.created_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : '-';
+              return (
+                <div
+                  key={kb.id}
+                  onClick={() => setSelectedKb(kb)}
+                  className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
+                    isSelected ? 'bg-blue-50/40 border-l-4 border-blue-600' : ''
+                  }`}
+                >
+                  <div className="space-y-1.5 pr-2 min-w-0 flex-1">
+                    <h4
+                      className={`font-bold text-sm ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}
+                    >
+                      {kb.name}
+                    </h4>
+                    {kb.description && (
+                      <p className="text-xs text-gray-555 line-clamp-2 leading-relaxed">
+                        {kb.description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-gray-400">
+                      <span className="inline-flex items-center gap-1">
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        <span className="font-medium text-gray-550">{uploaderName}</span>
+                      </span>
+                      <span className="text-gray-300">·</span>
+                      <span className="inline-flex items-center gap-1">
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        <span>{createdDate}</span>
+                      </span>
+                    </div>
 
-      {/* KB Creation Modal */}
+                    {tags.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap pt-1">
+                        {tags.map((t: string) => (
+                          <span
+                            key={t}
+                            className="px-1.5 py-0.5 bg-gray-100 text-gray-655 rounded text-[9px] font-medium"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteKB(kb.id);
+                    }}
+                    className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-all cursor-pointer"
+                    title="Delete Knowledge Base"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Main Document / Retrieval Area */}
+      {selectedKb ? (
+        <div className="flex-1 flex flex-col h-full bg-white overflow-hidden">
+          {/* Header Row */}
+          <div className="p-4 border-b border-gray-200 bg-gray-50/30 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-base text-gray-800">{selectedKb.name}</h3>
+                <button
+                  onClick={() => openEditKbModal(selectedKb)}
+                  className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors cursor-pointer"
+                  title="Edit Settings"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {selectedKb.description && (
+                <p className="text-xs text-gray-500 mt-0.5">{selectedKb.description}</p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setShowTestModal(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-violet-750 bg-white rounded-md shadow-xs hover:bg-violet-50 transition-colors cursor-pointer"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  Test Retrieval
+                </button>
+              </div>
+
+              <label className="flex items-center gap-1.5 text-xs text-gray-600 select-none cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoRefresh}
+                  onChange={(e) => setAutoRefresh(e.target.checked)}
+                  className="rounded border-gray-350 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                />
+                Auto-Refresh Status
+              </label>
+
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Upload Document
+              </button>
+            </div>
+          </div>
+
+          {/* Error alerts */}
+          {error && <div className="mx-4 mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">{error}</div>}
+          {docError && <div className="mx-4 mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">{docError}</div>}
+
+          {/* Doc List Container */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {docsLoading && docList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm">
+                <RefreshCw className="w-6 h-6 animate-spin text-blue-500 mb-2" />
+                Loading documents...
+              </div>
+            ) : docList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+                <Upload className="w-10 h-10 text-gray-300 mb-3" />
+                <p className="font-semibold text-gray-655">No documents uploaded in this knowledge base.</p>
+                <p className="text-xs text-gray-400 mt-1 max-w-xs text-center">
+                  Click the "Upload Document" button above to ingest your text, PDF, or Word files.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {docList.map((doc) => {
+                  const status = doc.status?.toLowerCase();
+                  const isProcessing = ['processing', 'pending', 'chunking', 'embedding'].includes(status);
+                  const isError = ['error', 'failed'].includes(status);
+                  const isSuccess = status === 'completed' || status === 'active';
+                  const docTags = Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags : [];
+                  const docDescription = doc.metadata_json?.description || '';
+                  const docType = doc.metadata_json?.type || doc.metadata_json?.doc_type || 'general';
+
+                  return (
+                    <div
+                      key={doc.id}
+                      className="border border-gray-150 rounded-xl p-4 flex items-start justify-between hover:bg-slate-50/30 transition-all shadow-xs"
+                    >
+                      <div className="space-y-2 flex-1 min-w-0 pr-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-gray-800 truncate">{doc.name}</span>
+                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-bold uppercase tracking-wider">
+                            {docType}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                              isSuccess
+                                ? 'bg-green-50 text-green-700'
+                                : isProcessing
+                                  ? 'bg-amber-50 text-amber-705 animate-pulse'
+                                  : 'bg-red-50 text-red-750'
+                            }`}
+                          >
+                            {doc.status || 'Unknown'}
+                          </span>
+                        </div>
+
+                        {docDescription && <p className="text-xs text-gray-550 leading-relaxed">{docDescription}</p>}
+
+                        {/* Metadata Details Row */}
+                        <div className="flex items-center gap-3 text-[10px] text-gray-450 font-medium flex-wrap">
+                          <span>Size: {formatBytes(doc.file_size)}</span>
+                          <span>·</span>
+                          <span>Chunks: {doc.chunk_count ?? 0}</span>
+                          <span>·</span>
+                          <span>
+                            Created:{' '}
+                            {doc.created_at
+                              ? new Date(doc.created_at).toLocaleString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              : '-'}
+                          </span>
+                        </div>
+
+                        {docTags.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {docTags.map((t: string) => (
+                              <span
+                                key={t}
+                                className="px-1.5 py-0.5 bg-slate-100 text-slate-655 rounded text-[9px] font-medium"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Operations */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => refreshDocStatus(doc.id)}
+                          disabled={fetchingDocIds[doc.id]}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-all cursor-pointer"
+                          title="Refresh Status"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${fetchingDocIds[doc.id] ? 'animate-spin' : ''}`} />
+                        </button>
+                        <button
+                          onClick={() => openEditDocModal(doc)}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                          title="Edit Document Meta"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleUploadNewVersion(doc)}
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                          title="Upload New Version"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDoc(doc.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                          title="Delete Document"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/10">
+          <BookOpen className="w-12 h-12 text-gray-300 mb-3" />
+          <h3 className="font-semibold text-gray-700 text-sm mb-1">No Knowledge Base Selected</h3>
+          <p className="text-xs text-gray-400 text-center max-w-sm">
+            Select or create a knowledge base on the left to start uploading and managing documents.
+          </p>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
+          >
+            New Knowledge Base
+          </button>
+        </div>
+      )}
+
+      {/* CREATE KB MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-150">
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">
-                New Knowledge Base
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-155">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
+              <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
+                Create Knowledge Base
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-xs"
+                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
               >
                 ✕
               </button>
             </div>
             <form onSubmit={handleCreateKB} className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600">
+                <label className="block text-xs font-semibold text-gray-655">
                   Knowledge Base Name
                 </label>
                 <input
                   type="text"
                   required
+                  placeholder="e.g. Employee Handbook"
                   value={newKbName}
                   onChange={(e) => setNewKbName(e.target.value)}
-                  placeholder="e.g. Sales Documentation"
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600">Description</label>
+                <label className="block text-xs font-semibold text-gray-655">Purpose / Description</label>
                 <textarea
-                  value={newKbDesc}
-                  onChange={(e) => setNewKbDesc(e.target.value)}
-                  placeholder="Summarize the files stored here (optional)..."
-                  className="h-24 w-full border border-slate-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
+                  placeholder="Describe the domain contents..."
+                  value={newKbPurpose}
+                  onChange={(e) => setNewKbPurpose(e.target.value)}
+                  className="h-20 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">
+                  Tags (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. hr, policy, internal"
+                  value={newKbTags}
+                  onChange={(e) => setNewKbTags(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 py-2.5 bg-gray-150 hover:bg-gray-200 text-gray-755 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating || !newKbName.trim()}
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {creating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  Create Base
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* UPLOAD DOCUMENT MODAL */}
+      {showUploadModal && selectedKb && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
+              <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
+                Upload Document
+              </h3>
               <button
-                type="submit"
-                disabled={creating || !newKbName.trim()}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadFile(null);
+                  setUploadProgress(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
               >
-                {creating ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
-                Create Database
+                ✕
               </button>
+            </div>
+            <form onSubmit={handleUploadFile} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">Select File</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors relative">
+                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                  <span className="text-xs text-gray-550 font-medium">
+                    {uploadFile ? uploadFile.name : 'Upload .txt, .pdf, .doc, or .docx'}
+                  </span>
+                  <span className="text-[10px] text-gray-400 mt-1">Maximum file size: 50MB</span>
+                  <input
+                    type="file"
+                    required={!uploadFile}
+                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    accept=".txt,.pdf,.doc,.docx"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">Description</label>
+                <textarea
+                  placeholder="Describe what this document represents..."
+                  value={docDescription}
+                  onChange={(e) => setDocDescription(e.target.value)}
+                  className="h-16 w-full border border-gray-300 rounded-lg px-4 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-655">Document Type</label>
+                  <select
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    {(docTypes && docTypes.length > 0
+                      ? docTypes
+                      : ['General', 'Policy', 'FAQ', 'Technical', 'Contract']
+                    ).map((type) => (
+                      <option key={type} value={type.toLowerCase()}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-655">Tags (comma separated)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Q3, product"
+                    value={docTags}
+                    onChange={(e) => setDocTags(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {uploadProgress && (
+                <div className="p-3 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold flex items-center gap-2">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  {uploadProgress}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadFile(null);
+                    setUploadProgress(null);
+                  }}
+                  className="flex-1 py-2.5 bg-gray-150 hover:bg-gray-200 text-gray-755 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploading || !uploadFile}
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {uploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  Ingest Document
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DOCUMENT TYPES CONFIG MODAL */}
+      {showDocTypesModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
+              <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
+                Document Types
+              </h3>
+              <button
+                onClick={() => setShowDocTypesModal(false)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSaveDocTypes} className="p-6 space-y-4">
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {docTypes.map((type, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-150">
+                    <span className="text-xs text-gray-700 font-bold flex-1">{type}</span>
+                    <button
+                      type="button"
+                      onClick={() => setDocTypes((prev) => prev.filter((_, i) => i !== idx))}
+                      className="text-gray-400 hover:text-red-500 cursor-pointer font-semibold text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="New type name..."
+                  value={newDocType}
+                  onChange={(e) => setNewDocType(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const clean = newDocType.trim();
+                    if (clean && !docTypes.includes(clean)) {
+                      setDocTypes((prev) => [...prev, clean]);
+                      setNewDocType('');
+                    }
+                  }}
+                  className="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-300 transition-all cursor-pointer"
+                >
+                  Add
+                </button>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDocTypesModal(false)}
+                  className="flex-1 py-2 bg-gray-150 hover:bg-gray-200 text-gray-755 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingDocTypes}
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {savingDocTypes ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
+                  Save Document Types
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TEST RETRIEVAL MODAL */}
+      {showTestModal && selectedKb && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl border border-gray-100 overflow-hidden flex flex-col h-[80vh] animate-in fade-in zoom-in duration-150">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
+                  Test Retrieval Pipeline
+                </h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Knowledge Base ID: {selectedKb.id} · Name: {selectedKb.name}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTestModal(false);
+                  setSearchResults([]);
+                  setSearchQuery('');
+                  setSearchError(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 flex-1 overflow-y-auto space-y-4 flex flex-col">
+              <form onSubmit={handleTestRetrieval} className="space-y-3 shrink-0">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3.5 top-3 text-gray-450" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ask/Search query..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={searchLoading || !searchQuery.trim()}
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    Run Search
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between border-t pt-2 border-gray-100 flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                    className="text-[10px] text-blue-600 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    {showAdvancedSettings ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                  </button>
+                </div>
+
+                {showAdvancedSettings && (
+                  <div className="grid grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-150 animate-fade-in">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase">Top K Results</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={topK}
+                        onChange={(e) => setTopK(Number(e.target.value))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase">Min Similarity Score</label>
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={1.0}
+                        step={0.05}
+                        value={minScore}
+                        onChange={(e) => setMinScore(Number(e.target.value))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1 flex items-center pt-5">
+                      <label className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase select-none cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={enableReranking}
+                          onChange={(e) => setEnableReranking(e.target.checked)}
+                          className="rounded border-gray-350 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                        />
+                        Enable Reranking (Cohere)
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </form>
+
+              {searchError && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold shrink-0">
+                  {searchError}
+                </div>
+              )}
+
+              {/* Search Results Display */}
+              <div className="flex-1 overflow-y-auto space-y-4">
+                {!searchLoading && searchResults.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      Search Results ({searchResults.length})
+                    </h4>
+                    <div className="space-y-3">
+                      {searchResults.map((res, index) => {
+                        const similarity = res.score ?? res.similarity ?? 0;
+                        const percent = Math.round(similarity * 100);
+
+                        return (
+                          <div key={index} className="border border-gray-150 rounded-xl p-4 space-y-2 bg-slate-50/20 shadow-xs">
+                            <div className="flex justify-between items-center flex-wrap gap-2 text-[10px]">
+                              <span className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full font-bold uppercase tracking-wider">
+                                Result #{index + 1}
+                              </span>
+                              <span className="font-semibold text-gray-400">
+                                Match Score: <span className="text-violet-600 font-bold">{percent}%</span>
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-705 font-mono leading-relaxed whitespace-pre-wrap bg-white border border-gray-100 rounded-lg p-3">
+                              {res.text ?? res.content}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {!searchLoading && searchResults.length === 0 && !searchError && (
+                  <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm flex-1">
+                    <Search className="w-10 h-10 text-gray-300 mb-2" />
+                    <p className="font-semibold text-gray-655">No retrieval matches found.</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Test how the retrieval pipeline performs with different settings
+                    </p>
+                  </div>
+                )}
+
+                {searchLoading && (
+                  <div className="flex items-center justify-center py-20 flex-1">
+                    <div className="flex items-center gap-2 text-xs text-violet-600 font-semibold">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Searching…
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KB Edit Modal */}
+      {showEditKbModal && selectedKb && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
+              <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
+                Edit Knowledge Base
+              </h3>
+              <button
+                onClick={() => setShowEditKbModal(false)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSaveKb} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editKbName}
+                  onChange={(e) => setEditKbName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">Description</label>
+                <textarea
+                  value={editKbDesc}
+                  onChange={(e) => setEditKbDesc(e.target.value)}
+                  placeholder="Describe the contents..."
+                  className="h-20 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">Purpose</label>
+                <input
+                  type="text"
+                  value={editKbPurpose}
+                  onChange={(e) => setEditKbPurpose(e.target.value)}
+                  placeholder="e.g. Customer support FAQs"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">Tags</label>
+                <TagInput tags={editKbTags} onChange={setEditKbTags} />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditKbModal(false)}
+                  className="flex-1 py-2.5 bg-gray-150 hover:bg-gray-200 text-gray-755 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingKb || !editKbName.trim()}
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {savingKb ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Document Edit Modal */}
+      {showEditDocModal && editDoc && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
+              <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
+                Edit Document
+              </h3>
+              <button
+                onClick={() => {
+                  setShowEditDocModal(false);
+                  setEditDoc(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSaveDoc} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">File Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editDocName}
+                  onChange={(e) => setEditDocName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">Description</label>
+                <textarea
+                  value={editDocDesc}
+                  onChange={(e) => setEditDocDesc(e.target.value)}
+                  placeholder="Describe the document contents..."
+                  className="h-20 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">Document Type</label>
+                <select
+                  value={editDocType}
+                  onChange={(e) => setEditDocType(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  {(docTypes && docTypes.length > 0
+                    ? docTypes
+                    : ['General', 'Policy', 'FAQ', 'Technical', 'Contract']
+                  ).map((type) => (
+                    <option key={type} value={type.toLowerCase()}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">Tags</label>
+                <TagInput tags={editDocTags} onChange={setEditDocTags} />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditDocModal(false);
+                    setEditDoc(null);
+                  }}
+                  className="flex-1 py-2.5 bg-gray-150 hover:bg-gray-200 text-gray-755 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingDoc || !editDocName.trim()}
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {savingDoc ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
+                  Save Changes
+                </button>
+              </div>
             </form>
           </div>
         </div>

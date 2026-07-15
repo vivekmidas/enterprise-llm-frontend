@@ -528,6 +528,34 @@ export const api = {
     return res.json();
   },
 
+  updateKnowledgeBase: async (
+    id: number | string,
+    payload: { name?: string; description?: string; status?: string; settings?: any },
+  ) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${id}`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to update knowledge base');
+    return res.json();
+  },
+
+  updateDocument: async (
+    kbId: number | string,
+    docId: number | string,
+    payload: { name?: string; metadata?: any; status?: string },
+  ) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to update document');
+    return res.json();
+  },
+
+
   getKnowledgeBaseDocuments: async (kbId: number | string) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents`, {
       headers: getHeaders(),
@@ -595,6 +623,25 @@ export const api = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error('Failed to retrieve knowledge');
+    return res.json();
+  },
+
+  getDocumentTypes: async (): Promise<string[]> => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/document-types`, {
+      headers: getHeaders(),
+      method: 'GET',
+    });
+    if (!res.ok) throw new Error('Failed to fetch document types');
+    return res.json();
+  },
+
+  updateDocumentTypes: async (types: string[]): Promise<string[]> => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/document-types`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(types),
+    });
+    if (!res.ok) throw new Error('Failed to update document types');
     return res.json();
   },
 };
