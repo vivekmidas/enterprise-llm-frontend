@@ -118,7 +118,10 @@ const propertyEntriesFromValue = (value: any): PropertyEntry[] => {
   if (Array.isArray(value)) {
     return value
       .map((item) => (typeof item === 'string' ? safeJsonParse(item) : item))
-      .filter((item): item is PropertyEntry => !!item && typeof item === 'object' && typeof item.key === 'string');
+      .filter(
+        (item): item is PropertyEntry =>
+          !!item && typeof item === 'object' && typeof item.key === 'string',
+      );
   }
   if (typeof value === 'object') {
     return Object.entries(value).map(([key, entryValue]) => ({
@@ -196,10 +199,11 @@ const contractFromValue = (value: any): FlatInputContract => {
     rules.push(
       normalizeContractRule({
         field_name: fieldName,
-        field_type: rule?.type || rule?.field_type || (Array.isArray(rule?.values) ? 'array' : 'json'),
+        field_type:
+          rule?.type || rule?.field_type || (Array.isArray(rule?.values) ? 'array' : 'json'),
         required: rule?.required ?? rule?.mandatory ?? false,
         description: rule?.description || '',
-      })
+      }),
     );
   };
 
@@ -210,7 +214,7 @@ const contractFromValue = (value: any): FlatInputContract => {
           ...(rule as object),
           field_name: fieldName,
           required: Array.isArray(parsed.required) && parsed.required.includes(fieldName),
-        })
+        }),
       );
     });
   } else {
@@ -313,7 +317,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
       const normalizedCats = cats.map((cat: any) =>
         typeof cat === 'string'
           ? { name: cat, label: cat }
-          : { ...cat, name: cat.group || cat.name }
+          : { ...cat, name: cat.group || cat.name },
       );
       setCategories(normalizedCats);
     } catch (err) {
@@ -523,9 +527,15 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
 
         let finalOutputContract = {};
         try {
-          if (typeof editingAgent.output_contract === 'string' && editingAgent.output_contract.trim() !== '') {
+          if (
+            typeof editingAgent.output_contract === 'string' &&
+            editingAgent.output_contract.trim() !== ''
+          ) {
             finalOutputContract = JSON.parse(editingAgent.output_contract);
-          } else if (editingAgent.output_contract && typeof editingAgent.output_contract === 'object') {
+          } else if (
+            editingAgent.output_contract &&
+            typeof editingAgent.output_contract === 'object'
+          ) {
             finalOutputContract = editingAgent.output_contract;
           }
         } catch (e) {}
@@ -541,7 +551,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
             output_contract: finalOutputContract,
             label: editingAgent.label,
           },
-          customerId || undefined
+          customerId || undefined,
         );
 
         fetchData();
@@ -569,12 +579,19 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     const finalAgent = { ...editingAgent };
 
     try {
-      if (typeof finalAgent.input_contract === 'string' && finalAgent.input_contract.trim() !== '') {
-        finalAgent.input_contract = validateInputContract(contractFromValue(finalAgent.input_contract));
+      if (
+        typeof finalAgent.input_contract === 'string' &&
+        finalAgent.input_contract.trim() !== ''
+      ) {
+        finalAgent.input_contract = validateInputContract(
+          contractFromValue(finalAgent.input_contract),
+        );
       } else if (typeof finalAgent.input_contract === 'string') {
         finalAgent.input_contract = validateInputContract(contractFromValue({}));
       } else {
-        finalAgent.input_contract = validateInputContract(contractFromValue(finalAgent.input_contract));
+        finalAgent.input_contract = validateInputContract(
+          contractFromValue(finalAgent.input_contract),
+        );
       }
     } catch (e) {
       alert('Invalid JSON in Input Contract field.');
@@ -582,7 +599,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     }
 
     try {
-      if (typeof finalAgent.output_contract === 'string' && finalAgent.output_contract.trim() !== '') {
+      if (
+        typeof finalAgent.output_contract === 'string' &&
+        finalAgent.output_contract.trim() !== ''
+      ) {
         finalAgent.output_contract = JSON.parse(finalAgent.output_contract);
       } else if (typeof finalAgent.output_contract === 'string') {
         finalAgent.output_contract = {};
@@ -593,14 +613,18 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     }
 
     try {
-      finalAgent.user_properties = propertyEntriesToJsonStrings(propertyEntriesFromValue(finalAgent.user_properties));
+      finalAgent.user_properties = propertyEntriesToJsonStrings(
+        propertyEntriesFromValue(finalAgent.user_properties),
+      );
     } catch (e) {
       alert('Invalid JSON in User Properties field.');
       return;
     }
 
     try {
-      finalAgent.system_properties = propertyEntriesToJsonStrings(propertyEntriesFromValue(finalAgent.system_properties));
+      finalAgent.system_properties = propertyEntriesToJsonStrings(
+        propertyEntriesFromValue(finalAgent.system_properties),
+      );
     } catch (e) {
       alert('Invalid JSON in System Properties field.');
       return;
@@ -612,7 +636,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
           String(cat.id) === String(finalAgent.category) ||
           cat.name === finalAgent.category ||
           cat.group === finalAgent.category ||
-          cat.label === finalAgent.category
+          cat.label === finalAgent.category,
       );
       if (matchingCat && matchingCat.id !== undefined) {
         finalAgent.category = String(matchingCat.id);
@@ -637,7 +661,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
   };
 
   const handleDeleteNode = async (nodeName: string) => {
-    if (!confirm(`Are you sure you want to delete the node type "${nodeName}"? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete the node type "${nodeName}"? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
     try {
@@ -755,7 +783,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               e.target.value
                 .split(',')
                 .map((s) => s.trim())
-                .filter(Boolean)
+                .filter(Boolean),
             )
           }
           disabled={isDisabled}
@@ -766,7 +794,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     return (
       <input
         className={`${commonClasses} text-black`}
-        value={typeof displayValue === 'object' ? JSON.stringify(displayValue) : String(displayValue ?? '')}
+        value={
+          typeof displayValue === 'object'
+            ? JSON.stringify(displayValue)
+            : String(displayValue ?? '')
+        }
         placeholder="Enter value..."
         onChange={(e) => handleValChange(e.target.value)}
         disabled={isDisabled}
@@ -775,7 +807,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-400 text-sm font-medium">Loading nodes catalog...</div>;
+    return (
+      <div className="p-8 text-center text-gray-400 text-sm font-medium">
+        Loading nodes catalog...
+      </div>
+    );
   }
 
   return (
@@ -799,7 +835,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               >
                 <option value="all">All Categories</option>
                 {categories.map((cat, idx) => (
-                  <option key={`filter-cat-${cat.id || idx}`} value={cat.id ? String(cat.id) : cat.name}>
+                  <option
+                    key={`filter-cat-${cat.id || idx}`}
+                    value={cat.id ? String(cat.id) : cat.name}
+                  >
                     {cat.label || cat.name}
                   </option>
                 ))}
@@ -862,27 +901,47 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
           <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Label</th>
-                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Name (ID) / Version</th>
-                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">JSON Definition</th>
-                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Label
+                </th>
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Name (ID) / Version
+                </th>
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  JSON Definition
+                </th>
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredAgents.map((agent, idx) => {
                 const agentKey = agent.id?.toString() || agent.name;
-                const AgentIcon = (agent.icon && IconMap[agent.icon.toLowerCase()]) || IconMap.box || IconMap.bot;
+                const AgentIcon =
+                  (agent.icon && IconMap[agent.icon.toLowerCase()]) || IconMap.box || IconMap.bot;
 
                 return (
-                  <tr key={agent.id ? `node-${agent.id}` : `node-${agent.name}-${idx}`} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={agent.id ? `node-${agent.id}` : `node-${agent.name}-${idx}`}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div
                           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border shadow-sm"
                           style={{
-                            borderColor: agent.color && agent.color.length === 7 ? `${agent.color}40` : '#e5e7eb',
-                            backgroundColor: agent.color && agent.color.length === 7 ? `${agent.color}10` : '#f9fafb',
+                            borderColor:
+                              agent.color && agent.color.length === 7
+                                ? `${agent.color}40`
+                                : '#e5e7eb',
+                            backgroundColor:
+                              agent.color && agent.color.length === 7
+                                ? `${agent.color}10`
+                                : '#f9fafb',
                             color: agent.color || '#6b7280',
                           }}
                         >
@@ -890,17 +949,27 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         </div>
                         <div className="flex flex-col text-xs">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-black">{agent.label || agent.name}</span>
+                            <span className="font-bold text-black">
+                              {agent.label || agent.name}
+                            </span>
                           </div>
-                          {agent.sub_label && <span className="text-xs text-blue-600 font-medium mt-0.5">{agent.sub_label}</span>}
-                          <p className="text-xs text-gray-650 line-clamp-2 mt-0.5">{agent.description || 'No description.'}</p>
+                          {agent.sub_label && (
+                            <span className="text-xs text-blue-600 font-medium mt-0.5">
+                              {agent.sub_label}
+                            </span>
+                          )}
+                          <p className="text-xs text-gray-650 line-clamp-2 mt-0.5">
+                            {agent.description || 'No description.'}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col">
                         <span className="text-xs text-gray-700 font-mono">{agent.name}</span>
-                        <span className="text-[10px] text-gray-400 font-mono mt-0.5">v{agent.version}</span>
+                        <span className="text-[10px] text-gray-400 font-mono mt-0.5">
+                          v{agent.version}
+                        </span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -924,7 +993,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                       </button>
                       <div
                         className={`w-full max-w-xs overflow-hidden rounded-lg bg-gray-950 font-mono text-emerald-400 shadow-inner transition-all duration-300 ${
-                          jsonExpandedState[agentKey] ? 'max-h-64 p-3 mt-2 overflow-auto opacity-100' : 'max-h-0 p-0 opacity-0'
+                          jsonExpandedState[agentKey]
+                            ? 'max-h-64 p-3 mt-2 overflow-auto opacity-100'
+                            : 'max-h-0 p-0 opacity-0'
                         }`}
                       >
                         <pre className="text-[10px]">
@@ -936,7 +1007,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               output_contract: agent.output_contract,
                             },
                             null,
-                            2
+                            2,
                           )}
                         </pre>
                       </div>
@@ -956,7 +1027,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                   await api.configureCustomerNode(
                                     agent.name,
                                     { fieldname: 'is_enabled', value: false },
-                                    customerId || undefined
+                                    customerId || undefined,
                                   );
                                   fetchData();
                                 } catch (err: any) {
@@ -976,7 +1047,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                           }}
                           disabled={agent.is_enabled === false}
                           className={`p-1 rounded transition-colors ${
-                            agent.is_enabled === false ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50 cursor-pointer'
+                            agent.is_enabled === false
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-blue-600 hover:bg-blue-50 cursor-pointer'
                           }`}
                         >
                           <Edit2 className="h-4 w-4" />
@@ -1006,13 +1079,22 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
             <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3">
               <div className="flex flex-col">
                 <h3 className="text-xl font-bold font-mono text-black">
-                  {customerId ? `${editingAgent.name}` : editingAgent.id ? 'Edit Node Registry' : 'Create New Node Type'}
+                  {customerId
+                    ? `${editingAgent.name}`
+                    : editingAgent.id
+                      ? 'Edit Node Registry'
+                      : 'Create New Node Type'}
                 </h3>
                 <p className="text-xs text-gray-500 font-mono uppercase mt-0.5">
-                  {editingAgent.id ? `${editingAgent.name} v${editingAgent.version || '1.0.0'}` : 'New Registry Entry'}
+                  {editingAgent.id
+                    ? `${editingAgent.name} v${editingAgent.version || '1.0.0'}`
+                    : 'New Registry Entry'}
                 </p>
               </div>
-              <button onClick={() => setEditingAgent(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+              <button
+                onClick={() => setEditingAgent(null)}
+                className="text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
@@ -1020,7 +1102,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
             <div className="flex-1 overflow-y-auto p-8 space-y-10">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Display Label</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                    Display Label
+                  </label>
                   <input
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={editingAgent.label || ''}
@@ -1029,7 +1113,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Node Category</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                    Node Category
+                  </label>
                   <select
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
                     value={editingAgent.category || ''}
@@ -1044,25 +1130,35 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Sub Label</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                    Sub Label
+                  </label>
                   <input
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={editingAgent.sub_label || ''}
-                    onChange={(e) => setEditingAgent({ ...editingAgent, sub_label: e.target.value })}
+                    onChange={(e) =>
+                      setEditingAgent({ ...editingAgent, sub_label: e.target.value })
+                    }
                     disabled={userRole !== 'system_admin'}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Node Type</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                    Node Type
+                  </label>
                   <input
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={editingAgent.node_type || ''}
-                    onChange={(e) => setEditingAgent({ ...editingAgent, node_type: e.target.value })}
+                    onChange={(e) =>
+                      setEditingAgent({ ...editingAgent, node_type: e.target.value })
+                    }
                     disabled={userRole !== 'system_admin'}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">UI Group</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                    UI Group
+                  </label>
                   <input
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={editingAgent.group || ''}
@@ -1071,7 +1167,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Icon Name (Lucide)</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                    Icon Name (Lucide)
+                  </label>
                   <input
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={editingAgent.icon || ''}
@@ -1080,11 +1178,15 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   />
                 </div>
                 <div className="col-span-2 space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Description</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">
+                    Description
+                  </label>
                   <textarea
                     className="w-full rounded-lg border border-gray-200 px-4 py-2 h-20 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={editingAgent.description || ''}
-                    onChange={(e) => setEditingAgent({ ...editingAgent, description: e.target.value })}
+                    onChange={(e) =>
+                      setEditingAgent({ ...editingAgent, description: e.target.value })
+                    }
                     disabled={userRole !== 'system_admin'}
                   />
                 </div>
@@ -1095,7 +1197,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                 <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                   <div>
                     <h4 className="font-bold text-black">Property Registry</h4>
-                    <p className="text-xs text-gray-500">Configure User (UI-visible) and System (Internal) properties.</p>
+                    <p className="text-xs text-gray-500">
+                      Configure User (UI-visible) and System (Internal) properties.
+                    </p>
                   </div>
                   {userRole === 'system_admin' && (
                     <button
@@ -1116,7 +1220,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         <th className="px-4 py-3">UI Label</th>
                         <th className="px-4 py-3">Type</th>
                         <th className="px-4 py-3">Default Value</th>
-                        {userRole === 'system_admin' && <th className="px-4 py-3 text-right">Actions</th>}
+                        {userRole === 'system_admin' && (
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">
@@ -1154,7 +1260,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                             <td className="px-4 py-3">
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                                  row.category === 'user' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-gray-100 text-gray-600 border-gray-200'
+                                  row.category === 'user'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                    : 'bg-gray-100 text-gray-600 border-gray-200'
                                 }`}
                               >
                                 {row.category}
@@ -1163,27 +1271,43 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                             <td className="px-4 py-3 font-mono text-xs text-black">{row.key}</td>
                             <td className="px-4 py-3 text-gray-600">
                               <div className="font-semibold text-sm">{row.label}</div>
-                              {row.description && <div className="text-xs text-gray-405 italic mt-0.5">{row.description}</div>}
+                              {row.description && (
+                                <div className="text-xs text-gray-405 italic mt-0.5">
+                                  {row.description}
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3">
-                              <span className="text-[10px] font-mono text-gray-400">{row.type}</span>
+                              <span className="text-[10px] font-mono text-gray-400">
+                                {row.type}
+                              </span>
                             </td>
                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                               {row.category === 'user' ? (
                                 renderValueInput(row, row.value)
                               ) : (
-                                <span className="text-gray-400 font-mono text-xs">{String(row.value)}</span>
+                                <span className="text-gray-400 font-mono text-xs">
+                                  {String(row.value)}
+                                </span>
                               )}
                             </td>
                             {userRole === 'system_admin' && (
-                              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                              <td
+                                className="px-4 py-3 text-right"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button
                                   onClick={() =>
                                     setEditingAgent((prev) => {
                                       if (!prev) return null;
-                                      const userProps = propertyEntriesFromValue(prev.user_properties);
-                                      const sysProps = propertyEntriesFromValue(prev.system_properties);
-                                      const entries = row.category === 'user' ? userProps : sysProps;
+                                      const userProps = propertyEntriesFromValue(
+                                        prev.user_properties,
+                                      );
+                                      const sysProps = propertyEntriesFromValue(
+                                        prev.system_properties,
+                                      );
+                                      const entries =
+                                        row.category === 'user' ? userProps : sysProps;
                                       entries.splice(row.sourceIndex, 1);
                                       return {
                                         ...prev,
@@ -1212,7 +1336,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="font-bold text-black">Input Contract</h4>
-                      <p className="text-xs text-gray-500">Define the JSON body a node must receive before execution.</p>
+                      <p className="text-xs text-gray-500">
+                        Define the JSON body a node must receive before execution.
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -1228,7 +1354,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         JSON Preview
                       </summary>
                       <pre className="max-h-64 overflow-auto border-t border-gray-200 p-4 text-xs text-gray-700">
-                        {JSON.stringify(cleanInputContract(contractFromValue(editingAgent.input_contract)), null, 2)}
+                        {JSON.stringify(
+                          cleanInputContract(contractFromValue(editingAgent.input_contract)),
+                          null,
+                          2,
+                        )}
                       </pre>
                     </details>
                     {editingAgent.id && (
@@ -1246,7 +1376,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="font-bold text-black">Output Contract</h4>
-                      <p className="text-xs text-gray-500">Define the JSON body a node sends after execution.</p>
+                      <p className="text-xs text-gray-500">
+                        Define the JSON body a node sends after execution.
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -1293,7 +1425,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
         <JsonSchemaGeneratorModal
           isOpen={contractGenerator.isOpen}
           onClose={() => setContractGenerator((prev) => ({ ...prev, isOpen: false }))}
-          initialSchema={contractGenerator.type === 'input' ? editingAgent.input_contract : editingAgent.output_contract}
+          initialSchema={
+            contractGenerator.type === 'input'
+              ? editingAgent.input_contract
+              : editingAgent.output_contract
+          }
           onSave={handleGeneratedContract}
           title={
             contractGenerator.type === 'input'
@@ -1324,7 +1460,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                 <button
                   onClick={() => setPropModal({ ...propModal, target: 'user' })}
                   className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${
-                    propModal.target === 'user' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
+                    propModal.target === 'user'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500'
                   }`}
                 >
                   User Property
@@ -1332,7 +1470,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                 <button
                   onClick={() => setPropModal({ ...propModal, target: 'system' })}
                   className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${
-                    propModal.target === 'system' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
+                    propModal.target === 'system'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500'
                   }`}
                 >
                   System Property
@@ -1368,7 +1508,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Field Type</label>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">
+                    Field Type
+                  </label>
                   <select
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none bg-white cursor-pointer"
                     value={propModal.type}
@@ -1384,7 +1526,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase">Value (In Catalog)</label>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">
+                    Value (In Catalog)
+                  </label>
                   <input
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                     value={propModal.value}
@@ -1397,7 +1541,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               {propModal.type === 'source' && (
                 <div className="space-y-3 p-3 border rounded bg-gray-50/50">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Source URL (Internal API)</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">
+                      Source URL (Internal API)
+                    </label>
                     <input
                       className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                       value={propModal.source || ''}
@@ -1413,7 +1559,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                       onChange={(e) => setPropModal({ ...propModal, multiple: e.target.checked })}
                       className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
                     />
-                    <label htmlFor="prop-multiple" className="text-[10px] font-bold text-gray-500 uppercase cursor-pointer select-none">
+                    <label
+                      htmlFor="prop-multiple"
+                      className="text-[10px] font-bold text-gray-500 uppercase cursor-pointer select-none"
+                    >
                       Allow Multiple Values Selection (List)
                     </label>
                   </div>
@@ -1421,7 +1570,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               )}
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Description / Guide</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">
+                  Description / Guide
+                </label>
                 <textarea
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                   value={propModal.description || ''}

@@ -2,19 +2,9 @@
 
 import React, { useState } from 'react';
 import { Tag, X } from 'lucide-react';
+import { COLOR_PALETTE } from './utils';
 
 // ── Tag Color Palette ──────────────────────────────────────────────────────────
-
-export const TAG_PALETTE = [
-  { bg: 'rgba(99,102,241,0.12)', border: 'rgba(99,102,241,0.25)', text: '#6366f1' },   // Indigo
-  { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.25)', text: '#10b981' },   // Emerald
-  { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)', text: '#d97706' },   // Amber
-  { bg: 'rgba(239,68,68,0.12)',  border: 'rgba(239,68,68,0.25)',  text: '#ef4444' },   // Red
-  { bg: 'rgba(168,85,247,0.12)', border: 'rgba(168,85,247,0.25)', text: '#a855f7' },   // Purple
-  { bg: 'rgba(6,182,212,0.12)',  border: 'rgba(6,182,212,0.25)',  text: '#0891b2' },   // Cyan
-  { bg: 'rgba(236,72,153,0.12)', border: 'rgba(236,72,153,0.25)', text: '#ec4899' },   // Pink
-  { bg: 'rgba(34,197,94,0.12)',  border: 'rgba(34,197,94,0.25)',  text: '#16a34a' },   // Green
-];
 
 // ── Hash Utility ───────────────────────────────────────────────────────────────
 
@@ -26,14 +16,18 @@ export function hashTag(tag: string): number {
   return Math.abs(hash);
 }
 
-export function getTagColor(tag: string) {
-  return TAG_PALETTE[hashTag(tag) % TAG_PALETTE.length];
+export function getColor(tag?: string) {
+  if (tag) {
+    const hash = hashTag(tag);
+    return COLOR_PALETTE[hash % COLOR_PALETTE.length];
+  }
+  return COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
 }
 
 // ── Tag Components ─────────────────────────────────────────────────────────────
 
 export function TagPill({ tag }: { tag: string }) {
-  const color = getTagColor(tag);
+  const color = getColor(tag);
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-transform hover:scale-105"
@@ -79,12 +73,16 @@ export function TagInput({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1">
         {tags.map((tag) => {
-          const color = getTagColor(tag);
+          const color = getColor(tag);
           return (
             <span
               key={tag}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-              style={{ backgroundColor: color.bg, border: `1px solid ${color.border}`, color: color.text }}
+              style={{
+                backgroundColor: color.bg,
+                border: `1px solid ${color.border}`,
+                color: color.text,
+              }}
             >
               {tag}
               <button

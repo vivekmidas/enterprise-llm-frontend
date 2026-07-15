@@ -60,7 +60,11 @@ export default function LogsTab({ userRole }: LogsTabProps) {
       if (selectedWorkflowFilter && selectedWorkflowFilter !== 'all') {
         url.searchParams.append('workflow_id', selectedWorkflowFilter);
       }
-      if (userRole === 'system_admin' && selectedCustomerFilter && selectedCustomerFilter !== 'all') {
+      if (
+        userRole === 'system_admin' &&
+        selectedCustomerFilter &&
+        selectedCustomerFilter !== 'all'
+      ) {
         url.searchParams.append('customer_id', selectedCustomerFilter);
       }
       const response = await fetch(url.toString(), {
@@ -253,7 +257,9 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                 <React.Fragment key={log.id || `audit-fallback-${index}`}>
                   <tr
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => setExpandedLogId(expandedLogId === String(log.id) ? null : String(log.id))}
+                    onClick={() =>
+                      setExpandedLogId(expandedLogId === String(log.id) ? null : String(log.id))
+                    }
                   >
                     <td className="px-4 py-3 text-xs">
                       <span
@@ -274,7 +280,9 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                     <td className="px-4 py-3 text-xs text-gray-600">
                       {log.actor_role || 'system'} #{log.actor_user_id || '-'}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-600">{log.customer_id || '-'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                      {log.customer_id || '-'}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
                       {log.created_at ? new Date(log.created_at).toLocaleString() : '-'}
                     </td>
@@ -318,7 +326,9 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                 <React.Fragment key={log.trace_id || `trace-fallback-${index}`}>
                   <tr
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => setExpandedLogId(expandedLogId === log.trace_id ? null : log.trace_id)}
+                    onClick={() =>
+                      setExpandedLogId(expandedLogId === log.trace_id ? null : log.trace_id)
+                    }
                   >
                     <td className="px-4 py-3">
                       <span
@@ -327,7 +337,9 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                             ? 'bg-blue-50 text-blue-600 border border-blue-100 animate-pulse'
                             : log.status === 'stopped'
                               ? 'bg-gray-100 text-gray-600 border border-gray-200'
-                              : log.status === 'failure' || log.status === 'failed' || log.violations?.length > 0
+                              : log.status === 'failure' ||
+                                  log.status === 'failed' ||
+                                  log.violations?.length > 0
                                 ? 'bg-red-50 text-red-600 border border-red-100'
                                 : 'bg-green-50 text-green-600 border border-green-100'
                         }`}
@@ -336,17 +348,29 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                           ? 'Running'
                           : log.status === 'stopped'
                             ? 'Stopped'
-                            : log.status === 'failure' || log.status === 'failed' || log.violations?.length > 0
+                            : log.status === 'failure' ||
+                                log.status === 'failed' ||
+                                log.violations?.length > 0
                               ? 'Failed'
                               : 'Completed'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-semibold text-gray-900">{log.workflow_name || log.workflow_id}</td>
-                    <td className="px-4 py-3 font-mono text-gray-500">{log.trace_id?.substring(0, 8)}...</td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-600">{log.customer_id || '-'}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-600">{log.user_id || '-'}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-900">
+                      {log.workflow_name || log.workflow_id}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-gray-500">
+                      {log.trace_id?.substring(0, 8)}...
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                      {log.customer_id || '-'}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                      {log.user_id || '-'}
+                    </td>
                     <td className="px-4 py-3 text-gray-955 font-semibold">{log.latency_ms}ms</td>
-                    <td className="px-4 py-3 text-gray-500">{new Date(log.timestamp * 1000).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-gray-500">
+                      {new Date(log.timestamp * 1000).toLocaleString()}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-3 justify-end w-full">
                         {/* Visualizer Graph Button */}
@@ -394,7 +418,9 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                         <div className="w-full overflow-hidden">
                           {log.violations?.length > 0 && (
                             <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-lg text-xs flex flex-col gap-2">
-                              <span className="text-red-700 font-bold uppercase tracking-wider font-sans">Violations Detected</span>
+                              <span className="text-red-700 font-bold uppercase tracking-wider font-sans">
+                                Violations Detected
+                              </span>
                               <div className="flex flex-wrap gap-1.5">
                                 {log.violations.map((v: string, idx: number) => (
                                   <span
@@ -412,7 +438,9 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                             {/* Tab Header Bar */}
                             <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Trace Payload</span>
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                  Trace Payload
+                                </span>
                               </div>
                               <div className="flex items-center gap-3 ml-0">
                                 {/* Segmented Control / Tabs */}
@@ -423,7 +451,9 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                                       setTraceViewMode('tree');
                                     }}
                                     className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                                      traceViewMode === 'tree' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                                      traceViewMode === 'tree'
+                                        ? 'bg-white text-gray-900 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-900'
                                     }`}
                                   >
                                     JSON Tree
@@ -434,7 +464,9 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                                       setTraceViewMode('raw');
                                     }}
                                     className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                                      traceViewMode === 'raw' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                                      traceViewMode === 'raw'
+                                        ? 'bg-white text-gray-900 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-900'
                                     }`}
                                   >
                                     Raw JSON
@@ -451,7 +483,9 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                                   {copiedLogId === log.trace_id ? (
                                     <>
                                       <Check className="h-3.5 w-3.5 text-emerald-500" />
-                                      <span className="text-emerald-505 font-semibold font-sans">Copied!</span>
+                                      <span className="text-emerald-505 font-semibold font-sans">
+                                        Copied!
+                                      </span>
                                     </>
                                   ) : (
                                     <>

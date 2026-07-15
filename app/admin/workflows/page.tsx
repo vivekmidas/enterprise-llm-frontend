@@ -156,12 +156,20 @@ export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
           <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Workflow Name / ID</th>
+                <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                  Workflow Name / ID
+                </th>
                 <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Description</th>
-                <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold text-center">Nodes</th>
-                <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold text-center">Edges</th>
+                <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold text-center">
+                  Nodes
+                </th>
+                <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold text-center">
+                  Edges
+                </th>
                 <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Status</th>
-                <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold text-right">Actions</th>
+                <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -179,10 +187,16 @@ export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-600 max-w-xs truncate">
-                    {wf.description || <span className="text-gray-400 italic">No description provided.</span>}
+                    {wf.description || (
+                      <span className="text-gray-400 italic">No description provided.</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-700 font-semibold text-center">{wf.graph?.nodes?.length || 0}</td>
-                  <td className="px-4 py-3 text-xs text-gray-700 font-semibold text-center">{wf.graph?.edges?.length || 0}</td>
+                  <td className="px-4 py-3 text-xs text-gray-700 font-semibold text-center">
+                    {wf.graph?.nodes?.length || 0}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-700 font-semibold text-center">
+                    {wf.graph?.edges?.length || 0}
+                  </td>
                   <td className="px-4 py-3 text-xs">
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border ${
@@ -235,7 +249,9 @@ export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
                     <div className="flex flex-col items-center">
                       <IconMap.workflow className="mx-auto h-12 w-12 text-gray-300 mb-2" />
                       <h3 className="text-sm font-semibold text-gray-900">No workflows found</h3>
-                      <p className="mt-1 text-sm text-gray-500 font-medium">Get started by creating a new workflow in the builder.</p>
+                      <p className="mt-1 text-sm text-gray-500 font-medium">
+                        Get started by creating a new workflow in the builder.
+                      </p>
                     </div>
                   </td>
                 </tr>
@@ -263,7 +279,9 @@ export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
                 <div className="flex flex-col items-end gap-2">
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border ${
-                      wf.is_enabled !== false ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'
+                      wf.is_enabled !== false
+                        ? 'bg-green-50 text-green-700 border-green-100'
+                        : 'bg-red-50 text-red-700 border-red-100'
                     }`}
                   >
                     {wf.is_enabled !== false ? 'Active' : 'Disabled'}
@@ -281,7 +299,9 @@ export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
                         <button
                           onClick={() => handleToggleWorkflow(wf.id)}
                           className={`p-1 rounded transition-colors cursor-pointer ${
-                            wf.is_enabled !== false ? 'text-gray-400 hover:text-red-500' : 'text-gray-400 hover:text-green-500'
+                            wf.is_enabled !== false
+                              ? 'text-gray-400 hover:text-red-500'
+                              : 'text-gray-400 hover:text-green-500'
                           }`}
                           title={wf.is_enabled !== false ? 'Disable' : 'Enable'}
                         >
@@ -300,15 +320,21 @@ export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
                 </div>
               </div>
               <div className="mt-4 space-y-3">
-                <p className="text-sm text-gray-600 line-clamp-2">{wf.description || 'No description provided.'}</p>
+                <p className="text-sm text-gray-600 line-clamp-2">
+                  {wf.description || 'No description provided.'}
+                </p>
                 <div className="flex items-center gap-4 pt-4 border-t border-gray-50">
                   <div className="flex flex-col">
                     <span className="text-[10px] text-gray-400 uppercase font-bold">Nodes</span>
-                    <span className="text-sm font-semibold text-black">{wf.graph?.nodes?.length || 0}</span>
+                    <span className="text-sm font-semibold text-black">
+                      {wf.graph?.nodes?.length || 0}
+                    </span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[10px] text-gray-400 uppercase font-bold">Edges</span>
-                    <span className="text-sm font-semibold text-black">{wf.graph?.edges?.length || 0}</span>
+                    <span className="text-sm font-semibold text-black">
+                      {wf.graph?.edges?.length || 0}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -318,7 +344,9 @@ export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
             <div className="col-span-full py-12 text-center rounded-xl border-2 border-dashed border-gray-200">
               <IconMap.workflow className="mx-auto h-12 w-12 text-gray-300" />
               <h3 className="mt-2 text-sm font-semibold text-gray-900">No workflows found</h3>
-              <p className="mt-1 text-sm text-gray-500 font-medium">Get started by creating a new workflow in the builder.</p>
+              <p className="mt-1 text-sm text-gray-500 font-medium">
+                Get started by creating a new workflow in the builder.
+              </p>
             </div>
           )}
         </div>

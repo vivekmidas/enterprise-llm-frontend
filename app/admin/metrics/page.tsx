@@ -6,7 +6,18 @@ import { IconMap } from '@/lib/icons';
 import { MetricCard } from '@/app/components/MetricCard';
 import { JsonTreeView } from '@components/JsonTreeView';
 import RunVisualizerModal from '@components/RunVisualizerModal';
-import { Activity, Clock, AlertTriangle, BookOpen, Database, FileText, ChevronDown, ChevronUp, Check, Copy } from 'lucide-react';
+import {
+  Activity,
+  Clock,
+  AlertTriangle,
+  BookOpen,
+  Database,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  Copy,
+} from 'lucide-react';
 
 interface MetricsTabProps {
   userRole: string | null;
@@ -50,7 +61,11 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
       if (metricsSelectedWorkflow && metricsSelectedWorkflow !== 'all') {
         url.searchParams.append('workflow_id', metricsSelectedWorkflow);
       }
-      if (userRole === 'system_admin' && metricsSelectedCustomer && metricsSelectedCustomer !== 'all') {
+      if (
+        userRole === 'system_admin' &&
+        metricsSelectedCustomer &&
+        metricsSelectedCustomer !== 'all'
+      ) {
         url.searchParams.append('customer_id', metricsSelectedCustomer);
       }
       const response = await fetch(url.toString(), {
@@ -167,7 +182,9 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-150 pb-4">
         <div className="flex items-center gap-2">
           <Activity className="h-5 w-5 text-blue-600 animate-pulse" />
-          <h2 className="text-xl font-semibold text-black font-sans">Performance Metrics & Traces</h2>
+          <h2 className="text-xl font-semibold text-black font-sans">
+            Performance Metrics & Traces
+          </h2>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {/* Time Range Selector */}
@@ -287,7 +304,9 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
             {!metricsData?.traces || metricsData.traces.length === 0 ? (
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden p-8 text-center">
                 <IconMap.activity className="mx-auto h-12 w-12 text-gray-200 mb-4" />
-                <p className="text-gray-500 text-sm font-medium">No traces found for the selected filters.</p>
+                <p className="text-gray-500 text-sm font-medium">
+                  No traces found for the selected filters.
+                </p>
               </div>
             ) : (
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -308,7 +327,11 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
                       <React.Fragment key={trace.trace_id || `metric-trace-fallback-${index}`}>
                         <tr
                           className="hover:bg-gray-50 cursor-pointer transition-colors"
-                          onClick={() => setMetricsExpandedTrace(metricsExpandedTrace === trace.trace_id ? null : trace.trace_id)}
+                          onClick={() =>
+                            setMetricsExpandedTrace(
+                              metricsExpandedTrace === trace.trace_id ? null : trace.trace_id,
+                            )
+                          }
                         >
                           <td className="px-4 py-3">
                             <span
@@ -317,7 +340,9 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
                                   ? 'bg-blue-50 text-blue-600 border border-blue-100 animate-pulse'
                                   : trace.status === 'stopped'
                                     ? 'bg-gray-100 text-gray-600 border border-gray-200'
-                                    : trace.status === 'failure' || trace.status === 'failed' || trace.violations?.length > 0
+                                    : trace.status === 'failure' ||
+                                        trace.status === 'failed' ||
+                                        trace.violations?.length > 0
                                       ? 'bg-red-50 text-red-600 border border-red-100'
                                       : 'bg-green-50 text-green-600 border border-green-100'
                               }`}
@@ -326,16 +351,28 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
                                 ? 'Running'
                                 : trace.status === 'stopped'
                                   ? 'Stopped'
-                                  : trace.status === 'failure' || trace.status === 'failed' || trace.violations?.length > 0
+                                  : trace.status === 'failure' ||
+                                      trace.status === 'failed' ||
+                                      trace.violations?.length > 0
                                     ? 'Failed'
                                     : 'Completed'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 font-semibold text-gray-900">{trace.workflow_name || trace.workflow_id}</td>
-                          <td className="px-4 py-3 font-mono text-gray-500 text-xs">{trace.trace_id?.substring(0, 8)}...</td>
-                          <td className="px-4 py-3 font-mono text-xs text-gray-600">{trace.customer_id || '-'}</td>
-                          <td className="px-4 py-3 text-gray-955 font-semibold">{trace.latency_ms}ms</td>
-                          <td className="px-4 py-3 text-gray-500">{new Date(trace.timestamp * 1000).toLocaleString()}</td>
+                          <td className="px-4 py-3 font-semibold text-gray-900">
+                            {trace.workflow_name || trace.workflow_id}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-gray-500 text-xs">
+                            {trace.trace_id?.substring(0, 8)}...
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                            {trace.customer_id || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-955 font-semibold">
+                            {trace.latency_ms}ms
+                          </td>
+                          <td className="px-4 py-3 text-gray-500">
+                            {new Date(trace.timestamp * 1000).toLocaleString()}
+                          </td>
                           <td className="px-4 py-3 text-right">
                             <div className="inline-flex items-center gap-3 justify-end w-full">
                               <button
@@ -377,7 +414,9 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
                               <div className="w-full overflow-hidden">
                                 {trace.violations?.length > 0 && (
                                   <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-lg text-xs flex flex-col gap-2">
-                                    <span className="text-red-700 font-bold uppercase tracking-wider font-sans">Violations Detected</span>
+                                    <span className="text-red-700 font-bold uppercase tracking-wider font-sans">
+                                      Violations Detected
+                                    </span>
                                     <div className="flex flex-wrap gap-1.5">
                                       {trace.violations.map((v: string, idx: number) => (
                                         <span
@@ -394,7 +433,9 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
                                 <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                                   <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Trace Payload</span>
+                                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Trace Payload
+                                      </span>
                                     </div>
                                     <div className="flex items-center gap-3">
                                       <div className="inline-flex rounded-lg bg-gray-200 p-0.5">
@@ -404,7 +445,9 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
                                             setTraceViewMode('tree');
                                           }}
                                           className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                                            traceViewMode === 'tree' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                                            traceViewMode === 'tree'
+                                              ? 'bg-white text-gray-900 shadow-sm'
+                                              : 'text-gray-600 hover:text-gray-900'
                                           }`}
                                         >
                                           JSON Tree
@@ -415,7 +458,9 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
                                             setTraceViewMode('raw');
                                           }}
                                           className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                                            traceViewMode === 'raw' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                                            traceViewMode === 'raw'
+                                              ? 'bg-white text-gray-900 shadow-sm'
+                                              : 'text-gray-600 hover:text-gray-900'
                                           }`}
                                         >
                                           Raw JSON
@@ -431,7 +476,9 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
                                         {copiedLogId === trace.trace_id ? (
                                           <>
                                             <Check className="h-3.5 w-3.5 text-emerald-500" />
-                                            <span className="text-emerald-500 font-semibold font-sans">Copied!</span>
+                                            <span className="text-emerald-500 font-semibold font-sans">
+                                              Copied!
+                                            </span>
                                           </>
                                         ) : (
                                           <>

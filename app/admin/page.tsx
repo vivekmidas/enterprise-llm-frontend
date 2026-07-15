@@ -17,7 +17,15 @@ import LogsTab from './logs/page';
 import MetricsTab from './metrics/page';
 import KnowledgeBasesTab from './knowledge/page';
 
-type ActiveTabType = 'nodes' | 'workflows' | 'users' | 'oauth' | 'logs' | 'customers' | 'metrics' | 'knowledge';
+type ActiveTabType =
+  | 'nodes'
+  | 'workflows'
+  | 'users'
+  | 'oauth'
+  | 'logs'
+  | 'customers'
+  | 'metrics'
+  | 'knowledge';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -35,7 +43,10 @@ export default function AdminPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [alertMessage, setAlertMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -59,7 +70,7 @@ export default function AdminPage() {
         setCustomerId(
           userData.customer_id !== null && userData.customer_id !== undefined
             ? String(userData.customer_id)
-            : null
+            : null,
         );
         setIsAuthenticated(true);
       } catch (err) {
@@ -82,7 +93,16 @@ export default function AdminPage() {
       const tab = params.get('tab');
       if (
         tab &&
-        ['nodes', 'workflows', 'users', 'oauth', 'logs', 'customers', 'metrics', 'knowledge'].includes(tab)
+        [
+          'nodes',
+          'workflows',
+          'users',
+          'oauth',
+          'logs',
+          'customers',
+          'metrics',
+          'knowledge',
+        ].includes(tab)
       ) {
         setActiveTab(tab as ActiveTabType);
       }
@@ -122,7 +142,7 @@ export default function AdminPage() {
           setCustomerId(
             data.customer_id !== null && data.customer_id !== undefined
               ? String(data.customer_id)
-              : null
+              : null,
           );
           setIsAuthenticated(true);
         } else {
@@ -241,7 +261,9 @@ export default function AdminPage() {
             <button
               onClick={() => handleTabChange('customers')}
               className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                activeTab === 'customers' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                activeTab === 'customers'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               Customer Management
@@ -251,7 +273,9 @@ export default function AdminPage() {
             <button
               onClick={() => handleTabChange('nodes')}
               className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                activeTab === 'nodes' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                activeTab === 'nodes'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               Node Management
@@ -260,7 +284,9 @@ export default function AdminPage() {
           <button
             onClick={() => handleTabChange('workflows')}
             className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              activeTab === 'workflows' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              activeTab === 'workflows'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Workflow Management
@@ -270,7 +296,9 @@ export default function AdminPage() {
               <button
                 onClick={() => handleTabChange('users')}
                 className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                  activeTab === 'users'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 User Management
@@ -278,7 +306,9 @@ export default function AdminPage() {
               <button
                 onClick={() => handleTabChange('oauth')}
                 className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'oauth' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                  activeTab === 'oauth'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 OAuth Management
@@ -286,7 +316,9 @@ export default function AdminPage() {
               <button
                 onClick={() => handleTabChange('logs')}
                 className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'logs' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                  activeTab === 'logs'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 System Logs
@@ -294,7 +326,9 @@ export default function AdminPage() {
               <button
                 onClick={() => handleTabChange('metrics')}
                 className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'metrics' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                  activeTab === 'metrics'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 Metrics
@@ -302,7 +336,9 @@ export default function AdminPage() {
               <button
                 onClick={() => handleTabChange('knowledge')}
                 className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'knowledge' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                  activeTab === 'knowledge'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 Knowledge Bases
@@ -312,15 +348,11 @@ export default function AdminPage() {
         </div>
 
         <div className="pt-2">
-          {activeTab === 'customers' && userRole === 'system_admin' && (
-            <CustomersTab />
-          )}
+          {activeTab === 'customers' && userRole === 'system_admin' && <CustomersTab />}
           {activeTab === 'nodes' && (userRole === 'admin' || userRole === 'system_admin') && (
             <NodesTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
-          {activeTab === 'workflows' && (
-            <WorkflowsTab userRole={userRole} />
-          )}
+          {activeTab === 'workflows' && <WorkflowsTab userRole={userRole} />}
           {activeTab === 'users' && (userRole === 'admin' || userRole === 'system_admin') && (
             <UsersTab userId={userId} loginEmail={userEmail || ''} />
           )}

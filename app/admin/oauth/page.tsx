@@ -80,7 +80,9 @@ export default function OAuthTab() {
             </div>
             <div className="space-y-2 mb-6">
               <div className="text-[10px] uppercase font-bold text-gray-400">Default Scopes</div>
-              <div className="text-xs text-gray-600 break-all bg-gray-50 p-2 rounded">{provider.default_scopes}</div>
+              <div className="text-xs text-gray-600 break-all bg-gray-50 p-2 rounded">
+                {provider.default_scopes}
+              </div>
             </div>
             <button
               onClick={() => setEditingProvider(provider)}
@@ -100,13 +102,18 @@ export default function OAuthTab() {
               <h3 className="text-xl font-bold text-black">
                 {editingProvider.id ? 'Edit Provider' : 'New Provider'}
               </h3>
-              <button onClick={() => setEditingProvider(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+              <button
+                onClick={() => setEditingProvider(null)}
+                className="text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
                 <IconMap.X className="h-6 w-6" />
               </button>
             </div>
             <div className="p-6 grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Provider Name (ID)</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">
+                  Provider Name (ID)
+                </label>
                 <input
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black bg-white"
                   value={editingProvider.name}
@@ -115,20 +122,28 @@ export default function OAuthTab() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Display Label</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">
+                  Display Label
+                </label>
                 <input
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black bg-white"
                   value={editingProvider.label}
-                  onChange={(e) => setEditingProvider({ ...editingProvider, label: e.target.value })}
+                  onChange={(e) =>
+                    setEditingProvider({ ...editingProvider, label: e.target.value })
+                  }
                   placeholder="Google Gmail"
                 />
               </div>
               <div className="col-span-2 space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Authorization URL</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">
+                  Authorization URL
+                </label>
                 <input
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black bg-white"
                   value={editingProvider.auth_url}
-                  onChange={(e) => setEditingProvider({ ...editingProvider, auth_url: e.target.value })}
+                  onChange={(e) =>
+                    setEditingProvider({ ...editingProvider, auth_url: e.target.value })
+                  }
                   placeholder="https://accounts.google.com/o/oauth2/v2/auth"
                 />
               </div>
@@ -137,25 +152,35 @@ export default function OAuthTab() {
                 <input
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black bg-white"
                   value={editingProvider.token_url}
-                  onChange={(e) => setEditingProvider({ ...editingProvider, token_url: e.target.value })}
+                  onChange={(e) =>
+                    setEditingProvider({ ...editingProvider, token_url: e.target.value })
+                  }
                   placeholder="https://oauth2.googleapis.com/token"
                 />
               </div>
               <div className="col-span-2 space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Callback URL</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">
+                  Callback URL
+                </label>
                 <input
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black bg-white"
                   value={editingProvider.callback_url}
-                  onChange={(e) => setEditingProvider({ ...editingProvider, callback_url: e.target.value })}
+                  onChange={(e) =>
+                    setEditingProvider({ ...editingProvider, callback_url: e.target.value })
+                  }
                   placeholder="http://localhost:8000/api/auth/callback/gmail"
                 />
               </div>
               <div className="col-span-2 space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Default Scopes</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase">
+                  Default Scopes
+                </label>
                 <textarea
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm h-20 text-black bg-white"
                   value={editingProvider.default_scopes}
-                  onChange={(e) => setEditingProvider({ ...editingProvider, default_scopes: e.target.value })}
+                  onChange={(e) =>
+                    setEditingProvider({ ...editingProvider, default_scopes: e.target.value })
+                  }
                   placeholder="https://www.googleapis.com/auth/gmail.readonly"
                 />
               </div>

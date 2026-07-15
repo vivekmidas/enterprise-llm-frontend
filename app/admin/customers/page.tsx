@@ -29,7 +29,11 @@ const SourceValueSelector = ({
     }
     const isUrl = sourceUrl.startsWith('/') || sourceUrl.startsWith('http');
     if (!isUrl) {
-      try { setData(JSON.parse(sourceUrl)); } catch { setData(sourceUrl); }
+      try {
+        setData(JSON.parse(sourceUrl));
+      } catch {
+        setData(sourceUrl);
+      }
       return;
     }
     let active = true;
@@ -56,7 +60,9 @@ const SourceValueSelector = ({
         if (active) setLoading(false);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [sourceUrl]);
 
   let resolvedData = data;
@@ -68,12 +74,18 @@ const SourceValueSelector = ({
   const isList = Array.isArray(resolvedData);
   const isDict = resolvedData !== null && typeof resolvedData === 'object' && !isList;
   const selectValue = multiple
-    ? (Array.isArray(propVal) ? propVal.map(String) : typeof propVal === 'string' && propVal.trim() ? propVal.split(',') : [])
+    ? Array.isArray(propVal)
+      ? propVal.map(String)
+      : typeof propVal === 'string' && propVal.trim()
+        ? propVal.split(',')
+        : []
     : String(propVal ?? '');
 
-  const cls = 'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
+  const cls =
+    'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
 
-  if (!sourceUrl) return <span className="text-xs text-gray-400 italic">No source URL configured</span>;
+  if (!sourceUrl)
+    return <span className="text-xs text-gray-400 italic">No source URL configured</span>;
 
   return (
     <div className="space-y-1 w-full">
@@ -82,7 +94,11 @@ const SourceValueSelector = ({
           {multiple ? 'Multi-Select' : 'Select Value'}
         </span>
         {loading && <span className="text-[9px] text-blue-500 animate-pulse">Loading...</span>}
-        {error && <span className="text-[9px] text-red-500" title={error}>Error</span>}
+        {error && (
+          <span className="text-[9px] text-red-500" title={error}>
+            Error
+          </span>
+        )}
       </div>
       {isList ? (
         <select
@@ -99,9 +115,19 @@ const SourceValueSelector = ({
         >
           {!multiple && <option value="">Select option...</option>}
           {resolvedData.map((opt: any) => {
-            const val = opt && typeof opt === 'object' ? (opt.id ?? opt.key ?? opt.value ?? opt.name ?? '') : opt;
-            const label = opt && typeof opt === 'object' ? (opt.name ?? opt.label ?? opt.title ?? opt.key ?? opt.id ?? '') : opt;
-            return <option key={String(val)} value={String(val)}>{String(label)}</option>;
+            const val =
+              opt && typeof opt === 'object'
+                ? (opt.id ?? opt.key ?? opt.value ?? opt.name ?? '')
+                : opt;
+            const label =
+              opt && typeof opt === 'object'
+                ? (opt.name ?? opt.label ?? opt.title ?? opt.key ?? opt.id ?? '')
+                : opt;
+            return (
+              <option key={String(val)} value={String(val)}>
+                {String(label)}
+              </option>
+            );
           })}
         </select>
       ) : isDict ? (
@@ -119,11 +145,19 @@ const SourceValueSelector = ({
         >
           {!multiple && <option value="">Select option...</option>}
           {Object.entries(resolvedData).map(([k, v]) => (
-            <option key={k} value={k}>{String(v)}</option>
+            <option key={k} value={k}>
+              {String(v)}
+            </option>
           ))}
         </select>
       ) : (
-        <input type="text" className={cls} value={String(propVal ?? '')} onChange={(e) => onValueChange(e.target.value)} placeholder="Value..." />
+        <input
+          type="text"
+          className={cls}
+          value={String(propVal ?? '')}
+          onChange={(e) => onValueChange(e.target.value)}
+          placeholder="Value..."
+        />
       )}
     </div>
   );
@@ -137,7 +171,9 @@ export default function CustomersTab() {
 
   // Selected Customer detail states
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
-  const [customerDetailTab, setCustomerDetailTab] = useState<'details' | 'users' | 'nodes' | 'metrics'>('details');
+  const [customerDetailTab, setCustomerDetailTab] = useState<
+    'details' | 'users' | 'nodes' | 'metrics'
+  >('details');
 
   // Customer Edit/Onboarding states
   const [isEditingCustomer, setIsEditingCustomer] = useState(false);
@@ -178,10 +214,14 @@ export default function CustomersTab() {
   // Customer Node Scope (Bulk assignment)
   const [selectedCustomerForNodes, setSelectedCustomerForNodes] = useState<any | null>(null);
   const [showNodesModal, setShowNodesModal] = useState(false);
-  const [customerNodeAssignments, setCustomerNodeAssignments] = useState<Record<string, boolean>>({});
+  const [customerNodeAssignments, setCustomerNodeAssignments] = useState<Record<string, boolean>>(
+    {},
+  );
   const [selectedNodesForBulk, setSelectedNodesForBulk] = useState<Record<string, boolean>>({});
   const [savingNodes, setSavingNodes] = useState(false);
-  const [customerNodeProperties, setCustomerNodeProperties] = useState<Record<string, Record<string, any>>>({});
+  const [customerNodeProperties, setCustomerNodeProperties] = useState<
+    Record<string, Record<string, any>>
+  >({});
   const [configuringNode, setConfiguringNode] = useState<any | null>(null);
   const [nodeSearchQuery, setNodeSearchQuery] = useState('');
   const [nodeViewMode, setNodeViewMode] = useState<'grid' | 'list'>('grid');
@@ -254,7 +294,9 @@ export default function CustomersTab() {
           try {
             props = JSON.parse(props);
           } catch (e) {
-            throw new Error(`Invalid JSON in property overrides for node ${node.label || node.node_name}`);
+            throw new Error(
+              `Invalid JSON in property overrides for node ${node.label || node.node_name}`,
+            );
           }
         }
         return {
@@ -365,7 +407,12 @@ export default function CustomersTab() {
   };
 
   const handleDeleteCustomer = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this customer? This will also delete all of their users.')) return;
+    if (
+      !confirm(
+        'Are you sure you want to delete this customer? This will also delete all of their users.',
+      )
+    )
+      return;
     try {
       await api.deleteCustomer(id);
       fetchInitialData();
@@ -375,7 +422,9 @@ export default function CustomersTab() {
   };
 
   const handleDeleteUser = async (targetUser: any) => {
-    if (!confirm(`Are you sure you want to delete ${targetUser.email_id || targetUser.username}?`)) {
+    if (
+      !confirm(`Are you sure you want to delete ${targetUser.email_id || targetUser.username}?`)
+    ) {
       return;
     }
     try {
@@ -649,7 +698,9 @@ export default function CustomersTab() {
                 <form onSubmit={handleSaveCustomerDetails} className="space-y-4 max-w-lg">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Name</label>
+                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                        Name
+                      </label>
                       <input
                         type="text"
                         required
@@ -659,7 +710,9 @@ export default function CustomersTab() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Domain</label>
+                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                        Domain
+                      </label>
                       <input
                         type="text"
                         required
@@ -671,7 +724,9 @@ export default function CustomersTab() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Email</label>
+                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                        Email
+                      </label>
                       <input
                         type="email"
                         value={editCustomerEmail}
@@ -681,7 +736,9 @@ export default function CustomersTab() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Contact Person</label>
+                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                        Contact Person
+                      </label>
                       <input
                         type="text"
                         value={editCustomerContactPerson}
@@ -692,7 +749,9 @@ export default function CustomersTab() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Address</label>
+                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                      Address
+                    </label>
                     <textarea
                       rows={2}
                       value={editCustomerAddress}
@@ -703,7 +762,9 @@ export default function CustomersTab() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Status</label>
+                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                        Status
+                      </label>
                       <select
                         value={editCustomerStatus}
                         onChange={(e) => setEditCustomerStatus(e.target.value)}
@@ -714,7 +775,9 @@ export default function CustomersTab() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Custom Plugins</label>
+                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                        Custom Plugins
+                      </label>
                       <div className="flex items-center gap-2 mt-2">
                         <input
                           type="checkbox"
@@ -723,7 +786,10 @@ export default function CustomersTab() {
                           onChange={(e) => setEditCustomerPluginsEnabled(e.target.checked)}
                           className="rounded text-blue-600 focus:ring-blue-500 w-4.5 h-4.5"
                         />
-                        <label htmlFor="editCustomerPluginsEnabled" className="text-sm text-gray-600 font-medium">
+                        <label
+                          htmlFor="editCustomerPluginsEnabled"
+                          className="text-sm text-gray-600 font-medium"
+                        >
                           Enabled
                         </label>
                       </div>
@@ -731,7 +797,9 @@ export default function CustomersTab() {
                   </div>
                   {editCustomerPluginsEnabled && (
                     <div>
-                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Plugin Storage Path</label>
+                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                        Plugin Storage Path
+                      </label>
                       <input
                         type="text"
                         value={editCustomerStoragePath}
@@ -761,22 +829,38 @@ export default function CustomersTab() {
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">Domain name</span>
-                      <span className="text-sm font-semibold text-black">{selectedCustomer.domain}</span>
+                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                        Domain name
+                      </span>
+                      <span className="text-sm font-semibold text-black">
+                        {selectedCustomer.domain}
+                      </span>
                     </div>
                     <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">Email address</span>
-                      <span className="text-sm font-semibold text-black">{selectedCustomer.email || 'N/A'}</span>
+                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                        Email address
+                      </span>
+                      <span className="text-sm font-semibold text-black">
+                        {selectedCustomer.email || 'N/A'}
+                      </span>
                     </div>
                     <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">Contact person</span>
-                      <span className="text-sm font-semibold text-black">{selectedCustomer.contact_person || 'N/A'}</span>
+                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                        Contact person
+                      </span>
+                      <span className="text-sm font-semibold text-black">
+                        {selectedCustomer.contact_person || 'N/A'}
+                      </span>
                     </div>
                     <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">Status</span>
+                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                        Status
+                      </span>
                       <span
                         className={`px-2 py-0.5 rounded text-xs font-bold uppercase inline-block mt-1 ${
-                          selectedCustomer.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                          selectedCustomer.status === 'active'
+                            ? 'bg-green-50 text-green-700'
+                            : 'bg-red-50 text-red-700'
                         }`}
                       >
                         {selectedCustomer.status}
@@ -785,20 +869,26 @@ export default function CustomersTab() {
                   </div>
                   <div className="space-y-4">
                     <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">Address</span>
+                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                        Address
+                      </span>
                       <span className="text-sm font-semibold text-black block whitespace-pre-line leading-relaxed">
                         {selectedCustomer.address || 'N/A'}
                       </span>
                     </div>
                     <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">Custom Plugins</span>
+                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                        Custom Plugins
+                      </span>
                       <span className="text-sm font-semibold text-black block mt-1">
                         {selectedCustomer.custom_plugins_enabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
                     {selectedCustomer.custom_plugins_enabled && (
                       <div>
-                        <span className="block text-[10px] text-gray-400 uppercase font-bold">Plugin Storage Path</span>
+                        <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                          Plugin Storage Path
+                        </span>
                         <span className="text-sm font-mono font-semibold text-black block mt-1">
                           {selectedCustomer.plugin_storage_path || 'Default'}
                         </span>
@@ -815,7 +905,9 @@ export default function CustomersTab() {
               <div className="flex justify-between items-center pb-2">
                 <div>
                   <h4 className="text-md font-bold text-black">Customer Users</h4>
-                  <p className="text-xs text-gray-500">Manage directory users and admins associated with this tenant.</p>
+                  <p className="text-xs text-gray-500">
+                    Manage directory users and admins associated with this tenant.
+                  </p>
                 </div>
                 <button
                   onClick={() => {
@@ -830,11 +922,15 @@ export default function CustomersTab() {
               <table className="w-full text-left">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Username</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                      Username
+                    </th>
                     <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Email</th>
                     <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Role</th>
                     <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -846,11 +942,15 @@ export default function CustomersTab() {
                           {u.name} ({u.username})
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{u.email_id}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 font-mono capitalize">{u.role}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 font-mono capitalize">
+                          {u.role}
+                        </td>
                         <td className="px-4 py-3 text-sm">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                              u.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                              u.status === 'active'
+                                ? 'bg-green-50 text-green-700'
+                                : 'bg-red-50 text-red-700'
                             }`}
                           >
                             {u.status}
@@ -870,7 +970,10 @@ export default function CustomersTab() {
                     ))}
                   {users.filter((u) => u.customer_id === selectedCustomer.id).length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-gray-500 text-xs font-medium">
+                      <td
+                        colSpan={5}
+                        className="py-8 text-center text-gray-500 text-xs font-medium"
+                      >
                         No users registered for this tenant.
                       </td>
                     </tr>
@@ -885,7 +988,9 @@ export default function CustomersTab() {
               <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                 <div>
                   <h4 className="text-md font-bold text-black">Nodes Catalog Access</h4>
-                  <p className="text-xs text-gray-500 font-medium">Enable or disable specific node access and customize parameters for this tenant.</p>
+                  <p className="text-xs text-gray-500 font-medium">
+                    Enable or disable specific node access and customize parameters for this tenant.
+                  </p>
                 </div>
                 <button
                   onClick={saveCustomerNodesConfig}
@@ -895,15 +1000,24 @@ export default function CustomersTab() {
                 </button>
               </div>
               {customerNodesLoading ? (
-                <div className="py-8 text-center text-sm text-gray-500">Loading customer nodes...</div>
+                <div className="py-8 text-center text-sm text-gray-500">
+                  Loading customer nodes...
+                </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4 pt-2">
                   {customerNodes.map((n, idx) => (
-                    <div key={idx} className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/50">
+                    <div
+                      key={idx}
+                      className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/50"
+                    >
                       <div className="flex justify-between items-start">
                         <div>
-                          <h5 className="text-sm font-semibold text-black">{n.label || n.node_name}</h5>
-                          <span className="text-[10px] text-gray-400 font-mono">Type: {n.node_name}</span>
+                          <h5 className="text-sm font-semibold text-black">
+                            {n.label || n.node_name}
+                          </h5>
+                          <span className="text-[10px] text-gray-400 font-mono">
+                            Type: {n.node_name}
+                          </span>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
@@ -920,10 +1034,16 @@ export default function CustomersTab() {
                         </label>
                       </div>
                       <div>
-                        <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">Custom Overrides (JSON)</label>
+                        <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                          Custom Overrides (JSON)
+                        </label>
                         <textarea
                           rows={2}
-                          value={typeof n.properties === 'string' ? n.properties : JSON.stringify(n.properties || {})}
+                          value={
+                            typeof n.properties === 'string'
+                              ? n.properties
+                              : JSON.stringify(n.properties || {})
+                          }
                           onChange={(e) => {
                             const updated = [...customerNodes];
                             updated[idx] = { ...updated[idx], properties: e.target.value };
@@ -944,23 +1064,39 @@ export default function CustomersTab() {
             <div className="bg-white border border-gray-250 rounded-xl p-6 shadow-sm space-y-6">
               <div className="flex justify-between items-center pb-2 border-b border-gray-150">
                 <div>
-                  <h4 className="text-md font-bold text-black font-semibold">Observability Trace Log</h4>
-                  <p className="text-xs text-gray-500 font-medium">Live trace records for workflows running on {selectedCustomer.name}.</p>
+                  <h4 className="text-md font-bold text-black font-semibold">
+                    Observability Trace Log
+                  </h4>
+                  <p className="text-xs text-gray-500 font-medium">
+                    Live trace records for workflows running on {selectedCustomer.name}.
+                  </p>
                 </div>
               </div>
               {customerMetricsSummary && (
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4">
-                    <span className="block text-xs font-bold text-gray-500 uppercase">Total Requests</span>
-                    <span className="text-2xl font-bold text-blue-600">{customerMetricsSummary.total_requests}</span>
+                    <span className="block text-xs font-bold text-gray-500 uppercase">
+                      Total Requests
+                    </span>
+                    <span className="text-2xl font-bold text-blue-600">
+                      {customerMetricsSummary.total_requests}
+                    </span>
                   </div>
                   <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4">
-                    <span className="block text-xs font-bold text-gray-500 uppercase">Avg Latency</span>
-                    <span className="text-2xl font-bold text-blue-600">{customerMetricsSummary.avg_latency_ms}ms</span>
+                    <span className="block text-xs font-bold text-gray-500 uppercase">
+                      Avg Latency
+                    </span>
+                    <span className="text-2xl font-bold text-blue-600">
+                      {customerMetricsSummary.avg_latency_ms}ms
+                    </span>
                   </div>
                   <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4">
-                    <span className="block text-xs font-bold text-gray-500 uppercase">Error Rate</span>
-                    <span className="text-2xl font-bold text-red-600">{customerMetricsSummary.error_rate}%</span>
+                    <span className="block text-xs font-bold text-gray-500 uppercase">
+                      Error Rate
+                    </span>
+                    <span className="text-2xl font-bold text-red-600">
+                      {customerMetricsSummary.error_rate}%
+                    </span>
                   </div>
                 </div>
               )}
@@ -969,27 +1105,46 @@ export default function CustomersTab() {
                   <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Timestamp</th>
-                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Trace ID</th>
-                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Workflow</th>
-                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                          Timestamp
+                        </th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                          Trace ID
+                        </th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                          Workflow
+                        </th>
+                        <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                          Status
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 font-mono text-xs">
                       {customerTracesLoading ? (
                         <tr>
-                          <td colSpan={4} className="py-6 text-center text-gray-500 text-xs font-medium">Loading traces...</td>
+                          <td
+                            colSpan={4}
+                            className="py-6 text-center text-gray-500 text-xs font-medium"
+                          >
+                            Loading traces...
+                          </td>
                         </tr>
                       ) : (
                         customerTraces.map((m, idx) => (
                           <tr key={idx} className="hover:bg-gray-55">
-                            <td className="px-4 py-3 text-gray-600">{new Date(m.timestamp * 1000).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {new Date(m.timestamp * 1000).toLocaleString()}
+                            </td>
                             <td className="px-4 py-3 text-gray-800 font-semibold">{m.trace_id}</td>
-                            <td className="px-4 py-3 text-gray-800 font-semibold">{m.workflow_id}</td>
+                            <td className="px-4 py-3 text-gray-800 font-semibold">
+                              {m.workflow_id}
+                            </td>
                             <td className="px-4 py-3">
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                  m.status === 'success' || m.status === 'completed' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                                  m.status === 'success' || m.status === 'completed'
+                                    ? 'bg-green-50 text-green-700'
+                                    : 'bg-red-50 text-red-700'
                                 }`}
                               >
                                 {m.status}
@@ -1000,7 +1155,10 @@ export default function CustomersTab() {
                       )}
                       {!customerTracesLoading && customerTraces.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="py-8 text-center text-gray-500 text-xs font-medium">
+                          <td
+                            colSpan={4}
+                            className="py-8 text-center text-gray-500 text-xs font-medium"
+                          >
                             No activity or execution traces recorded in current time range.
                           </td>
                         </tr>
@@ -1030,10 +1188,18 @@ export default function CustomersTab() {
             <table className="w-full text-left">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Plugin Name</th>
-                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Domain Name</th>
-                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Custom Plugins</th>
-                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Plugins Storage Path</th>
+                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                    Plugin Name
+                  </th>
+                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                    Domain Name
+                  </th>
+                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                    Custom Plugins
+                  </th>
+                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                    Plugins Storage Path
+                  </th>
                   <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Status</th>
                   <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Actions</th>
                 </tr>
@@ -1049,7 +1215,10 @@ export default function CustomersTab() {
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
                   >
                     <td className="px-4 py-3 text-sm text-black font-medium flex items-center gap-3">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.color_schema || '#2563eb' }}></span>
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: c.color_schema || '#2563eb' }}
+                      ></span>
                       {c.name}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{c.domain}</td>
@@ -1064,9 +1233,14 @@ export default function CustomersTab() {
                         <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600" onClick={(e) => e.stopPropagation()}>
+                    <td
+                      className="px-4 py-3 text-sm text-gray-600"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs">{c.plugin_storage_path || 'Default'}</span>
+                        <span className="font-mono text-xs">
+                          {c.plugin_storage_path || 'Default'}
+                        </span>
                         <button
                           onClick={() => handleUpdateStoragePath(c)}
                           className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 cursor-pointer"
@@ -1079,13 +1253,18 @@ export default function CustomersTab() {
                     <td className="px-4 py-3 text-sm">
                       <span
                         className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                          c.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                          c.status === 'active'
+                            ? 'bg-green-50 text-green-700'
+                            : 'bg-red-50 text-red-700'
                         }`}
                       >
                         {c.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm flex gap-3" onClick={(e) => e.stopPropagation()}>
+                    <td
+                      className="px-4 py-3 text-sm flex gap-3"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
                         onClick={() => {
                           setSelectedCustomerIdForUser(c.id);
@@ -1106,7 +1285,10 @@ export default function CustomersTab() {
                         c.name?.toLowerCase() !== 'system account' &&
                         c.name?.toLowerCase() !== 'system_account' &&
                         c.domain?.toLowerCase() !== 'system' && (
-                          <button onClick={() => handleDeleteCustomer(c.id)} className="text-red-650 hover:text-red-750 font-semibold cursor-pointer">
+                          <button
+                            onClick={() => handleDeleteCustomer(c.id)}
+                            className="text-red-650 hover:text-red-750 font-semibold cursor-pointer"
+                          >
                             Delete
                           </button>
                         )}
@@ -1133,7 +1315,9 @@ export default function CustomersTab() {
             <h3 className="text-xl font-bold text-black mb-4">Add Customer Tenant</h3>
             <form onSubmit={handleAddCustomer} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Customer Name</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Customer Name
+                </label>
                 <input
                   type="text"
                   required
@@ -1144,7 +1328,9 @@ export default function CustomersTab() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Domain Name</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Domain Name
+                </label>
                 <input
                   type="text"
                   required
@@ -1156,7 +1342,9 @@ export default function CustomersTab() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Icon Name</label>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                    Icon Name
+                  </label>
                   <input
                     type="text"
                     value={newCustomerIcon}
@@ -1165,7 +1353,9 @@ export default function CustomersTab() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Color Schema</label>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                    Color Schema
+                  </label>
                   <input
                     type="color"
                     value={newCustomerColor}
@@ -1176,7 +1366,9 @@ export default function CustomersTab() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Contact Email</label>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                    Contact Email
+                  </label>
                   <input
                     type="email"
                     value={newCustomerEmail}
@@ -1186,7 +1378,9 @@ export default function CustomersTab() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Contact Person</label>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                    Contact Person
+                  </label>
                   <input
                     type="text"
                     value={newCustomerContactPerson}
@@ -1197,7 +1391,9 @@ export default function CustomersTab() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Address</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Address
+                </label>
                 <textarea
                   rows={2}
                   value={newCustomerAddress}
@@ -1215,13 +1411,18 @@ export default function CustomersTab() {
                     onChange={(e) => setNewCustomerPluginsEnabled(e.target.checked)}
                     className="rounded text-blue-600 focus:ring-blue-500 w-4.5 h-4.5"
                   />
-                  <label htmlFor="newCustomerPluginsEnabled" className="text-xs font-bold uppercase text-gray-500 cursor-pointer">
+                  <label
+                    htmlFor="newCustomerPluginsEnabled"
+                    className="text-xs font-bold uppercase text-gray-500 cursor-pointer"
+                  >
                     Enable Custom Plugins
                   </label>
                 </div>
                 {newCustomerPluginsEnabled && (
                   <div className="mt-3">
-                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Plugins Storage Path</label>
+                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                      Plugins Storage Path
+                    </label>
                     <input
                       type="text"
                       value={newCustomerStoragePath}
@@ -1259,7 +1460,9 @@ export default function CustomersTab() {
             <h3 className="text-xl font-bold text-black mb-4">Onboard Customer Admin User</h3>
             <form onSubmit={handleAddCustomerUser} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Admin Name</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Admin Name
+                </label>
                 <input
                   type="text"
                   required
@@ -1270,7 +1473,9 @@ export default function CustomersTab() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Admin Email</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Admin Email
+                </label>
                 <input
                   type="email"
                   required
@@ -1281,7 +1486,9 @@ export default function CustomersTab() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Temporary Password</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Temporary Password
+                </label>
                 <input
                   type="password"
                   required
@@ -1318,9 +1525,12 @@ export default function CustomersTab() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3">
               <div>
-                <h3 className="text-lg font-bold text-black">Manage Customer Nodes: {selectedCustomerForNodes.name}</h3>
+                <h3 className="text-lg font-bold text-black">
+                  Manage Customer Nodes: {selectedCustomerForNodes.name}
+                </h3>
                 <p className="text-xs text-gray-500 font-medium">
-                  Assign which nodes are active for this customer, and configure specific defaults or credentials.
+                  Assign which nodes are active for this customer, and configure specific defaults
+                  or credentials.
                 </p>
               </div>
               <button
@@ -1347,7 +1557,9 @@ export default function CustomersTab() {
                         Node Library
                       </button>
                       <span>&gt;</span>
-                      <span className="text-gray-900 font-bold">{configuringNode.label || configuringNode.name} Override</span>
+                      <span className="text-gray-900 font-bold">
+                        {configuringNode.label || configuringNode.name} Override
+                      </span>
                     </div>
                     <button
                       type="button"
@@ -1361,24 +1573,35 @@ export default function CustomersTab() {
                   <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="flex items-start gap-4">
                       <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 border flex-shrink-0">
-                        {IconMap[configuringNode.icon]
-                          ? React.createElement(IconMap[configuringNode.icon], { className: 'h-6 w-6' })
-                          : <Info className="h-6 w-6" />}
+                        {IconMap[configuringNode.icon] ? (
+                          React.createElement(IconMap[configuringNode.icon], {
+                            className: 'h-6 w-6',
+                          })
+                        ) : (
+                          <Info className="h-6 w-6" />
+                        )}
                       </div>
                       <div>
-                        <h4 className="font-bold text-black text-base">{configuringNode.label || configuringNode.name}</h4>
-                        <p className="text-xs text-gray-500 mt-1">{configuringNode.description || 'No description available for this node.'}</p>
+                        <h4 className="font-bold text-black text-base">
+                          {configuringNode.label || configuringNode.name}
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {configuringNode.description || 'No description available for this node.'}
+                        </p>
                       </div>
                     </div>
 
                     <div className="border-t pt-4 space-y-4">
-                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Configure Overrides</h5>
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        Configure Overrides
+                      </h5>
                       <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-xs text-amber-800 flex items-start gap-2">
                         <Info className="h-4 w-4 mt-0.5 text-amber-600 flex-shrink-0" />
                         <div>
-                          These properties override the global default values specifically for runs originating from{' '}
-                          <span className="font-bold">{selectedCustomerForNodes.name}</span>. Sensitive values (like passwords or API keys)
-                          are saved securely.
+                          These properties override the global default values specifically for runs
+                          originating from{' '}
+                          <span className="font-bold">{selectedCustomerForNodes.name}</span>.
+                          Sensitive values (like passwords or API keys) are saved securely.
                         </div>
                       </div>
 
@@ -1386,20 +1609,32 @@ export default function CustomersTab() {
                       <div className="space-y-4 max-w-xl">
                         {configuringNode.properties?.length > 0 ? (
                           configuringNode.properties.map((prop: any) => {
-                            const val = (customerNodeProperties[configuringNode.name] || {})[prop.key];
+                            const val = (customerNodeProperties[configuringNode.name] || {})[
+                              prop.key
+                            ];
                             return (
                               <div key={prop.key} className="space-y-1.5">
                                 <div className="flex justify-between">
-                                  <label className="text-xs font-semibold text-gray-700">{prop.label || prop.key}</label>
-                                  <span className="text-[10px] text-gray-400 font-mono capitalize">{prop.type || 'string'}</span>
+                                  <label className="text-xs font-semibold text-gray-700">
+                                    {prop.label || prop.key}
+                                  </label>
+                                  <span className="text-[10px] text-gray-400 font-mono capitalize">
+                                    {prop.type || 'string'}
+                                  </span>
                                 </div>
-                                {prop.description && <p className="text-[10px] text-gray-500 leading-normal">{prop.description}</p>}
+                                {prop.description && (
+                                  <p className="text-[10px] text-gray-500 leading-normal">
+                                    {prop.description}
+                                  </p>
+                                )}
                                 {renderCustomerPropertyInput(prop, val, configuringNode.name)}
                               </div>
                             );
                           })
                         ) : (
-                          <div className="text-xs text-gray-500 italic py-4">No configurable properties defined for this node.</div>
+                          <div className="text-xs text-gray-500 italic py-4">
+                            No configurable properties defined for this node.
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1434,7 +1669,8 @@ export default function CustomersTab() {
                       </div>
 
                       {/* Bulk Controls */}
-                      {Object.keys(selectedNodesForBulk).filter((k) => selectedNodesForBulk[k]).length > 0 && (
+                      {Object.keys(selectedNodesForBulk).filter((k) => selectedNodesForBulk[k])
+                        .length > 0 && (
                         <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-lg p-0.5 animate-fade-in">
                           <button
                             type="button"
@@ -1497,7 +1733,9 @@ export default function CustomersTab() {
                           type="button"
                           onClick={() => setNodeViewMode('grid')}
                           className={`p-1 rounded cursor-pointer ${
-                            nodeViewMode === 'grid' ? 'bg-white shadow-xs text-blue-600' : 'text-gray-400 hover:text-gray-655'
+                            nodeViewMode === 'grid'
+                              ? 'bg-white shadow-xs text-blue-600'
+                              : 'text-gray-400 hover:text-gray-655'
                           }`}
                         >
                           <IconMap.layoutGrid className="h-3.5 w-3.5" />
@@ -1506,7 +1744,9 @@ export default function CustomersTab() {
                           type="button"
                           onClick={() => setNodeViewMode('list')}
                           className={`p-1 rounded cursor-pointer ${
-                            nodeViewMode === 'list' ? 'bg-white shadow-xs text-blue-600' : 'text-gray-400 hover:text-gray-655'
+                            nodeViewMode === 'list'
+                              ? 'bg-white shadow-xs text-blue-600'
+                              : 'text-gray-400 hover:text-gray-655'
                           }`}
                         >
                           <IconMap.list className="h-3.5 w-3.5" />
@@ -1520,7 +1760,11 @@ export default function CustomersTab() {
                     {nodeViewMode === 'grid' ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {agents
-                          .filter((n) => !nodeSearchQuery.trim() || n.name.toLowerCase().includes(nodeSearchQuery.toLowerCase()))
+                          .filter(
+                            (n) =>
+                              !nodeSearchQuery.trim() ||
+                              n.name.toLowerCase().includes(nodeSearchQuery.toLowerCase()),
+                          )
                           .map((node) => {
                             const isChecked = !!customerNodeAssignments[node.name];
                             const isSelectForBulk = !!selectedNodesForBulk[node.name];
@@ -1538,18 +1782,29 @@ export default function CustomersTab() {
                                       type="checkbox"
                                       checked={isSelectForBulk}
                                       onChange={(e) =>
-                                        setSelectedNodesForBulk((prev) => ({ ...prev, [node.name]: e.target.checked }))
+                                        setSelectedNodesForBulk((prev) => ({
+                                          ...prev,
+                                          [node.name]: e.target.checked,
+                                        }))
                                       }
                                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1 h-3.5 w-3.5"
                                     />
                                     <div className="h-10 w-10 bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-center text-gray-550 flex-shrink-0">
-                                      {IconMap[node.icon]
-                                        ? React.createElement(IconMap[node.icon], { className: 'h-5 w-5' })
-                                        : <Info className="h-5 w-5" />}
+                                      {IconMap[node.icon] ? (
+                                        React.createElement(IconMap[node.icon], {
+                                          className: 'h-5 w-5',
+                                        })
+                                      ) : (
+                                        <Info className="h-5 w-5" />
+                                      )}
                                     </div>
                                     <div>
-                                      <h5 className="text-sm font-bold text-black">{node.label || node.name}</h5>
-                                      <p className="text-[10px] text-gray-400 font-mono mt-0.5">{node.name}</p>
+                                      <h5 className="text-sm font-bold text-black">
+                                        {node.label || node.name}
+                                      </h5>
+                                      <p className="text-[10px] text-gray-400 font-mono mt-0.5">
+                                        {node.name}
+                                      </p>
                                     </div>
                                   </div>
 
@@ -1572,7 +1827,9 @@ export default function CustomersTab() {
                                 <div className="border-t mt-4 pt-3 flex justify-between items-center">
                                   <span
                                     className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border ${
-                                      isChecked ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'
+                                      isChecked
+                                        ? 'bg-green-50 text-green-700 border-green-100'
+                                        : 'bg-red-50 text-red-700 border-red-100'
                                     }`}
                                   >
                                     {isChecked ? 'Allowed' : 'Disallowed'}
@@ -1598,15 +1855,25 @@ export default function CustomersTab() {
                           <thead className="bg-gray-50 border-b">
                             <tr>
                               <th className="px-4 py-2.5 font-bold text-gray-500 uppercase w-8"></th>
-                              <th className="px-4 py-2.5 font-bold text-gray-500 uppercase">Node Type / ID</th>
-                              <th className="px-4 py-2.5 font-bold text-gray-500 uppercase">Description</th>
-                              <th className="px-4 py-2.5 font-bold text-gray-500 uppercase text-center w-24">Allowed</th>
+                              <th className="px-4 py-2.5 font-bold text-gray-500 uppercase">
+                                Node Type / ID
+                              </th>
+                              <th className="px-4 py-2.5 font-bold text-gray-500 uppercase">
+                                Description
+                              </th>
+                              <th className="px-4 py-2.5 font-bold text-gray-500 uppercase text-center w-24">
+                                Allowed
+                              </th>
                               <th className="px-4 py-2.5 font-bold text-gray-500 uppercase text-right w-36"></th>
                             </tr>
                           </thead>
                           <tbody className="divide-y">
                             {agents
-                              .filter((n) => !nodeSearchQuery.trim() || n.name.toLowerCase().includes(nodeSearchQuery.toLowerCase()))
+                              .filter(
+                                (n) =>
+                                  !nodeSearchQuery.trim() ||
+                                  n.name.toLowerCase().includes(nodeSearchQuery.toLowerCase()),
+                              )
                               .map((node) => {
                                 const isChecked = !!customerNodeAssignments[node.name];
                                 const isSelectForBulk = !!selectedNodesForBulk[node.name];
@@ -1618,7 +1885,10 @@ export default function CustomersTab() {
                                         type="checkbox"
                                         checked={isSelectForBulk}
                                         onChange={(e) =>
-                                          setSelectedNodesForBulk((prev) => ({ ...prev, [node.name]: e.target.checked }))
+                                          setSelectedNodesForBulk((prev) => ({
+                                            ...prev,
+                                            [node.name]: e.target.checked,
+                                          }))
                                         }
                                         className="rounded border-gray-300 text-blue-600 h-3.5 w-3.5"
                                       />
@@ -1626,17 +1896,27 @@ export default function CustomersTab() {
                                     <td className="px-4 py-3">
                                       <div className="flex items-center gap-2">
                                         <div className="h-6 w-6 rounded bg-gray-50 flex items-center justify-center text-gray-400 border shrink-0">
-                                          {IconMap[node.icon]
-                                            ? React.createElement(IconMap[node.icon], { className: 'h-3.5 w-3.5' })
-                                            : <Info className="h-3.5 w-3.5" />}
+                                          {IconMap[node.icon] ? (
+                                            React.createElement(IconMap[node.icon], {
+                                              className: 'h-3.5 w-3.5',
+                                            })
+                                          ) : (
+                                            <Info className="h-3.5 w-3.5" />
+                                          )}
                                         </div>
                                         <div>
-                                          <div className="font-bold text-black">{node.label || node.name}</div>
-                                          <div className="text-[9px] text-gray-450 font-mono">{node.name}</div>
+                                          <div className="font-bold text-black">
+                                            {node.label || node.name}
+                                          </div>
+                                          <div className="text-[9px] text-gray-450 font-mono">
+                                            {node.name}
+                                          </div>
                                         </div>
                                       </div>
                                     </td>
-                                    <td className="px-4 py-3 text-gray-500 truncate max-w-sm">{node.description}</td>
+                                    <td className="px-4 py-3 text-gray-500 truncate max-w-sm">
+                                      {node.description}
+                                    </td>
                                     <td className="px-4 py-3 text-center">
                                       <input
                                         type="checkbox"
@@ -1672,7 +1952,11 @@ export default function CustomersTab() {
             {!configuringNode && (
               <div className="border-t bg-gray-55 px-4 py-3 flex justify-between shrink-0">
                 <span className="text-[10px] text-gray-400 font-bold pt-2 uppercase">
-                  {Object.keys(customerNodeAssignments).filter((k) => customerNodeAssignments[k]).length} Nodes Allowed
+                  {
+                    Object.keys(customerNodeAssignments).filter((k) => customerNodeAssignments[k])
+                      .length
+                  }{' '}
+                  Nodes Allowed
                 </span>
                 <div className="flex gap-2">
                   <button

@@ -555,7 +555,6 @@ export const api = {
     return res.json();
   },
 
-
   getKnowledgeBaseDocuments: async (kbId: number | string) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents`, {
       headers: getHeaders(),

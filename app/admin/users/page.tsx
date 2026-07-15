@@ -91,9 +91,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
 
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">
-            Loading users...
-          </div>
+          <div className="p-8 text-center text-gray-400 text-sm">Loading users...</div>
         ) : (
           <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -102,7 +100,9 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Email</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Role</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -172,7 +172,9 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
             <h3 className="text-xl font-bold text-black mb-4">Add Company User</h3>
             <form onSubmit={handleAddUser} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Full Name</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Full Name
+                </label>
                 <input
                   type="text"
                   required
@@ -183,7 +185,9 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Email Address</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Email Address
+                </label>
                 <input
                   type="email"
                   required
@@ -194,7 +198,9 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Password</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Password
+                </label>
                 <input
                   type="password"
                   required

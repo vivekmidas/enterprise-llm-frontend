@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { TagInput } from '@/lib/tag-utils';
+import { TagInput, getColor } from '@/lib/tag-utils';
 import {
   BookOpen,
   Plus,
@@ -16,7 +16,9 @@ import {
   Pencil,
   Settings,
   X,
+  ChevronDown,
 } from 'lucide-react';
+import { COLOR_PALETTE } from '@/lib/utils';
 
 export default function KnowledgeBasesTab() {
   const [kbList, setKbList] = useState<any[]>([]);
@@ -82,6 +84,7 @@ export default function KnowledgeBasesTab() {
   // Auto-refresh and status checking states
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [fetchingDocIds, setFetchingDocIds] = useState<Record<number, boolean>>({});
+  const [updatingDocTypeIds, setUpdatingDocTypeIds] = useState<Record<number, boolean>>({});
 
   // Ingestion Testing state
   const [searchQuery, setSearchQuery] = useState('');
@@ -417,6 +420,41 @@ export default function KnowledgeBasesTab() {
     }
   };
 
+  const handleUpdateDocType = async (doc: any, newType: string) => {
+    if (!selectedKb) return;
+    setUpdatingDocTypeIds((prev) => ({ ...prev, [doc.id]: true }));
+    try {
+      await api.updateDocument(selectedKb.id, doc.id, {
+        name: doc.name,
+        metadata: {
+          ...(doc.metadata_json || {}),
+          type: newType || undefined,
+          doc_type: newType || undefined,
+        },
+      });
+      setDocList((prev) =>
+        prev.map((d) => {
+          if (d.id === doc.id) {
+            return {
+              ...d,
+              metadata_json: {
+                ...(d.metadata_json || {}),
+                type: newType,
+                doc_type: newType,
+              },
+            };
+          }
+          return d;
+        }),
+      );
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to update document type.');
+    } finally {
+      setUpdatingDocTypeIds((prev) => ({ ...prev, [doc.id]: false }));
+    }
+  };
+
   const formatBytes = (bytes?: number) => {
     if (bytes === undefined || bytes === null) return '-';
     if (bytes === 0) return '0 Bytes';
@@ -537,7 +575,12 @@ export default function KnowledgeBasesTab() {
                         {tags.map((t: string) => (
                           <span
                             key={t}
-                            className="px-1.5 py-0.5 bg-gray-100 text-gray-655 rounded text-[9px] font-medium"
+                            style={{
+                              backgroundColor: getColor(t).bg,
+                              border: getColor(t).border,
+                              color: getColor(t).text,
+                            }}
+                            className="px-1.5 py-0.5 rounded text-xs font-medium"
                           >
                             {t}
                           </span>
@@ -615,8 +658,16 @@ export default function KnowledgeBasesTab() {
           </div>
 
           {/* Error alerts */}
-          {error && <div className="mx-4 mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">{error}</div>}
-          {docError && <div className="mx-4 mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">{docError}</div>}
+          {error && (
+            <div className="mx-4 mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">
+              {error}
+            </div>
+          )}
+          {docError && (
+            <div className="mx-4 mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">
+              {docError}
+            </div>
+          )}
 
           {/* Doc List Container */}
           <div className="flex-1 overflow-y-auto p-4">
@@ -628,7 +679,9 @@ export default function KnowledgeBasesTab() {
             ) : docList.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
                 <Upload className="w-10 h-10 text-gray-300 mb-3" />
-                <p className="font-semibold text-gray-655">No documents uploaded in this knowledge base.</p>
+                <p className="font-semibold text-gray-655">
+                  No documents uploaded in this knowledge base.
+                </p>
                 <p className="text-xs text-gray-400 mt-1 max-w-xs text-center">
                   Click the "Upload Document" button above to ingest your text, PDF, or Word files.
                 </p>
@@ -637,12 +690,17 @@ export default function KnowledgeBasesTab() {
               <div className="space-y-3">
                 {docList.map((doc) => {
                   const status = doc.status?.toLowerCase();
-                  const isProcessing = ['processing', 'pending', 'chunking', 'embedding'].includes(status);
+                  const isProcessing = ['processing', 'pending', 'chunking', 'embedding'].includes(
+                    status,
+                  );
                   const isError = ['error', 'failed'].includes(status);
                   const isSuccess = status === 'completed' || status === 'active';
-                  const docTags = Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags : [];
+                  const docTags = Array.isArray(doc.metadata_json?.tags)
+                    ? doc.metadata_json.tags
+                    : [];
                   const docDescription = doc.metadata_json?.description || '';
-                  const docType = doc.metadata_json?.type || doc.metadata_json?.doc_type || 'general';
+                  const docType =
+                    doc.metadata_json?.type || doc.metadata_json?.doc_type || 'general';
 
                   return (
                     <div
@@ -651,12 +709,40 @@ export default function KnowledgeBasesTab() {
                     >
                       <div className="space-y-2 flex-1 min-w-0 pr-4">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm text-gray-800 truncate">{doc.name}</span>
-                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-bold uppercase tracking-wider">
-                            {docType}
+                          <span className="font-bold text-sm text-gray-800 truncate">
+                            {doc.name}
                           </span>
+                          <div className="relative group inline-flex items-center">
+                            <select
+                              value={docType.toLowerCase()}
+                              disabled={updatingDocTypeIds[doc.id]}
+                              onChange={(e) => handleUpdateDocType(doc, e.target.value)}
+                              className="appearance-none pl-2 pr-5 py-0.5 bg-blue-50 hover:bg-blue-100 disabled:bg-blue-50 text-blue-600 rounded text-xs font-bold uppercase tracking-wider border-none focus:ring-1 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed outline-none transition-colors duration-150"
+                              title="Change Document Type"
+                            >
+                              {(docTypes && docTypes.length > 0
+                                ? docTypes
+                                : ['General', 'Policy', 'FAQ', 'Technical', 'Contract']
+                              ).map((type) => (
+                                <option
+                                  key={type}
+                                  value={type.toLowerCase()}
+                                  className="bg-white text-gray-800 normal-case font-normal text-xs"
+                                >
+                                  {type.toUpperCase()}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="absolute right-1.5 pointer-events-none text-blue-600 flex items-center justify-center">
+                              {updatingDocTypeIds[doc.id] ? (
+                                <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                              ) : (
+                                <ChevronDown className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                              )}
+                            </span>
+                          </div>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                            className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
                               isSuccess
                                 ? 'bg-green-50 text-green-700'
                                 : isProcessing
@@ -666,13 +752,33 @@ export default function KnowledgeBasesTab() {
                           >
                             {doc.status || 'Unknown'}
                           </span>
+                        
                         </div>
 
-                        {docDescription && <p className="text-xs text-gray-550 leading-relaxed">{docDescription}</p>}
-
+                        
                         {/* Metadata Details Row */}
-                        <div className="flex items-center gap-3 text-[10px] text-gray-450 font-medium flex-wrap">
-                          <span>Size: {formatBytes(doc.file_size)}</span>
+                        <div className="flex items-center gap-3 text-xs text-gray-450 font-medium flex-wrap">
+                            {docDescription && (
+                          <p className="text-xs text-gray-550 leading-relaxed">{docDescription}</p>
+                        )}
+{docTags.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {docTags.map((t: string) => (
+                              <span
+                                key={t}
+                                style={{
+                                  backgroundColor: getColor(t).bg,
+                                  border: getColor(t).border,
+                                  color: getColor(t).text,
+                                }}
+                                className="px-1.5 py-0.5 bg-slate-100 text-slate-655 rounded text-xs font-medium"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <span>Size: {formatBytes(doc.file_size)}</span>
                           <span>·</span>
                           <span>Chunks: {doc.chunk_count ?? 0}</span>
                           <span>·</span>
@@ -687,20 +793,10 @@ export default function KnowledgeBasesTab() {
                                 })
                               : '-'}
                           </span>
+                          
                         </div>
 
-                        {docTags.length > 0 && (
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {docTags.map((t: string) => (
-                              <span
-                                key={t}
-                                className="px-1.5 py-0.5 bg-slate-100 text-slate-655 rounded text-[9px] font-medium"
-                              >
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                        
                       </div>
 
                       {/* Operations */}
@@ -711,7 +807,9 @@ export default function KnowledgeBasesTab() {
                           className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-all cursor-pointer"
                           title="Refresh Status"
                         >
-                          <RefreshCw className={`w-3.5 h-3.5 ${fetchingDocIds[doc.id] ? 'animate-spin' : ''}`} />
+                          <RefreshCw
+                            className={`w-3.5 h-3.5 ${fetchingDocIds[doc.id] ? 'animate-spin' : ''}`}
+                          />
                         </button>
                         <button
                           onClick={() => openEditDocModal(doc)}
@@ -789,7 +887,9 @@ export default function KnowledgeBasesTab() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">Purpose / Description</label>
+                <label className="block text-xs font-semibold text-gray-655">
+                  Purpose / Description
+                </label>
                 <textarea
                   placeholder="Describe the domain contents..."
                   value={newKbPurpose}
@@ -824,7 +924,11 @@ export default function KnowledgeBasesTab() {
                   disabled={creating || !newKbName.trim()}
                   className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  {creating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  {creating ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="w-3.5 h-3.5" />
+                  )}
                   Create Base
                 </button>
               </div>
@@ -901,7 +1005,9 @@ export default function KnowledgeBasesTab() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-655">Tags (comma separated)</label>
+                  <label className="block text-xs font-semibold text-gray-655">
+                    Tags (comma separated)
+                  </label>
                   <input
                     type="text"
                     placeholder="e.g. Q3, product"
@@ -936,7 +1042,11 @@ export default function KnowledgeBasesTab() {
                   disabled={uploading || !uploadFile}
                   className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  {uploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  {uploading ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="w-3.5 h-3.5" />
+                  )}
                   Ingest Document
                 </button>
               </div>
@@ -963,7 +1073,10 @@ export default function KnowledgeBasesTab() {
             <form onSubmit={handleSaveDocTypes} className="p-6 space-y-4">
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {docTypes.map((type, idx) => (
-                  <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-150">
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-150"
+                  >
                     <span className="text-xs text-gray-700 font-bold flex-1">{type}</span>
                     <button
                       type="button"
@@ -1083,7 +1196,9 @@ export default function KnowledgeBasesTab() {
                 {showAdvancedSettings && (
                   <div className="grid grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-150 animate-fade-in">
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase">Top K Results</label>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase">
+                        Top K Results
+                      </label>
                       <input
                         type="number"
                         min={1}
@@ -1095,7 +1210,9 @@ export default function KnowledgeBasesTab() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase">Min Similarity Score</label>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase">
+                        Min Similarity Score
+                      </label>
                       <input
                         type="number"
                         min={0.1}
@@ -1141,13 +1258,17 @@ export default function KnowledgeBasesTab() {
                         const percent = Math.round(similarity * 100);
 
                         return (
-                          <div key={index} className="border border-gray-150 rounded-xl p-4 space-y-2 bg-slate-50/20 shadow-xs">
+                          <div
+                            key={index}
+                            className="border border-gray-150 rounded-xl p-4 space-y-2 bg-slate-50/20 shadow-xs"
+                          >
                             <div className="flex justify-between items-center flex-wrap gap-2 text-[10px]">
                               <span className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full font-bold uppercase tracking-wider">
                                 Result #{index + 1}
                               </span>
                               <span className="font-semibold text-gray-400">
-                                Match Score: <span className="text-violet-600 font-bold">{percent}%</span>
+                                Match Score:{' '}
+                                <span className="text-violet-600 font-bold">{percent}%</span>
                               </span>
                             </div>
                             <p className="text-xs text-gray-705 font-mono leading-relaxed whitespace-pre-wrap bg-white border border-gray-100 rounded-lg p-3">
@@ -1201,9 +1322,7 @@ export default function KnowledgeBasesTab() {
             </div>
             <form onSubmit={handleSaveKb} className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">
-                  Name
-                </label>
+                <label className="block text-xs font-semibold text-gray-655">Name</label>
                 <input
                   type="text"
                   required
@@ -1252,7 +1371,11 @@ export default function KnowledgeBasesTab() {
                   disabled={savingKb || !editKbName.trim()}
                   className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  {savingKb ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
+                  {savingKb ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Pencil className="w-3.5 h-3.5" />
+                  )}
                   Save Changes
                 </button>
               </div>
@@ -1340,7 +1463,11 @@ export default function KnowledgeBasesTab() {
                   disabled={savingDoc || !editDocName.trim()}
                   className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  {savingDoc ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
+                  {savingDoc ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Pencil className="w-3.5 h-3.5" />
+                  )}
                   Save Changes
                 </button>
               </div>

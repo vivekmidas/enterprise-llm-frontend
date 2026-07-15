@@ -47,7 +47,8 @@ const MultiSelectDropdown = ({
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as HTMLElement)) setOpen(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as HTMLElement))
+        setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -59,9 +60,7 @@ const MultiSelectDropdown = ({
     onChange(next);
   };
 
-  const selectedLabels = options
-    .filter((o) => selected.includes(o.key))
-    .map((o) => o.label);
+  const selectedLabels = options.filter((o) => selected.includes(o.key)).map((o) => o.label);
 
   return (
     <div ref={dropdownRef} className={`relative w-full ${className}`}>
@@ -76,7 +75,9 @@ const MultiSelectDropdown = ({
         <span className={`truncate ${selectedLabels.length ? 'text-gray-800' : 'text-gray-400'}`}>
           {selectedLabels.length ? selectedLabels.join(', ') : placeholder}
         </span>
-        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 ml-2 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-gray-400 ml-2 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
       </button>
       {open && (
         <div className="absolute z-50 mt-1 w-full max-h-48 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
@@ -139,7 +140,12 @@ const SourcePropertyField = ({
         setError(null);
       } catch {
         if (effectiveSourceUrl.includes(',')) {
-          setData(effectiveSourceUrl.split(',').map((s: string) => s.trim()).filter(Boolean));
+          setData(
+            effectiveSourceUrl
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean),
+          );
         } else {
           setData(effectiveSourceUrl);
         }
@@ -234,12 +240,21 @@ const SourcePropertyField = ({
 
   // For the select value, always use the stored key
   const selectValue = isMultiple
-    ? (Array.isArray(propVal) ? propVal.map(String) : typeof propVal === 'string' && propVal.trim() ? propVal.split(',') : [])
+    ? Array.isArray(propVal)
+      ? propVal.map(String)
+      : typeof propVal === 'string' && propVal.trim()
+        ? propVal.split(',')
+        : []
     : String(propVal ?? '');
 
   // Show the currently selected label(s) while loading or as a subtitle
   const currentLabel = isMultiple
-    ? (Array.isArray(propVal) ? propVal.map((v: any) => resolveLabel(v)).filter(Boolean).join(', ') : resolveLabel(propVal))
+    ? Array.isArray(propVal)
+      ? propVal
+          .map((v: any) => resolveLabel(v))
+          .filter(Boolean)
+          .join(', ')
+      : resolveLabel(propVal)
     : resolveLabel(propVal);
 
   return (
@@ -261,9 +276,11 @@ const SourcePropertyField = ({
       {/* Show current selection label */}
       {propVal && (
         <div className="text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-1.5">
-          <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1.5">Selected:</span>
+          <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1.5">
+            Selected:
+          </span>
           <span className="font-medium text-gray-800">
-            {loading ? String(propVal) : (currentLabel || String(propVal))}
+            {loading ? String(propVal) : currentLabel || String(propVal)}
           </span>
         </div>
       )}
@@ -273,14 +290,26 @@ const SourcePropertyField = ({
           <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
             {isMultiple ? 'Select Values (Multi)' : 'Change Selection'}
           </label>
-          {loading && <span className="text-[10px] text-blue-500 animate-pulse">Loading options...</span>}
-          {error && <span className="text-[10px] text-red-500" title={error}>Error loading source</span>}
+          {loading && (
+            <span className="text-[10px] text-blue-500 animate-pulse">Loading options...</span>
+          )}
+          {error && (
+            <span className="text-[10px] text-red-500" title={error}>
+              Error loading source
+            </span>
+          )}
         </div>
         {isList ? (
           isMultiple ? (
             <MultiSelectDropdown
               disabled={isDisabled}
-              selected={Array.isArray(propVal) ? propVal.map(String) : typeof propVal === 'string' && propVal.trim() ? propVal.split(',') : []}
+              selected={
+                Array.isArray(propVal)
+                  ? propVal.map(String)
+                  : typeof propVal === 'string' && propVal.trim()
+                    ? propVal.split(',')
+                    : []
+              }
               options={resolvedData.map((opt: any) => getOptKeyLabel(opt))}
               onChange={(values) => !isDisabled && handlePropertyChange(field.key, values)}
               placeholder="Select options..."
@@ -295,7 +324,11 @@ const SourcePropertyField = ({
               <option value="">Select option...</option>
               {resolvedData.map((opt: any) => {
                 const { key, label } = getOptKeyLabel(opt);
-                return <option key={key} value={key}>{label}</option>;
+                return (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                );
               })}
             </select>
           )
@@ -303,7 +336,13 @@ const SourcePropertyField = ({
           isMultiple ? (
             <MultiSelectDropdown
               disabled={isDisabled}
-              selected={Array.isArray(propVal) ? propVal.map(String) : typeof propVal === 'string' && propVal.trim() ? propVal.split(',') : []}
+              selected={
+                Array.isArray(propVal)
+                  ? propVal.map(String)
+                  : typeof propVal === 'string' && propVal.trim()
+                    ? propVal.split(',')
+                    : []
+              }
               options={Object.entries(resolvedData).map(([k, v]) => ({ key: k, label: String(v) }))}
               onChange={(values) => !isDisabled && handlePropertyChange(field.key, values)}
               placeholder="Select options..."
@@ -317,7 +356,9 @@ const SourcePropertyField = ({
             >
               <option value="">Select option...</option>
               {Object.entries(resolvedData).map(([k, v]) => (
-                <option key={k} value={k}>{String(v)}</option>
+                <option key={k} value={k}>
+                  {String(v)}
+                </option>
               ))}
             </select>
           )
