@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { Play, Bot, MessageSquare } from 'lucide-react';
+import { Play, Bot, MessageSquare, FlaskRound } from 'lucide-react';
 
 // ✅ Only define the DATA shape (this is what you had before)
 export type CustomNodeData = {
@@ -20,7 +20,7 @@ const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) => {
     return (
       <div className="px-4 py-3 bg-emerald-500 rounded-2xl shadow-xl border border-emerald-400 text-white flex items-center gap-3 min-w-[140px]">
         <div className="w-9 h-9 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-          <Play className="w-5 h-5" fill="white" />
+          <FlaskRound className="w-5 h-5" fill="white" />
         </div>
         <div className="font-semibold text-lg">Start</div>
         <Handle type="source" position={Position.Right} className="w-3 h-3 bg-white" />

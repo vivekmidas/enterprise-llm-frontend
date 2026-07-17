@@ -615,6 +615,8 @@ export const api = {
     top_k?: number;
     min_score?: number;
     enable_reranking?: boolean;
+    rerank_model?: string;
+    rerank_limit?: number;
   }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieve`, {
       method: 'POST',
@@ -641,6 +643,58 @@ export const api = {
       body: JSON.stringify(types),
     });
     if (!res.ok) throw new Error('Failed to update document types');
+    return res.json();
+  },
+
+  getCompanySettings: async (customerId?: string | number) => {
+    const url = new URL(`${BACKEND_URL}/api/admin/company/settings`);
+    if (customerId) {
+      url.searchParams.append('customer_id', String(customerId));
+    }
+    const res = await fetch(url.toString(), {
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to fetch company settings');
+    return res.json();
+  },
+
+  updateCompanySettings: async (settings: any, customerId?: string | number) => {
+    const url = new URL(`${BACKEND_URL}/api/admin/company/settings`);
+    if (customerId) {
+      url.searchParams.append('customer_id', String(customerId));
+    }
+    const res = await fetch(url.toString(), {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(settings),
+    });
+    if (!res.ok) throw new Error('Failed to update company settings');
+    return res.json();
+  },
+
+  testLlmConnection: async (payload: any) => {
+    const res = await fetch(`${BACKEND_URL}/api/admin/company/settings/test-connection`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.detail || 'Connection test failed');
+    }
+    return res.json();
+  },
+
+  testNode: async (payload: { node_name: string; config: any; data: any; context?: any }) => {
+    const res = await fetch(`${BACKEND_URL}/nodes/test-node`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.detail || 'Failed to execute node test');
+    }
     return res.json();
   },
 };

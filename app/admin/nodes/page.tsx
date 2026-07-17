@@ -19,6 +19,9 @@ import {
   RefreshCw,
   Search,
   SlidersHorizontal,
+  Play,
+  Terminal,
+  FlaskRound,
 } from 'lucide-react';
 
 type PropertyTarget = 'user' | 'system';
@@ -306,6 +309,105 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     isOpen: false,
     type: 'input' as 'input' | 'output',
   });
+
+  // Agent Node Testing Playground State
+  const [testingAgent, setTestingAgent] = useState<AgentNode | null>(null);
+  const [testingConfig, setTestingConfig] = useState<Record<string, any>>({});
+  const [testingInputData, setTestingInputData] = useState<string>('');
+  const [testingOutput, setTestingOutput] = useState<any>(null);
+  const [testingLoading, setTestingLoading] = useState<boolean>(false);
+  const [testingConsoleLogs, setTestingConsoleLogs] = useState<string>('');
+
+  useEffect(() => {
+    if (testingAgent) {
+      const initialConfig: Record<string, any> = {};
+      const userProps = Array.isArray(testingAgent.user_properties) ? testingAgent.user_properties : [];
+      const sysProps = Array.isArray(testingAgent.system_properties) ? testingAgent.system_properties : [];
+      
+      userProps.forEach((prop: any) => {
+        if (prop && prop.key) {
+          initialConfig[prop.key] = prop.value !== undefined ? prop.value : (prop.default !== undefined ? prop.default : '');
+        }
+      });
+      sysProps.forEach((prop: any) => {
+        if (prop && prop.key) {
+          initialConfig[prop.key] = prop.value !== undefined ? prop.value : (prop.default !== undefined ? prop.default : '');
+        }
+      });
+      
+      setTestingConfig(initialConfig);
+      
+      // Pre-fill input_contract template or default empty JSON
+      if (testingAgent.input_contract) {
+        let schema: Record<string, any> | null = null;
+        try {
+          schema = typeof testingAgent.input_contract === 'string'
+            ? JSON.parse(testingAgent.input_contract)
+            : (testingAgent.input_contract as Record<string, any>);
+        } catch (e) {
+          // ignore
+        }
+        
+        if (schema && Object.keys(schema).length > 0) {
+          const sample: Record<string, any> = {};
+          if (schema.properties && typeof schema.properties === 'object') {
+            Object.keys(schema.properties).forEach((k) => {
+              const propSchema = (schema.properties as any)[k];
+              sample[k] = propSchema.type === 'number' ? 0 : (propSchema.type === 'boolean' ? false : (propSchema.type === 'array' ? [] : (propSchema.type === 'object' ? {} : '')));
+            });
+            setTestingInputData(JSON.stringify(sample, null, 2));
+          } else {
+            setTestingInputData(JSON.stringify(schema, null, 2));
+          }
+        } else {
+          setTestingInputData(JSON.stringify({ text: "Sample prompt text" }, null, 2));
+        }
+      } else {
+        setTestingInputData(JSON.stringify({ text: "Sample prompt text" }, null, 2));
+      }
+      setTestingOutput(null);
+      setTestingConsoleLogs('Console initialized. Ready to execute test.');
+    }
+  }, [testingAgent]);
+
+  const handleExecuteTest = async () => {
+    if (!testingAgent) return;
+    setTestingLoading(true);
+    
+    let parsedData: any = testingInputData;
+    try {
+      parsedData = JSON.parse(testingInputData);
+    } catch (e) {
+      // Keep as string if not valid JSON
+    }
+
+    const payload = {
+      node_name: testingAgent.name,
+      config: testingConfig,
+      data: parsedData
+    };
+
+    setTestingConsoleLogs((prev) => prev + `\n\n>> EXECUTING [${testingAgent.name}]...\nPayload: ${JSON.stringify(payload, null, 2)}`);
+
+    try {
+      const result = await api.testNode(payload);
+      setTestingOutput(result);
+      setTestingConsoleLogs((prev) => 
+        prev + 
+        `\n\n<< EXECUTION COMPLETED in ${result.latency_ms}ms` +
+        `\nStatus: ${result.status}` +
+        `\nResponse Data: ${JSON.stringify(result.data, null, 2)}` +
+        (result.error_message ? `\nError Message: ${result.error_message}` : '') +
+        (result.error_code ? `\nError Code: ${result.error_code}` : '') +
+        (result.violations && result.violations.length > 0 ? `\nViolations: ${JSON.stringify(result.violations, null, 2)}` : '')
+      );
+    } catch (err: any) {
+      setTestingOutput({ status: 'error', error_message: err.message });
+      setTestingConsoleLogs((prev) => prev + `\n\n<< EXECUTION FAILED!\nError: ${err.message}`);
+    } finally {
+      setTestingLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -958,7 +1060,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               {agent.sub_label}
                             </span>
                           )}
-                          <p className="text-xs text-gray-650 line-clamp-2 mt-0.5">
+                          <p className="text-xs text-gray-900 line-clamp-2 mt-0.5">
                             {agent.description || 'No description.'}
                           </p>
                         </div>
@@ -1040,6 +1142,21 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               Enabled
                             </button>
                           ))}
+                        <button
+                          onClick={() => {
+                            if (agent.is_enabled === false) return;
+                            setTestingAgent({ ...agent });
+                          }}
+                          disabled={agent.is_enabled === false}
+                          className={`p-1 rounded transition-colors ${
+                            agent.is_enabled === false
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-purple-600 hover:bg-purple-50 cursor-pointer'
+                          }`}
+                          title="Test Node directly"
+                        >
+                          <FlaskRound className="h-4 w-4" />
+                        </button>
                         <button
                           onClick={() => {
                             if (agent.is_enabled === false) return;
@@ -1594,6 +1711,182 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                 className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
               >
                 Save Property
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Test Node / Playground Modal */}
+      {testingAgent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="flex h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3">
+              <div className="flex flex-col">
+                <h3 className="text-lg font-bold text-black flex items-center gap-2">
+                  <FlaskRound className="h-5 w-5 text-purple-600" />
+                  Test Node
+                </h3>
+                <p className="text-xs text-gray-505 font-mono">
+                  {testingAgent.label || testingAgent.name} (v{testingAgent.version})
+                </p>
+              </div>
+              <button
+                onClick={() => setTestingAgent(null)}
+                className="text-gray-400 hover:text-gray-650 cursor-pointer"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {/* Top Form Section (70%) */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
+                {/* Expected Input Contract Schema Details */}
+                {testingAgent.input_contract && (
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-4">
+                    <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Info className="h-4 w-4" /> Expected Input Contract Schema
+                    </h4>
+                    <pre className="text-[11px] text-blue-900 font-mono overflow-auto max-h-32 p-2 bg-white/70 rounded-lg border border-blue-100">
+                      {JSON.stringify(testingAgent.input_contract, null, 2)}
+                    </pre>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Left Column: Properties / Configuration */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider border-b pb-1">
+                      Properties Configuration
+                    </h4>
+                    
+                    {/* User & System properties mapped to inputs */}
+                    {(() => {
+                      const userProps = Array.isArray(testingAgent.user_properties) ? testingAgent.user_properties : [];
+                      const sysProps = Array.isArray(testingAgent.system_properties) ? testingAgent.system_properties : [];
+                      const allProps = [...userProps, ...sysProps];
+
+                      if (allProps.length === 0) {
+                        return <p className="text-xs text-gray-500 italic">No configuration properties defined for this node.</p>;
+                      }
+
+                      return allProps.map((prop: any) => {
+                        if (!prop || !prop.key) return null;
+                        const label = prop.label || prop.key;
+                        const value = testingConfig[prop.key] !== undefined ? testingConfig[prop.key] : '';
+
+                        return (
+                          <div key={prop.key} className="space-y-1">
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase">
+                              {label} <span className="font-mono text-gray-400 font-normal">({prop.key})</span>
+                            </label>
+                            {prop.type === 'textarea' ? (
+                              <textarea
+                                className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none"
+                                value={value}
+                                onChange={(e) => setTestingConfig({ ...testingConfig, [prop.key]: e.target.value })}
+                                rows={2}
+                              />
+                            ) : prop.type === 'boolean' ? (
+                              <select
+                                className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
+                                value={value === true ? 'true' : 'false'}
+                                onChange={(e) => setTestingConfig({ ...testingConfig, [prop.key]: e.target.value === 'true' })}
+                              >
+                                <option value="false">False</option>
+                                <option value="true">True</option>
+                              </select>
+                            ) : (
+                              <input
+                                type={prop.type === 'password' ? 'password' : 'text'}
+                                className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none"
+                                value={value}
+                                onChange={(e) => setTestingConfig({ ...testingConfig, [prop.key]: e.target.value })}
+                              />
+                            )}
+                            {prop.description && (
+                              <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+
+                  {/* Right Column: Run-time input data payload */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider border-b pb-1">
+                      Input Data Payload (Run-time `data`)
+                    </h4>
+                    <div className="space-y-1 h-full flex flex-col">
+                      <label className="block text-[11px] font-bold text-gray-505 uppercase">
+                        Run-Time Input (JSON or Plaintext)
+                      </label>
+                      <textarea
+                        className="w-full flex-1 min-h-[220px] rounded-lg border border-gray-200 p-3 text-xs font-mono text-black bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none overflow-auto"
+                        value={testingInputData}
+                        onChange={(e) => setTestingInputData(e.target.value)}
+                        placeholder='e.g. { "text": "value" } or "raw string"'
+                        style={{ fontFamily: "'Consolas', 'Courier New', monospace" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom 30% Console Logs Panel */}
+              <div className="h-[30%] border-t border-gray-800 bg-gray-950 flex flex-col overflow-hidden">
+                <div className="bg-gray-900 px-4 py-2 border-b border-gray-800 flex items-center justify-between text-xs text-gray-400">
+                  <span className="flex items-center gap-1.5 font-bold font-mono">
+                    <Terminal className="h-3.5 w-3.5 text-emerald-450 animate-pulse" />
+                    EXECUTION CONSOLE & LOGS
+                  </span>
+                  <div className="flex items-center gap-4">
+                    {testingOutput && (
+                      <span className={`font-mono font-bold ${testingOutput.status === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                        STATUS: {testingOutput.status?.toUpperCase()}
+                      </span>
+                    )}
+                    {testingOutput?.latency_ms !== undefined && (
+                      <span className="font-mono text-gray-400">
+                        LATENCY: {testingOutput.latency_ms}ms
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {/* Scrollable logs view */}
+                <div className="flex-1 overflow-auto p-4 font-mono text-xs text-emerald-400 selection:bg-emerald-800 selection:text-white" style={{ fontFamily: "'Consolas', 'Courier New', monospace" }}>
+                  <pre className="whitespace-pre-wrap">{testingConsoleLogs}</pre>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="border-t bg-gray-50 px-6 py-3 flex justify-end gap-3">
+              <button
+                onClick={() => setTestingAgent(null)}
+                className="rounded-lg px-5 py-1.5 text-xs font-semibold text-gray-650 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleExecuteTest}
+                disabled={testingLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-purple-650 px-6 py-1.5 text-xs font-bold text-white hover:bg-purple-700 shadow-md disabled:bg-purple-400 disabled:cursor-not-allowed transition-all cursor-pointer"
+              >
+                {testingLoading ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    Executing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3.5 w-3.5" />
+                    Run Test
+                  </>
+                )}
               </button>
             </div>
           </div>

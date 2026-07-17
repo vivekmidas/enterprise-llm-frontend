@@ -16,6 +16,7 @@ import OAuthTab from './oauth/page';
 import LogsTab from './logs/page';
 import MetricsTab from './metrics/page';
 import KnowledgeBasesTab from './knowledge/page';
+import CompanySettingsTab from './company-settings/page';
 
 type ActiveTabType =
   | 'nodes'
@@ -25,7 +26,8 @@ type ActiveTabType =
   | 'logs'
   | 'customers'
   | 'metrics'
-  | 'knowledge';
+  | 'knowledge'
+  | 'settings';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -343,6 +345,16 @@ export default function AdminPage() {
               >
                 Knowledge Bases
               </button>
+              <button
+                onClick={() => handleTabChange('settings')}
+                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                  activeTab === 'settings'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                LLM Settings
+              </button>
             </>
           )}
         </div>
@@ -367,6 +379,9 @@ export default function AdminPage() {
           )}
           {activeTab === 'knowledge' && (userRole === 'admin' || userRole === 'system_admin') && (
             <KnowledgeBasesTab />
+          )}
+          {activeTab === 'settings' && (userRole === 'admin' || userRole === 'system_admin') && (
+            <CompanySettingsTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
         </div>
       </div>

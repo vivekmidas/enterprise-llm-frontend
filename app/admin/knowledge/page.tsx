@@ -20,6 +20,13 @@ import {
 } from 'lucide-react';
 import { COLOR_PALETTE } from '@/lib/utils';
 
+const EMBEDDING_MODELS = [
+  { name: 'nomic-embed-text (Ollama, 768d)', value: 'nomic-embed-text', dimension: 768 },
+  { name: 'text-embedding-3-small (OpenAI, 1536d)', value: 'text-embedding-3-small', dimension: 1536 },
+  { name: 'text-embedding-3-large (OpenAI, 3072d)', value: 'text-embedding-3-large', dimension: 3072 },
+  { name: 'bge-large-en-v1.5 (Ollama, 1024d)', value: 'bge-large-en-v1.5', dimension: 1024 },
+];
+
 export default function KnowledgeBasesTab() {
   const [kbList, setKbList] = useState<any[]>([]);
   const [selectedKb, setSelectedKb] = useState<any>(null);
@@ -86,15 +93,21 @@ export default function KnowledgeBasesTab() {
   const [fetchingDocIds, setFetchingDocIds] = useState<Record<number, boolean>>({});
   const [updatingDocTypeIds, setUpdatingDocTypeIds] = useState<Record<number, boolean>>({});
 
+  // KB creation settings
+  const [newKbEmbeddingModel, setNewKbEmbeddingModel] = useState('nomic-embed-text');
+
   // Ingestion Testing state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResponse, setSearchResponse] = useState<any>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [topK, setTopK] = useState(5);
   const [showTestModal, setShowTestModal] = useState(false);
   const [minScore, setMinScore] = useState(0.65);
   const [enableReranking, setEnableReranking] = useState(true);
+  const [rerankModel, setRerankModel] = useState('qwen3.5:0.8b');
+  const [rerankLimit, setRerankLimit] = useState(5);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   // Users map for resolving created_by IDs
@@ -168,6 +181,7 @@ export default function KnowledgeBasesTab() {
     setSearchLoading(true);
     setSearchError(null);
     setSearchResults([]);
+    setSearchResponse(null);
     try {
       const response = await api.retrieveKnowledge({
         query: searchQuery,
@@ -175,8 +189,11 @@ export default function KnowledgeBasesTab() {
         top_k: topK,
         min_score: minScore,
         enable_reranking: enableReranking,
+        rerank_model: enableReranking ? rerankModel : undefined,
+        rerank_limit: enableReranking ? rerankLimit : undefined,
       });
       setSearchResults(response.context?.chunks || []);
+      setSearchResponse(response);
     } catch (err: any) {
       console.error(err);
       setSearchError(err.message || 'Retrieval test failed.');
@@ -232,10 +249,17 @@ export default function KnowledgeBasesTab() {
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean);
+      
+      const selectedModel = EMBEDDING_MODELS.find((m) => m.value === newKbEmbeddingModel);
+
       const newKb = await api.createKnowledgeBase({
         name: newKbName,
         description: newKbPurpose,
-        settings: { tags: tagsList },
+        settings: { 
+          tags: tagsList,
+          embedding_model: selectedModel?.value || 'nomic-embed-text',
+          vector_dimension: selectedModel?.dimension || 768,
+        },
       });
       setKbList((prev) => [...prev, newKb]);
       setSelectedKb(newKb);
@@ -243,6 +267,7 @@ export default function KnowledgeBasesTab() {
       setNewKbName('');
       setNewKbPurpose('');
       setNewKbTags('');
+      setNewKbEmbeddingModel('nomic-embed-text');
     } catch (err: any) {
       console.error(err);
       setError('Failed to create Knowledge Base.');
@@ -911,6 +936,23 @@ export default function KnowledgeBasesTab() {
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">
+                  Embedding Model
+                </label>
+                <select
+                  value={newKbEmbeddingModel}
+                  onChange={(e) => setNewKbEmbeddingModel(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  {EMBEDDING_MODELS.map((model) => (
+                    <option key={model.value} value={model.value}>
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -1235,6 +1277,37 @@ export default function KnowledgeBasesTab() {
                         Enable Reranking (Cohere)
                       </label>
                     </div>
+
+                    {enableReranking && (
+                      <>
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase">
+                            Reranker Model
+                          </label>
+                          <input
+                            type="text"
+                            value={rerankModel}
+                            onChange={(e) => setRerankModel(e.target.value)}
+                            placeholder="e.g. qwen3.5:0.8b"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase">
+                            Rerank Candidate Limit
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={rerankLimit}
+                            onChange={(e) => setRerankLimit(Number(e.target.value))}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </form>
@@ -1246,37 +1319,124 @@ export default function KnowledgeBasesTab() {
               )}
 
               {/* Search Results Display */}
-              <div className="flex-1 overflow-y-auto space-y-4">
-                {!searchLoading && searchResults.length > 0 && (
+              <div className="flex-1 overflow-y-auto space-y-5">
+                {!searchLoading && searchResponse && (
                   <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Search Results ({searchResults.length})
-                    </h4>
-                    <div className="space-y-3">
-                      {searchResults.map((res, index) => {
-                        const similarity = res.score ?? res.similarity ?? 0;
-                        const percent = Math.round(similarity * 100);
+                    {/* Metrics Dashboard */}
+                    {searchResponse.statistics && (
+                      <div className="grid grid-cols-4 gap-3 bg-violet-50/30 border border-violet-100 p-4 rounded-xl text-xs text-violet-900">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-violet-500 uppercase font-bold block">Latency</span>
+                          <span className="text-base font-extrabold text-violet-700">{searchResponse.statistics.elapsed_ms}ms</span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-violet-500 uppercase font-bold block">Found Chunks</span>
+                          <span className="text-base font-extrabold text-violet-700">{searchResponse.statistics.chunks_retrieved}</span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-violet-500 uppercase font-bold block">In Context</span>
+                          <span className="text-base font-extrabold text-violet-700">{searchResponse.statistics.chunks_after_filtering}</span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-violet-500 uppercase font-bold block">Context Tokens</span>
+                          <span className="text-base font-extrabold text-violet-700">{searchResponse.context?.total_tokens ?? 'N/A'}</span>
+                        </div>
+                      </div>
+                    )}
 
-                        return (
-                          <div
-                            key={index}
-                            className="border border-gray-150 rounded-xl p-4 space-y-2 bg-slate-50/20 shadow-xs"
-                          >
-                            <div className="flex justify-between items-center flex-wrap gap-2 text-[10px]">
-                              <span className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full font-bold uppercase tracking-wider">
-                                Result #{index + 1}
-                              </span>
-                              <span className="font-semibold text-gray-400">
-                                Match Score:{' '}
-                                <span className="text-violet-600 font-bold">{percent}%</span>
-                              </span>
+                    {/* Reranker metadata summary */}
+                    {searchResponse.rerank_info && (
+                      <div className="flex flex-wrap gap-4 bg-emerald-50/30 border border-emerald-100 p-3.5 rounded-xl text-xs text-emerald-900">
+                        <div>
+                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">Rerank Method</span>
+                          <span className="font-semibold">{searchResponse.rerank_info.technique}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">Model Used</span>
+                          <span className="font-semibold font-mono text-[11px]">{searchResponse.rerank_info.model}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">Rank Candidates</span>
+                          <span className="font-semibold">{searchResponse.rerank_info.candidate_limit} chunks</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Context Documents list */}
+                    {searchResponse.document_details && searchResponse.document_details.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          Context Documents ({searchResponse.document_details.length})
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          {searchResponse.document_details.map((doc: any, dIdx: number) => (
+                            <div key={dIdx} className="bg-white border border-gray-200 rounded-xl p-3 shadow-xs space-y-1.5 text-xs">
+                              <div className="font-bold text-gray-800 truncate" title={doc.name}>
+                                {doc.name}
+                              </div>
+                              {doc.metadata_json && Object.keys(doc.metadata_json).length > 0 && (
+                                <div className="flex flex-wrap gap-1 text-[9px]">
+                                  {Object.entries(doc.metadata_json).map(([k, v]) => (
+                                    <span key={k} className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono">
+                                      {k}: {String(v)}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {doc.status && (
+                                <span className="text-[8px] px-1.5 py-0.5 bg-green-50 text-green-700 font-extrabold uppercase rounded inline-block">
+                                  {doc.status}
+                                </span>
+                              )}
                             </div>
-                            <p className="text-xs text-gray-705 font-mono leading-relaxed whitespace-pre-wrap bg-white border border-gray-100 rounded-lg p-3">
-                              {res.text ?? res.content}
-                            </p>
-                          </div>
-                        );
-                      })}
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Matched Chunks list */}
+                    <div className="space-y-2.5">
+                      <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        Matched Chunks ({searchResults.length})
+                      </h4>
+                      <div className="space-y-3">
+                        {searchResults.map((res, index) => {
+                          const similarity = res.score ?? res.similarity ?? 0;
+                          const percent = Math.round(similarity * 100);
+
+                          return (
+                            <div
+                              key={index}
+                              className="border border-gray-150 rounded-xl p-4 space-y-2 bg-slate-50/20 shadow-xs"
+                            >
+                              <div className="flex justify-between items-center flex-wrap gap-2 text-[10px]">
+                                <span className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full font-bold uppercase tracking-wider">
+                                  Result #{index + 1}
+                                </span>
+                                <span className="font-semibold text-gray-400">
+                                  Match Score:{' '}
+                                  <span className="text-violet-600 font-bold">{percent}%</span>
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-705 font-mono leading-relaxed whitespace-pre-wrap bg-white border border-gray-100 rounded-lg p-3">
+                                {res.text ?? res.content}
+                              </p>
+
+                              {/* Render Chunk Metadata */}
+                              {res.metadata && Object.keys(res.metadata).length > 0 && (
+                                <div className="text-[10px] text-gray-500 bg-gray-50 p-2 rounded-lg flex flex-wrap gap-2.5">
+                                  {Object.entries(res.metadata).map(([k, v]) => (
+                                    <div key={k} className="flex gap-1">
+                                      <span className="text-gray-400">{k}:</span>
+                                      <span className="font-semibold text-gray-700">{String(v)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}

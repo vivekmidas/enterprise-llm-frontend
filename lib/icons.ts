@@ -40,6 +40,7 @@ import {
   Blocks,
   RefreshCcw,
   BookOpen,
+  FlaskRound 
 } from 'lucide-react';
 
 export const IconMap: Record<string, any> = {
@@ -87,5 +88,6 @@ export const IconMap: Record<string, any> = {
   power: Power,
   refreshCw: RefreshCcw,
   search: BookOpen,
+  flaskround:FlaskRound
 };
 export default IconMap;

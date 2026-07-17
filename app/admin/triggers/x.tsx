@@ -12,6 +12,7 @@ import {
   Clock,
   Zap,
   Globe,
+  FlaskRound,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -258,7 +259,7 @@ export default function TriggerInstancesPage() {
                                 `${trigger.name}-${instance.agent_node_id}-activate` ? (
                                   <Activity className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <Play className="h-4 w-4 fill-current" />
+                                  <FlaskRound className="h-4 w-4 fill-current" />
                                 )}
                               </button>
                             )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, Play, Save, SaveAll, CheckCircle, Loader2, Maximize2 } from 'lucide-react';
+import { Download, Play, Save, SaveAll, CheckCircle, Loader2, Maximize2, FlaskRound } from 'lucide-react';
 
 interface WorkflowToolbarProps {
   onValidate: () => void;
@@ -70,7 +70,7 @@ export default function WorkflowToolbar({
         {isExecuting ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
         ) : (
-          <Play className="w-3.5 h-3.5" />
+          <FlaskRound className="w-3.5 h-3.5" />
         )}
         {isExecuting ? 'Executing...' : 'Run'}
       </button>
