@@ -95,7 +95,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
     let val: any = value;
     if (type === 'checkbox') {
       val = (e.target as HTMLInputElement).checked;
-    } else if (name === 'top_k' || name === 'vector_dimension' || name === 'rerank_candidate_limit') {
+    } else if (
+      name === 'top_k' ||
+      name === 'vector_dimension' ||
+      name === 'rerank_candidate_limit'
+    ) {
       val = value ? Number(value) : undefined;
     } else if (name === 'min_score') {
       val = value ? parseFloat(value) : undefined;
@@ -126,20 +130,25 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
   const handleTestConnection = async () => {
     setTestingConnection(true);
     setTestResult({ status: null, message: '' });
-    
+
     // Set 11 steps to 'pending' initially
     const initialSteps = [
-      { step: 1, name: "Configuration Parsing", status: "pending", message: "Pending..." },
-      { step: 2, name: "Network Reachability Check", status: "pending", message: "Pending..." },
-      { step: 3, name: "Credential Validation", status: "pending", message: "Pending..." },
-      { step: 4, name: "API Client Initialization", status: "pending", message: "Pending..." },
-      { step: 5, name: "Provider Model Availability Check", status: "pending", message: "Pending..." },
-      { step: 6, name: "Model Verification", status: "pending", message: "Pending..." },
-      { step: 7, name: "Prompt Preparation", status: "pending", message: "Pending..." },
-      { step: 8, name: "Endpoint Connection", status: "pending", message: "Pending..." },
-      { step: 9, name: "Request Dispatch", status: "pending", message: "Pending..." },
-      { step: 10, name: "Response Processing", status: "pending", message: "Pending..." },
-      { step: 11, name: "Content Validation", status: "pending", message: "Pending..." }
+      { step: 1, name: 'Configuration Parsing', status: 'pending', message: 'Pending...' },
+      { step: 2, name: 'Network Reachability Check', status: 'pending', message: 'Pending...' },
+      { step: 3, name: 'Credential Validation', status: 'pending', message: 'Pending...' },
+      { step: 4, name: 'API Client Initialization', status: 'pending', message: 'Pending...' },
+      {
+        step: 5,
+        name: 'Provider Model Availability Check',
+        status: 'pending',
+        message: 'Pending...',
+      },
+      { step: 6, name: 'Model Verification', status: 'pending', message: 'Pending...' },
+      { step: 7, name: 'Prompt Preparation', status: 'pending', message: 'Pending...' },
+      { step: 8, name: 'Endpoint Connection', status: 'pending', message: 'Pending...' },
+      { step: 9, name: 'Request Dispatch', status: 'pending', message: 'Pending...' },
+      { step: 10, name: 'Response Processing', status: 'pending', message: 'Pending...' },
+      { step: 11, name: 'Content Validation', status: 'pending', message: 'Pending...' },
     ];
     setTestSteps(initialSteps);
 
@@ -150,28 +159,30 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
       });
 
       const finalSteps = res.steps || [];
-      
+
       // Animate the progression through the steps
       for (let i = 0; i < finalSteps.length; i++) {
         // Set current step to active/loading
-        setTestSteps(prev => prev.map((s, idx) => 
-          idx === i ? { ...s, status: 'loading', message: 'Executing...' } : s
-        ));
-        
+        setTestSteps((prev) =>
+          prev.map((s, idx) =>
+            idx === i ? { ...s, status: 'loading', message: 'Executing...' } : s,
+          ),
+        );
+
         // Wait 250ms for visual feedback
-        await new Promise(resolve => setTimeout(resolve, 250));
-        
+        await new Promise((resolve) => setTimeout(resolve, 250));
+
         // Set the actual result of the step
-        setTestSteps(prev => prev.map((s, idx) => 
-          idx === i ? finalSteps[i] : s
-        ));
+        setTestSteps((prev) => prev.map((s, idx) => (idx === i ? finalSteps[i] : s)));
 
         // If this step failed, stop progressing the animation
         if (finalSteps[i].status === 'error') {
           // Mark all remaining steps as skipped
-          setTestSteps(prev => prev.map((s, idx) => 
-            idx > i ? { ...s, status: 'skipped', message: 'Skipped due to previous error' } : s
-          ));
+          setTestSteps((prev) =>
+            prev.map((s, idx) =>
+              idx > i ? { ...s, status: 'skipped', message: 'Skipped due to previous error' } : s,
+            ),
+          );
           break;
         }
       }
@@ -189,18 +200,22 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
       }
     } catch (err: any) {
       setTestResult({ status: 'error', message: err.message || 'Connection test failed.' });
-      setTestSteps(prev => prev.map(s => 
-        s.status === 'pending' || s.status === 'loading'
-          ? { ...s, status: 'error', message: 'Failed to complete connection execution' }
-          : s
-      ));
+      setTestSteps((prev) =>
+        prev.map((s) =>
+          s.status === 'pending' || s.status === 'loading'
+            ? { ...s, status: 'error', message: 'Failed to complete connection execution' }
+            : s,
+        ),
+      );
     } finally {
       setTestingConnection(false);
     }
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500 text-sm">Loading company configurations...</div>;
+    return (
+      <div className="p-8 text-center text-gray-500 text-sm">Loading company configurations...</div>
+    );
   }
 
   return (
@@ -208,7 +223,8 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
       <div className="border-b border-gray-200 pb-4">
         <h2 className="text-xl font-bold text-black">Company LLM & Search Settings</h2>
         <p className="text-xs text-gray-500">
-          Configure tenant-specific configurations for models, external gateway URLs, search defaults, and retrieval flows.
+          Configure tenant-specific configurations for models, external gateway URLs, search
+          defaults, and retrieval flows.
         </p>
       </div>
 
@@ -232,19 +248,28 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
 
       <div className="grid grid-cols-3 gap-6">
         {/* Form Settings */}
-        <form onSubmit={handleSave} className="col-span-2 space-y-6 bg-white border border-gray-200 p-6 rounded-xl shadow-xs">
+        <form
+          onSubmit={handleSave}
+          className="col-span-2 space-y-6 bg-white border border-gray-200 p-6 rounded-xl shadow-xs"
+        >
           {/* LLM Gateway Section */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-1.5 border-gray-100 flex items-center justify-between">
               <span>External LLM Configuration</span>
-              <span className="text-[10px] text-gray-400 normal-case font-normal italic">Leave empty to use global default</span>
+              <span className="text-[10px] text-gray-400 normal-case font-normal italic">
+                Leave empty to use global default
+              </span>
             </h3>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-1">
                   <label className="text-xs font-semibold text-gray-900">LLM Provider</label>
-                  <Tooltip content="Choose the LLM API provider. vLLM uses an OpenAI-compatible interface; Ollama is for local inference; OpenAI API is cloud-hosted." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                  <Tooltip
+                    content="Choose the LLM API provider. vLLM uses an OpenAI-compatible interface; Ollama is for local inference; OpenAI API is cloud-hosted."
+                    position="top"
+                    className="whitespace-normal max-w-xs text-left font-normal"
+                  >
                     <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                   </Tooltip>
                 </div>
@@ -264,7 +289,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
               <div className="space-y-1">
                 <div className="flex items-center gap-1">
                   <label className="text-xs font-semibold text-gray-900">Model Name</label>
-                  <Tooltip content="The identifier of the LLM to use (e.g. meta-llama/Llama-3.1-8B-Instruct, llama3, gpt-4o)." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                  <Tooltip
+                    content="The identifier of the LLM to use (e.g. meta-llama/Llama-3.1-8B-Instruct, llama3, gpt-4o)."
+                    position="top"
+                    className="whitespace-normal max-w-xs text-left font-normal"
+                  >
                     <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                   </Tooltip>
                 </div>
@@ -281,7 +310,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
               <div className="space-y-1 col-span-2">
                 <div className="flex items-center gap-1">
                   <label className="text-xs font-semibold text-gray-900">Base URL</label>
-                  <Tooltip content="API endpoint URL for LLM requests (e.g., http://localhost:8001/v1 or https://api.openai.com/v1)." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                  <Tooltip
+                    content="API endpoint URL for LLM requests (e.g., http://localhost:8001/v1 or https://api.openai.com/v1)."
+                    position="top"
+                    className="whitespace-normal max-w-xs text-left font-normal"
+                  >
                     <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                   </Tooltip>
                 </div>
@@ -298,7 +331,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
               <div className="space-y-1 col-span-2">
                 <div className="flex items-center gap-1">
                   <label className="text-xs font-semibold text-gray-900">API Key / Token</label>
-                  <Tooltip content="Authentication token for the API. Enter EMPTY if no key is needed for your endpoint (common in local setups like vLLM or Ollama)." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                  <Tooltip
+                    content="Authentication token for the API. Enter EMPTY if no key is needed for your endpoint (common in local setups like vLLM or Ollama)."
+                    position="top"
+                    className="whitespace-normal max-w-xs text-left font-normal"
+                  >
                     <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                   </Tooltip>
                 </div>
@@ -318,14 +355,20 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
           <div className="space-y-4 pt-2">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-1.5 border-gray-100 flex items-center justify-between">
               <span>Embedding Model Configuration</span>
-              <span className="text-[10px] text-gray-400 normal-case font-normal italic">Applies to new document mappings</span>
+              <span className="text-[10px] text-gray-400 normal-case font-normal italic">
+                Applies to new document mappings
+              </span>
             </h3>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-1">
                   <label className="text-xs font-semibold text-gray-900">Provider</label>
-                  <Tooltip content="Provider of vector embedding model. Ollama is standard for self-hosted setup; OpenAI is cloud-based." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                  <Tooltip
+                    content="Provider of vector embedding model. Ollama is standard for self-hosted setup; OpenAI is cloud-based."
+                    position="top"
+                    className="whitespace-normal max-w-xs text-left font-normal"
+                  >
                     <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                   </Tooltip>
                 </div>
@@ -343,7 +386,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
               <div className="space-y-1">
                 <div className="flex items-center gap-1">
                   <label className="text-xs font-semibold text-gray-900">Embedding Model</label>
-                  <Tooltip content="Model name used to generate document/query embeddings (e.g. nomic-embed-text for Ollama, text-embedding-3-small for OpenAI)." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                  <Tooltip
+                    content="Model name used to generate document/query embeddings (e.g. nomic-embed-text for Ollama, text-embedding-3-small for OpenAI)."
+                    position="top"
+                    className="whitespace-normal max-w-xs text-left font-normal"
+                  >
                     <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                   </Tooltip>
                 </div>
@@ -360,7 +407,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
               <div className="space-y-1">
                 <div className="flex items-center gap-1">
                   <label className="text-xs font-semibold text-gray-900">Vector Dimension</label>
-                  <Tooltip content="Length of the generated embedding vector. Must match model specifications (e.g., 768 for nomic-embed-text, 1536 for OpenAI's text-embedding-3-small)." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                  <Tooltip
+                    content="Length of the generated embedding vector. Must match model specifications (e.g., 768 for nomic-embed-text, 1536 for OpenAI's text-embedding-3-small)."
+                    position="top"
+                    className="whitespace-normal max-w-xs text-left font-normal"
+                  >
                     <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                   </Tooltip>
                 </div>
@@ -386,7 +437,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
               <div className="space-y-1">
                 <div className="flex items-center gap-1">
                   <label className="text-xs font-semibold text-gray-900">Retrieval Approach</label>
-                  <Tooltip content="Method used to query documents. Hybrid fuses semantic vector search and keyword match (BM25) using Reciprocal Rank Fusion (RRF) for best recall." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                  <Tooltip
+                    content="Method used to query documents. Hybrid fuses semantic vector search and keyword match (BM25) using Reciprocal Rank Fusion (RRF) for best recall."
+                    position="top"
+                    className="whitespace-normal max-w-xs text-left font-normal"
+                  >
                     <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                   </Tooltip>
                 </div>
@@ -404,8 +459,14 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
 
               <div className="space-y-1">
                 <div className="flex items-center gap-1">
-                  <label className="text-xs font-semibold text-gray-900">Default Top K Chunks</label>
-                  <Tooltip content="Maximum number of document chunks retrieved and passed to the LLM context window (between 1 and 50)." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                  <label className="text-xs font-semibold text-gray-900">
+                    Default Top K Chunks
+                  </label>
+                  <Tooltip
+                    content="Maximum number of document chunks retrieved and passed to the LLM context window (between 1 and 50)."
+                    position="top"
+                    className="whitespace-normal max-w-xs text-left font-normal"
+                  >
                     <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                   </Tooltip>
                 </div>
@@ -423,8 +484,14 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
 
               <div className="space-y-1">
                 <div className="flex items-center gap-1">
-                  <label className="text-xs font-semibold text-gray-900">Min Similarity Score</label>
-                  <Tooltip content="Minimum semantic similarity score (0.0 to 1.0) required to retrieve a chunk. Higher values prevent unrelated text chunks from loading." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                  <label className="text-xs font-semibold text-gray-900">
+                    Min Similarity Score
+                  </label>
+                  <Tooltip
+                    content="Minimum semantic similarity score (0.0 to 1.0) required to retrieve a chunk. Higher values prevent unrelated text chunks from loading."
+                    position="top"
+                    className="whitespace-normal max-w-xs text-left font-normal"
+                  >
                     <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                   </Tooltip>
                 </div>
@@ -455,7 +522,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                   />
                   Enable Context Reranking
                 </label>
-                <Tooltip content="Re-rank the retrieved chunks using a cross-encoder model to put the most relevant context at the beginning of the prompt." position="top" className="whitespace-normal max-w-xs text-left font-normal normal-case">
+                <Tooltip
+                  content="Re-rank the retrieved chunks using a cross-encoder model to put the most relevant context at the beginning of the prompt."
+                  position="top"
+                  className="whitespace-normal max-w-xs text-left font-normal normal-case"
+                >
                   <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                 </Tooltip>
               </div>
@@ -464,8 +535,14 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                 <div className="grid grid-cols-3 gap-4 pt-1 animate-fade-in">
                   <div className="space-y-1">
                     <div className="flex items-center gap-1">
-                      <label className="text-xs font-semibold text-gray-700">Reranker Provider</label>
-                      <Tooltip content="Provider supplying the reranking/cross-encoder model." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                      <label className="text-xs font-semibold text-gray-700">
+                        Reranker Provider
+                      </label>
+                      <Tooltip
+                        content="Provider supplying the reranking/cross-encoder model."
+                        position="top"
+                        className="whitespace-normal max-w-xs text-left font-normal"
+                      >
                         <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                       </Tooltip>
                     </div>
@@ -482,7 +559,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                   <div className="space-y-1">
                     <div className="flex items-center gap-1">
                       <label className="text-xs font-semibold text-gray-700">Reranker Model</label>
-                      <Tooltip content="Cross-encoder model name used for reranking (e.g., qwen3.5:0.8b)." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                      <Tooltip
+                        content="Cross-encoder model name used for reranking (e.g., qwen3.5:0.8b)."
+                        position="top"
+                        className="whitespace-normal max-w-xs text-left font-normal"
+                      >
                         <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                       </Tooltip>
                     </div>
@@ -498,8 +579,14 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
 
                   <div className="space-y-1">
                     <div className="flex items-center gap-1">
-                      <label className="text-xs font-semibold text-gray-700">Rerank Candidates Limit</label>
-                      <Tooltip content="Number of candidate chunks to fetch initially before reranking down to Top K (e.g. fetch 15, rerank, keep top 5)." position="top" className="whitespace-normal max-w-xs text-left font-normal">
+                      <label className="text-xs font-semibold text-gray-700">
+                        Rerank Candidates Limit
+                      </label>
+                      <Tooltip
+                        content="Number of candidate chunks to fetch initially before reranking down to Top K (e.g. fetch 15, rerank, keep top 5)."
+                        position="top"
+                        className="whitespace-normal max-w-xs text-left font-normal"
+                      >
                         <HelpCircle className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
                       </Tooltip>
                     </div>
@@ -524,7 +611,9 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
             {saveResult.status && (
               <div
                 className={`text-sm font-semibold px-3 py-1 rounded-lg ${
-                  saveResult.status === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                  saveResult.status === 'success'
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-red-50 text-red-700'
                 }`}
               >
                 {saveResult.message}
@@ -552,7 +641,8 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
               Gateway Test Connection
             </h4>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Test end-to-end connectivity using settings to run a text generation diagnostic message.
+              Test end-to-end connectivity using settings to run a text generation diagnostic
+              message.
             </p>
             <button
               type="button"
@@ -584,8 +674,13 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
             {testSteps.length > 0 && (
               <div className="border-t pt-4 border-gray-100 space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
                 <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  <span>Diagnostic Execution ({testSteps.filter(s => s.status === 'success').length}/11)</span>
-                  {testingConnection && <span className="text-blue-500 animate-pulse">Running...</span>}
+                  <span>
+                    Diagnostic Execution ({testSteps.filter((s) => s.status === 'success').length}
+                    /11)
+                  </span>
+                  {testingConnection && (
+                    <span className="text-blue-500 animate-pulse">Running...</span>
+                  )}
                 </div>
                 <div className="space-y-2">
                   {testSteps.map((step) => {
@@ -596,21 +691,29 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                         case 'error':
                           return <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />;
                         case 'loading':
-                          return <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />;
+                          return (
+                            <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />
+                          );
                         case 'skipped':
-                          return <div className="w-3.5 h-3.5 rounded-full border border-gray-300 flex items-center justify-center shrink-0"><span className="w-1.5 h-0.5 bg-gray-300 rounded-sm"></span></div>;
+                          return (
+                            <div className="w-3.5 h-3.5 rounded-full border border-gray-300 flex items-center justify-center shrink-0">
+                              <span className="w-1.5 h-0.5 bg-gray-300 rounded-sm"></span>
+                            </div>
+                          );
                         case 'pending':
                         default:
-                          return <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200 shrink-0" />;
+                          return (
+                            <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200 shrink-0" />
+                          );
                       }
                     };
 
                     return (
-                      <div 
-                        key={step.step} 
+                      <div
+                        key={step.step}
                         className={`flex gap-2.5 items-start p-2 rounded-lg border transition-all duration-200 ${
-                          step.status === 'success' 
-                            ? 'bg-green-50/30 border-green-100 text-green-900' 
+                          step.status === 'success'
+                            ? 'bg-green-50/30 border-green-100 text-green-900'
                             : step.status === 'error'
                               ? 'bg-red-50/30 border-red-100 text-red-900'
                               : step.status === 'loading'
@@ -621,15 +724,19 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                         <div className="mt-0.5">{getStepIcon(step.status)}</div>
                         <div className="space-y-0.5 flex-1 min-w-0">
                           <div className="text-xs font-semibold flex items-center gap-1.5">
-                            <span>{step.step}. {step.name}</span>
+                            <span>
+                              {step.step}. {step.name}
+                            </span>
                           </div>
-                          <div className={`text-[10px] truncate ${
-                            step.status === 'success' 
-                              ? 'text-green-700/80' 
-                              : step.status === 'error'
-                                ? 'text-red-700/90 font-mono break-all whitespace-pre-wrap'
-                                : 'text-gray-400'
-                          }`}>
+                          <div
+                            className={`text-[10px] truncate ${
+                              step.status === 'success'
+                                ? 'text-green-700/80'
+                                : step.status === 'error'
+                                  ? 'text-red-700/90 font-mono break-all whitespace-pre-wrap'
+                                  : 'text-gray-400'
+                            }`}
+                          >
                             {step.message}
                           </div>
                         </div>

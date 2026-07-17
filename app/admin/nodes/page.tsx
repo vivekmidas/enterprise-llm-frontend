@@ -46,6 +46,7 @@ type ContractRule = {
   field_name: string;
   field_type: string;
   required?: boolean | string;
+  stateable?: boolean;
   description?: string;
   min_length?: number | '';
   max_length?: number | '';
@@ -58,6 +59,10 @@ type ContractRule = {
   allowed_values?: string[];
   redact?: boolean;
   nullable?: boolean;
+  items?: {
+    field_type: string;
+    [key: string]: any;
+  };
 };
 
 type FlatInputContract = {
@@ -155,6 +160,7 @@ const normalizeContractRule = (rule: any): ContractRule => {
     field_name: rule.field_name || rule.field || rule.key || '',
     field_type: fieldType,
     required: boolFromValue(rule.required ?? rule.mandatory ?? false),
+    stateable: boolFromValue(rule.stateable ?? false),
     description: rule.description || '',
     min_length: numberOrEmpty(rule.min_length ?? rule.minLength),
     max_length: numberOrEmpty(rule.max_length ?? rule.maxLength),
@@ -171,6 +177,12 @@ const normalizeContractRule = (rule: any): ContractRule => {
         : [],
     redact: boolFromValue(rule.redact ?? (IS_PII.includes(fieldType) ? true : false)),
     nullable: boolFromValue(rule.nullable ?? false),
+    items: rule.items
+      ? {
+          field_type: rule.items.field_type || 'string',
+          ...rule.items,
+        }
+      : undefined,
   };
 };
 
@@ -238,6 +250,7 @@ const cleanContractRule = (rule: ContractRule): ContractRule => {
     required: boolFromValue(rule.required),
   };
 
+  if (rule.stateable !== undefined) cleaned.stateable = boolFromValue(rule.stateable);
   if (rule.description?.trim()) cleaned.description = rule.description.trim();
   if (rule.field_type === 'array') {
     if (hasNumberValue(rule.min_items)) cleaned.min_items = Number(rule.min_items);
@@ -253,6 +266,7 @@ const cleanContractRule = (rule: ContractRule): ContractRule => {
   if (rule.allowed_values?.length) cleaned.allowed_values = rule.allowed_values;
   if (rule.redact) cleaned.redact = true;
   if (rule.nullable) cleaned.nullable = true;
+  if (rule.items) cleaned.items = rule.items;
 
   return cleaned as ContractRule;
 };
@@ -321,49 +335,56 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
   useEffect(() => {
     if (testingAgent) {
       const initialConfig: Record<string, any> = {};
-      const userProps = Array.isArray(testingAgent.user_properties) ? testingAgent.user_properties : [];
-      const sysProps = Array.isArray(testingAgent.system_properties) ? testingAgent.system_properties : [];
-      
+      const userProps = Array.isArray(testingAgent.user_properties)
+        ? testingAgent.user_properties
+        : [];
+      const sysProps = Array.isArray(testingAgent.system_properties)
+        ? testingAgent.system_properties
+        : [];
+
       userProps.forEach((prop: any) => {
         if (prop && prop.key) {
-          initialConfig[prop.key] = prop.value !== undefined ? prop.value : (prop.default !== undefined ? prop.default : '');
+          initialConfig[prop.key] =
+            prop.value !== undefined ? prop.value : prop.default !== undefined ? prop.default : '';
         }
       });
       sysProps.forEach((prop: any) => {
         if (prop && prop.key) {
-          initialConfig[prop.key] = prop.value !== undefined ? prop.value : (prop.default !== undefined ? prop.default : '');
+          initialConfig[prop.key] =
+            prop.value !== undefined ? prop.value : prop.default !== undefined ? prop.default : '';
         }
       });
-      
+
       setTestingConfig(initialConfig);
-      
+
       // Pre-fill input_contract template or default empty JSON
       if (testingAgent.input_contract) {
         let schema: Record<string, any> | null = null;
         try {
-          schema = typeof testingAgent.input_contract === 'string'
-            ? JSON.parse(testingAgent.input_contract)
-            : (testingAgent.input_contract as Record<string, any>);
+          schema =
+            typeof testingAgent.input_contract === 'string'
+              ? JSON.parse(testingAgent.input_contract)
+              : (testingAgent.input_contract as Record<string, any>);
         } catch (e) {
           // ignore
         }
-        
+
         if (schema && Object.keys(schema).length > 0) {
-          const sample: Record<string, any> = {};
-          if (schema.properties && typeof schema.properties === 'object') {
-            Object.keys(schema.properties).forEach((k) => {
-              const propSchema = (schema.properties as any)[k];
-              sample[k] = propSchema.type === 'number' ? 0 : (propSchema.type === 'boolean' ? false : (propSchema.type === 'array' ? [] : (propSchema.type === 'object' ? {} : '')));
+          setTestingInputData('Loading JSON sample...');
+          api.getJsonSamples(schema)
+            .then((sample) => {
+              setTestingInputData(JSON.stringify(sample, null, 2));
+            })
+            .catch((err) => {
+              console.error('Failed to load JSON sample from API', err);
+              // Fallback
+              setTestingInputData(JSON.stringify(schema, null, 2));
             });
-            setTestingInputData(JSON.stringify(sample, null, 2));
-          } else {
-            setTestingInputData(JSON.stringify(schema, null, 2));
-          }
         } else {
-          setTestingInputData(JSON.stringify({ text: "Sample prompt text" }, null, 2));
+          setTestingInputData(JSON.stringify({ text: 'Sample prompt text' }, null, 2));
         }
       } else {
-        setTestingInputData(JSON.stringify({ text: "Sample prompt text" }, null, 2));
+        setTestingInputData(JSON.stringify({ text: 'Sample prompt text' }, null, 2));
       }
       setTestingOutput(null);
       setTestingConsoleLogs('Console initialized. Ready to execute test.');
@@ -373,7 +394,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
   const handleExecuteTest = async () => {
     if (!testingAgent) return;
     setTestingLoading(true);
-    
+    setTestingConsoleLogs("");
     let parsedData: any = testingInputData;
     try {
       parsedData = JSON.parse(testingInputData);
@@ -384,22 +405,29 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     const payload = {
       node_name: testingAgent.name,
       config: testingConfig,
-      data: parsedData
+      data: parsedData,
     };
 
-    setTestingConsoleLogs((prev) => prev + `\n\n>> EXECUTING [${testingAgent.name}]...\nPayload: ${JSON.stringify(payload, null, 2)}`);
+    setTestingConsoleLogs(
+      (prev) =>
+        prev +
+        `\n\n>> EXECUTING [${testingAgent.name}]...\nPayload: ${JSON.stringify(payload, null, 2)}`,
+    );
 
     try {
       const result = await api.testNode(payload);
       setTestingOutput(result);
-      setTestingConsoleLogs((prev) => 
-        prev + 
-        `\n\n<< EXECUTION COMPLETED in ${result.latency_ms}ms` +
-        `\nStatus: ${result.status}` +
-        `\nResponse Data: ${JSON.stringify(result.data, null, 2)}` +
-        (result.error_message ? `\nError Message: ${result.error_message}` : '') +
-        (result.error_code ? `\nError Code: ${result.error_code}` : '') +
-        (result.violations && result.violations.length > 0 ? `\nViolations: ${JSON.stringify(result.violations, null, 2)}` : '')
+      setTestingConsoleLogs(
+        (prev) =>
+          prev +
+          `\n\n<< EXECUTION COMPLETED in ${result.latency_ms}ms` +
+          `\nStatus: ${result.status}` +
+          `\nResponse Data: ${JSON.stringify(result.data, null, 2)}` +
+          (result.error_message ? `\nError Message: ${result.error_message}` : '') +
+          (result.error_code ? `\nError Code: ${result.error_code}` : '') +
+          (result.violations && result.violations.length > 0
+            ? `\nViolations: ${JSON.stringify(result.violations, null, 2)}`
+            : ''),
       );
     } catch (err: any) {
       setTestingOutput({ status: 'error', error_message: err.message });
@@ -748,10 +776,35 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     }
 
     try {
-      if (finalAgent.id) {
-        await api.updateNode(finalAgent);
+      if (customerId) {
+        const overrides: Record<string, any> = {};
+        const userProps = propertyEntriesFromValue(finalAgent.user_properties);
+        const sysProps = propertyEntriesFromValue(finalAgent.system_properties);
+        [...userProps, ...sysProps].forEach((entry: any) => {
+          if (entry.key) {
+            overrides[entry.key] = entry.value !== undefined ? entry.value : entry.default;
+          }
+        });
+
+        await api.configureCustomerNode(
+          finalAgent.name,
+          {
+            properties: overrides,
+            user_properties: propertyEntriesToJsonStrings(userProps),
+            system_properties: propertyEntriesToJsonStrings(sysProps),
+            is_enabled: finalAgent.is_enabled !== undefined ? finalAgent.is_enabled : true,
+            input_contract: finalAgent.input_contract,
+            output_contract: finalAgent.output_contract,
+            label: finalAgent.label,
+          },
+          customerId,
+        );
       } else {
-        await api.createNode(finalAgent);
+        if (finalAgent.id) {
+          await api.updateNode(finalAgent);
+        } else {
+          await api.createNode(finalAgent);
+        }
       }
       fetchData();
       setEditingAgent(null);
@@ -1544,8 +1597,12 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
           onClose={() => setContractGenerator((prev) => ({ ...prev, isOpen: false }))}
           initialSchema={
             contractGenerator.type === 'input'
-              ? editingAgent.input_contract
-              : editingAgent.output_contract
+              ? typeof editingAgent.input_contract === 'string'
+                ? safeJsonParse(editingAgent.input_contract)
+                : editingAgent.input_contract
+              : typeof editingAgent.output_contract === 'string'
+                ? safeJsonParse(editingAgent.output_contract)
+                : editingAgent.output_contract
           }
           onSave={handleGeneratedContract}
           title={
@@ -1761,39 +1818,58 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                     <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider border-b pb-1">
                       Properties Configuration
                     </h4>
-                    
+
                     {/* User & System properties mapped to inputs */}
                     {(() => {
-                      const userProps = Array.isArray(testingAgent.user_properties) ? testingAgent.user_properties : [];
-                      const sysProps = Array.isArray(testingAgent.system_properties) ? testingAgent.system_properties : [];
+                      const userProps = Array.isArray(testingAgent.user_properties)
+                        ? testingAgent.user_properties
+                        : [];
+                      const sysProps = Array.isArray(testingAgent.system_properties)
+                        ? testingAgent.system_properties
+                        : [];
                       const allProps = [...userProps, ...sysProps];
 
                       if (allProps.length === 0) {
-                        return <p className="text-xs text-gray-500 italic">No configuration properties defined for this node.</p>;
+                        return (
+                          <p className="text-xs text-gray-500 italic">
+                            No configuration properties defined for this node.
+                          </p>
+                        );
                       }
 
                       return allProps.map((prop: any) => {
                         if (!prop || !prop.key) return null;
                         const label = prop.label || prop.key;
-                        const value = testingConfig[prop.key] !== undefined ? testingConfig[prop.key] : '';
+                        const value =
+                          testingConfig[prop.key] !== undefined ? testingConfig[prop.key] : '';
 
                         return (
                           <div key={prop.key} className="space-y-1">
                             <label className="block text-[11px] font-bold text-gray-500 uppercase">
-                              {label} <span className="font-mono text-gray-400 font-normal">({prop.key})</span>
+                              {label}{' '}
+                              <span className="font-mono text-gray-400 font-normal">
+                                ({prop.key})
+                              </span>
                             </label>
                             {prop.type === 'textarea' ? (
                               <textarea
                                 className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none"
                                 value={value}
-                                onChange={(e) => setTestingConfig({ ...testingConfig, [prop.key]: e.target.value })}
+                                onChange={(e) =>
+                                  setTestingConfig({ ...testingConfig, [prop.key]: e.target.value })
+                                }
                                 rows={2}
                               />
                             ) : prop.type === 'boolean' ? (
                               <select
                                 className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
                                 value={value === true ? 'true' : 'false'}
-                                onChange={(e) => setTestingConfig({ ...testingConfig, [prop.key]: e.target.value === 'true' })}
+                                onChange={(e) =>
+                                  setTestingConfig({
+                                    ...testingConfig,
+                                    [prop.key]: e.target.value === 'true',
+                                  })
+                                }
                               >
                                 <option value="false">False</option>
                                 <option value="true">True</option>
@@ -1803,11 +1879,15 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                 type={prop.type === 'password' ? 'password' : 'text'}
                                 className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none"
                                 value={value}
-                                onChange={(e) => setTestingConfig({ ...testingConfig, [prop.key]: e.target.value })}
+                                onChange={(e) =>
+                                  setTestingConfig({ ...testingConfig, [prop.key]: e.target.value })
+                                }
                               />
                             )}
                             {prop.description && (
-                              <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
+                              <p className="text-[10px] text-gray-400 italic mt-0.5">
+                                {prop.description}
+                              </p>
                             )}
                           </div>
                         );
@@ -1845,7 +1925,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   </span>
                   <div className="flex items-center gap-4">
                     {testingOutput && (
-                      <span className={`font-mono font-bold ${testingOutput.status === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                      <span
+                        className={`font-mono font-bold ${testingOutput.status === 'success' ? 'text-green-400' : 'text-red-400'}`}
+                      >
                         STATUS: {testingOutput.status?.toUpperCase()}
                       </span>
                     )}
@@ -1857,7 +1939,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   </div>
                 </div>
                 {/* Scrollable logs view */}
-                <div className="flex-1 overflow-auto p-4 font-mono text-xs text-emerald-400 selection:bg-emerald-800 selection:text-white" style={{ fontFamily: "'Consolas', 'Courier New', monospace" }}>
+                <div
+                  className="flex-1 overflow-auto p-4 font-mono text-xs text-emerald-400 selection:bg-emerald-800 selection:text-white"
+                  style={{ fontFamily: "'Consolas', 'Courier New', monospace" }}
+                >
                   <pre className="whitespace-pre-wrap">{testingConsoleLogs}</pre>
                 </div>
               </div>
@@ -1874,7 +1959,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               <button
                 onClick={handleExecuteTest}
                 disabled={testingLoading}
-                className="flex items-center gap-1.5 rounded-lg bg-purple-650 px-6 py-1.5 text-xs font-bold text-white hover:bg-purple-700 shadow-md disabled:bg-purple-400 disabled:cursor-not-allowed transition-all cursor-pointer"
+                className="flex items-center gap-1.5 rounded-lg bg-purple-900 px-6 py-1.5 text-xs font-bold text-white hover:bg-purple-700 shadow-md disabled:bg-purple-400 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
                 {testingLoading ? (
                   <>

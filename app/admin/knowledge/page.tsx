@@ -22,8 +22,16 @@ import { COLOR_PALETTE } from '@/lib/utils';
 
 const EMBEDDING_MODELS = [
   { name: 'nomic-embed-text (Ollama, 768d)', value: 'nomic-embed-text', dimension: 768 },
-  { name: 'text-embedding-3-small (OpenAI, 1536d)', value: 'text-embedding-3-small', dimension: 1536 },
-  { name: 'text-embedding-3-large (OpenAI, 3072d)', value: 'text-embedding-3-large', dimension: 3072 },
+  {
+    name: 'text-embedding-3-small (OpenAI, 1536d)',
+    value: 'text-embedding-3-small',
+    dimension: 1536,
+  },
+  {
+    name: 'text-embedding-3-large (OpenAI, 3072d)',
+    value: 'text-embedding-3-large',
+    dimension: 3072,
+  },
   { name: 'bge-large-en-v1.5 (Ollama, 1024d)', value: 'bge-large-en-v1.5', dimension: 1024 },
 ];
 
@@ -249,13 +257,13 @@ export default function KnowledgeBasesTab() {
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean);
-      
+
       const selectedModel = EMBEDDING_MODELS.find((m) => m.value === newKbEmbeddingModel);
 
       const newKb = await api.createKnowledgeBase({
         name: newKbName,
         description: newKbPurpose,
-        settings: { 
+        settings: {
           tags: tagsList,
           embedding_model: selectedModel?.value || 'nomic-embed-text',
           vector_dimension: selectedModel?.dimension || 768,
@@ -777,33 +785,33 @@ export default function KnowledgeBasesTab() {
                           >
                             {doc.status || 'Unknown'}
                           </span>
-                        
                         </div>
 
-                        
                         {/* Metadata Details Row */}
                         <div className="flex items-center gap-3 text-xs text-gray-450 font-medium flex-wrap">
-                            {docDescription && (
-                          <p className="text-xs text-gray-550 leading-relaxed">{docDescription}</p>
-                        )}
-{docTags.length > 0 && (
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {docTags.map((t: string) => (
-                              <span
-                                key={t}
-                                style={{
-                                  backgroundColor: getColor(t).bg,
-                                  border: getColor(t).border,
-                                  color: getColor(t).text,
-                                }}
-                                className="px-1.5 py-0.5 bg-slate-100 text-slate-655 rounded text-xs font-medium"
-                              >
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <span>Size: {formatBytes(doc.file_size)}</span>
+                          {docDescription && (
+                            <p className="text-xs text-gray-550 leading-relaxed">
+                              {docDescription}
+                            </p>
+                          )}
+                          {docTags.length > 0 && (
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {docTags.map((t: string) => (
+                                <span
+                                  key={t}
+                                  style={{
+                                    backgroundColor: getColor(t).bg,
+                                    border: getColor(t).border,
+                                    color: getColor(t).text,
+                                  }}
+                                  className="px-1.5 py-0.5 bg-slate-100 text-slate-655 rounded text-xs font-medium"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <span>Size: {formatBytes(doc.file_size)}</span>
                           <span>·</span>
                           <span>Chunks: {doc.chunk_count ?? 0}</span>
                           <span>·</span>
@@ -818,10 +826,7 @@ export default function KnowledgeBasesTab() {
                                 })
                               : '-'}
                           </span>
-                          
                         </div>
-
-                        
                       </div>
 
                       {/* Operations */}
@@ -937,9 +942,7 @@ export default function KnowledgeBasesTab() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">
-                  Embedding Model
-                </label>
+                <label className="block text-xs font-semibold text-gray-655">Embedding Model</label>
                 <select
                   value={newKbEmbeddingModel}
                   onChange={(e) => setNewKbEmbeddingModel(e.target.value)}
@@ -1326,20 +1329,36 @@ export default function KnowledgeBasesTab() {
                     {searchResponse.statistics && (
                       <div className="grid grid-cols-4 gap-3 bg-violet-50/30 border border-violet-100 p-4 rounded-xl text-xs text-violet-900">
                         <div className="space-y-0.5">
-                          <span className="text-[10px] text-violet-500 uppercase font-bold block">Latency</span>
-                          <span className="text-base font-extrabold text-violet-700">{searchResponse.statistics.elapsed_ms}ms</span>
+                          <span className="text-[10px] text-violet-500 uppercase font-bold block">
+                            Latency
+                          </span>
+                          <span className="text-base font-extrabold text-violet-700">
+                            {searchResponse.statistics.elapsed_ms}ms
+                          </span>
                         </div>
                         <div className="space-y-0.5">
-                          <span className="text-[10px] text-violet-500 uppercase font-bold block">Found Chunks</span>
-                          <span className="text-base font-extrabold text-violet-700">{searchResponse.statistics.chunks_retrieved}</span>
+                          <span className="text-[10px] text-violet-500 uppercase font-bold block">
+                            Found Chunks
+                          </span>
+                          <span className="text-base font-extrabold text-violet-700">
+                            {searchResponse.statistics.chunks_retrieved}
+                          </span>
                         </div>
                         <div className="space-y-0.5">
-                          <span className="text-[10px] text-violet-500 uppercase font-bold block">In Context</span>
-                          <span className="text-base font-extrabold text-violet-700">{searchResponse.statistics.chunks_after_filtering}</span>
+                          <span className="text-[10px] text-violet-500 uppercase font-bold block">
+                            In Context
+                          </span>
+                          <span className="text-base font-extrabold text-violet-700">
+                            {searchResponse.statistics.chunks_after_filtering}
+                          </span>
                         </div>
                         <div className="space-y-0.5">
-                          <span className="text-[10px] text-violet-500 uppercase font-bold block">Context Tokens</span>
-                          <span className="text-base font-extrabold text-violet-700">{searchResponse.context?.total_tokens ?? 'N/A'}</span>
+                          <span className="text-[10px] text-violet-500 uppercase font-bold block">
+                            Context Tokens
+                          </span>
+                          <span className="text-base font-extrabold text-violet-700">
+                            {searchResponse.context?.total_tokens ?? 'N/A'}
+                          </span>
                         </div>
                       </div>
                     )}
@@ -1348,51 +1367,70 @@ export default function KnowledgeBasesTab() {
                     {searchResponse.rerank_info && (
                       <div className="flex flex-wrap gap-4 bg-emerald-50/30 border border-emerald-100 p-3.5 rounded-xl text-xs text-emerald-900">
                         <div>
-                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">Rerank Method</span>
-                          <span className="font-semibold">{searchResponse.rerank_info.technique}</span>
+                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">
+                            Rerank Method
+                          </span>
+                          <span className="font-semibold">
+                            {searchResponse.rerank_info.technique}
+                          </span>
                         </div>
                         <div>
-                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">Model Used</span>
-                          <span className="font-semibold font-mono text-[11px]">{searchResponse.rerank_info.model}</span>
+                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">
+                            Model Used
+                          </span>
+                          <span className="font-semibold font-mono text-[11px]">
+                            {searchResponse.rerank_info.model}
+                          </span>
                         </div>
                         <div>
-                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">Rank Candidates</span>
-                          <span className="font-semibold">{searchResponse.rerank_info.candidate_limit} chunks</span>
+                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">
+                            Rank Candidates
+                          </span>
+                          <span className="font-semibold">
+                            {searchResponse.rerank_info.candidate_limit} chunks
+                          </span>
                         </div>
                       </div>
                     )}
 
                     {/* Context Documents list */}
-                    {searchResponse.document_details && searchResponse.document_details.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                          Context Documents ({searchResponse.document_details.length})
-                        </h4>
-                        <div className="grid grid-cols-2 gap-3">
-                          {searchResponse.document_details.map((doc: any, dIdx: number) => (
-                            <div key={dIdx} className="bg-white border border-gray-200 rounded-xl p-3 shadow-xs space-y-1.5 text-xs">
-                              <div className="font-bold text-gray-800 truncate" title={doc.name}>
-                                {doc.name}
-                              </div>
-                              {doc.metadata_json && Object.keys(doc.metadata_json).length > 0 && (
-                                <div className="flex flex-wrap gap-1 text-[9px]">
-                                  {Object.entries(doc.metadata_json).map(([k, v]) => (
-                                    <span key={k} className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono">
-                                      {k}: {String(v)}
-                                    </span>
-                                  ))}
+                    {searchResponse.document_details &&
+                      searchResponse.document_details.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Context Documents ({searchResponse.document_details.length})
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            {searchResponse.document_details.map((doc: any, dIdx: number) => (
+                              <div
+                                key={dIdx}
+                                className="bg-white border border-gray-200 rounded-xl p-3 shadow-xs space-y-1.5 text-xs"
+                              >
+                                <div className="font-bold text-gray-800 truncate" title={doc.name}>
+                                  {doc.name}
                                 </div>
-                              )}
-                              {doc.status && (
-                                <span className="text-[8px] px-1.5 py-0.5 bg-green-50 text-green-700 font-extrabold uppercase rounded inline-block">
-                                  {doc.status}
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                                {doc.metadata_json && Object.keys(doc.metadata_json).length > 0 && (
+                                  <div className="flex flex-wrap gap-1 text-[9px]">
+                                    {Object.entries(doc.metadata_json).map(([k, v]) => (
+                                      <span
+                                        key={k}
+                                        className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono"
+                                      >
+                                        {k}: {String(v)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {doc.status && (
+                                  <span className="text-[8px] px-1.5 py-0.5 bg-green-50 text-green-700 font-extrabold uppercase rounded inline-block">
+                                    {doc.status}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
                     {/* Matched Chunks list */}
                     <div className="space-y-2.5">
@@ -1428,7 +1466,9 @@ export default function KnowledgeBasesTab() {
                                   {Object.entries(res.metadata).map(([k, v]) => (
                                     <div key={k} className="flex gap-1">
                                       <span className="text-gray-400">{k}:</span>
-                                      <span className="font-semibold text-gray-700">{String(v)}</span>
+                                      <span className="font-semibold text-gray-700">
+                                        {String(v)}
+                                      </span>
                                     </div>
                                   ))}
                                 </div>

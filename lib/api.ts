@@ -697,4 +697,17 @@ export const api = {
     }
     return res.json();
   },
+
+  getJsonSamples: async (schema: any) => {
+    const res = await fetch(`${BACKEND_URL}/nodes/json-samples`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ schema }),
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.detail || 'Failed to generate JSON sample');
+    }
+    return res.json();
+  },
 };

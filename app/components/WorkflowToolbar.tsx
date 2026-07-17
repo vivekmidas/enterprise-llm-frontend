@@ -1,6 +1,15 @@
 'use client';
 
-import { Download, Play, Save, SaveAll, CheckCircle, Loader2, Maximize2, FlaskRound } from 'lucide-react';
+import {
+  Download,
+  Play,
+  Save,
+  SaveAll,
+  CheckCircle,
+  Loader2,
+  Maximize2,
+  FlaskRound,
+} from 'lucide-react';
 
 interface WorkflowToolbarProps {
   onValidate: () => void;

@@ -381,7 +381,10 @@ export default function AdminPage() {
             <KnowledgeBasesTab />
           )}
           {activeTab === 'settings' && (userRole === 'admin' || userRole === 'system_admin') && (
-            <CompanySettingsTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
+            <CompanySettingsTab
+              userRole={userRole}
+              customerId={customerId ? Number(customerId) : null}
+            />
           )}
         </div>
       </div>
