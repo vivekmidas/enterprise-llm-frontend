@@ -90,6 +90,7 @@ export interface AgentNode {
   input_contract: Record<string, any> | string;
   output_contract: Record<string, any> | string;
   is_enabled?: boolean;
+  customer_id?: number | null;
 }
 
 export interface NodeData {

@@ -35,7 +35,11 @@ const EMBEDDING_MODELS = [
   { name: 'bge-large-en-v1.5 (Ollama, 1024d)', value: 'bge-large-en-v1.5', dimension: 1024 },
 ];
 
-export default function KnowledgeBasesTab() {
+export interface KnowledgeBasesTabProps {
+  onSwitchToPlayground?: (kbId: string) => void;
+}
+
+export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBasesTabProps = {}) {
   const [kbList, setKbList] = useState<any[]>([]);
   const [selectedKb, setSelectedKb] = useState<any>(null);
   const [docList, setDocList] = useState<any[]>([]);
@@ -104,19 +108,7 @@ export default function KnowledgeBasesTab() {
   // KB creation settings
   const [newKbEmbeddingModel, setNewKbEmbeddingModel] = useState('nomic-embed-text');
 
-  // Ingestion Testing state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searchResponse, setSearchResponse] = useState<any>(null);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [topK, setTopK] = useState(5);
-  const [showTestModal, setShowTestModal] = useState(false);
-  const [minScore, setMinScore] = useState(0.65);
-  const [enableReranking, setEnableReranking] = useState(true);
-  const [rerankModel, setRerankModel] = useState('qwen3.5:0.8b');
-  const [rerankLimit, setRerankLimit] = useState(5);
-  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+
 
   // Users map for resolving created_by IDs
   const [usersMap, setUsersMap] = useState<Record<number, string>>({});
@@ -182,33 +174,9 @@ export default function KnowledgeBasesTab() {
     }
   };
 
-  const handleTestRetrieval = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedKb || !searchQuery.trim()) return;
 
-    setSearchLoading(true);
-    setSearchError(null);
-    setSearchResults([]);
-    setSearchResponse(null);
-    try {
-      const response = await api.retrieveKnowledge({
-        query: searchQuery,
-        knowledge_base_ids: [selectedKb.id],
-        top_k: topK,
-        min_score: minScore,
-        enable_reranking: enableReranking,
-        rerank_model: enableReranking ? rerankModel : undefined,
-        rerank_limit: enableReranking ? rerankLimit : undefined,
-      });
-      setSearchResults(response.context?.chunks || []);
-      setSearchResponse(response);
-    } catch (err: any) {
-      console.error(err);
-      setSearchError(err.message || 'Retrieval test failed.');
-    } finally {
-      setSearchLoading(false);
-    }
-  };
+
+
 
   useEffect(() => {
     fetchKBs();
@@ -662,7 +630,7 @@ export default function KnowledgeBasesTab() {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
                 <button
-                  onClick={() => setShowTestModal(true)}
+                  onClick={() => onSwitchToPlayground && onSwitchToPlayground(String(selectedKb.id))}
                   className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-violet-750 bg-white rounded-md shadow-xs hover:bg-violet-50 transition-colors cursor-pointer"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -1179,331 +1147,6 @@ export default function KnowledgeBasesTab() {
         </div>
       )}
 
-      {/* TEST RETRIEVAL MODAL */}
-      {showTestModal && selectedKb && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl border border-gray-100 overflow-hidden flex flex-col h-[80vh] animate-in fade-in zoom-in duration-150">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between shrink-0">
-              <div>
-                <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
-                  Test Retrieval Pipeline
-                </h3>
-                <p className="text-[10px] text-gray-400 mt-0.5">
-                  Knowledge Base ID: {selectedKb.id} · Name: {selectedKb.name}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowTestModal(false);
-                  setSearchResults([]);
-                  setSearchQuery('');
-                  setSearchError(null);
-                }}
-                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 flex-1 overflow-y-auto space-y-4 flex flex-col">
-              <form onSubmit={handleTestRetrieval} className="space-y-3 shrink-0">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="w-4 h-4 absolute left-3.5 top-3 text-gray-450" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ask/Search query..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={searchLoading || !searchQuery.trim()}
-                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer"
-                  >
-                    Run Search
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between border-t pt-2 border-gray-100 flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-                    className="text-[10px] text-blue-600 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    {showAdvancedSettings ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-                  </button>
-                </div>
-
-                {showAdvancedSettings && (
-                  <div className="grid grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-150 animate-fade-in">
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase">
-                        Top K Results
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={topK}
-                        onChange={(e) => setTopK(Number(e.target.value))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase">
-                        Min Similarity Score
-                      </label>
-                      <input
-                        type="number"
-                        min={0.1}
-                        max={1.0}
-                        step={0.05}
-                        value={minScore}
-                        onChange={(e) => setMinScore(Number(e.target.value))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1 flex items-center pt-5">
-                      <label className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase select-none cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={enableReranking}
-                          onChange={(e) => setEnableReranking(e.target.checked)}
-                          className="rounded border-gray-350 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                        />
-                        Enable Reranking (Cohere)
-                      </label>
-                    </div>
-
-                    {enableReranking && (
-                      <>
-                        <div className="space-y-1">
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase">
-                            Reranker Model
-                          </label>
-                          <input
-                            type="text"
-                            value={rerankModel}
-                            onChange={(e) => setRerankModel(e.target.value)}
-                            placeholder="e.g. qwen3.5:0.8b"
-                            className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase">
-                            Rerank Candidate Limit
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={100}
-                            value={rerankLimit}
-                            onChange={(e) => setRerankLimit(Number(e.target.value))}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </form>
-
-              {searchError && (
-                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold shrink-0">
-                  {searchError}
-                </div>
-              )}
-
-              {/* Search Results Display */}
-              <div className="flex-1 overflow-y-auto space-y-5">
-                {!searchLoading && searchResponse && (
-                  <div className="space-y-4">
-                    {/* Metrics Dashboard */}
-                    {searchResponse.statistics && (
-                      <div className="grid grid-cols-4 gap-3 bg-violet-50/30 border border-violet-100 p-4 rounded-xl text-xs text-violet-900">
-                        <div className="space-y-0.5">
-                          <span className="text-[10px] text-violet-500 uppercase font-bold block">
-                            Latency
-                          </span>
-                          <span className="text-base font-extrabold text-violet-700">
-                            {searchResponse.statistics.elapsed_ms}ms
-                          </span>
-                        </div>
-                        <div className="space-y-0.5">
-                          <span className="text-[10px] text-violet-500 uppercase font-bold block">
-                            Found Chunks
-                          </span>
-                          <span className="text-base font-extrabold text-violet-700">
-                            {searchResponse.statistics.chunks_retrieved}
-                          </span>
-                        </div>
-                        <div className="space-y-0.5">
-                          <span className="text-[10px] text-violet-500 uppercase font-bold block">
-                            In Context
-                          </span>
-                          <span className="text-base font-extrabold text-violet-700">
-                            {searchResponse.statistics.chunks_after_filtering}
-                          </span>
-                        </div>
-                        <div className="space-y-0.5">
-                          <span className="text-[10px] text-violet-500 uppercase font-bold block">
-                            Context Tokens
-                          </span>
-                          <span className="text-base font-extrabold text-violet-700">
-                            {searchResponse.context?.total_tokens ?? 'N/A'}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Reranker metadata summary */}
-                    {searchResponse.rerank_info && (
-                      <div className="flex flex-wrap gap-4 bg-emerald-50/30 border border-emerald-100 p-3.5 rounded-xl text-xs text-emerald-900">
-                        <div>
-                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">
-                            Rerank Method
-                          </span>
-                          <span className="font-semibold">
-                            {searchResponse.rerank_info.technique}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">
-                            Model Used
-                          </span>
-                          <span className="font-semibold font-mono text-[11px]">
-                            {searchResponse.rerank_info.model}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-emerald-500 uppercase font-bold block mb-0.5">
-                            Rank Candidates
-                          </span>
-                          <span className="font-semibold">
-                            {searchResponse.rerank_info.candidate_limit} chunks
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Context Documents list */}
-                    {searchResponse.document_details &&
-                      searchResponse.document_details.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                            Context Documents ({searchResponse.document_details.length})
-                          </h4>
-                          <div className="grid grid-cols-2 gap-3">
-                            {searchResponse.document_details.map((doc: any, dIdx: number) => (
-                              <div
-                                key={dIdx}
-                                className="bg-white border border-gray-200 rounded-xl p-3 shadow-xs space-y-1.5 text-xs"
-                              >
-                                <div className="font-bold text-gray-800 truncate" title={doc.name}>
-                                  {doc.name}
-                                </div>
-                                {doc.metadata_json && Object.keys(doc.metadata_json).length > 0 && (
-                                  <div className="flex flex-wrap gap-1 text-[9px]">
-                                    {Object.entries(doc.metadata_json).map(([k, v]) => (
-                                      <span
-                                        key={k}
-                                        className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-mono"
-                                      >
-                                        {k}: {String(v)}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                                {doc.status && (
-                                  <span className="text-[8px] px-1.5 py-0.5 bg-green-50 text-green-700 font-extrabold uppercase rounded inline-block">
-                                    {doc.status}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                    {/* Matched Chunks list */}
-                    <div className="space-y-2.5">
-                      <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                        Matched Chunks ({searchResults.length})
-                      </h4>
-                      <div className="space-y-3">
-                        {searchResults.map((res, index) => {
-                          const similarity = res.score ?? res.similarity ?? 0;
-                          const percent = Math.round(similarity * 100);
-
-                          return (
-                            <div
-                              key={index}
-                              className="border border-gray-150 rounded-xl p-4 space-y-2 bg-slate-50/20 shadow-xs"
-                            >
-                              <div className="flex justify-between items-center flex-wrap gap-2 text-[10px]">
-                                <span className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full font-bold uppercase tracking-wider">
-                                  Result #{index + 1}
-                                </span>
-                                <span className="font-semibold text-gray-400">
-                                  Match Score:{' '}
-                                  <span className="text-violet-600 font-bold">{percent}%</span>
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-705 font-mono leading-relaxed whitespace-pre-wrap bg-white border border-gray-100 rounded-lg p-3">
-                                {res.text ?? res.content}
-                              </p>
-
-                              {/* Render Chunk Metadata */}
-                              {res.metadata && Object.keys(res.metadata).length > 0 && (
-                                <div className="text-[10px] text-gray-500 bg-gray-50 p-2 rounded-lg flex flex-wrap gap-2.5">
-                                  {Object.entries(res.metadata).map(([k, v]) => (
-                                    <div key={k} className="flex gap-1">
-                                      <span className="text-gray-400">{k}:</span>
-                                      <span className="font-semibold text-gray-700">
-                                        {String(v)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {!searchLoading && searchResults.length === 0 && !searchError && (
-                  <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm flex-1">
-                    <Search className="w-10 h-10 text-gray-300 mb-2" />
-                    <p className="font-semibold text-gray-655">No retrieval matches found.</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Test how the retrieval pipeline performs with different settings
-                    </p>
-                  </div>
-                )}
-
-                {searchLoading && (
-                  <div className="flex items-center justify-center py-20 flex-1">
-                    <div className="flex items-center gap-2 text-xs text-violet-600 font-semibold">
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Searching…
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* KB Edit Modal */}
       {showEditKbModal && selectedKb && (

@@ -815,20 +815,40 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     }
   };
 
-  const handleDeleteNode = async (nodeName: string) => {
+  const [deleteWarning, setDeleteWarning] = useState<{
+    isOpen: boolean;
+    nodeName: string;
+    workflows: { id: string; name: string }[];
+  }>({
+    isOpen: false,
+    nodeName: '',
+    workflows: [],
+  });
+
+  const handleDeleteNode = async (nodeName: string, force: boolean = false) => {
     if (
+      !force &&
       !confirm(
-        `Are you sure you want to delete the node type "${nodeName}"? This action cannot be undone.`,
+        `Are you sure you want to delete the node "${nodeName}"? This action cannot be undone.`,
       )
     ) {
       return;
     }
     try {
-      // Endpoint logic if exposed in API
-      alert(`Node type "${nodeName}" deletion triggered. (Requires backend implementation)`);
+      await api.deleteNode(nodeName, force);
+      alert(`Node "${nodeName}" deleted successfully.`);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete node:', error);
+      if (error.detail && error.detail.error_code === 'NODE_IN_USE') {
+        setDeleteWarning({
+          isOpen: true,
+          nodeName,
+          workflows: error.detail.workflows || [],
+        });
+      } else {
+        alert(error.message || 'Failed to delete node.');
+      }
     }
   };
 
@@ -1224,10 +1244,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
-                        {!customerId && (
+                        {((userRole === 'admin' && agent.customer_id && agent.customer_id === customerId) ||
+                          (userRole === 'system_admin')) && (
                           <button
                             onClick={() => handleDeleteNode(agent.name)}
-                            className="p-1 text-red-650 hover:bg-red-50 rounded cursor-pointer"
+                            className="p-1 bg-red-900 text-red-850 hover:bg-white-900 hover:text-red-900  rounded cursor-pointer"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -1972,6 +1993,59 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                     Run Test
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Warning Modal */}
+      {deleteWarning.isOpen && (
+        <div className="fixed max-w-full inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="flex w-full max-w-md flex-col rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-150">
+            <div className="flex items-center justify-between border-b bg-red-50 px-4 py-3 text-red-750">
+              <span className="flex items-center gap-1.5 font-bold text-sm">
+                <Info className="h-4 w-4 text-red-650" />
+                Confirm Destructive Deletion
+              </span>
+              <button
+                onClick={() => setDeleteWarning({ isOpen: false, nodeName: '', workflows: [] })}
+                className="text-red-750 hover:bg-red-100 rounded p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <p className="text-xs text-gray-700 font-sans">
+                The node <strong>{deleteWarning.nodeName}</strong> is used in the following active workflows:
+              </p>
+              <div className="max-h-40 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50 space-y-1">
+                {deleteWarning.workflows.map((wf) => (
+                  <div key={wf.id} className="flex justify-between items-center text-xs text-gray-650 font-mono py-1 border-b border-gray-100 last:border-b-0">
+                    <span className="font-sans font-medium text-black">{wf.name}</span>
+                    <span className="text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded-full">{wf.id}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-red-650 font-semibold font-sans">
+                Warning: Deleting this node will force these workflows to become unrunnable. Do you still wish to proceed?
+              </p>
+            </div>
+            <div className="border-t bg-gray-50 px-6 py-3 flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteWarning({ isOpen: false, nodeName: '', workflows: [] })}
+                className="rounded-lg px-4 py-1.5 text-xs font-semibold text-gray-650 hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setDeleteWarning({ isOpen: false, nodeName: '', workflows: [] });
+                  handleDeleteNode(deleteWarning.nodeName, true);
+                }}
+                className="rounded-lg bg-red-650 px-4 py-1.5 text-xs font-bold text-white hover:text-red-900 hover:bg-green-900 shadow-md transition-all cursor-pointer"
+              >
+                Yes, Delete Node
               </button>
             </div>
           </div>

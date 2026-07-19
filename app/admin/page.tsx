@@ -17,6 +17,7 @@ import LogsTab from './logs/page';
 import MetricsTab from './metrics/page';
 import KnowledgeBasesTab from './knowledge/page';
 import CompanySettingsTab from './company-settings/page';
+import PlaygroundTab from './playground/page';
 
 type ActiveTabType =
   | 'nodes'
@@ -27,13 +28,15 @@ type ActiveTabType =
   | 'customers'
   | 'metrics'
   | 'knowledge'
-  | 'settings';
+  | 'settings'
+  | 'playground';
 
 export default function AdminPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTabType>('nodes');
+  const [playgroundKbId, setPlaygroundKbId] = useState<string | null>(null);
 
   // Auth & Profile states
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -104,6 +107,8 @@ export default function AdminPage() {
           'customers',
           'metrics',
           'knowledge',
+          'settings',
+          'playground',
         ].includes(tab)
       ) {
         setActiveTab(tab as ActiveTabType);
@@ -355,6 +360,19 @@ export default function AdminPage() {
               >
                 LLM Settings
               </button>
+              <button
+                onClick={() => {
+                  setPlaygroundKbId(null);
+                  handleTabChange('playground');
+                }}
+                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                  activeTab === 'playground'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Retrieval Playground
+              </button>
             </>
           )}
         </div>
@@ -378,13 +396,21 @@ export default function AdminPage() {
             <MetricsTab userRole={userRole} />
           )}
           {activeTab === 'knowledge' && (userRole === 'admin' || userRole === 'system_admin') && (
-            <KnowledgeBasesTab />
+            <KnowledgeBasesTab
+              onSwitchToPlayground={(kbId: string) => {
+                setPlaygroundKbId(kbId);
+                handleTabChange('playground');
+              }}
+            />
           )}
           {activeTab === 'settings' && (userRole === 'admin' || userRole === 'system_admin') && (
             <CompanySettingsTab
               userRole={userRole}
               customerId={customerId ? Number(customerId) : null}
             />
+          )}
+          {activeTab === 'playground' && (userRole === 'admin' || userRole === 'system_admin') && (
+            <PlaygroundTab initialKbId={playgroundKbId} />
           )}
         </div>
       </div>

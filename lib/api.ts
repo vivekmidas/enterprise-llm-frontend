@@ -246,6 +246,30 @@ export const api = {
     return res.json();
   },
 
+  /** Deletes a node definition from the registry */
+  deleteNode: async (nodeName: string, force: boolean = false) => {
+    const res = await fetch(`${BACKEND_URL}/nodes/${nodeName}?force=${force}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      let detail: any = 'Failed to delete node';
+      try {
+        const data = await res.json();
+        detail = data.detail || detail;
+      } catch {
+        detail = res.statusText || detail;
+      }
+      if (typeof detail === 'object') {
+        const err = new Error(detail.message || 'Failed to delete node');
+        (err as any).detail = detail;
+        throw err;
+      }
+      throw new Error(detail);
+    }
+    return true;
+  },
+
   /** Creates a new node category */
   createCategory: async (category: any) => {
     const res = await fetch(`${BACKEND_URL}/categories`, {
@@ -617,6 +641,9 @@ export const api = {
     enable_reranking?: boolean;
     rerank_model?: string;
     rerank_limit?: number;
+    approach?: string;
+    enable_rrf?: boolean;
+    metadata?: Record<string, any>;
   }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieve`, {
       method: 'POST',
@@ -624,6 +651,67 @@ export const api = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error('Failed to retrieve knowledge');
+    return res.json();
+  },
+
+  generateResponse: async (payload: {
+    query: string;
+    context: any;
+    temperature?: number;
+    max_generation_tokens?: number;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/generate`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to generate response');
+    return res.json();
+  },
+
+  getRetrievalConfigs: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieval-configs`, {
+      headers: getHeaders(),
+      method: 'GET',
+    });
+    if (!res.ok) throw new Error('Failed to fetch retrieval configs');
+    return res.json();
+  },
+
+  createRetrievalConfig: async (payload: {
+    name: string;
+    description?: string;
+    settings: any;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieval-configs`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to create retrieval config');
+    return res.json();
+  },
+
+  updateRetrievalConfig: async (id: number | string, payload: {
+    name?: string;
+    description?: string;
+    settings?: any;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieval-configs/${id}`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to update retrieval config');
+    return res.json();
+  },
+
+  deleteRetrievalConfig: async (id: number | string) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieval-configs/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete retrieval config');
     return res.json();
   },
 
