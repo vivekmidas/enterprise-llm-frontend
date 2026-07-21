@@ -14,9 +14,12 @@ import {
   FolderOpen,
   Bookmark,
   ChevronDown,
-  RefreshCw
+  RefreshCw,
+  Info
 } from 'lucide-react';
 import { Tooltip } from '@/app/components/Tooltip';
+import { PARAM_TOOLTIPS } from '@/lib/paramTooltips';
+
 
 export interface PlaygroundTabProps {
   initialKbId?: string | null;
@@ -34,10 +37,78 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
   const [metaType, setMetaType] = useState('');
   const [metaTags, setMetaTags] = useState('');
 
-  // Configurations list
-  const [savedConfigs, setSavedConfigs] = useState<any[]>([]);
-  const [selectedPresetAId, setSelectedPresetAId] = useState('custom');
-  const [selectedPresetBId, setSelectedPresetBId] = useState('custom');
+  // LLM Profiles list & selections for playground preset testing
+  const [llmProfiles, setLlmProfiles] = useState<any[]>([]);
+  const [companySettings, setCompanySettings] = useState<any>(null);
+  const [llmProfileIdA, setLlmProfileIdA] = useState<string>('default');
+  const [llmProfileIdB, setLlmProfileIdB] = useState<string>('default');
+
+  const getAvailableLlmProfiles = () => {
+    const list: { id: string; name: string; provider: string }[] = [];
+
+    llmProfiles.forEach((p) => {
+      const s = p.settings || {};
+      const cfg = s.llm_config || {};
+      list.push({
+        id: String(p.id),
+        name: `${p.name}${p.is_default ? ' (Default)' : ''}`,
+        provider: cfg.provider || p.llm_provider || 'openai',
+      });
+    });
+
+    if (companySettings) {
+      if (!list.some((item) => item.id === 'company')) {
+        list.push({
+          id: 'company',
+          name: companySettings.active_config_name || companySettings.company_name || 'Tenant Settings',
+          provider: companySettings.llm_provider || 'openai',
+        });
+      }
+    }
+
+    if (list.length === 0) {
+      list.push({
+        id: 'default',
+        name: 'Default LLM Profile',
+        provider: 'openai',
+      });
+    }
+
+    return list;
+  };
+
+  const getResolvedLlmProfile = (profileId: string) => {
+    const foundProf = llmProfiles.find((p) => String(p.id) === String(profileId));
+    if (foundProf) {
+      const s = foundProf.settings || {};
+      const cfg = s.llm_config || {};
+      return {
+        id: foundProf.id,
+        name: foundProf.name,
+        llm_provider: cfg.provider || foundProf.llm_provider || 'openai',
+        llm_model: cfg.model || foundProf.llm_model || 'gpt-4o',
+        llm_base_url: cfg.base_url || foundProf.llm_base_url || '',
+      };
+    }
+
+    if (companySettings) {
+      return {
+        id: 'company',
+        name: companySettings.active_config_name || companySettings.company_name || 'Tenant Settings',
+        llm_provider: companySettings.llm_provider || 'openai',
+        llm_model: companySettings.llm_model || 'gpt-4o',
+        llm_base_url: companySettings.llm_base_url || '',
+      };
+    }
+
+    return {
+      id: 'default',
+      name: 'Default LLM Profile',
+      llm_provider: 'openai',
+      llm_model: 'gpt-4o',
+      llm_base_url: '',
+    };
+  };
 
   // Config A parameters
   const [approachA, setApproachA] = useState('hybrid');
@@ -97,19 +168,13 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
     setExpandedPanelsB((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Modal to save config as preset
-  const [showSavePresetModal, setShowSavePresetModal] = useState(false);
-  const [targetPresetSlot, setTargetPresetSlot] = useState<'A' | 'B'>('A');
-  const [newPresetName, setNewPresetName] = useState('');
-  const [newPresetDesc, setNewPresetDesc] = useState('');
-  const [savingPreset, setSavingPreset] = useState(false);
-
   useEffect(() => {
     async function loadData() {
       try {
-        const [kbs, configs] = await Promise.all([
+        const [kbs, profiles, settings] = await Promise.all([
           api.getKnowledgeBases(),
-          api.getRetrievalConfigs()
+          api.getLlmProfiles().catch(() => []),
+          api.getCompanySettings().catch(() => null),
         ]);
         setKbList(kbs || []);
         if (initialKbId) {
@@ -117,10 +182,15 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
         } else if (kbs && kbs.length > 0) {
           setSelectedKbId(String(kbs[0].id));
         }
-        setSavedConfigs(configs || []);
+        setLlmProfiles(profiles || []);
+        setCompanySettings(settings);
+
+        const firstProfId = (profiles && profiles.length > 0) ? String(profiles[0].id) : 'company';
+        setLlmProfileIdA(firstProfId);
+        setLlmProfileIdB(firstProfId);
       } catch (err) {
         console.error('Failed to initialize playground', err);
-        setError('Failed to load knowledge bases or presets.');
+        setError('Failed to load knowledge bases or profiles.');
       } finally {
         setLoadingKbs(false);
       }
@@ -128,94 +198,14 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
     loadData();
   }, [initialKbId]);
 
+
   useEffect(() => {
     if (initialKbId) {
       setSelectedKbId(initialKbId);
     }
   }, [initialKbId]);
 
-  const applyPreset = (slot: 'A' | 'B', presetId: string) => {
-    if (slot === 'A') {
-      setSelectedPresetAId(presetId);
-      if (presetId === 'custom') return;
-      const config = savedConfigs.find((c) => String(c.id) === presetId);
-      if (config && config.settings) {
-        const s = config.settings;
-        if (s.approach !== undefined) setApproachA(s.approach);
-        if (s.enable_rrf !== undefined) setEnableRrfA(!!s.enable_rrf);
-        if (s.top_k !== undefined) setTopKA(Number(s.top_k));
-        if (s.min_score !== undefined) setMinScoreA(Number(s.min_score));
-        if (s.enable_reranking !== undefined) setEnableRerankingA(!!s.enable_reranking);
-        if (s.rerank_model !== undefined) setRerankModelA(s.rerank_model);
-        if (s.rerank_candidate_limit !== undefined) setRerankLimitA(Number(s.rerank_candidate_limit));
-        if (s.temperature !== undefined) setTemperatureA(Number(s.temperature));
-      }
-    } else {
-      setSelectedPresetBId(presetId);
-      if (presetId === 'custom') return;
-      const config = savedConfigs.find((c) => String(c.id) === presetId);
-      if (config && config.settings) {
-        const s = config.settings;
-        if (s.approach !== undefined) setApproachB(s.approach);
-        if (s.enable_rrf !== undefined) setEnableRrfB(!!s.enable_rrf);
-        if (s.top_k !== undefined) setTopKB(Number(s.top_k));
-        if (s.min_score !== undefined) setMinScoreB(Number(s.min_score));
-        if (s.enable_reranking !== undefined) setEnableRerankingB(!!s.enable_reranking);
-        if (s.rerank_model !== undefined) setRerankModelB(s.rerank_model);
-        if (s.rerank_candidate_limit !== undefined) setRerankLimitB(Number(s.rerank_candidate_limit));
-        if (s.temperature !== undefined) setTemperatureB(Number(s.temperature));
-      }
-    }
-  };
 
-  const handleSavePreset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPresetName.trim()) return;
-
-    setSavingPreset(true);
-    const settingsObj = targetPresetSlot === 'A' ? {
-      approach: approachA,
-      enable_rrf: enableRrfA,
-      top_k: topKA,
-      min_score: minScoreA,
-      enable_reranking: enableRerankingA,
-      rerank_model: rerankModelA,
-      rerank_candidate_limit: rerankLimitA,
-      temperature: temperatureA,
-    } : {
-      approach: approachB,
-      enable_rrf: enableRrfB,
-      top_k: topKB,
-      min_score: minScoreB,
-      enable_reranking: enableRerankingB,
-      rerank_model: rerankModelB,
-      rerank_candidate_limit: rerankLimitB,
-      temperature: temperatureB,
-    };
-
-    try {
-      const newConfig = await api.createRetrievalConfig({
-        name: newPresetName,
-        description: newPresetDesc || undefined,
-        settings: settingsObj
-      });
-      const updatedList = await api.getRetrievalConfigs();
-      setSavedConfigs(updatedList || []);
-      
-      if (targetPresetSlot === 'A') {
-        setSelectedPresetAId(String(newConfig.id));
-      } else {
-        setSelectedPresetBId(String(newConfig.id));
-      }
-      setShowSavePresetModal(false);
-      setNewPresetName('');
-      setNewPresetDesc('');
-    } catch (err: any) {
-      alert(err.message || 'Failed to save configuration.');
-    } finally {
-      setSavingPreset(false);
-    }
-  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -284,6 +274,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
           query: searchQuery,
           context: resA.context,
           temperature: temperatureA,
+          llm_config_id: llmProfileIdA !== 'active' ? Number(llmProfileIdA) : undefined,
         }).then((gen) => {
           setAnswerA(gen.answer || '');
         }).catch((err) => {
@@ -300,6 +291,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
           query: searchQuery,
           context: resB.context,
           temperature: temperatureB,
+          llm_config_id: llmProfileIdB !== 'active' ? Number(llmProfileIdB) : undefined,
         }).then((gen) => {
           setAnswerB(gen.answer || '');
         }).catch((err) => {
@@ -432,41 +424,41 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                   <Bookmark className="w-3.5 h-3.5" />
                   Configuration A
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTargetPresetSlot('A');
-                    setShowSavePresetModal(true);
-                  }}
-                  className="text-xs uppercase text-blue-600 font-bold hover:underline cursor-pointer"
-                >
-                  Save Preset
-                </button>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
-                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">Preset</label>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <label className="block text-xs text-gray-400 font-bold uppercase">LLM Profile</label>
+                    <Tooltip content={`${PARAM_TOOLTIPS.system_prompt?.title}\n• Configured LLM endpoint & model preset.`}>
+                      <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
+                    </Tooltip>
+                  </div>
                   <select
-                    value={selectedPresetAId}
-                    onChange={(e) => applyPreset('A', e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white text-black focus:outline-none cursor-pointer"
+                    value={llmProfileIdA}
+                    onChange={(e) => {
+                      setLlmProfileIdA(e.target.value);
+                    }}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white text-black focus:outline-none cursor-pointer font-sans"
                   >
-                    <option value="custom">Custom Settings</option>
-                    {savedConfigs.map((cfg) => (
-                      <option key={cfg.id} value={String(cfg.id)}>
-                        {cfg.name}
+                    {getAvailableLlmProfiles().map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.provider})
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">Approach</label>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <label className="block text-xs text-gray-400 font-bold uppercase">Approach</label>
+                    <Tooltip content={PARAM_TOOLTIPS.approach?.description || ''}>
+                      <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
+                    </Tooltip>
+                  </div>
                   <select
                     value={approachA}
                     onChange={(e) => {
                       setApproachA(e.target.value);
-                      setSelectedPresetAId('custom');
                     }}
                     className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white text-black cursor-pointer"
                   >
@@ -476,7 +468,12 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">Temp</label>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <label className="block text-xs text-gray-400 font-bold uppercase">Temp</label>
+                    <Tooltip content={PARAM_TOOLTIPS.temperature?.description || ''}>
+                      <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
+                    </Tooltip>
+                  </div>
                   <input
                     type="number"
                     min="0.0"
@@ -485,12 +482,27 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     value={temperatureA}
                     onChange={(e) => {
                       setTemperatureA(parseFloat(e.target.value) || 0.7);
-                      setSelectedPresetAId('custom');
                     }}
                     className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white text-black focus:outline-none"
                   />
                 </div>
               </div>
+
+              {(() => {
+                const profA = getResolvedLlmProfile(llmProfileIdA);
+                if (!profA) return null;
+                return (
+                  <div className="bg-violet-50/70 border border-violet-100 rounded-lg p-2 text-[11px] space-y-0.5 text-gray-700">
+                    <div className="flex justify-between items-center font-semibold text-violet-900">
+                      <span className="truncate">URL: <span className="font-mono text-gray-800">{profA.llm_base_url || 'Default'}</span></span>
+                      <span className="bg-violet-100 text-violet-800 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold">{profA.llm_provider || 'vllm'}</span>
+                    </div>
+                    <div className="text-gray-600">
+                      Model: <span className="font-mono font-semibold text-gray-900">{profA.llm_model || 'Default'}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="flex gap-4 pt-1 border-t border-gray-200/80 text-xs text-gray-500">
                 <label className="flex items-center gap-1 select-none cursor-pointer">
@@ -499,12 +511,14 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     checked={enableRrfA}
                     onChange={(e) => {
                       setEnableRrfA(e.target.checked);
-                      setSelectedPresetAId('custom');
                     }}
                     disabled={approachA !== 'hybrid'}
                     className="rounded border-gray-350 w-3 h-3 text-blue-600 cursor-pointer"
                   />
-                  Enable RRF
+                  <span>Enable RRF</span>
+                  <Tooltip content={PARAM_TOOLTIPS.enable_rrf?.description || ''}>
+                    <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
+                  </Tooltip>
                 </label>
 
                 <label className="flex items-center gap-1 select-none cursor-pointer">
@@ -513,26 +527,31 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     checked={enableRerankingA}
                     onChange={(e) => {
                       setEnableRerankingA(e.target.checked);
-                      setSelectedPresetAId('custom');
                     }}
                     className="rounded border-gray-350 w-3 h-3 text-blue-600 cursor-pointer"
                   />
-                  Rerank
+                  <span>Rerank</span>
+                  <Tooltip content={PARAM_TOOLTIPS.enable_reranking?.description || ''}>
+                    <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
+                  </Tooltip>
                 </label>
 
                 <div className="ml-auto flex items-center gap-1">
                   <span>Top K:</span>
+                  <Tooltip content={PARAM_TOOLTIPS.top_k?.description || ''}>
+                    <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
+                  </Tooltip>
                   <input
                     type="number"
                     value={topKA}
                     onChange={(e) => {
                       setTopKA(Number(e.target.value));
-                      setSelectedPresetAId('custom');
                     }}
                     className="border border-gray-300 rounded w-8 px-1 py-0.5 text-center bg-white text-black"
                   />
                 </div>
               </div>
+
             </div>
 
             {/* Results list A */}
@@ -789,30 +808,21 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                   <Bookmark className="w-3.5 h-3.5" />
                   Configuration B
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTargetPresetSlot('B');
-                    setShowSavePresetModal(true);
-                  }}
-                  className="text-xs uppercase text-blue-600 font-bold hover:underline cursor-pointer"
-                >
-                  Save Preset
-                </button>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
-                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">Preset</label>
+                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">LLM Profile</label>
                   <select
-                    value={selectedPresetBId}
-                    onChange={(e) => applyPreset('B', e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white text-black focus:outline-none cursor-pointer"
+                    value={llmProfileIdB}
+                    onChange={(e) => {
+                      setLlmProfileIdB(e.target.value);
+                    }}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white text-black focus:outline-none cursor-pointer font-sans"
                   >
-                    <option value="custom">Custom Settings</option>
-                    {savedConfigs.map((cfg) => (
-                      <option key={cfg.id} value={String(cfg.id)}>
-                        {cfg.name}
+                    {getAvailableLlmProfiles().map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.provider})
                       </option>
                     ))}
                   </select>
@@ -823,7 +833,6 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     value={approachB}
                     onChange={(e) => {
                       setApproachB(e.target.value);
-                      setSelectedPresetBId('custom');
                     }}
                     className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white text-black cursor-pointer"
                   >
@@ -842,12 +851,27 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     value={temperatureB}
                     onChange={(e) => {
                       setTemperatureB(parseFloat(e.target.value) || 0.7);
-                      setSelectedPresetBId('custom');
                     }}
                     className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white text-black focus:outline-none"
                   />
                 </div>
               </div>
+
+              {(() => {
+                const profB = getResolvedLlmProfile(llmProfileIdB);
+                if (!profB) return null;
+                return (
+                  <div className="bg-teal-50/70 border border-teal-100 rounded-lg p-2 text-[11px] space-y-0.5 text-gray-700">
+                    <div className="flex justify-between items-center font-semibold text-teal-900">
+                      <span className="truncate">URL: <span className="font-mono text-gray-800">{profB.llm_base_url || 'Default'}</span></span>
+                      <span className="bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold">{profB.llm_provider || 'vllm'}</span>
+                    </div>
+                    <div className="text-gray-600">
+                      Model: <span className="font-mono font-semibold text-gray-900">{profB.llm_model || 'Default'}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="flex gap-4 pt-1 border-t border-gray-200/80 text-xs text-gray-500">
                 <label className="flex items-center gap-1 select-none cursor-pointer">
@@ -856,7 +880,6 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     checked={enableRrfB}
                     onChange={(e) => {
                       setEnableRrfB(e.target.checked);
-                      setSelectedPresetBId('custom');
                     }}
                     disabled={approachB !== 'hybrid'}
                     className="rounded border-gray-350 w-3 h-3 text-blue-600 cursor-pointer"
@@ -870,7 +893,6 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     checked={enableRerankingB}
                     onChange={(e) => {
                       setEnableRerankingB(e.target.checked);
-                      setSelectedPresetBId('custom');
                     }}
                     className="rounded border-gray-350 w-3 h-3 text-blue-600 cursor-pointer"
                   />
@@ -884,7 +906,6 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     value={topKB}
                     onChange={(e) => {
                       setTopKB(Number(e.target.value));
-                      setSelectedPresetBId('custom');
                     }}
                     className="border border-gray-300 rounded w-8 px-1 py-0.5 text-center bg-white text-black"
                   />
@@ -1142,65 +1163,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
 
       </div>
 
-      {/* Save Preset Dialog Modal */}
-      {showSavePresetModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wider">
-                Save Config {targetPresetSlot} as Preset
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowSavePresetModal(false)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-xs cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            <form onSubmit={handleSavePreset} className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">Preset Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. GPT-4o Hybrid"
-                  value={newPresetName}
-                  onChange={(e) => setNewPresetName(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                />
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">Description</label>
-                <textarea
-                  placeholder="Describe the search usecase..."
-                  value={newPresetDesc}
-                  onChange={(e) => setNewPresetDesc(e.target.value)}
-                  className="h-16 w-full border border-gray-300 rounded-lg px-4 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none font-sans"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowSavePresetModal(false)}
-                  className="flex-1 py-2 bg-gray-150 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingPreset || !newPresetName.trim()}
-                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-50"
-                >
-                  {savingPreset ? 'Saving...' : 'Save Preset'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

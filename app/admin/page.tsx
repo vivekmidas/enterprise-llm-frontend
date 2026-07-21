@@ -18,6 +18,7 @@ import MetricsTab from './metrics/page';
 import KnowledgeBasesTab from './knowledge/page';
 import CompanySettingsTab from './company-settings/page';
 import PlaygroundTab from './playground/page';
+import ProfilesTab from './profiles/page';
 
 type ActiveTabType =
   | 'nodes'
@@ -29,6 +30,7 @@ type ActiveTabType =
   | 'metrics'
   | 'knowledge'
   | 'settings'
+  | 'profiles'
   | 'playground';
 
 export default function AdminPage() {
@@ -351,6 +353,16 @@ export default function AdminPage() {
                 Knowledge Bases
               </button>
               <button
+                onClick={() => handleTabChange('profiles')}
+                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                  activeTab === 'profiles'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                LLM Profiles
+              </button>
+              <button
                 onClick={() => handleTabChange('settings')}
                 className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                   activeTab === 'settings'
@@ -402,6 +414,9 @@ export default function AdminPage() {
                 handleTabChange('playground');
               }}
             />
+          )}
+          {activeTab === 'profiles' && (userRole === 'admin' || userRole === 'system_admin') && (
+            <ProfilesTab />
           )}
           {activeTab === 'settings' && (userRole === 'admin' || userRole === 'system_admin') && (
             <CompanySettingsTab

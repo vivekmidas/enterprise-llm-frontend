@@ -46,7 +46,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       {isVisible && (
         <div className={`absolute ${positionClasses[position]} animate-fade-in`}>
           <div
-            className={`px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-medium whitespace-nowrap z-50 shadow-lg ${className}`}
+            className={`px-3 py-2 rounded-lg bg-gray-900 border border-gray-800 text-white text-xs font-medium whitespace-pre-wrap max-w-xs z-50 shadow-xl ${className}`}
           >
             {content}
             {/* Arrow */}

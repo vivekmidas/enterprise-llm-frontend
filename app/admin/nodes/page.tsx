@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, getHeaders } from '@/lib/api';
 import { IconMap } from '@/lib/icons';
 import { AgentNode, NodeCategory } from '@components/component-categoriees';
 import JsonSchemaGeneratorModal from '@components/JsonSchemaGeneratorModal';
@@ -331,6 +331,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
   const [testingOutput, setTestingOutput] = useState<any>(null);
   const [testingLoading, setTestingLoading] = useState<boolean>(false);
   const [testingConsoleLogs, setTestingConsoleLogs] = useState<string>('');
+  // Source data cache: propKey -> { options: {id, name}[], loading: bool }
+  const [testingSourceData, setTestingSourceData] = useState<
+    Record<string, { options: { id: any; name: string }[]; loading: boolean }>
+  >({});
 
   useEffect(() => {
     if (testingAgent) {
@@ -344,18 +348,83 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
 
       userProps.forEach((prop: any) => {
         if (prop && prop.key) {
-          initialConfig[prop.key] =
-            prop.value !== undefined ? prop.value : prop.default !== undefined ? prop.default : '';
+          // If prop.value equals its own source URL, treat as unset
+          const rawVal = prop.value !== undefined ? prop.value : prop.default !== undefined ? prop.default : '';
+          const isSourceUrl = prop.source && typeof rawVal === 'string' && rawVal === prop.source;
+          initialConfig[prop.key] = isSourceUrl ? '' : rawVal;
         }
       });
       sysProps.forEach((prop: any) => {
         if (prop && prop.key) {
-          initialConfig[prop.key] =
-            prop.value !== undefined ? prop.value : prop.default !== undefined ? prop.default : '';
+          const rawVal = prop.value !== undefined ? prop.value : prop.default !== undefined ? prop.default : '';
+          const isSourceUrl = prop.source && typeof rawVal === 'string' && rawVal === prop.source;
+          initialConfig[prop.key] = isSourceUrl ? '' : rawVal;
         }
       });
 
       setTestingConfig(initialConfig);
+
+      // Fetch source data for 'choice' type props
+      const allProps = [...userProps, ...sysProps];
+      const sourceProps = allProps.filter(
+        (p: any) => p && p.key && p.source,
+      );
+      if (sourceProps.length > 0) {
+        const newSourceData: Record<
+          string,
+          { options: { id: any; name: string }[]; loading: boolean }
+        > = {};
+        sourceProps.forEach((p: any) => {
+          newSourceData[p.key] = { options: [], loading: true };
+        });
+        setTestingSourceData(newSourceData);
+
+        sourceProps.forEach(async (p: any) => {
+          try {
+            const BACKEND_URL =
+              process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+
+            const res = await fetch(`${BACKEND_URL}${p.source}`, {
+              headers: getHeaders({ 'Content-Type': 'application/json' }),
+            });
+            if (!res.ok) throw new Error(`Failed to fetch ${p.source}`);
+            const json = await res.json();
+
+            // Normalize: handle arrays or { items/profiles/bases/results } envelopes
+            const raw: any[] = Array.isArray(json)
+              ? json
+              : json.items ??
+                json.profiles ??
+                json.bases ??
+                json.results ??
+                json.data ??
+                [];
+
+            const options = raw.map((item: any) => ({
+              id: item.id ?? item.value ?? item.key,
+              name:
+                item.name ??
+                item.label ??
+                item.title ??
+                item.display_name ??
+                String(item.id ?? item.value ?? ''),
+            }));
+
+            setTestingSourceData((prev) => ({
+              ...prev,
+              [p.key]: { options, loading: false },
+            }));
+          } catch (err) {
+            console.error(`Failed to fetch source for prop ${p.key}:`, err);
+            setTestingSourceData((prev) => ({
+              ...prev,
+              [p.key]: { options: [], loading: false },
+            }));
+          }
+        });
+      } else {
+        setTestingSourceData({});
+      }
 
       // Pre-fill input_contract template or default empty JSON
       if (testingAgent.input_contract) {
@@ -371,7 +440,8 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
 
         if (schema && Object.keys(schema).length > 0) {
           setTestingInputData('Loading JSON sample...');
-          api.getJsonSamples(schema)
+          api
+            .getJsonSamples(schema)
             .then((sample) => {
               setTestingInputData(JSON.stringify(sample, null, 2));
             })
@@ -394,7 +464,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
   const handleExecuteTest = async () => {
     if (!testingAgent) return;
     setTestingLoading(true);
-    setTestingConsoleLogs("");
+    setTestingConsoleLogs('');
     let parsedData: any = testingInputData;
     try {
       parsedData = JSON.parse(testingInputData);
@@ -1244,8 +1314,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
-                        {((userRole === 'admin' && agent.customer_id && agent.customer_id === customerId) ||
-                          (userRole === 'system_admin')) && (
+                        {((userRole === 'admin' &&
+                          agent.customer_id &&
+                          agent.customer_id === customerId) ||
+                          userRole === 'system_admin') && (
                           <button
                             onClick={() => handleDeleteNode(agent.name)}
                             className="p-1 bg-red-900 text-red-850 hover:bg-white-900 hover:text-red-900  rounded cursor-pointer"
@@ -1864,6 +1936,116 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         const value =
                           testingConfig[prop.key] !== undefined ? testingConfig[prop.key] : '';
 
+                        // --- SOURCE-driven: render select from API (type may be 'choice' or anything) ---
+                        if (prop.source) {
+                          const srcState = testingSourceData[prop.key];
+                          const opts = srcState?.options ?? [];
+                          const isLoadingSrc = srcState?.loading ?? true;
+                          const isMultiple = !!prop.multiple;
+
+                          if (isMultiple) {
+                            // value is array of ids
+                            const selectedIds: any[] = Array.isArray(value)
+                              ? value
+                              : value !== '' && value !== undefined && value !== null
+                                ? String(value)
+                                    .split(',')
+                                    .map((v: string) => v.trim())
+                                    .filter(Boolean)
+                                : [];
+
+                            const toggleId = (id: any) => {
+                              const idStr = String(id);
+                              const already = selectedIds.map(String).includes(idStr);
+                              const next = already
+                                ? selectedIds.filter((x) => String(x) !== idStr)
+                                : [...selectedIds, id];
+                              setTestingConfig({ ...testingConfig, [prop.key]: next });
+                            };
+
+                            return (
+                              <div key={prop.key} className="space-y-1">
+                                <label className="block text-[11px] font-bold text-gray-500 uppercase">
+                                  {label}{' '}
+                                  <span className="font-mono text-gray-400 font-normal">({prop.key})</span>
+                                  <span className="ml-1 text-purple-500 font-mono">multi-select</span>
+                                </label>
+                                {isLoadingSrc ? (
+                                  <p className="text-[11px] text-gray-400 italic animate-pulse">Loading options...</p>
+                                ) : opts.length === 0 ? (
+                                  <p className="text-[11px] text-red-400 italic">No options available from API.</p>
+                                ) : (
+                                  <div className="rounded-lg border border-gray-200 bg-white divide-y divide-gray-100 max-h-40 overflow-y-auto">
+                                    {opts.map((opt) => {
+                                      const checked = selectedIds.map(String).includes(String(opt.id));
+                                      return (
+                                        <label
+                                          key={opt.id}
+                                          className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-purple-50 transition-colors"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => toggleId(opt.id)}
+                                            className="accent-purple-600 h-3 w-3"
+                                          />
+                                          <span className="text-xs text-black">{opt.name}</span>
+                                          <span className="text-[10px] text-gray-400 font-mono ml-auto">#{opt.id}</span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                {selectedIds.length > 0 && (
+                                  <p className="text-[10px] text-purple-600 font-mono">
+                                    Selected: [{selectedIds.join(', ')}]
+                                  </p>
+                                )}
+                                {prop.description && (
+                                  <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
+                                )}
+                              </div>
+                            );
+                          } else {
+                            // Single select
+                            return (
+                              <div key={prop.key} className="space-y-1">
+                                <label className="block text-[11px] font-bold text-gray-500 uppercase">
+                                  {label}{' '}
+                                  <span className="font-mono text-gray-400 font-normal">({prop.key})</span>
+                                </label>
+                                {isLoadingSrc ? (
+                                  <p className="text-[11px] text-gray-400 italic animate-pulse">Loading options...</p>
+                                ) : (
+                                  <select
+                                    className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
+                                    value={value !== '' && value !== undefined ? String(value) : ''}
+                                    onChange={(e) =>
+                                      setTestingConfig({
+                                        ...testingConfig,
+                                        [prop.key]: e.target.value === '' ? '' : e.target.value,
+                                      })
+                                    }
+                                  >
+                                    <option value="">— Select —</option>
+                                    {opts.map((opt) => (
+                                      <option key={opt.id} value={String(opt.id)}>
+                                        {opt.name} (#{opt.id})
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                                {opts.length === 0 && !isLoadingSrc && (
+                                  <p className="text-[11px] text-red-400 italic">No options available from API.</p>
+                                )}
+                                {prop.description && (
+                                  <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
+                                )}
+                              </div>
+                            );
+                          }
+                        }
+
                         return (
                           <div key={prop.key} className="space-y-1">
                             <label className="block text-[11px] font-bold text-gray-500 uppercase">
@@ -2017,18 +2199,25 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
             </div>
             <div className="px-6 py-4 space-y-3">
               <p className="text-xs text-gray-700 font-sans">
-                The node <strong>{deleteWarning.nodeName}</strong> is used in the following active workflows:
+                The node <strong>{deleteWarning.nodeName}</strong> is used in the following active
+                workflows:
               </p>
               <div className="max-h-40 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50 space-y-1">
                 {deleteWarning.workflows.map((wf) => (
-                  <div key={wf.id} className="flex justify-between items-center text-xs text-gray-650 font-mono py-1 border-b border-gray-100 last:border-b-0">
+                  <div
+                    key={wf.id}
+                    className="flex justify-between items-center text-xs text-gray-650 font-mono py-1 border-b border-gray-100 last:border-b-0"
+                  >
                     <span className="font-sans font-medium text-black">{wf.name}</span>
-                    <span className="text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded-full">{wf.id}</span>
+                    <span className="text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded-full">
+                      {wf.id}
+                    </span>
                   </div>
                 ))}
               </div>
               <p className="text-xs text-red-650 font-semibold font-sans">
-                Warning: Deleting this node will force these workflows to become unrunnable. Do you still wish to proceed?
+                Warning: Deleting this node will force these workflows to become unrunnable. Do you
+                still wish to proceed?
               </p>
             </div>
             <div className="border-t bg-gray-50 px-6 py-3 flex justify-end gap-3">

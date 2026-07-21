@@ -1,6 +1,6 @@
 import { LoginPayload, RegisterPayload } from '@/lib/types/login';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 import { CategoryItem, AgentPayload } from '@/app/components/component-categoriees';
 
 export const getAccessToken = (): string | null => {
@@ -659,6 +659,8 @@ export const api = {
     context: any;
     temperature?: number;
     max_generation_tokens?: number;
+    llm_config?: any;
+    llm_config_id?: number | string;
   }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/generate`, {
       method: 'POST',
@@ -669,51 +671,7 @@ export const api = {
     return res.json();
   },
 
-  getRetrievalConfigs: async () => {
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieval-configs`, {
-      headers: getHeaders(),
-      method: 'GET',
-    });
-    if (!res.ok) throw new Error('Failed to fetch retrieval configs');
-    return res.json();
-  },
 
-  createRetrievalConfig: async (payload: {
-    name: string;
-    description?: string;
-    settings: any;
-  }) => {
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieval-configs`, {
-      method: 'POST',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error('Failed to create retrieval config');
-    return res.json();
-  },
-
-  updateRetrievalConfig: async (id: number | string, payload: {
-    name?: string;
-    description?: string;
-    settings?: any;
-  }) => {
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieval-configs/${id}`, {
-      method: 'PUT',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error('Failed to update retrieval config');
-    return res.json();
-  },
-
-  deleteRetrievalConfig: async (id: number | string) => {
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/retrieval-configs/${id}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to delete retrieval config');
-    return res.json();
-  },
 
   getDocumentTypes: async (): Promise<string[]> => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/document-types`, {
@@ -759,6 +717,99 @@ export const api = {
     if (!res.ok) throw new Error('Failed to update company settings');
     return res.json();
   },
+
+  getLlmProfile: async (profileId: string | number) => {
+    const res = await fetch(`${BACKEND_URL}/api/llm-profiles/${profileId}`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to fetch LLM profile');
+    return res.json();
+  },
+
+  getLlmProfiles: async (customerId?: string | number) => {
+    const url = new URL(`${BACKEND_URL}/api/llm-profiles`);
+    if (customerId) {
+      url.searchParams.append('customer_id', String(customerId));
+    }
+    const res = await fetch(url.toString(), {
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      // Fallback to admin route
+      const fallbackUrl = new URL(`${BACKEND_URL}/api/admin/company/llm-profiles`);
+      if (customerId) fallbackUrl.searchParams.append('customer_id', String(customerId));
+      const fbRes = await fetch(fallbackUrl.toString(), { headers: getHeaders() });
+      if (!fbRes.ok) throw new Error('Failed to fetch LLM profiles');
+      return fbRes.json();
+    }
+    return res.json();
+  },
+
+  createLlmProfile: async (profile: any, customerId?: string | number) => {
+    const url = new URL(`${BACKEND_URL}/api/llm-profiles`);
+    if (customerId) {
+      url.searchParams.append('customer_id', String(customerId));
+    }
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(profile),
+    });
+    if (!res.ok) throw new Error('Failed to create LLM profile');
+    return res.json();
+  },
+
+  updateLlmProfile: async (id: number | string, profile: any, customerId?: string | number) => {
+    const url = new URL(`${BACKEND_URL}/api/llm-profiles/${id}`);
+    if (customerId) {
+      url.searchParams.append('customer_id', String(customerId));
+    }
+    const res = await fetch(url.toString(), {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(profile),
+    });
+    if (!res.ok) throw new Error('Failed to update LLM profile');
+    return res.json();
+  },
+
+  deleteLlmProfile: async (id: number | string, customerId?: string | number) => {
+    const url = new URL(`${BACKEND_URL}/api/llm-profiles/${id}/${customerId}`);
+ 
+    const res = await fetch(url.toString(), {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete LLM profile');
+    return res.json();
+  },
+
+  activateLlmProfile: async (id: number | string, customerId?: string | number) => {
+    const url = new URL(`${BACKEND_URL}/api/llm-profiles/${id}/set-default`);
+    if (customerId) {
+      url.searchParams.append('customer_id', String(customerId));
+    }
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to activate LLM profile');
+    return res.json();
+  },
+
+  runPlaygroundTest: async (payload: any) => {
+    const res = await fetch(`${BACKEND_URL}/api/v1/playground/test`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.detail || 'Playground test execution failed');
+    }
+    return res.json();
+  },
+
 
   testLlmConnection: async (payload: any) => {
     const res = await fetch(`${BACKEND_URL}/api/admin/company/settings/test-connection`, {

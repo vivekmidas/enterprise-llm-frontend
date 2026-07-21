@@ -17,6 +17,7 @@ import {
   Settings,
   X,
   ChevronDown,
+  FileText,
 } from 'lucide-react';
 import { COLOR_PALETTE } from '@/lib/utils';
 
@@ -107,8 +108,18 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
 
   // KB creation settings
   const [newKbEmbeddingModel, setNewKbEmbeddingModel] = useState('nomic-embed-text');
+  const [newKbChunkSize, setNewKbChunkSize] = useState<number>(1000);
+  const [newKbChunkOverlap, setNewKbChunkOverlap] = useState<number>(200);
 
-
+  // Multi-Doc Upload Queue
+  interface UploadItem {
+    id: string;
+    file: File;
+    status: 'pending' | 'uploading' | 'completed' | 'failed';
+    progress: number;
+    error?: string;
+  }
+  const [uploadQueue, setUploadQueue] = useState<UploadItem[]>([]);
 
   // Users map for resolving created_by IDs
   const [usersMap, setUsersMap] = useState<Record<number, string>>({});
@@ -119,6 +130,10 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
   const [editKbDesc, setEditKbDesc] = useState('');
   const [editKbPurpose, setEditKbPurpose] = useState('');
   const [editKbTags, setEditKbTags] = useState<string[]>([]);
+  const [editKbEmbeddingModel, setEditKbEmbeddingModel] = useState('nomic-embed-text');
+  const [editKbVectorDimension, setEditKbVectorDimension] = useState<number>(768);
+  const [editKbChunkSize, setEditKbChunkSize] = useState<number>(1000);
+  const [editKbChunkOverlap, setEditKbChunkOverlap] = useState<number>(200);
   const [savingKb, setSavingKb] = useState(false);
 
   // Doc Edit State
@@ -173,10 +188,6 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
       setFetchingDocIds((prev) => ({ ...prev, [docId]: false }));
     }
   };
-
-
-
-
 
   useEffect(() => {
     fetchKBs();
@@ -235,6 +246,8 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
           tags: tagsList,
           embedding_model: selectedModel?.value || 'nomic-embed-text',
           vector_dimension: selectedModel?.dimension || 768,
+          chunk_size: Number(newKbChunkSize) || 1000,
+          chunk_overlap: Number(newKbChunkOverlap) || 200,
         },
       });
       setKbList((prev) => [...prev, newKb]);
@@ -244,6 +257,8 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
       setNewKbPurpose('');
       setNewKbTags('');
       setNewKbEmbeddingModel('nomic-embed-text');
+      setNewKbChunkSize(1000);
+      setNewKbChunkOverlap(200);
     } catch (err: any) {
       console.error(err);
       setError('Failed to create Knowledge Base.');
@@ -275,46 +290,85 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
     }
   };
 
-  const handleUploadFile = async (e: React.FormEvent) => {
+  const handleAddFilesToQueue = (files: FileList | File[] | null) => {
+    if (!files) return;
+    const allowed = ['.txt', '.pdf', '.doc', '.docx'];
+    const newItems: UploadItem[] = [];
+    Array.from(files).forEach((f) => {
+      if (f.size > 50 * 1024 * 1024) {
+        alert(`File ${f.name} exceeds 50MB limit.`);
+        return;
+      }
+      const ext = f.name.substring(f.name.lastIndexOf('.')).toLowerCase();
+      if (!allowed.includes(ext)) {
+        alert(`File ${f.name} has invalid extension.`);
+        return;
+      }
+      newItems.push({
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        file: f,
+        status: 'pending',
+        progress: 0,
+      });
+    });
+    setUploadQueue((prev) => [...prev, ...newItems]);
+  };
+
+  const handleRemoveFileFromQueue = (id: string) => {
+    setUploadQueue((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleUploadAllFiles = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedKb || !uploadFile) return;
-
-    // Validate size (50MB check)
-    if (uploadFile.size > 50 * 1024 * 1024) {
-      alert('File size exceeds the 50 MB limit.');
-      return;
-    }
-
-    // Validate extension
-    const allowedExtensions = ['.txt', '.pdf', '.doc', '.docx'];
-    const extension = uploadFile.name.substring(uploadFile.name.lastIndexOf('.')).toLowerCase();
-    if (!allowedExtensions.includes(extension)) {
-      alert(`Invalid file extension. Allowed extensions: ${allowedExtensions.join(', ')}`);
-      return;
-    }
+    if (!selectedKb || uploadQueue.length === 0) return;
 
     setUploading(true);
-    setUploadProgress('Uploading & chunking document...');
     setDocError(null);
-    try {
-      await api.uploadDocument(selectedKb.id, uploadFile, {
-        description: docDescription,
-        tags: docTags,
-        doc_type: docType,
-      });
-      setUploadFile(null);
-      setDocDescription('');
-      setDocTags('');
-      setDocType('general');
+    let successCount = 0;
+
+    for (let i = 0; i < uploadQueue.length; i++) {
+      const item = uploadQueue[i];
+      if (item.status === 'completed') {
+        successCount++;
+        continue;
+      }
+
+      setUploadQueue((prev) =>
+        prev.map((it) => (it.id === item.id ? { ...it, status: 'uploading', progress: 40 } : it)),
+      );
+      setUploadProgress(
+        `Uploading document ${i + 1} of ${uploadQueue.length}: ${item.file.name}...`,
+      );
+
+      try {
+        await api.uploadDocument(selectedKb.id, item.file, {
+          description: docDescription,
+          tags: docTags,
+          doc_type: docType,
+        });
+        setUploadQueue((prev) =>
+          prev.map((it) =>
+            it.id === item.id ? { ...it, status: 'completed', progress: 100 } : it,
+          ),
+        );
+        successCount++;
+        fetchDocs(selectedKb.id);
+      } catch (err: any) {
+        console.error(`Failed to upload ${item.file.name}`, err);
+        setUploadQueue((prev) =>
+          prev.map((it) =>
+            it.id === item.id ? { ...it, status: 'failed', error: err.message } : it,
+          ),
+        );
+      }
+    }
+
+    setUploading(false);
+    setUploadProgress(null);
+
+    if (successCount === uploadQueue.length) {
+      setUploadQueue([]);
       setShowUploadModal(false);
-      fetchDocs(selectedKb.id);
-      setUploadProgress(null);
-    } catch (err: any) {
-      console.error(err);
-      setDocError(err.message || 'Ingestion failed.');
-      setUploadProgress(null);
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -343,6 +397,7 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
     setDocDescription(doc.metadata_json?.description || '');
     setDocTags(Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags.join(', ') : '');
     setDocType(doc.metadata_json?.type || 'general');
+    setUploadQueue([]);
     setShowUploadModal(true);
   };
 
@@ -353,6 +408,10 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
     setEditKbDesc(kb.description || '');
     setEditKbPurpose(kb.settings?.purpose || '');
     setEditKbTags(Array.isArray(kb.settings?.tags) ? kb.settings.tags : []);
+    setEditKbEmbeddingModel(kb.settings?.embedding_model || 'nomic-embed-text');
+    setEditKbVectorDimension(kb.settings?.vector_dimension || 768);
+    setEditKbChunkSize(kb.settings?.chunk_size || 1000);
+    setEditKbChunkOverlap(kb.settings?.chunk_overlap || 200);
     setShowEditKbModal(true);
   };
 
@@ -370,6 +429,8 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
           ...(selectedKb.settings || {}),
           purpose: editKbPurpose || undefined,
           tags: editKbTags.length > 0 ? editKbTags : undefined,
+          chunk_size: Number(editKbChunkSize),
+          chunk_overlap: Number(editKbChunkOverlap),
         },
       });
       setKbList((prev) => prev.map((kb) => (kb.id === updatedKb.id ? updatedKb : kb)));
@@ -523,7 +584,10 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
               return (
                 <div
                   key={kb.id}
-                  onClick={() => setSelectedKb(kb)}
+                  onClick={() => {
+                    setSelectedKb(kb);
+                    openEditKbModal(kb);
+                  }}
                   className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
                     isSelected ? 'bg-blue-50/40 border-l-4 border-blue-600' : ''
                   }`}
@@ -589,16 +653,28 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteKB(kb.id);
-                    }}
-                    className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-all cursor-pointer"
-                    title="Delete Knowledge Base"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditKbModal(kb);
+                      }}
+                      className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-all cursor-pointer"
+                      title="KB Settings"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteKB(kb.id);
+                      }}
+                      className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-all cursor-pointer"
+                      title="Delete Knowledge Base"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               );
             })
@@ -630,7 +706,9 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
                 <button
-                  onClick={() => onSwitchToPlayground && onSwitchToPlayground(String(selectedKb.id))}
+                  onClick={() =>
+                    onSwitchToPlayground && onSwitchToPlayground(String(selectedKb.id))
+                  }
                   className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-violet-750 bg-white rounded-md shadow-xs hover:bg-violet-50 transition-colors cursor-pointer"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -924,6 +1002,34 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
                 </select>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-655">
+                    Chunk Size (Tokens)
+                  </label>
+                  <input
+                    type="number"
+                    min="100"
+                    max="4000"
+                    value={newKbChunkSize}
+                    onChange={(e) => setNewKbChunkSize(Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-655">Chunk Overlap</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={newKbChunkOverlap}
+                    onChange={(e) => setNewKbChunkOverlap(Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -953,15 +1059,15 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
       {/* UPLOAD DOCUMENT MODAL */}
       {showUploadModal && selectedKb && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
               <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
-                Upload Document
+                Upload Documents to {selectedKb.name}
               </h3>
               <button
                 onClick={() => {
                   setShowUploadModal(false);
-                  setUploadFile(null);
+                  setUploadQueue([]);
                   setUploadProgress(null);
                 }}
                 className="text-gray-400 hover:text-gray-600 font-bold text-xs"
@@ -969,34 +1075,100 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
                 ✕
               </button>
             </div>
-            <form onSubmit={handleUploadFile} className="p-6 space-y-4">
+            <form onSubmit={handleUploadAllFiles} className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">Select File</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors relative">
-                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                  <span className="text-xs text-gray-550 font-medium">
-                    {uploadFile ? uploadFile.name : 'Upload .txt, .pdf, .doc, or .docx'}
+                <label className="block text-xs font-semibold text-gray-655">Select Files</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-5 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors relative cursor-pointer">
+                  <Upload className="w-7 h-7 text-blue-500 mb-1.5" />
+                  <span className="text-xs text-gray-700 font-semibold">
+                    Drag & Drop or click to choose multiple documents
                   </span>
-                  <span className="text-[10px] text-gray-400 mt-1">Maximum file size: 50MB</span>
+                  <span className="text-[10px] text-gray-400 mt-1">
+                    Supported: .txt, .pdf, .doc, .docx (Max 50MB per file)
+                  </span>
                   <input
                     type="file"
-                    required={!uploadFile}
-                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                    multiple
+                    onChange={(e) => handleAddFilesToQueue(e.target.files)}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                     accept=".txt,.pdf,.doc,.docx"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">Description</label>
-                <textarea
-                  placeholder="Describe what this document represents..."
-                  value={docDescription}
-                  onChange={(e) => setDocDescription(e.target.value)}
-                  className="h-16 w-full border border-gray-300 rounded-lg px-4 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
-                />
-              </div>
+              {/* Document Queue Lineup */}
+              {uploadQueue.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-655 flex justify-between items-center">
+                    <span>Selected Documents ({uploadQueue.length})</span>
+                    <button
+                      type="button"
+                      onClick={() => setUploadQueue([])}
+                      className="text-[10px] text-red-500 hover:underline font-bold"
+                    >
+                      Clear All
+                    </button>
+                  </label>
+                  <div className="max-h-44 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-2 bg-slate-50/50">
+                    {uploadQueue.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-2.5 bg-white rounded-lg border border-gray-200 shadow-2xs space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2 truncate pr-2 flex-1">
+                            <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span className="font-semibold text-gray-800 truncate">
+                              {item.file.name}
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-medium shrink-0">
+                              {formatBytes(item.file.size)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                item.status === 'completed'
+                                  ? 'bg-green-100 text-green-700'
+                                  : item.status === 'uploading'
+                                    ? 'bg-amber-100 text-amber-700 animate-pulse'
+                                    : item.status === 'failed'
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-gray-100 text-gray-600'
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+                            {item.status === 'pending' && !uploading && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveFileFromQueue(item.id)}
+                                className="text-gray-400 hover:text-red-500 font-bold text-xs p-0.5"
+                                title="Remove file"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {item.status === 'uploading' && (
+                          <div className="w-full bg-gray-150 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-blue-600 h-full transition-all duration-300 animate-pulse"
+                              style={{ width: `${item.progress}%` }}
+                            />
+                          </div>
+                        )}
+                        {item.error && (
+                          <div className="text-[10px] text-red-600 font-semibold">{item.error}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -1031,6 +1203,16 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
                 </div>
               </div>
 
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">Description</label>
+                <textarea
+                  placeholder="Describe what these documents represent..."
+                  value={docDescription}
+                  onChange={(e) => setDocDescription(e.target.value)}
+                  className="h-16 w-full border border-gray-300 rounded-lg px-4 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
+                />
+              </div>
+
               {uploadProgress && (
                 <div className="p-3 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold flex items-center gap-2">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1043,7 +1225,7 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
                   type="button"
                   onClick={() => {
                     setShowUploadModal(false);
-                    setUploadFile(null);
+                    setUploadQueue([]);
                     setUploadProgress(null);
                   }}
                   className="flex-1 py-2.5 bg-gray-150 hover:bg-gray-200 text-gray-755 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
@@ -1052,7 +1234,7 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
                 </button>
                 <button
                   type="submit"
-                  disabled={uploading || !uploadFile}
+                  disabled={uploading || uploadQueue.length === 0}
                   className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {uploading ? (
@@ -1060,7 +1242,7 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
                   ) : (
                     <Upload className="w-3.5 h-3.5" />
                   )}
-                  Ingest Document
+                  Ingest All Documents ({uploadQueue.length})
                 </button>
               </div>
             </form>
@@ -1147,14 +1329,13 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
         </div>
       )}
 
-
       {/* KB Edit Modal */}
       {showEditKbModal && selectedKb && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
               <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
-                Edit Knowledge Base
+                KB Settings: {editKbName}
               </h3>
               <button
                 onClick={() => setShowEditKbModal(false)}
@@ -1194,6 +1375,59 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
                   placeholder="e.g. Customer support FAQs"
                   className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
                 />
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Vector Store Configuration
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-400 font-medium block text-[10px]">
+                      Embedding Model
+                    </span>
+                    <span
+                      className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block truncate"
+                      title={editKbEmbeddingModel}
+                    >
+                      🔒 {editKbEmbeddingModel}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 font-medium block text-[10px]">
+                      Vector Dimension
+                    </span>
+                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
+                      {editKbVectorDimension}d
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-655">Chunk Size</label>
+                  <input
+                    type="number"
+                    min="100"
+                    max="4000"
+                    value={editKbChunkSize}
+                    onChange={(e) => setEditKbChunkSize(Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-655">Chunk Overlap</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={editKbChunkOverlap}
+                    onChange={(e) => setEditKbChunkOverlap(Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">
