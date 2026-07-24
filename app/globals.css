@@ -78,16 +78,16 @@
 }
 
 .theme-bank {
-  --primary: #5b3cf5;
+  --primary: #B2EDC5;
   --primary-foreground: #ffffff;
-  --secondary: #25272c;
+  --secondary: #B2EDC5;
   --secondary-foreground: #ffffff;
   --ring: #5b3cf5;
 }
 
 .dark .theme-bank {
-  --primary: #5b3cf5;
-  --primary-foreground: #ffffff;
+  --primary: #B2EDC5;
+  --primary-foreground: #594EEF;
   --secondary: #25272c;
   --secondary-foreground: #ffffff;
   --ring: #5b3cf5;
