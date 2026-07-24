@@ -515,14 +515,18 @@ export default function FieldMapperModal({
           ? nodesData
           : (nodesData as any).nodes || (nodesData as any).agents || [];
 
-        if (sourceNodeName) {
+        if (sourceContract && Object.keys(sourceContract).length > 0) {
+          setLocalSourceContract(sourceContract);
+        } else if (sourceNodeName) {
           const match = nodesList.find((n: any) => n.name === sourceNodeName);
           if (match) setLocalSourceContract(match.output_contract || {});
         } else {
           setLocalSourceContract(sourceContract || {});
         }
 
-        if (targetNodeName) {
+        if (targetContract && Object.keys(targetContract).length > 0) {
+          setLocalTargetContract(targetContract);
+        } else if (targetNodeName) {
           const match = nodesList.find((n: any) => n.name === targetNodeName);
           if (match) setLocalTargetContract(match.input_contract || {});
         } else {

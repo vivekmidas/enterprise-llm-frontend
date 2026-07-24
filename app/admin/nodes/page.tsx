@@ -74,7 +74,7 @@ const parseChoiceOptions = (rawOptions: any): string[] => {
         if (typeof opt === 'string') return opt.trim();
         if (typeof opt === 'number') return String(opt);
         if (typeof opt === 'object' && opt !== null) {
-          return String(opt.label || opt.name || opt.value || opt.id || '').trim();
+          return String(opt.key || opt.value || opt.label || opt.name || opt.id || '').trim();
         }
         return String(opt).trim();
       })

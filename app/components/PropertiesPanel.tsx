@@ -31,34 +31,111 @@ import JsonSchemaGeneratorModal from './JsonSchemaGeneratorModal';
 
 /** Helper to parse choice options from arrays, JSON strings, or comma-separated strings */
 const parseChoiceOptions = (rawOptions: any): string[] => {
+  if (!rawOptions) return [];
   if (Array.isArray(rawOptions)) {
     const result: string[] = [];
     rawOptions.forEach((item) => {
-      if (typeof item === 'string' && item.includes(',')) {
-        item.split(',').forEach((s) => {
-          const trimmed = s.trim();
+      if (typeof item === 'string') {
+        if (item.includes(',')) {
+          item.split(',').forEach((s) => {
+            const trimmed = s.trim();
+            if (trimmed && !result.includes(trimmed)) result.push(trimmed);
+          });
+        } else {
+          const trimmed = item.trim();
           if (trimmed && !result.includes(trimmed)) result.push(trimmed);
-        });
-      } else if (item !== null && item !== undefined) {
-        const trimmed = String(item).trim();
-        if (trimmed && !result.includes(trimmed)) result.push(trimmed);
+        }
+      } else if (typeof item === 'number' || typeof item === 'boolean') {
+        const str = String(item);
+        if (!result.includes(str)) result.push(str);
+      } else if (typeof item === 'object' && item !== null) {
+        const val = item.key ?? item.value ?? item.id ?? item.name ?? item.label ?? '';
+        const str = String(val).trim();
+        if (str && !result.includes(str)) result.push(str);
       }
     });
     return result;
   }
   if (typeof rawOptions === 'string' && rawOptions.trim()) {
-    try {
-      const parsed = JSON.parse(rawOptions);
-      if (Array.isArray(parsed)) return parseChoiceOptions(parsed);
-    } catch {
-      // ignore non-JSON
+    const trimmed = rawOptions.trim();
+    if (
+      (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+      (trimmed.startsWith('{') && trimmed.endsWith('}'))
+    ) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed) return parseChoiceOptions(parsed);
+      } catch {
+        // ignore non-JSON
+      }
     }
-    return rawOptions
+    return trimmed
       .split(',')
       .map((s: string) => s.trim())
       .filter((s: string) => s.length > 0);
   }
   return [];
+};
+
+/** Safely parses stringified JSON arrays or handles array/object inputs */
+const ensureArray = (val: any): any[] => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string' && val.trim()) {
+    try {
+      const parsed = JSON.parse(val.trim());
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
+/** Extracts raw choice options without treating a single default value as an options list */
+const getRawChoiceOptions = (schema: any, key: string, sysProps: any, usrVal: any): any => {
+  if (schema) {
+    if (schema.options) return schema.options;
+    if (schema.choices) return schema.choices;
+    if (schema.configured_values) return schema.configured_values;
+    if (schema.configuredValues) return schema.configuredValues;
+    if (
+      schema.values &&
+      (Array.isArray(schema.values) ||
+        (typeof schema.values === 'string' &&
+          (schema.values.includes(',') || schema.values.startsWith('['))))
+    ) {
+      return schema.values;
+    }
+    if (Array.isArray(schema.value)) return schema.value;
+    if (
+      typeof schema.value === 'string' &&
+      (schema.value.includes(',') || schema.value.startsWith('['))
+    ) {
+      return schema.value;
+    }
+    if (Array.isArray(schema.default)) return schema.default;
+    if (
+      typeof schema.default === 'string' &&
+      (schema.default.includes(',') || schema.default.startsWith('['))
+    ) {
+      return schema.default;
+    }
+  }
+
+  const sysVal = sysProps?.[key];
+  if (sysVal) {
+    if (Array.isArray(sysVal)) return sysVal;
+    if (typeof sysVal === 'string' && (sysVal.includes(',') || sysVal.startsWith('['))) {
+      return sysVal;
+    }
+  }
+
+  if (typeof usrVal === 'string' && (usrVal.includes(',') || usrVal.startsWith('['))) {
+    return usrVal;
+  }
+
+  return null;
 };
 
 /** Compact dropdown with checkboxes for multi-select. Replaces tall <select multiple>. */
@@ -119,9 +196,9 @@ const MultiSelectDropdown = ({
           {options.length === 0 ? (
             <div className="px-3 py-2 text-xs text-gray-400 italic">No options</div>
           ) : (
-            options.map((opt) => (
+            options.map((opt, idx) => (
               <label
-                key={opt.key}
+                key={`${opt.key}-${idx}`}
                 className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer transition-colors"
               >
                 <input
@@ -275,10 +352,12 @@ const PathPropertyField = ({
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SourcePropertyFieldProps {
-  field: NodePropertyDefinition;
-  isDisabled: boolean;
+  field: any;
+  isDisabled?: boolean;
   propVal: any;
   handlePropertyChange: (key: string, value: any) => void;
+  handleMultiplePropertiesChange?: (updates: Record<string, any>) => void;
+  allProperties?: Record<string, any>;
 }
 
 const SourcePropertyField = ({
@@ -286,6 +365,8 @@ const SourcePropertyField = ({
   isDisabled,
   propVal,
   handlePropertyChange,
+  handleMultiplePropertiesChange,
+  allProperties,
 }: SourcePropertyFieldProps) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -423,6 +504,37 @@ const SourcePropertyField = ({
       : resolveLabel(propVal)
     : resolveLabel(propVal);
 
+  const handleSelectOption = (newVal: any) => {
+    if (isDisabled) return;
+
+    let selectedOpt: any = null;
+    if (isList && Array.isArray(resolvedData)) {
+      selectedOpt = resolvedData.find((opt: any) => {
+        const { key } = getOptKeyLabel(opt);
+        return key === String(newVal);
+      });
+    } else if (isDict && resolvedData) {
+      selectedOpt = resolvedData[String(newVal)];
+    }
+
+    const updates: Record<string, any> = {
+      [field.key]: newVal,
+    };
+
+    if (selectedOpt && typeof selectedOpt === 'object' && !Array.isArray(selectedOpt)) {
+      Object.assign(updates, selectedOpt);
+      updates[field.key] = newVal;
+    }
+
+    if (handleMultiplePropertiesChange) {
+      handleMultiplePropertiesChange(updates);
+    } else {
+      for (const [k, v] of Object.entries(updates)) {
+        handlePropertyChange(k, v);
+      }
+    }
+  };
+
   return (
     <div className="space-y-3.5 p-4 border border-gray-200 rounded-xl bg-slate-50/50 shadow-sm w-full">
       <div className="flex items-center justify-between">
@@ -477,21 +589,21 @@ const SourcePropertyField = ({
                     : []
               }
               options={resolvedData.map((opt: any) => getOptKeyLabel(opt))}
-              onChange={(values) => !isDisabled && handlePropertyChange(field.key, values)}
+              onChange={(values) => handleSelectOption(values)}
               placeholder="Select options..."
             />
           ) : (
             <select
               disabled={isDisabled}
               value={selectValue}
-              onChange={(e) => !isDisabled && handlePropertyChange(field.key, e.target.value)}
+              onChange={(e) => handleSelectOption(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white text-black"
             >
               <option value="">Select option...</option>
-              {resolvedData.map((opt: any) => {
+              {resolvedData.map((opt: any, idx: number) => {
                 const { key, label } = getOptKeyLabel(opt);
                 return (
-                  <option key={key} value={key}>
+                  <option key={`${key}-${idx}`} value={key}>
                     {label}
                   </option>
                 );
@@ -510,19 +622,19 @@ const SourcePropertyField = ({
                     : []
               }
               options={Object.entries(resolvedData).map(([k, v]) => ({ key: k, label: String(v) }))}
-              onChange={(values) => !isDisabled && handlePropertyChange(field.key, values)}
+              onChange={(values) => handleSelectOption(values)}
               placeholder="Select options..."
             />
           ) : (
             <select
               disabled={isDisabled}
               value={selectValue}
-              onChange={(e) => !isDisabled && handlePropertyChange(field.key, e.target.value)}
+              onChange={(e) => handleSelectOption(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white text-black"
             >
               <option value="">Select option...</option>
-              {Object.entries(resolvedData).map(([k, v]) => (
-                <option key={k} value={k}>
+              {Object.entries(resolvedData).map(([k, v], idx) => (
+                <option key={`${k}-${idx}`} value={k}>
                   {String(v)}
                 </option>
               ))}
@@ -533,12 +645,14 @@ const SourcePropertyField = ({
             type="text"
             disabled={isDisabled}
             value={String(propVal)}
-            onChange={(e) => !isDisabled && handlePropertyChange(field.key, e.target.value)}
+            onChange={(e) => handleSelectOption(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500"
             placeholder="Enter value..."
           />
         ) : null}
       </div>
+
+
     </div>
   );
 };
@@ -1304,7 +1418,25 @@ export default function PropertiesPanel({
     };
 
     onUpdateNode(selectedNode.id, newData);
-    onSaveInstanceProperties(selectedNode.id, updatedProps);
+  };
+
+  const handleMultiplePropertiesChange = (updates: Record<string, any>) => {
+    if (!selectedNode || !onUpdateNode) return;
+
+    const updatedProps = {
+      ...properties,
+      ...updates,
+    };
+
+    setProperties(updatedProps);
+
+    const nodeData = selectedNode.data as NodeData;
+    const newData = {
+      ...nodeData,
+      properties: updatedProps,
+    };
+
+    onUpdateNode(selectedNode.id, newData);
   };
 
   const handleToggleRequiredField = (fieldKey: string, isReq: boolean) => {
@@ -1433,37 +1565,43 @@ export default function PropertiesPanel({
     setIsSaving(true);
     try {
       const localData = selectedNode.data as any;
-      const userPropsArray = Array.isArray(localData.user_properties)
-        ? (localData.user_properties as any[])
-        : [];
-      const systemPropsArray = Array.isArray(localData.system_properties)
-        ? (localData.system_properties as any[])
-        : [];
-      const schemaArray = (localData.propertySchema || localData.property_schema || []) as any[];
+      const userPropsArray = ensureArray(localData.user_properties);
+      const systemPropsArray = ensureArray(localData.system_properties);
+      const schemaArray = ensureArray(localData.propertySchema || localData.property_schema);
 
       const sanitizedProps = { ...properties };
       Object.keys(sanitizedProps).forEach((key) => {
-        const fieldSchema =
-          schemaArray.find((f: any) => f.key === key) ||
-          userPropsArray.find((f: any) => f.key === key) ||
-          systemPropsArray.find((f: any) => f.key === key);
-        if (fieldSchema) {
+        const catalogSchema = schemaArray.find((f: any) => f && f.key === key) || {};
+        const userSchema = userPropsArray.find((f: any) => f && f.key === key) || {};
+        const systemSchema = systemPropsArray.find((f: any) => f && f.key === key) || {};
+        const fieldSchema = {
+          ...catalogSchema,
+          ...userSchema,
+          ...systemSchema,
+          options: catalogSchema.options || userSchema.options || systemSchema.options,
+          choices: catalogSchema.choices || userSchema.choices || systemSchema.choices,
+          configured_values: catalogSchema.configured_values || userSchema.configured_values || systemSchema.configured_values,
+          values: catalogSchema.values || userSchema.values || systemSchema.values,
+        };
+
+        if (fieldSchema && fieldSchema.key) {
           const fieldType = fieldSchema.type || fieldSchema.field_type;
           if (fieldType === 'choice' && !fieldSchema.multiple) {
-            const rawOptions =
-              fieldSchema.options ||
-              fieldSchema.values ||
-              fieldSchema.configured_values ||
-              fieldSchema.configuredValues ||
-              fieldSchema.choices ||
-              fieldSchema.value ||
-              fieldSchema.default;
+            const rawOptions = getRawChoiceOptions(
+              fieldSchema,
+              key,
+              systemProperties,
+              sanitizedProps[key],
+            );
             const options = parseChoiceOptions(rawOptions);
-            const valStr = String(sanitizedProps[key] ?? '');
-            if (valStr.includes(',') || !options.includes(valStr)) {
-              if (options.length > 0) {
-                sanitizedProps[key] = options[0];
+            const valStr = String(sanitizedProps[key] ?? '').trim();
+            if (valStr.includes(',')) {
+              const opts = options.length > 0 ? options : parseChoiceOptions(valStr);
+              if (opts.length > 0) {
+                sanitizedProps[key] = opts[0];
               }
+            } else if (!valStr && options.length > 0) {
+              sanitizedProps[key] = options[0];
             }
           }
         }
@@ -1764,25 +1902,23 @@ export default function PropertiesPanel({
           isDisabled={isDisabled}
           propVal={propVal}
           handlePropertyChange={handlePropertyChange}
+          handleMultiplePropertiesChange={handleMultiplePropertiesChange}
+          allProperties={properties}
         />
       );
     }
 
     // Choice Selection
     if (fieldType === 'choice') {
-      const rawOptions =
-        field.options ||
-        (field as any).values ||
-        (field as any).configured_values ||
-        (field as any).configuredValues ||
-        (field as any).choices ||
-        systemProps[field.key] ||
-        (field as any).value ||
-        field.default;
+      const rawOptions = getRawChoiceOptions(field, field.key, systemProps, value);
 
-      const options = parseChoiceOptions(rawOptions);
-      const selectedValue = options.includes(String(value))
-        ? String(value)
+      let options = parseChoiceOptions(rawOptions);
+      const strVal = value !== undefined && value !== null ? String(value) : '';
+      if (strVal && !strVal.includes(',') && !options.includes(strVal)) {
+        options = [strVal, ...options];
+      }
+      const selectedValue = options.includes(strVal)
+        ? strVal
         : options[0] || '';
 
       // Multi-select mode
@@ -1832,8 +1968,8 @@ export default function PropertiesPanel({
             }
             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
           >
-            {options.map((option) => (
-              <option key={option} value={option}>
+            {options.map((option, idx) => (
+              <option key={`${option}-${idx}`} value={option}>
                 {option}
               </option>
             ))}
@@ -2233,25 +2369,30 @@ export default function PropertiesPanel({
                                 ? 'number'
                                 : 'string';
 
-                          const userPropsArray = Array.isArray(
+                          const userPropsArray = ensureArray(
                             (selectedNode?.data as any)?.user_properties,
-                          )
-                            ? (selectedNode?.data as any)?.user_properties
-                            : [];
-                          const systemPropsArray = Array.isArray(
+                          );
+                          const systemPropsArray = ensureArray(
                             (selectedNode?.data as any)?.system_properties,
-                          )
-                            ? (selectedNode?.data as any)?.system_properties
-                            : [];
-                          const schemaArray =
+                          );
+                          const schemaArray = ensureArray(
                             (selectedNode?.data as any)?.propertySchema ||
-                            (selectedNode?.data as any)?.property_schema ||
-                            [];
+                              (selectedNode?.data as any)?.property_schema,
+                          );
 
-                          const fieldSchema =
-                            schemaArray.find((f: any) => f.key === key) ||
-                            userPropsArray.find((f: any) => f.key === key) ||
-                            systemPropsArray.find((f: any) => f.key === key);
+                          const catalogSchema = schemaArray.find((f: any) => f && f.key === key) || {};
+                          const userSchema = userPropsArray.find((f: any) => f && f.key === key) || {};
+                          const systemSchema = systemPropsArray.find((f: any) => f && f.key === key) || {};
+
+                          const fieldSchema = {
+                            ...catalogSchema,
+                            ...userSchema,
+                            ...systemSchema,
+                            options: catalogSchema.options || userSchema.options || systemSchema.options,
+                            choices: catalogSchema.choices || userSchema.choices || systemSchema.choices,
+                            configured_values: catalogSchema.configured_values || userSchema.configured_values || systemSchema.configured_values,
+                            values: catalogSchema.values || userSchema.values || systemSchema.values,
+                          };
                           const fieldType =
                             fieldSchema?.type || fieldSchema?.field_type || valueType;
 
@@ -2277,20 +2418,21 @@ export default function PropertiesPanel({
                           }
 
                           if (fieldType === 'choice') {
-                            const rawOptions =
-                              fieldSchema?.options ||
-                              fieldSchema?.values ||
-                              fieldSchema?.configured_values ||
-                              fieldSchema?.configuredValues ||
-                              fieldSchema?.choices ||
-                              fieldSchema?.value ||
-                              fieldSchema?.default ||
-                              value;
+                            const rawOptions = getRawChoiceOptions(
+                              fieldSchema,
+                              key,
+                              systemProperties,
+                              value,
+                            );
 
-                            const options = parseChoiceOptions(rawOptions);
+                            let options = parseChoiceOptions(rawOptions);
+                            const strVal = value !== undefined && value !== null ? String(value) : '';
+                            if (strVal && !strVal.includes(',') && !options.includes(strVal)) {
+                              options = [strVal, ...options];
+                            }
                             const isMultiple = Boolean(fieldSchema?.multiple);
-                            const selectedVal = options.includes(String(value))
-                              ? String(value)
+                            const selectedVal = options.includes(strVal)
+                              ? strVal
                               : options[0] || '';
 
                             if (isMultiple) {
@@ -2602,7 +2744,7 @@ export default function PropertiesPanel({
             ) : (
               <Save className="w-3.5 h-3.5" />
             )}
-            {isSaving ? 'Saving...' : entries.length > 0 ? 'Save Parameters' : 'Save Label'}
+            {isSaving ? 'Saving...' : entries.length > 0 ? 'Save Parameters' : 'Save'}
           </button>
           {userRole !== 'user' && onDeleteNode && selectedNode && (
             <button

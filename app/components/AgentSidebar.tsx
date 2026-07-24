@@ -152,7 +152,7 @@ export default function AgentSidebar({
     (event.target as HTMLElement).style.opacity = '1';
   };
 
-  const renderCompactNodeItem = (node: any) => {
+  const renderCompactNodeItem = (node: any, keyOverride?: string) => {
     const category = getCategory(node.id);
     const Icon =
       IconMap[node.icon?.toLowerCase()] || IconMap[category.icon?.toLowerCase()] || IconMap.bot;
@@ -160,7 +160,7 @@ export default function AgentSidebar({
 
     return (
       <div
-        key={node.id || node.name}
+        key={keyOverride || `compact-${node.id || node.name}`}
         draggable
         onDragStart={(event) => onDragStart(event, node)}
         onDragEnd={onDragEnd}
@@ -174,7 +174,7 @@ export default function AgentSidebar({
     );
   };
 
-  const renderNodeItem = (node: any) => {
+  const renderNodeItem = (node: any, keyOverride?: string) => {
     const category = getCategory(node.id);
     const Icon =
       IconMap[node.icon?.toLowerCase()] || IconMap[category.icon?.toLowerCase()] || IconMap.bot;
@@ -182,7 +182,7 @@ export default function AgentSidebar({
 
     return (
       <div
-        key={node.id || node.name}
+        key={keyOverride || `action-${node.id || node.name}`}
         draggable
         onDragStart={(event) => onDragStart(event, node)}
         onDragEnd={onDragEnd}
@@ -226,9 +226,9 @@ export default function AgentSidebar({
               Saved Workflows
             </h4>
             <div className="space-y-2 bg-slate-50/50 p-1.5 rounded-xl border border-slate-100 max-h-40 overflow-y-auto custom-scrollbar">
-              {savedAgents.map((agent) => (
+              {savedAgents.map((agent, index) => (
                 <button
-                  key={agent.id}
+                  key={`saved-${agent.id || index}-${index}`}
                   onClick={() => onSelectAgent?.(agent.id)}
                   className="flex w-full font-bold items-center justify-between text-left p-0.5 rounded-lg transition-all hover:bg-white hover:text-indigo-600 hover:shadow-sm border border-transparent hover:border-slate-100 cursor-pointer group"
                 >
@@ -253,8 +253,12 @@ export default function AgentSidebar({
             Core Nodes
           </h4>
           <div className="grid grid-cols-2 gap-2">
-            {triggerNodes.map(renderCompactNodeItem)}
-            {logicNodes.map(renderCompactNodeItem)}
+            {triggerNodes.map((node, index) =>
+              renderCompactNodeItem(node, `trigger-${node.id || node.name}-${index}`),
+            )}
+            {logicNodes.map((node, index) =>
+              renderCompactNodeItem(node, `logic-${node.id || node.name}-${index}`),
+            )}
           </div>
         </div>
 
@@ -278,13 +282,13 @@ export default function AgentSidebar({
           <div className="flex gap-3">
             {/* Category selection selector */}
             <div className="flex w-7 shrink-0 flex-col items-center gap-2">
-              {categories.map((category) => {
+              {categories.map((category, index) => {
                 const isActive = activeGroup === category.id;
                 const Icon = category.icon;
 
                 return (
                   <button
-                    key={category.group}
+                    key={`cat-${category.id || category.group || index}-${index}`}
                     type="button"
                     title={category.label}
                     aria-label={category.label}
@@ -317,7 +321,9 @@ export default function AgentSidebar({
               ) : (
                 <div className="space-y-1.5">
                   {actionNodes.length > 0 ? (
-                    actionNodes.map(renderNodeItem)
+                    actionNodes.map((node, index) =>
+                      renderNodeItem(node, `action-${node.id || node.name}-${index}`),
+                    )
                   ) : (
                     <p className="text-[10px] text-slate-400 italic">No matching actions found.</p>
                   )}
