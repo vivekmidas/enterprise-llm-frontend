@@ -15,13 +15,15 @@ export type PropertyValue = string | number | boolean | string[];
 export interface NodePropertyDefinition {
   key: string;
   label: string;
-  type: 'string' | 'boolean' | 'choice' | 'password' | 'textarea' | 'number' | 'oauth' | 'source';
+  type: 'string' | 'boolean' | 'choice' | 'password' | 'textarea' | 'number' | 'oauth' | 'source' | 'path';
   placeholder?: string;
   options?: string[];
   multiple?: boolean;
   default?: PropertyValue;
   description?: string;
   source?: string;
+  /** For type='path' — passed to HTML file input accept attribute e.g. ".pdf,.docx,application/pdf" */
+  accept?: string;
 }
 
 export interface NodeDefinition {

@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Alert from '@mui/material/Alert';
 import { api } from '@/lib/api';
 import { IconMap } from '@/lib/icons';
-import { Shield, Lock, Check } from 'lucide-react';
+import { Shield, Lock, Check, ChevronDown } from 'lucide-react';
 
 // Subpage components
 import CustomersTab from './customers/page';
@@ -19,6 +19,7 @@ import KnowledgeBasesTab from './knowledge/page';
 import CompanySettingsTab from './company-settings/page';
 import PlaygroundTab from './playground/page';
 import ProfilesTab from './profiles/page';
+import ProviderPresetsTab from './provider-presets/page';
 
 type ActiveTabType =
   | 'nodes'
@@ -31,7 +32,23 @@ type ActiveTabType =
   | 'knowledge'
   | 'settings'
   | 'profiles'
+  | 'provider-presets'
   | 'playground';
+
+const ALL_TABS: { id: ActiveTabType; label: string; roles: string[] }[] = [
+  { id: 'customers', label: 'Customers', roles: ['system_admin'] },
+  { id: 'nodes', label: 'Nodes ', roles: ['admin', 'system_admin'] },
+  { id: 'workflows', label: 'Workflows', roles: ['user', 'admin', 'system_admin'] },
+  { id: 'users', label: 'Users', roles: ['admin', 'system_admin'] },
+  { id: 'oauth', label: 'OAuth Providers', roles: ['admin', 'system_admin'] },
+  { id: 'logs', label: 'System Logs', roles: ['admin', 'system_admin'] },
+  { id: 'metrics', label: 'Metrics', roles: ['admin', 'system_admin'] },
+  { id: 'knowledge', label: 'Knowledge Bases', roles: ['admin', 'system_admin'] },
+  { id: 'profiles', label: 'LLM Profiles', roles: ['admin', 'system_admin'] },
+  { id: 'provider-presets', label: 'Provider Presets', roles: ['admin', 'system_admin'] },
+  { id: 'settings', label: 'LLM Settings', roles: ['admin', 'system_admin'] },
+  { id: 'playground', label: 'Retrieval Playground', roles: ['admin', 'system_admin'] },
+];
 
 export default function AdminPage() {
   const router = useRouter();
@@ -39,7 +56,8 @@ export default function AdminPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTabType>('nodes');
   const [playgroundKbId, setPlaygroundKbId] = useState<string | null>(null);
-
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [hiddenTabIds, setHiddenTabIds] = useState<Set<ActiveTabType>>(new Set());
   // Auth & Profile states
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
@@ -54,6 +72,61 @@ export default function AdminPage() {
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+
+  const navContainerRef = useRef<HTMLDivElement | null>(null);
+  const tabRefs = useRef<{ [key in ActiveTabType]?: HTMLButtonElement | null }>({});
+
+  const checkTabVisibility = useCallback(() => {
+    const container = navContainerRef.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const newHidden = new Set<ActiveTabType>();
+
+    ALL_TABS.forEach((tab) => {
+      const el = tabRefs.current[tab.id];
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+
+      // Check if element is cut off left or right (with 4px margin of error)
+      const isVisible =
+        rect.left >= containerRect.left - 4 &&
+        rect.right <= containerRect.right + 4;
+
+      if (!isVisible) {
+        newHidden.add(tab.id);
+      }
+    });
+
+    setHiddenTabIds(newHidden);
+  }, []);
+
+  useEffect(() => {
+    const container = navContainerRef.current;
+    if (!container) return;
+
+    // Small delay to allow initial layout render
+    const timer = setTimeout(checkTabVisibility, 50);
+
+    const handleScroll = () => checkTabVisibility();
+    const handleResize = () => checkTabVisibility();
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => checkTabVisibility());
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      clearTimeout(timer);
+      container.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
+  }, [userRole, isMounted, checkTabVisibility]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -111,6 +184,7 @@ export default function AdminPage() {
           'knowledge',
           'settings',
           'playground',
+          'profiles',
         ].includes(tab)
       ) {
         setActiveTab(tab as ActiveTabType);
@@ -265,129 +339,98 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8 font-sans">
       <div className="mx-auto w-full space-y-8">
-        <div className="flex border-b border-gray-200">
-          {userRole === 'system_admin' && (
-            <button
-              onClick={() => handleTabChange('customers')}
-              className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                activeTab === 'customers'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Customer Management
-            </button>
-          )}
-          {(userRole === 'admin' || userRole === 'system_admin') && (
-            <button
-              onClick={() => handleTabChange('nodes')}
-              className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                activeTab === 'nodes'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Node Management
-            </button>
-          )}
-          <button
-            onClick={() => handleTabChange('workflows')}
-            className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              activeTab === 'workflows'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Workflow Management
-          </button>
-          {(userRole === 'admin' || userRole === 'system_admin') && (
-            <>
-              <button
-                onClick={() => handleTabChange('users')}
-                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'users'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+        {(() => {
+          const availableTabs = ALL_TABS.filter((t) => !userRole || t.roles.includes(userRole));
+          const hiddenTabs = availableTabs.filter((t) => hiddenTabIds.has(t.id));
+
+          return (
+            <div className="sticky top-16 z-40 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-2 py-1">
+              <div
+                ref={navContainerRef}
+                className="flex items-center overflow-x-auto whitespace-nowrap flex-1 min-w-0"
               >
-                User Management
-              </button>
-              <button
-                onClick={() => handleTabChange('oauth')}
-                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'oauth'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                OAuth Management
-              </button>
-              <button
-                onClick={() => handleTabChange('logs')}
-                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'logs'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                System Logs
-              </button>
-              <button
-                onClick={() => handleTabChange('metrics')}
-                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'metrics'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Metrics
-              </button>
-              <button
-                onClick={() => handleTabChange('knowledge')}
-                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'knowledge'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Knowledge Bases
-              </button>
-              <button
-                onClick={() => handleTabChange('profiles')}
-                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'profiles'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                LLM Profiles
-              </button>
-              <button
-                onClick={() => handleTabChange('settings')}
-                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'settings'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                LLM Settings
-              </button>
-              <button
-                onClick={() => {
-                  setPlaygroundKbId(null);
-                  handleTabChange('playground');
-                }}
-                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'playground'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Retrieval Playground
-              </button>
-            </>
-          )}
-        </div>
+                {availableTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    ref={(el) => {
+                      tabRefs.current[tab.id] = el;
+                    }}
+                    data-tab-id={tab.id}
+                    onClick={() => {
+                      if (tab.id === 'playground') setPlaygroundKbId(null);
+                      handleTabChange(tab.id);
+                    }}
+                    className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                      activeTab === tab.id
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Chevron Dropdown Popup - Only shows options that are NOT visible */}
+              {hiddenTabs.length > 0 && (
+                <div className="relative shrink-0 pr-2">
+                  <button
+                    onClick={() => setIsMenuOpen((prev) => !prev)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-600 hover:text-blue-600 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-all cursor-pointer"
+                    title="More options"
+                    aria-expanded={isMenuOpen}
+                  >
+                    <span>+{hiddenTabs.length} More</span>
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform duration-200 ${
+                        isMenuOpen ? 'rotate-180 text-blue-600' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {isMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
+                      <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 max-h-96 overflow-y-auto">
+                        <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                          Hidden Options
+                        </div>
+                        {hiddenTabs.map((tab) => (
+                          <button
+                            key={tab.id}
+                            onClick={() => {
+                              if (tab.id === 'playground') setPlaygroundKbId(null);
+                              handleTabChange(tab.id);
+                              setIsMenuOpen(false);
+                              setTimeout(() => {
+                                tabRefs.current[tab.id]?.scrollIntoView({
+                                  behavior: 'smooth',
+                                  inline: 'nearest',
+                                  block: 'nearest',
+                                });
+                                checkTabVisibility();
+                              }, 50);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors cursor-pointer ${
+                              activeTab === tab.id
+                                ? 'text-blue-600 bg-blue-50/80 font-bold'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            }`}
+                          >
+                            <span>{tab.label}</span>
+                            {activeTab === tab.id && (
+                              <Check className="h-4 w-4 text-blue-600 shrink-0 ml-2" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="pt-2">
           {activeTab === 'customers' && userRole === 'system_admin' && <CustomersTab />}
@@ -418,6 +461,9 @@ export default function AdminPage() {
           {activeTab === 'profiles' && (userRole === 'admin' || userRole === 'system_admin') && (
             <ProfilesTab />
           )}
+          {activeTab === 'provider-presets' && (userRole === 'admin' || userRole === 'system_admin') && (
+            <ProviderPresetsTab />
+          )}
           {activeTab === 'settings' && (userRole === 'admin' || userRole === 'system_admin') && (
             <CompanySettingsTab
               userRole={userRole}
@@ -428,6 +474,7 @@ export default function AdminPage() {
             <PlaygroundTab initialKbId={playgroundKbId} />
           )}
         </div>
+
       </div>
     </div>
   );

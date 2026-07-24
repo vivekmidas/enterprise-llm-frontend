@@ -1738,7 +1738,7 @@ export default function CustomersTab() {
                               : 'text-gray-400 hover:text-gray-655'
                           }`}
                         >
-                          <IconMap.layoutGrid className="h-3.5 w-3.5" />
+                          <IconMap.workflow className="h-3.5 w-3.5" />
                         </button>
                         <button
                           type="button"

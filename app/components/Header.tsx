@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Cpu, LogOut, User, Github } from 'lucide-react';
+import { Workflow, LogOut, User, Github } from 'lucide-react';
 import { api } from '@/lib/api'; // Assuming api.logout() clears the cookie
 
 // Helper to get a cookie value by name
@@ -80,10 +80,10 @@ export default function Header() {
       <nav className="flex items-center justify-between px-8 h-16 bg-white border-b border-gray-200 sticky top-0 z-50 shrink-0 shadow-sm">
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center gap-2">
-            <div className="bg-blue-600 p-1.5 rounded-lg">
-              <Cpu className="h-5 w-5 text-white" />
+            <div className="bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 rounded-lg">
+              <Workflow className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-gray-900">LLM Gateway</span>
+            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">nFlow</span>
           </Link>
         </div>
 
@@ -106,10 +106,16 @@ export default function Header() {
               </div>
               <Link
                 href="/admin"
-                className="text-sm font-bold text-blue-600 hover:text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-50 transition-all duration-200"
+                className="text-sm font-bold text-violet-600 hover:text-violet-700 px-3 py-2 rounded-lg hover:bg-violet-50 transition-all duration-200"
               >
                 Console
               </Link>
+              {/* <Link
+                href="/demo-flows"
+                className="text-sm font-bold text-fuchsia-600 hover:text-fuchsia-700 px-3 py-2 rounded-lg hover:bg-fuchsia-50 transition-all duration-200"
+              >
+                Demos
+              </Link> */}
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-red-600 px-3 py-2 rounded-lg hover:bg-red-50 transition-all duration-200"
@@ -127,7 +133,7 @@ export default function Header() {
               </Link>
               <Link
                 href="/signup"
-                className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-sm"
+                className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:from-violet-500 hover:to-fuchsia-500 hover:shadow-md hover:shadow-violet-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-sm"
               >
                 Sign up
               </Link>

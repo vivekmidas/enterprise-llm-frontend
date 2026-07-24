@@ -21,10 +21,45 @@ import {
   FolderOpen,
   FileCode,
   Share2,
+  Upload,
+  FileText,
+  XCircle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
 import JsonSchemaGeneratorModal from './JsonSchemaGeneratorModal';
+
+/** Helper to parse choice options from arrays, JSON strings, or comma-separated strings */
+const parseChoiceOptions = (rawOptions: any): string[] => {
+  if (Array.isArray(rawOptions)) {
+    const result: string[] = [];
+    rawOptions.forEach((item) => {
+      if (typeof item === 'string' && item.includes(',')) {
+        item.split(',').forEach((s) => {
+          const trimmed = s.trim();
+          if (trimmed && !result.includes(trimmed)) result.push(trimmed);
+        });
+      } else if (item !== null && item !== undefined) {
+        const trimmed = String(item).trim();
+        if (trimmed && !result.includes(trimmed)) result.push(trimmed);
+      }
+    });
+    return result;
+  }
+  if (typeof rawOptions === 'string' && rawOptions.trim()) {
+    try {
+      const parsed = JSON.parse(rawOptions);
+      if (Array.isArray(parsed)) return parseChoiceOptions(parsed);
+    } catch {
+      // ignore non-JSON
+    }
+    return rawOptions
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter((s: string) => s.length > 0);
+  }
+  return [];
+};
 
 /** Compact dropdown with checkboxes for multi-select. Replaces tall <select multiple>. */
 const MultiSelectDropdown = ({
@@ -107,6 +142,137 @@ const MultiSelectDropdown = ({
     </div>
   );
 };
+
+// ─── PathPropertyField ───────────────────────────────────────────────────────
+/** Renders a styled file-picker for property type='path'.
+ *  Stores comma-delimited absolute file paths as the property value.
+ *  At execution time the node runtime resolves and reads each path.
+ */
+interface PathPropertyFieldProps {
+  field: NodePropertyDefinition;
+  isDisabled: boolean;
+  value: string; // comma-delimited list of paths
+  handlePropertyChange: (key: string, value: string) => void;
+}
+
+const PathPropertyField = ({
+  field,
+  isDisabled,
+  value,
+  handlePropertyChange,
+}: PathPropertyFieldProps) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Derive the current list of selected paths from the stored string
+  const selectedPaths: string[] = value
+    ? value
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean)
+    : [];
+
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || isDisabled) return;
+    const incoming = Array.from(e.target.files).map((f) => f.name);
+    const merged = field.multiple
+      ? [...new Set([...selectedPaths, ...incoming])]
+      : incoming.slice(0, 1);
+    handlePropertyChange(field.key, merged.join(','));
+    // Reset so the same file can be re-selected
+    e.target.value = '';
+  };
+
+  const removePath = (path: string) => {
+    if (isDisabled) return;
+    const next = selectedPaths.filter((p) => p !== path);
+    handlePropertyChange(field.key, next.join(','));
+  };
+
+  return (
+    <div key={field.key} className="space-y-1.5">
+      <label
+        className="block text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1.5 cursor-help"
+        title={field.description}
+      >
+        {field.label}
+        {field.description && (
+          <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+            i
+          </span>
+        )}
+      </label>
+
+      {/* Hidden native file input */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept={field.accept}
+        multiple={field.multiple}
+        disabled={isDisabled}
+        className="hidden"
+        onChange={handleFiles}
+      />
+
+      {/* Trigger button */}
+      <button
+        type="button"
+        disabled={isDisabled}
+        onClick={() => !isDisabled && inputRef.current?.click()}
+        className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-all
+          ${
+            isDisabled
+              ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+              : 'bg-white border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-600 cursor-pointer'
+          }`}
+      >
+        <Upload className="w-3.5 h-3.5 shrink-0" />
+        <span className="truncate text-xs">
+          {field.multiple ? 'Choose file(s)…' : 'Choose file…'}
+        </span>
+        {field.accept && (
+          <span className="ml-auto text-[9px] text-gray-400 font-mono shrink-0">
+            {field.accept}
+          </span>
+        )}
+      </button>
+
+      {/* Selected file chips */}
+      {selectedPaths.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-1.5">
+          {selectedPaths.map((p) => (
+            <div
+              key={p}
+              className="flex items-center gap-1 bg-blue-50 border border-blue-100 text-blue-700 rounded-md px-2 py-1 text-[11px] font-medium max-w-full"
+              title={p}
+            >
+              <FileText className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-[160px]">{p}</span>
+              {!isDisabled && (
+                <button
+                  type="button"
+                  onClick={() => removePath(p)}
+                  className="ml-0.5 text-blue-400 hover:text-red-500 transition-colors cursor-pointer"
+                  title="Remove"
+                >
+                  <XCircle className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Hint */}
+      {!isDisabled && selectedPaths.length === 0 && (
+        <p className="text-[10px] text-gray-400 italic">
+          {field.multiple ? 'No files selected.' : 'No file selected.'}
+          {field.accept && ` Accepted: ${field.accept}`}
+        </p>
+      )}
+    </div>
+  );
+};
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface SourcePropertyFieldProps {
   field: NodePropertyDefinition;
@@ -1284,22 +1450,20 @@ export default function PropertiesPanel({
         if (fieldSchema) {
           const fieldType = fieldSchema.type || fieldSchema.field_type;
           if (fieldType === 'choice' && !fieldSchema.multiple) {
-            const rawOptions = fieldSchema.options || fieldSchema.value;
-            const options: string[] = Array.isArray(rawOptions)
-              ? rawOptions
-              : typeof rawOptions === 'string'
-                ? (() => {
-                    try {
-                      const parsed = JSON.parse(rawOptions);
-                      return Array.isArray(parsed) ? parsed : [];
-                    } catch {
-                      return rawOptions.split(',').map((s: string) => s.trim());
-                    }
-                  })()
-                : [];
+            const rawOptions =
+              fieldSchema.options ||
+              fieldSchema.values ||
+              fieldSchema.configured_values ||
+              fieldSchema.configuredValues ||
+              fieldSchema.choices ||
+              fieldSchema.value ||
+              fieldSchema.default;
+            const options = parseChoiceOptions(rawOptions);
             const valStr = String(sanitizedProps[key] ?? '');
             if (valStr.includes(',') || !options.includes(valStr)) {
-              sanitizedProps[key] = options[0] || '';
+              if (options.length > 0) {
+                sanitizedProps[key] = options[0];
+              }
             }
           }
         }
@@ -1606,19 +1770,20 @@ export default function PropertiesPanel({
 
     // Choice Selection
     if (fieldType === 'choice') {
-      const rawOptions = field.options || (field as any).values;
-      const options: string[] = Array.isArray(rawOptions)
-        ? rawOptions
-        : typeof rawOptions === 'string'
-          ? (() => {
-              try {
-                const parsed = JSON.parse(rawOptions);
-                return Array.isArray(parsed) ? parsed : [];
-              } catch {
-                return rawOptions.split(',').map((s: string) => s.trim());
-              }
-            })()
-          : [];
+      const rawOptions =
+        field.options ||
+        (field as any).values ||
+        (field as any).configured_values ||
+        (field as any).configuredValues ||
+        (field as any).choices ||
+        systemProps[field.key] ||
+        (field as any).value ||
+        field.default;
+
+      const options = parseChoiceOptions(rawOptions);
+      const selectedValue = options.includes(String(value))
+        ? String(value)
+        : options[0] || '';
 
       // Multi-select mode
       if (field.multiple) {
@@ -1636,10 +1801,10 @@ export default function PropertiesPanel({
               )}
             </label>
             <MultiSelectDropdown
-              disabled={isDisabled}
+              disabled={false}
               selected={Array.isArray(value) ? value.map(String) : []}
               options={options.map((o) => ({ key: o, label: o }))}
-              onChange={(values) => !isDisabled && handlePropertyChange(field.key, values)}
+              onChange={(values) => handlePropertyChange(field.key, values)}
             />
           </div>
         );
@@ -1660,12 +1825,12 @@ export default function PropertiesPanel({
             )}
           </label>
           <select
-            disabled={isDisabled}
-            value={String(value)}
+            disabled={false}
+            value={selectedValue}
             onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-              !isDisabled && handlePropertyChange(field.key, event.target.value)
+              handlePropertyChange(field.key, event.target.value)
             }
-            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
           >
             {options.map((option) => (
               <option key={option} value={option}>
@@ -1674,6 +1839,20 @@ export default function PropertiesPanel({
             ))}
           </select>
         </div>
+      );
+    }
+
+    // File path picker
+    if (fieldType === 'path') {
+      const propVal = value !== undefined && value !== null ? String(value) : '';
+      return (
+        <PathPropertyField
+          key={field.key}
+          field={field}
+          isDisabled={isDisabled}
+          value={propVal}
+          handlePropertyChange={handlePropertyChange}
+        />
       );
     }
 
@@ -2098,21 +2277,21 @@ export default function PropertiesPanel({
                           }
 
                           if (fieldType === 'choice') {
-                            const rawOptions = fieldSchema?.options || fieldSchema?.value;
-                            const options: string[] = Array.isArray(rawOptions)
-                              ? rawOptions
-                              : typeof rawOptions === 'string'
-                                ? (() => {
-                                    try {
-                                      const parsed = JSON.parse(rawOptions);
-                                      return Array.isArray(parsed) ? parsed : [];
-                                    } catch {
-                                      return rawOptions.split(',').map((s: string) => s.trim());
-                                    }
-                                  })()
-                                : [];
+                            const rawOptions =
+                              fieldSchema?.options ||
+                              fieldSchema?.values ||
+                              fieldSchema?.configured_values ||
+                              fieldSchema?.configuredValues ||
+                              fieldSchema?.choices ||
+                              fieldSchema?.value ||
+                              fieldSchema?.default ||
+                              value;
 
+                            const options = parseChoiceOptions(rawOptions);
                             const isMultiple = Boolean(fieldSchema?.multiple);
+                            const selectedVal = options.includes(String(value))
+                              ? String(value)
+                              : options[0] || '';
 
                             if (isMultiple) {
                               return (
@@ -2151,11 +2330,7 @@ export default function PropertiesPanel({
                                   )}
                                 </label>
                                 <select
-                                  value={
-                                    options.includes(String(value))
-                                      ? String(value)
-                                      : options[0] || ''
-                                  }
+                                  value={selectedVal}
                                   onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
                                     handlePropertyChange(key, event.target.value)
                                   }

@@ -13,7 +13,7 @@ import {
   Lock,
   Edit2,
   X,
-  Settings,
+  Settings, 
   Info,
   CheckCircle,
   RefreshCw,
@@ -63,6 +63,39 @@ type ContractRule = {
     field_type: string;
     [key: string]: any;
   };
+};
+
+/** Helper to parse choice options from arrays, JSON strings, or comma-separated strings */
+const parseChoiceOptions = (rawOptions: any): string[] => {
+  if (!rawOptions) return [];
+  if (Array.isArray(rawOptions)) {
+    return rawOptions
+      .map((opt) => {
+        if (typeof opt === 'string') return opt.trim();
+        if (typeof opt === 'number') return String(opt);
+        if (typeof opt === 'object' && opt !== null) {
+          return String(opt.label || opt.name || opt.value || opt.id || '').trim();
+        }
+        return String(opt).trim();
+      })
+      .filter(Boolean);
+  }
+  if (typeof rawOptions === 'string') {
+    const trimmed = rawOptions.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parseChoiceOptions(parsed);
+      } catch (e) {
+        // Fall back
+      }
+    }
+    return trimmed
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
 };
 
 type FlatInputContract = {
@@ -364,10 +397,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
 
       setTestingConfig(initialConfig);
 
-      // Fetch source data for 'choice' type props
+      // Fetch source data for 'choice' or 'source' type props
       const allProps = [...userProps, ...sysProps];
       const sourceProps = allProps.filter(
-        (p: any) => p && p.key && p.source,
+        (p: any) => p && p.key && (p.source || p.type === 'source'),
       );
       if (sourceProps.length > 0) {
         const newSourceData: Record<
@@ -380,17 +413,45 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
         setTestingSourceData(newSourceData);
 
         sourceProps.forEach(async (p: any) => {
+          const effectiveSource = p.source || (typeof p.value === 'string' ? p.value : '');
+          if (!effectiveSource || !effectiveSource.trim()) {
+            setTestingSourceData((prev) => ({
+              ...prev,
+              [p.key]: { options: [], loading: false },
+            }));
+            return;
+          }
+
+          const isUrl = effectiveSource.startsWith('/') || effectiveSource.startsWith('http');
+          if (!isUrl) {
+            // Static string or JSON list in source property
+            const parsed = parseChoiceOptions(effectiveSource);
+            const options = parsed.map((opt) => ({ id: opt, name: opt }));
+            setTestingSourceData((prev) => ({
+              ...prev,
+              [p.key]: { options, loading: false },
+            }));
+            return;
+          }
+
           try {
             const BACKEND_URL =
               process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+            const fullUrl = effectiveSource.startsWith('http')
+              ? effectiveSource
+              : `${BACKEND_URL}${effectiveSource.startsWith('/') ? '' : '/'}${effectiveSource}`;
 
-            const res = await fetch(`${BACKEND_URL}${p.source}`, {
-              headers: getHeaders({ 'Content-Type': 'application/json' }),
-            });
-            if (!res.ok) throw new Error(`Failed to fetch ${p.source}`);
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            const headers: Record<string, string> = {
+              'Content-Type': 'application/json',
+              ...(token && { Authorization: `Bearer ${token}` }),
+            };
+
+            const res = await fetch(fullUrl, { headers });
+            if (!res.ok) throw new Error(`Failed to fetch ${effectiveSource}`);
             const json = await res.json();
 
-            // Normalize: handle arrays or { items/profiles/bases/results } envelopes
+            // Normalize: handle arrays or envelope objects
             const raw: any[] = Array.isArray(json)
               ? json
               : json.items ??
@@ -400,15 +461,28 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                 json.data ??
                 [];
 
-            const options = raw.map((item: any) => ({
-              id: item.id ?? item.value ?? item.key,
-              name:
-                item.name ??
-                item.label ??
-                item.title ??
-                item.display_name ??
-                String(item.id ?? item.value ?? ''),
-            }));
+            const options = raw.map((item: any) => {
+              if (item !== null && typeof item === 'object') {
+                const id =
+                  item.id ??
+                  item.value ??
+                  item.key ??
+                  item.profile_id ??
+                  item.kb_id ??
+                  item.name ??
+                  item.label ??
+                  '';
+                const name =
+                  item.name ??
+                  item.label ??
+                  item.title ??
+                  item.display_name ??
+                  item.profile_name ??
+                  String(id);
+                return { id, name: String(name || id) };
+              }
+              return { id: item, name: String(item) };
+            });
 
             setTestingSourceData((prev) => ({
               ...prev,
@@ -472,9 +546,35 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
       // Keep as string if not valid JSON
     }
 
+    // Build comprehensive config by sweeping all defined node properties
+    const userProps = Array.isArray(testingAgent.user_properties)
+      ? testingAgent.user_properties
+      : [];
+    const sysProps = Array.isArray(testingAgent.system_properties)
+      ? testingAgent.system_properties
+      : [];
+    const allProps = [...userProps, ...sysProps];
+
+    const finalConfig: Record<string, any> = { ...testingConfig };
+
+    allProps.forEach((prop: any) => {
+      if (!prop || !prop.key) return;
+      const currentVal = testingConfig[prop.key];
+
+      if (currentVal !== undefined && currentVal !== null && currentVal !== '') {
+        finalConfig[prop.key] = currentVal;
+      } else {
+        const rawVal = prop.value !== undefined ? prop.value : prop.default;
+        const isSourceUrl = prop.source && typeof rawVal === 'string' && rawVal === prop.source;
+        if (rawVal !== undefined && rawVal !== null && !isSourceUrl) {
+          finalConfig[prop.key] = rawVal;
+        }
+      }
+    });
+
     const payload = {
       node_name: testingAgent.name,
-      config: testingConfig,
+      config: finalConfig,
       data: parsedData,
     };
 
@@ -1081,7 +1181,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                 <option value="all">All Categories</option>
                 {categories.map((cat, idx) => (
                   <option
-                    key={`filter-cat-${cat.id || idx}`}
+                    key={`filter-cat-${cat.id ?? ''}-${cat.name ?? ''}-${idx}`}
                     value={cat.id ? String(cat.id) : cat.name}
                   >
                     {cat.label || cat.name}
@@ -1386,7 +1486,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                     disabled={userRole !== 'system_admin'}
                   >
                     {categories.map((cat, idx) => (
-                      <option key={`opt-${cat.id || cat.name || idx}`} value={cat.id}>
+                      <option key={`opt-${cat.id ?? ''}-${cat.name ?? ''}-${idx}`} value={cat.id}>
                         {cat.label || cat.name}
                       </option>
                     ))}
@@ -1936,8 +2036,8 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         const value =
                           testingConfig[prop.key] !== undefined ? testingConfig[prop.key] : '';
 
-                        // --- SOURCE-driven: render select from API (type may be 'choice' or anything) ---
-                        if (prop.source) {
+                        // --- SOURCE-driven: render select from API or source property ---
+                        if (prop.source || prop.type === 'source') {
                           const srcState = testingSourceData[prop.key];
                           const opts = srcState?.options ?? [];
                           const isLoadingSrc = srcState?.loading ?? true;
@@ -1973,14 +2073,14 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                 {isLoadingSrc ? (
                                   <p className="text-[11px] text-gray-400 italic animate-pulse">Loading options...</p>
                                 ) : opts.length === 0 ? (
-                                  <p className="text-[11px] text-red-400 italic">No options available from API.</p>
+                                  <p className="text-[11px] text-red-400 italic">No options available from source.</p>
                                 ) : (
                                   <div className="rounded-lg border border-gray-200 bg-white divide-y divide-gray-100 max-h-40 overflow-y-auto">
                                     {opts.map((opt) => {
                                       const checked = selectedIds.map(String).includes(String(opt.id));
                                       return (
                                         <label
-                                          key={opt.id}
+                                          key={String(opt.id)}
                                           className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-purple-50 transition-colors"
                                         >
                                           <input
@@ -1990,7 +2090,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                             className="accent-purple-600 h-3 w-3"
                                           />
                                           <span className="text-xs text-black">{opt.name}</span>
-                                          <span className="text-[10px] text-gray-400 font-mono ml-auto">#{opt.id}</span>
+                                          {opt.name !== String(opt.id) && (
+                                            <span className="text-[10px] text-gray-400 font-mono ml-auto">#{opt.id}</span>
+                                          )}
                                         </label>
                                       );
                                     })}
@@ -2019,25 +2121,142 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                 ) : (
                                   <select
                                     className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
-                                    value={value !== '' && value !== undefined ? String(value) : ''}
+                                    value={value !== '' && value !== undefined && value !== null ? String(value) : ''}
                                     onChange={(e) =>
                                       setTestingConfig({
                                         ...testingConfig,
-                                        [prop.key]: e.target.value === '' ? '' : e.target.value,
+                                        [prop.key]: e.target.value,
                                       })
                                     }
                                   >
                                     <option value="">— Select —</option>
                                     {opts.map((opt) => (
-                                      <option key={opt.id} value={String(opt.id)}>
-                                        {opt.name} (#{opt.id})
+                                      <option key={String(opt.id)} value={String(opt.id)}>
+                                        {opt.name} {opt.name !== String(opt.id) ? `(#${opt.id})` : ''}
                                       </option>
                                     ))}
                                   </select>
                                 )}
                                 {opts.length === 0 && !isLoadingSrc && (
-                                  <p className="text-[11px] text-red-400 italic">No options available from API.</p>
+                                  <p className="text-[11px] text-red-400 italic">No options available from source.</p>
                                 )}
+                                {prop.description && (
+                                  <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
+                                )}
+                              </div>
+                            );
+                          }
+                        }
+
+                        // Static choice field handling (options, choices, values, configured_values)
+                        const rawOpts =
+                          prop.options ||
+                          prop.choices ||
+                          prop.values ||
+                          prop.configured_values ||
+                          prop.configuredValues;
+                        const parsedOpts = parseChoiceOptions(rawOpts);
+                        const isChoiceType = prop.type === 'choice' || parsedOpts.length > 0;
+
+                        if (isChoiceType) {
+                          const isMultiple = !!prop.multiple;
+                          if (isMultiple) {
+                            const selectedVals: string[] = Array.isArray(value)
+                              ? value.map(String)
+                              : value !== '' && value !== undefined && value !== null
+                                ? String(value)
+                                    .split(',')
+                                    .map((v: string) => v.trim())
+                                    .filter(Boolean)
+                                : [];
+
+                            const toggleVal = (optVal: string) => {
+                              const already = selectedVals.includes(optVal);
+                              const next = already
+                                ? selectedVals.filter((x) => x !== optVal)
+                                : [...selectedVals, optVal];
+                              setTestingConfig({ ...testingConfig, [prop.key]: next });
+                            };
+
+                            return (
+                              <div key={prop.key} className="space-y-1">
+                                <label className="block text-[11px] font-bold text-gray-500 uppercase">
+                                  {label}{' '}
+                                  <span className="font-mono text-gray-400 font-normal">({prop.key})</span>
+                                  <span className="ml-1 text-purple-500 font-mono">multi-select</span>
+                                </label>
+                                {parsedOpts.length === 0 ? (
+                                  <input
+                                    type="text"
+                                    placeholder="Enter comma-separated values"
+                                    className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none"
+                                    value={Array.isArray(value) ? value.join(', ') : value}
+                                    onChange={(e) =>
+                                      setTestingConfig({
+                                        ...testingConfig,
+                                        [prop.key]: e.target.value
+                                          .split(',')
+                                          .map((v) => v.trim())
+                                          .filter(Boolean),
+                                      })
+                                    }
+                                  />
+                                ) : (
+                                  <div className="rounded-lg border border-gray-200 bg-white divide-y divide-gray-100 max-h-40 overflow-y-auto">
+                                    {parsedOpts.map((opt) => {
+                                      const checked = selectedVals.includes(opt);
+                                      return (
+                                        <label
+                                          key={opt}
+                                          className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-purple-50 transition-colors"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => toggleVal(opt)}
+                                            className="accent-purple-600 h-3 w-3"
+                                          />
+                                          <span className="text-xs text-black">{opt}</span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                {selectedVals.length > 0 && (
+                                  <p className="text-[10px] text-purple-600 font-mono">
+                                    Selected: [{selectedVals.join(', ')}]
+                                  </p>
+                                )}
+                                {prop.description && (
+                                  <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
+                                )}
+                              </div>
+                            );
+                          } else {
+                            // Single select dropdown
+                            return (
+                              <div key={prop.key} className="space-y-1">
+                                <label className="block text-[11px] font-bold text-gray-500 uppercase">
+                                  {label}{' '}
+                                  <span className="font-mono text-gray-400 font-normal">({prop.key})</span>
+                                </label>
+                                <select
+                                  className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
+                                  value={value !== undefined && value !== null ? String(value) : ''}
+                                  onChange={(e) =>
+                                    setTestingConfig({
+                                      ...testingConfig,
+                                      [prop.key]: e.target.value,
+                                    })
+                                  }
+                                >
+                                  <option value="">— Select —</option>
+                                  {parsedOpts.map((opt) => (
+                                    <option key={opt} value={opt}>
+                                      {opt}
+                                    </option>
+                                  ))}
+                                </select>
                                 {prop.description && (
                                   <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
                                 )}

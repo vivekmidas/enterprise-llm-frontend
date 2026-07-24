@@ -500,6 +500,74 @@ export const api = {
     return res.json();
   },
 
+  // Provider Presets API
+  getProviderPresets: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/provider-presets`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  getAdminProviderPresets: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/admin/provider-presets`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  createProviderPreset: async (payload: any) => {
+    const res = await fetch(`${BACKEND_URL}/api/admin/provider-presets`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to create provider preset');
+    }
+    return res.json();
+  },
+
+  updateProviderPreset: async (id: number, payload: any) => {
+    const res = await fetch(`${BACKEND_URL}/api/admin/provider-presets/${id}`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to update provider preset');
+    }
+    return res.json();
+  },
+
+  deleteProviderPreset: async (id: number) => {
+    const res = await fetch(`${BACKEND_URL}/api/admin/provider-presets/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to delete provider preset');
+    }
+    return true;
+  },
+
+  seedProviderPresets: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/admin/provider-presets/seed`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to seed provider presets');
+    }
+    return res.json();
+  },
+
+
   getCustomerNodeConfigs: async (customerId?: string | number) => {
     const url = customerId
       ? `${BACKEND_URL}/nodes/customer/config?customer_id=${customerId}`
@@ -599,7 +667,7 @@ export const api = {
     if (metadata?.tags) formData.append('tags', metadata.tags);
     if (metadata?.doc_type) formData.append('doc_type', metadata.doc_type);
 
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents`, {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/upload`, {
       method: 'POST',
       headers: getHeaders(), // Let browser set boundary for multipart/form-data
       body: formData,

@@ -70,6 +70,21 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
   const [testSteps, setTestSteps] = useState<any[]>([]);
   const [expandedSteps, setExpandedSteps] = useState<Record<number, boolean>>({});
 
+  // Temp File Storage (tenant-level staging config)
+  const defaultTempFileConfig = {
+    storage_type: 'local' as 'local' | 's3' | 'network_path',
+    local_dir: '/tmp/nflow',
+    max_file_size_mb: 50,
+    retention_minutes: 60,
+    s3_bucket: '',
+    s3_region: '',
+    network_path: '',
+  };
+  const [tempFileConfig, setTempFileConfig] = useState<typeof defaultTempFileConfig>(defaultTempFileConfig);
+  const [tempFileSaving, setTempFileSaving] = useState(false);
+  const [tempFileSaveResult, setTempFileSaveResult] = useState<{ status: 'success' | 'error' | null; message: string }>({ status: null, message: '' });
+  const [tempFileSectionOpen, setTempFileSectionOpen] = useState(false);
+
   useEffect(() => {
     if (customerId) {
       setSelectedCustomerId(customerId);
@@ -159,6 +174,10 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
 
       const configList = configs || [];
       setSavedConfigs(configList);
+
+      // Load temp file config from company settings blob
+      const tfc = companySettings?.settings?.temp_file_config;
+      if (tfc) setTempFileConfig({ ...defaultTempFileConfig, ...tfc });
 
       const activeId = companySettings.active_config_id || companySettings.active_profile_id
         ? String(companySettings.active_config_id || companySettings.active_profile_id)
@@ -440,6 +459,23 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
       ...prev,
       [stepNum]: !prev[stepNum],
     }));
+  };
+
+  const handleSaveTempFileConfig = async () => {
+    if (!selectedCustomerId && userRole !== 'system_admin') return;
+    setTempFileSaving(true);
+    setTempFileSaveResult({ status: null, message: '' });
+    try {
+      await api.updateCustomer(selectedCustomerId!, {
+        settings: { temp_file_config: tempFileConfig },
+      });
+      setTempFileSaveResult({ status: 'success', message: 'Temp file settings saved.' });
+      setTimeout(() => setTempFileSaveResult({ status: null, message: '' }), 4000);
+    } catch (err: any) {
+      setTempFileSaveResult({ status: 'error', message: err.message || 'Save failed.' });
+    } finally {
+      setTempFileSaving(false);
+    }
   };
 
   if (loading) {
@@ -1013,6 +1049,167 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── Temp File Storage ── */}
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        {/* Collapsible header */}
+        <button
+          type="button"
+          onClick={() => setTempFileSectionOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-5 py-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-bold text-gray-700">Temp / In-Transit File Storage</span>
+            <span className="text-[9px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              Preview
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-400">
+            <span className="text-[10px] text-gray-400">
+              Configure where transient files are staged during workflow execution.
+            </span>
+            {tempFileSectionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </div>
+        </button>
+
+        {tempFileSectionOpen && (
+          <div className="p-5 space-y-5 border-t border-gray-200">
+            {/* Storage type selector */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">Storage Type</label>
+              <div className="flex gap-3">
+                {(['local', 's3', 'network_path'] as const).map((t) => {
+                  const labels: Record<string, string> = { local: 'Local Disk', s3: 'S3 Bucket', network_path: 'Network Path' };
+                  const isAvailable = t === 'local';
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      disabled={!isAvailable}
+                      onClick={() => isAvailable && setTempFileConfig((c) => ({ ...c, storage_type: t }))}
+                      className={`flex-1 py-2 rounded-lg border text-xs font-semibold transition-all
+                        ${
+                          tempFileConfig.storage_type === t
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : isAvailable
+                              ? 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 cursor-pointer'
+                              : 'border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed'
+                        }`}
+                    >
+                      {labels[t]}
+                      {!isAvailable && (
+                        <span className="ml-1 text-[8px] text-gray-300">(soon)</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400">S3 and network paths are planned for a future release.</p>
+            </div>
+
+            {/* Local dir */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">Local Temp Directory</label>
+              <input
+                type="text"
+                value={tempFileConfig.local_dir}
+                disabled={tempFileConfig.storage_type !== 'local'}
+                onChange={(e) => setTempFileConfig((c) => ({ ...c, local_dir: e.target.value }))}
+                placeholder="/tmp/nflow"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono bg-white text-black focus:outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+              />
+              <p className="text-[10px] text-gray-400">Absolute path on the server where transient files are written.</p>
+            </div>
+
+            {/* Max file size + retention — two columns */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">Max File Size (MB)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={2048}
+                  value={tempFileConfig.max_file_size_mb}
+                  onChange={(e) => setTempFileConfig((c) => ({ ...c, max_file_size_mb: Number(e.target.value) }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">Retention (minutes)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={tempFileConfig.retention_minutes}
+                  onChange={(e) => setTempFileConfig((c) => ({ ...c, retention_minutes: Number(e.target.value) }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-black focus:outline-none focus:border-blue-500"
+                />
+                <p className="text-[10px] text-gray-400">Auto-purge temp files after this window.</p>
+              </div>
+            </div>
+
+            {/* S3 fields — greyed out */}
+            <div className="grid grid-cols-2 gap-4 opacity-40 pointer-events-none">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">S3 Bucket</label>
+                <input
+                  type="text"
+                  disabled
+                  value={tempFileConfig.s3_bucket}
+                  placeholder="my-company-bucket"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono bg-gray-50 text-gray-400 cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">S3 Region</label>
+                <input
+                  type="text"
+                  disabled
+                  value={tempFileConfig.s3_region}
+                  placeholder="ap-south-1"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono bg-gray-50 text-gray-400 cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div className="opacity-40 pointer-events-none space-y-1.5">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Network / UNC Path</label>
+              <input
+                type="text"
+                disabled
+                value={tempFileConfig.network_path}
+                placeholder="\\\\server\\share\\nflow-temp"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono bg-gray-50 text-gray-400 cursor-not-allowed"
+              />
+              <p className="text-[10px] text-gray-400">SMB/UNC network share — planned for future release.</p>
+            </div>
+
+            {/* Save bar */}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              <div>
+                {tempFileSaveResult.status && (
+                  <span className={`text-xs font-semibold ${
+                    tempFileSaveResult.status === 'success' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {tempFileSaveResult.status === 'success' ? '✓ ' : '✗ '}{tempFileSaveResult.message}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveTempFileConfig}
+                disabled={tempFileSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {tempFileSaving ? (
+                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                ) : (
+                  <><CheckCircle className="w-3.5 h-3.5" /> Save Temp File Settings</>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,19 +3,25 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, BACKEND_URL, getHeaders } from '@/lib/api';
 import {
-  Brain,
+  AlertTriangle,
+  Check,
+  CheckCircle,
   ChevronDown,
-  ChevronRight,
+  ChevronUp,
   Database,
   Filter,
+  FlaskRound,
   Loader2,
   MessageSquare,
+  Pencil,
   Plus,
+  RefreshCw,
   Save,
   Search,
   Settings2,
   Star,
   Trash2,
+  X,
   Zap,
 } from 'lucide-react';
 
@@ -128,12 +134,12 @@ const SectionHeader = ({
   title: string;
   subtitle: string;
 }) => (
-  <div className="flex items-center gap-3 mb-5">
-    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+  <div className="flex items-center gap-3 mb-4">
+    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
       {icon}
     </div>
     <div>
-      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+      <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">{title}</h3>
       <p className="text-xs text-gray-500">{subtitle}</p>
     </div>
   </div>
@@ -148,10 +154,10 @@ const Field = ({
   hint?: string;
   children: React.ReactNode;
 }) => (
-  <div className="space-y-1">
-    <label className="block text-xs font-medium text-gray-700">{label}</label>
+  <div className="space-y-1.5">
+    <label className="block text-xs font-semibold text-gray-700">{label}</label>
     {children}
-    {hint && <p className="text-xs text-gray-400">{hint}</p>}
+    {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
   </div>
 );
 
@@ -171,7 +177,7 @@ const TextInput = ({
     value={value}
     onChange={(e) => onChange(e.target.value)}
     placeholder={placeholder}
-    className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition"
+    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-gray-900 focus:outline-none focus:border-blue-500 transition-colors"
   />
 );
 
@@ -187,10 +193,10 @@ const Select = ({
   <select
     value={value}
     onChange={(e) => onChange(e.target.value)}
-    className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition"
+    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-gray-900 focus:outline-none focus:border-blue-500 cursor-pointer transition-colors"
   >
     {options.map((o) => (
-      <option key={o.value} value={o.value}>
+      <option key={o.value} value={o.value} className="bg-white text-gray-800 font-normal text-xs">
         {o.label}
       </option>
     ))}
@@ -212,7 +218,7 @@ const Toggle = ({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none cursor-pointer ${
         checked ? 'bg-blue-600' : 'bg-gray-200'
       }`}
     >
@@ -251,9 +257,9 @@ const SliderField = ({
       step={step}
       value={value}
       onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="w-full accent-blue-600"
+      className="w-full accent-blue-600 cursor-pointer"
     />
-    <div className="flex justify-between text-xs text-gray-400">
+    <div className="flex justify-between text-[10px] text-gray-400 font-medium">
       <span>{min}</span>
       <span>{max}</span>
     </div>
@@ -267,63 +273,118 @@ const SliderField = ({
 const EmbeddingEditor = ({
   data,
   onChange,
+  presets = [],
 }: {
   data: EmbeddingSection;
   onChange: (d: EmbeddingSection) => void;
-}) => (
-  <div className="space-y-4">
-    <SectionHeader
-      icon={<Database className="h-4 w-4" />}
-      title="Embedding"
-      subtitle="Controls text-to-vector conversion during ingestion and retrieval"
-    />
-    <div className="grid grid-cols-2 gap-4">
-      <Field label="Provider">
-        <Select
-          value={data.provider}
-          onChange={(v) => onChange({ ...data, provider: v })}
-          options={[
-            { label: 'Ollama', value: 'ollama' },
-            { label: 'OpenAI', value: 'openai' },
-            { label: 'Azure', value: 'azure' },
-          ]}
-        />
-      </Field>
-      <Field label="Model">
-        <TextInput
-          value={data.model}
-          onChange={(v) => onChange({ ...data, model: v })}
-          placeholder="nomic-embed-text"
-        />
-      </Field>
-    </div>
-    <Field label="Endpoint URL" hint="Full URL to the embedding API">
-      <TextInput
-        value={data.url}
-        onChange={(v) => onChange({ ...data, url: v })}
-        placeholder="http://localhost:11434/api/embeddings"
+  presets?: any[];
+}) => {
+  const currentPreset = presets.find((p) => p.provider_key === data.provider);
+  const providerOptions =
+    presets.length > 0
+      ? presets.map((p) => ({ label: p.name, value: p.provider_key }))
+      : [
+          { label: 'Ollama', value: 'ollama' },
+          { label: 'OpenAI', value: 'openai' },
+          { label: 'Azure', value: 'azure' },
+          { label: 'vLLM', value: 'vllm' },
+          { label: 'Grok / xAI', value: 'grok' },
+          { label: 'Anthropic', value: 'anthropic' },
+        ];
+
+  const handleProviderChange = (newProvider: string) => {
+    const preset = presets.find((p) => p.provider_key === newProvider);
+    if (preset) {
+      const defaultEmbed = preset.embedding_models?.[0];
+      const modelName = preset.default_embedding_model || defaultEmbed?.model || data.model;
+      const dim = defaultEmbed?.dimension || preset.default_embedding_dimension || data.dimension;
+      const url =
+        newProvider === 'ollama'
+          ? `${preset.base_url.replace(/\/$/, '')}/api/embeddings`
+          : preset.base_url;
+      onChange({
+        ...data,
+        provider: newProvider,
+        url: url,
+        model: modelName,
+        dimension: dim,
+      });
+    } else {
+      onChange({ ...data, provider: newProvider });
+    }
+  };
+
+  const handleModelChange = (newModel: string) => {
+    const embedItem = currentPreset?.embedding_models?.find((m: any) => m.model === newModel);
+    onChange({
+      ...data,
+      model: newModel,
+      dimension: embedItem ? embedItem.dimension : data.dimension,
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <SectionHeader
+        icon={<Database className="h-4 w-4" />}
+        title="Embedding"
+        subtitle="Controls text-to-vector conversion during ingestion and retrieval"
       />
-    </Field>
-    <div className="grid grid-cols-2 gap-4">
-      <Field label="Vector Dimension">
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Provider">
+          <Select
+            value={data.provider}
+            onChange={handleProviderChange}
+            options={providerOptions}
+          />
+        </Field>
+        <Field label="Model">
+          {currentPreset?.embedding_models && currentPreset.embedding_models.length > 0 ? (
+            <Select
+              value={data.model}
+              onChange={handleModelChange}
+              options={currentPreset.embedding_models.map((m: any) => ({
+                label: `${m.model} (${m.dimension}d)`,
+                value: m.model,
+              }))}
+            />
+          ) : (
+            <TextInput
+              value={data.model}
+              onChange={(v) => onChange({ ...data, model: v })}
+              placeholder="nomic-embed-text"
+            />
+          )}
+        </Field>
+      </div>
+      <Field label="Endpoint URL" hint="Full URL to the embedding API">
         <TextInput
-          type="number"
-          value={data.dimension}
-          onChange={(v) => onChange({ ...data, dimension: parseInt(v) || 768 })}
-          placeholder="768"
+          value={data.url}
+          onChange={(v) => onChange({ ...data, url: v })}
+          placeholder="http://localhost:11434/api/embeddings"
         />
       </Field>
-      <Field label="API Key" hint="Leave blank for local models">
-        <TextInput
-          value={data.api_key || ''}
-          onChange={(v) => onChange({ ...data, api_key: v || undefined })}
-          placeholder="sk-..."
-          type="password"
-        />
-      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Vector Dimension">
+          <TextInput
+            type="number"
+            value={data.dimension}
+            onChange={(v) => onChange({ ...data, dimension: parseInt(v) || 768 })}
+            placeholder="768"
+          />
+        </Field>
+        <Field label="API Key" hint="Leave blank for local models">
+          <TextInput
+            value={data.api_key || ''}
+            onChange={(v) => onChange({ ...data, api_key: v || undefined })}
+            placeholder="sk-..."
+            type="password"
+          />
+        </Field>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const SearchEditor = ({
   data,
@@ -387,129 +448,184 @@ const SearchEditor = ({
 const RerankEditor = ({
   data,
   onChange,
+  presets = [],
 }: {
   data: RerankSection;
   onChange: (d: RerankSection) => void;
-}) => (
-  <div className="space-y-4">
-    <SectionHeader
-      icon={<Filter className="h-4 w-4" />}
-      title="Reranking"
-      subtitle="LLM-based relevance reordering of retrieved candidates"
-    />
-    <Toggle
-      checked={data.enabled}
-      onChange={(v) => onChange({ ...data, enabled: v })}
-      label="Enable reranking"
-    />
-    <div
-      className={`space-y-4 transition-opacity ${data.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}
-    >
-      <Field label="Reranker Endpoint URL" hint="Chat-completion endpoint used as relevance judge">
+  presets?: any[];
+}) => {
+  const activePreset = presets.find((p) => p.rerank_models?.includes(data.model)) || presets[0];
+
+  return (
+    <div className="space-y-4">
+      <SectionHeader
+        icon={<Filter className="h-4 w-4" />}
+        title="Reranking"
+        subtitle="LLM-based relevance reordering of retrieved candidates"
+      />
+      <Toggle
+        checked={data.enabled}
+        onChange={(v) => onChange({ ...data, enabled: v })}
+        label="Enable reranking"
+      />
+      <div
+        className={`space-y-4 transition-opacity ${data.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}
+      >
+        <Field label="Reranker Endpoint URL" hint="Chat-completion endpoint used as relevance judge">
+          <TextInput
+            value={data.url}
+            onChange={(v) => onChange({ ...data, url: v })}
+            placeholder="http://localhost:11434/api/chat"
+          />
+        </Field>
+        <Field label="Reranker Model">
+          {activePreset?.rerank_models && activePreset.rerank_models.length > 0 ? (
+            <Select
+              value={data.model}
+              onChange={(v) => onChange({ ...data, model: v })}
+              options={activePreset.rerank_models.map((m: string) => ({ label: m, value: m }))}
+            />
+          ) : (
+            <TextInput
+              value={data.model}
+              onChange={(v) => onChange({ ...data, model: v })}
+              placeholder="qwen3:0.6b"
+            />
+          )}
+        </Field>
+        <Field label="Candidate Limit" hint="How many chunks to pass to the reranker">
+          <TextInput
+            type="number"
+            value={data.candidate_limit}
+            onChange={(v) => onChange({ ...data, candidate_limit: parseInt(v) || 20 })}
+            placeholder="20"
+          />
+        </Field>
+      </div>
+    </div>
+  );
+};
+
+const GenerationEditor = ({
+  data,
+  onChange,
+  presets = [],
+}: {
+  data: GenerationSection;
+  onChange: (d: GenerationSection) => void;
+  presets?: any[];
+}) => {
+  const currentPreset = presets.find((p) => p.provider_key === data.provider);
+  const providerOptions =
+    presets.length > 0
+      ? presets.map((p) => ({ label: p.name, value: p.provider_key }))
+      : [
+          { label: 'Ollama', value: 'ollama' },
+          { label: 'OpenAI', value: 'openai' },
+          { label: 'Azure', value: 'azure' },
+          { label: 'vLLM', value: 'vllm' },
+          { label: 'Grok / xAI', value: 'grok' },
+          { label: 'Anthropic', value: 'anthropic' },
+        ];
+
+  const handleProviderChange = (newProvider: string) => {
+    const preset = presets.find((p) => p.provider_key === newProvider);
+    if (preset) {
+      const modelName = preset.default_chat_model || preset.chat_models?.[0] || data.model;
+      const url =
+        newProvider === 'ollama'
+          ? `${preset.base_url.replace(/\/$/, '')}/api/chat`
+          : preset.base_url;
+      onChange({
+        ...data,
+        provider: newProvider,
+        url: url,
+        model: modelName,
+        temperature: preset.default_temperature ?? data.temperature,
+        max_tokens: preset.default_max_tokens ?? data.max_tokens,
+      });
+    } else {
+      onChange({ ...data, provider: newProvider });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <SectionHeader
+        icon={<MessageSquare className="h-4 w-4" />}
+        title="Generation"
+        subtitle="LLM used to synthesize the final answer from retrieved context"
+      />
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Provider">
+          <Select
+            value={data.provider}
+            onChange={handleProviderChange}
+            options={providerOptions}
+          />
+        </Field>
+        <Field label="Model">
+          {currentPreset?.chat_models && currentPreset.chat_models.length > 0 ? (
+            <Select
+              value={data.model}
+              onChange={(v) => onChange({ ...data, model: v })}
+              options={currentPreset.chat_models.map((m: string) => ({ label: m, value: m }))}
+            />
+          ) : (
+            <TextInput
+              value={data.model}
+              onChange={(v) => onChange({ ...data, model: v })}
+              placeholder="llama3.2"
+            />
+          )}
+        </Field>
+      </div>
+      <Field label="Endpoint URL">
         <TextInput
           value={data.url}
           onChange={(v) => onChange({ ...data, url: v })}
           placeholder="http://localhost:11434/api/chat"
         />
       </Field>
-      <Field label="Reranker Model">
-        <TextInput
-          value={data.model}
-          onChange={(v) => onChange({ ...data, model: v })}
-          placeholder="qwen3:0.6b"
+      <div className="grid grid-cols-2 gap-4">
+        <SliderField
+          label="Temperature"
+          value={data.temperature}
+          min={0}
+          max={2}
+          step={0.1}
+          onChange={(v) => onChange({ ...data, temperature: v })}
+          hint="Higher = more creative"
+        />
+        <Field label="Max Tokens">
+          <TextInput
+            type="number"
+            value={data.max_tokens}
+            onChange={(v) => onChange({ ...data, max_tokens: parseInt(v) || 1024 })}
+            placeholder="1024"
+          />
+        </Field>
+      </div>
+      <Field label="System Prompt" hint="Overrides the global system prompt for this profile">
+        <textarea
+          value={data.system_prompt || ''}
+          onChange={(e) => onChange({ ...data, system_prompt: e.target.value || null })}
+          placeholder="You are a helpful enterprise assistant..."
+          rows={4}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-gray-900 focus:outline-none focus:border-blue-500 transition-colors resize-none"
         />
       </Field>
-      <Field label="Candidate Limit" hint="How many chunks to pass to the reranker">
+      <Field label="API Key" hint="Required for OpenAI / Azure / Grok / Anthropic providers">
         <TextInput
-          type="number"
-          value={data.candidate_limit}
-          onChange={(v) => onChange({ ...data, candidate_limit: parseInt(v) || 20 })}
-          placeholder="20"
+          value={data.api_key || ''}
+          onChange={(v) => onChange({ ...data, api_key: v || undefined })}
+          placeholder="sk-..."
+          type="password"
         />
       </Field>
     </div>
-  </div>
-);
-
-const GenerationEditor = ({
-  data,
-  onChange,
-}: {
-  data: GenerationSection;
-  onChange: (d: GenerationSection) => void;
-}) => (
-  <div className="space-y-4">
-    <SectionHeader
-      icon={<MessageSquare className="h-4 w-4" />}
-      title="Generation"
-      subtitle="LLM used to synthesize the final answer from retrieved context"
-    />
-    <div className="grid grid-cols-2 gap-4">
-      <Field label="Provider">
-        <Select
-          value={data.provider}
-          onChange={(v) => onChange({ ...data, provider: v })}
-          options={[
-            { label: 'Ollama', value: 'ollama' },
-            { label: 'OpenAI', value: 'openai' },
-            { label: 'Azure', value: 'azure' },
-            { label: 'vLLM', value: 'vllm' },
-          ]}
-        />
-      </Field>
-      <Field label="Model">
-        <TextInput
-          value={data.model}
-          onChange={(v) => onChange({ ...data, model: v })}
-          placeholder="llama3.2"
-        />
-      </Field>
-    </div>
-    <Field label="Endpoint URL">
-      <TextInput
-        value={data.url}
-        onChange={(v) => onChange({ ...data, url: v })}
-        placeholder="http://localhost:11434/api/chat"
-      />
-    </Field>
-    <div className="grid grid-cols-2 gap-4">
-      <SliderField
-        label="Temperature"
-        value={data.temperature}
-        min={0}
-        max={2}
-        step={0.1}
-        onChange={(v) => onChange({ ...data, temperature: v })}
-        hint="Higher = more creative"
-      />
-      <Field label="Max Tokens">
-        <TextInput
-          type="number"
-          value={data.max_tokens}
-          onChange={(v) => onChange({ ...data, max_tokens: parseInt(v) || 1024 })}
-          placeholder="1024"
-        />
-      </Field>
-    </div>
-    <Field label="System Prompt" hint="Overrides the global system prompt for this profile">
-      <textarea
-        value={data.system_prompt || ''}
-        onChange={(e) => onChange({ ...data, system_prompt: e.target.value || null })}
-        placeholder="You are a helpful enterprise assistant..."
-        rows={4}
-        className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition resize-none"
-      />
-    </Field>
-    <Field label="API Key" hint="Required for OpenAI / Azure providers">
-      <TextInput
-        value={data.api_key || ''}
-        onChange={(v) => onChange({ ...data, api_key: v || undefined })}
-        placeholder="sk-..."
-        type="password"
-      />
-    </Field>
-  </div>
-);
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Profile editor panel
@@ -542,13 +658,84 @@ const ProfileEditor = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Dynamic Provider Presets state
+  const [providerPresets, setProviderPresets] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadPresets() {
+      try {
+        const presets = await api.getProviderPresets();
+        setProviderPresets(presets || []);
+      } catch (err) {
+        console.error('Failed to load provider presets in ProfileEditor:', err);
+      }
+    }
+    loadPresets();
+  }, []);
+
+  // Profile Name/Desc inline editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [profileName, setProfileName] = useState(profile.name);
+  const [profileDesc, setProfileDesc] = useState(profile.description || '');
+  const [savingName, setSavingName] = useState(false);
+
+  // Gateway Diagnostic Test states
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    status: 'success' | 'error' | null;
+    message: string;
+  }>({ status: null, message: '' });
+  const [testSteps, setTestSteps] = useState<any[]>([]);
+  const [expandedSteps, setExpandedSteps] = useState<Record<number, boolean>>({});
+
   useEffect(() => {
     setSettings(normalizeSettings(profile.settings));
-  }, [profile.id]);
+    setProfileName(profile.name);
+    setProfileDesc(profile.description || '');
+    setIsEditingName(false);
+    setTestResult({ status: null, message: '' });
+    setTestSteps([]);
+    setExpandedSteps({});
+  }, [profile.id, profile.name, profile.description]);
 
   const showSuccess = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(null), 2500);
+  };
+
+  const saveProfileName = async () => {
+    if (!profileName.trim()) return;
+    setSavingName(true);
+    setError(null);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/profiles/${profile.id}`, {
+        method: 'PUT',
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          name: profileName.trim(),
+          description: profileDesc.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        let msg = 'Failed to update profile name';
+        try {
+          const text = await res.text();
+          const data = JSON.parse(text);
+          msg = data.detail || data.message || msg;
+        } catch {
+          msg = `${res.status} ${res.statusText}`;
+        }
+        throw new Error(msg);
+      }
+      const updated: LLMProfile = await res.json();
+      onSaved(updated);
+      setIsEditingName(false);
+      showSuccess('Profile updated');
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSavingName(false);
+    }
   };
 
   const saveSection = async (section: SectionTab) => {
@@ -635,105 +822,357 @@ const ProfileEditor = ({
     }
   };
 
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    setTestResult({ status: null, message: '' });
+    setExpandedSteps({});
+
+    const initialSteps = [
+      { step: 1, name: 'Configuration Parsing', status: 'pending', message: 'Pending...' },
+      { step: 2, name: 'Network Reachability Check', status: 'pending', message: 'Pending...' },
+      { step: 3, name: 'Credential Validation', status: 'pending', message: 'Pending...' },
+      { step: 4, name: 'API Client Initialization', status: 'pending', message: 'Pending...' },
+      { step: 5, name: 'Provider Model Availability Check', status: 'pending', message: 'Pending...' },
+      { step: 6, name: 'Model Verification', status: 'pending', message: 'Pending...' },
+      { step: 7, name: 'Prompt Preparation', status: 'pending', message: 'Pending...' },
+      { step: 8, name: 'Endpoint Connection', status: 'pending', message: 'Pending...' },
+      { step: 9, name: 'Request Dispatch', status: 'pending', message: 'Pending...' },
+      { step: 10, name: 'Response Processing', status: 'pending', message: 'Pending...' },
+      { step: 11, name: 'Content Validation', status: 'pending', message: 'Pending...' },
+    ];
+    setTestSteps(initialSteps);
+
+    const testPayload: any = {
+      config_id: profile.id,
+      llm_profile_id: profile.id,
+      llm_provider: settings.generation.provider,
+      llm_model: settings.generation.model,
+      llm_base_url: settings.generation.url,
+      llm_api_key: settings.generation.api_key || '',
+    };
+
+    try {
+      const res = await api.testLlmConnection(testPayload);
+      const finalSteps = res.steps || [];
+
+      for (let i = 0; i < finalSteps.length; i++) {
+        setTestSteps((prev) =>
+          prev.map((s, idx) =>
+            idx === i ? { ...s, status: 'loading', message: 'Executing...' } : s,
+          ),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        setTestSteps((prev) => prev.map((s, idx) => (idx === i ? finalSteps[i] : s)));
+
+        if (finalSteps[i].status === 'error') {
+          setTestSteps((prev) =>
+            prev.map((s, idx) =>
+              idx > i ? { ...s, status: 'skipped', message: 'Skipped due to previous error' } : s,
+            ),
+          );
+          break;
+        }
+      }
+
+      if (res.status === 'success') {
+        setTestResult({ status: 'success', message: res.message });
+      } else {
+        setTestResult({ status: 'error', message: res.message || 'Connection test failed.' });
+      }
+    } catch (err: any) {
+      setTestResult({ status: 'error', message: err.message || 'Connection test failed.' });
+      setTestSteps((prev) =>
+        prev.map((s) =>
+          s.status === 'pending' || s.status === 'loading'
+            ? { ...s, status: 'error', message: 'Failed connection execution' }
+            : s,
+        ),
+      );
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  const toggleStepExpand = (stepNum: number) => {
+    setExpandedSteps((prev) => ({
+      ...prev,
+      [stepNum]: !prev[stepNum],
+    }));
+  };
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Profile header */}
-      <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-gray-900">{profile.name}</h2>
-          {profile.is_default && (
-            <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
-              <Star className="h-3 w-3" />
-              Default
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
+      {/* Header Row */}
+      <div className="p-4 border-b border-gray-200 bg-gray-50/30 flex items-center justify-between shrink-0">
+        {isEditingName ? (
+          <div className="flex items-center gap-2 flex-1 max-w-lg">
+            <div className="flex flex-col gap-1.5 flex-1">
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="Profile Name"
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-800 bg-white focus:outline-none focus:border-blue-500"
+                autoFocus
+              />
+              <input
+                type="text"
+                value={profileDesc}
+                onChange={(e) => setProfileDesc(e.target.value)}
+                placeholder="Optional description"
+                className="border border-gray-300 rounded-lg px-3 py-1 text-xs text-gray-600 bg-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <button
+              onClick={saveProfileName}
+              disabled={savingName || !profileName.trim()}
+              className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition cursor-pointer"
+              title="Save name"
+            >
+              {savingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={() => {
+                setIsEditingName(false);
+                setProfileName(profile.name);
+                setProfileDesc(profile.description || '');
+              }}
+              className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition cursor-pointer"
+              title="Cancel"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base text-gray-800">{profile.name}</h3>
+              <button
+                onClick={() => setIsEditingName(true)}
+                className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors cursor-pointer"
+                title="Edit Profile Name"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              {profile.is_default && (
+                <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+                  <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
+                  Default
+                </span>
+              )}
+            </div>
+            {profile.description && (
+              <p className="text-xs text-gray-500 mt-0.5">{profile.description}</p>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
           {!profile.is_default && (
             <button
               onClick={setDefault}
               disabled={saving}
-              className="flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50 transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-200 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
             >
-              <Star className="h-3.5 w-3.5" />
+              <Star className="w-3.5 h-3.5" />
               Set Default
             </button>
           )}
           <button
             onClick={deleteProfile}
             disabled={saving}
-            className="flex items-center gap-1.5 rounded-md border border-red-100 px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-50 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
           >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete Profile
           </button>
         </div>
       </div>
 
-      {/* Section tabs */}
-      <div className="flex gap-1 mb-5 border-b border-gray-100 pb-0">
-        {SECTION_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveSection(tab.key)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition border-b-2 -mb-px ${
-              activeSection === tab.key
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Main Content Grid: Left Editor + Right Diagnostic Panel */}
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        {/* Left Column: Section tabs, editor, save button */}
+        <div className="flex-1 flex flex-col min-w-0 p-4 overflow-hidden border-r border-gray-200">
+          {/* Section tabs */}
+          <div className="flex gap-1.5 mb-4 border-b border-gray-200 pb-3 shrink-0">
+            {SECTION_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveSection(tab.key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                  activeSection === tab.key
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-      {/* Section editor */}
-      <div className="flex-1 overflow-y-auto">
-        {activeSection === 'embedding' && (
-          <EmbeddingEditor
-            data={settings.embedding}
-            onChange={(d) => setSettings({ ...settings, embedding: d })}
-          />
-        )}
-        {activeSection === 'search' && (
-          <SearchEditor
-            data={settings.search}
-            onChange={(d) => setSettings({ ...settings, search: d })}
-          />
-        )}
-        {activeSection === 'reranking' && (
-          <RerankEditor
-            data={settings.reranking}
-            onChange={(d) => setSettings({ ...settings, reranking: d })}
-          />
-        )}
-        {activeSection === 'generation' && (
-          <GenerationEditor
-            data={settings.generation}
-            onChange={(d) => setSettings({ ...settings, generation: d })}
-          />
-        )}
-      </div>
+          {/* Section editor */}
+          <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+            {activeSection === 'embedding' && (
+              <EmbeddingEditor
+                data={settings.embedding}
+                onChange={(d) => setSettings({ ...settings, embedding: d })}
+                presets={providerPresets}
+              />
+            )}
+            {activeSection === 'search' && (
+              <SearchEditor
+                data={settings.search}
+                onChange={(d) => setSettings({ ...settings, search: d })}
+              />
+            )}
+            {activeSection === 'reranking' && (
+              <RerankEditor
+                data={settings.reranking}
+                onChange={(d) => setSettings({ ...settings, reranking: d })}
+                presets={providerPresets}
+              />
+            )}
+            {activeSection === 'generation' && (
+              <GenerationEditor
+                data={settings.generation}
+                onChange={(d) => setSettings({ ...settings, generation: d })}
+                presets={providerPresets}
+              />
+            )}
+          </div>
 
-      {/* Footer */}
-      <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
-        <div className="text-xs">
-          {error && <span className="text-red-500">{error}</span>}
-          {success && <span className="text-green-600">✓ {success}</span>}
+          {/* Footer with Save Button - ALWAYS VISIBLE */}
+          <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between shrink-0 bg-white">
+            <div className="text-xs font-semibold">
+              {error && <span className="text-red-600">{error}</span>}
+              {success && <span className="text-green-600">✓ {success}</span>}
+            </div>
+            <button
+              onClick={() => saveSection(activeSection)}
+              disabled={!!savingSection}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer disabled:opacity-60"
+            >
+              {savingSection === activeSection ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              Save {SECTION_TABS.find((t) => t.key === activeSection)?.label} Settings
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => saveSection(activeSection)}
-          disabled={!!savingSection}
-          className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60 transition"
-        >
-          {savingSection === activeSection ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Save className="h-3.5 w-3.5" />
-          )}
-          Save {activeSection}
-        </button>
+
+        {/* Right Column: Diagnostic Panel */}
+        <div className="w-[340px] shrink-0 p-4 overflow-y-auto bg-slate-50/20">
+          <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-xs space-y-3">
+            <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+              <FlaskRound className="w-4 h-4 text-blue-600" />
+              Gateway Diagnostic
+            </h4>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Test endpoint connectivity and verify prompt completion against current settings.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleTestConnection}
+              disabled={testingConnection}
+              className="w-full py-2.5 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 font-semibold rounded-lg text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {testingConnection && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              Test Connection
+            </button>
+
+            {testResult.status && (
+              <div
+                className={`p-3 rounded-lg border text-xs leading-relaxed flex items-start gap-2 ${
+                  testResult.status === 'success'
+                    ? 'bg-green-50/50 border-green-200 text-green-800'
+                    : 'bg-red-50/50 border-red-200 text-red-800'
+                }`}
+              >
+                {testResult.status === 'success' ? (
+                  <CheckCircle className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                )}
+                <span>{testResult.message}</span>
+              </div>
+            )}
+
+            {/* Diagnostic execution steps */}
+            {testSteps.length > 0 && (
+              <div className="border-t pt-3 border-gray-100 space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  <span>
+                    Execution Steps ({testSteps.filter((s) => s.status === 'success').length}/11)
+                  </span>
+                  {testingConnection && <span className="text-blue-500 animate-pulse">Running...</span>}
+                </div>
+
+                <div className="space-y-1.5">
+                  {testSteps.map((step) => {
+                    const isExpanded = !!expandedSteps[step.step];
+                    const getStepIcon = (status: string) => {
+                      switch (status) {
+                        case 'success':
+                          return <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />;
+                        case 'error':
+                          return <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />;
+                        case 'loading':
+                          return <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />;
+                        case 'skipped':
+                          return (
+                            <div className="w-3.5 h-3.5 rounded-full border border-gray-300 flex items-center justify-center shrink-0">
+                              <span className="w-1.5 h-0.5 bg-gray-300 rounded-sm" />
+                            </div>
+                          );
+                        case 'pending':
+                        default:
+                          return <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200 shrink-0" />;
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={step.step}
+                        className={`flex flex-col p-2.5 rounded-lg border transition-all duration-200 select-none cursor-pointer ${
+                          step.status === 'success'
+                            ? 'bg-green-50/30 border-green-100 hover:bg-green-50/60 text-green-900'
+                            : step.status === 'error'
+                              ? 'bg-red-50/30 border-red-100 hover:bg-red-50/60 text-red-900'
+                              : step.status === 'loading'
+                                ? 'bg-blue-50/30 border-blue-100 text-blue-900 font-semibold'
+                                : 'bg-gray-50/50 border-gray-100 text-gray-400'
+                        }`}
+                        onClick={() => toggleStepExpand(step.step)}
+                      >
+                        <div className="flex gap-2 items-start justify-between">
+                          <div className="flex gap-2 items-start min-w-0">
+                            <div className="mt-0.5">{getStepIcon(step.status)}</div>
+                            <span className="text-xs font-medium truncate">
+                              {step.step}. {step.name}
+                            </span>
+                          </div>
+                          <div className="text-gray-400 shrink-0">
+                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="mt-2 text-[10px] leading-normal font-mono select-text bg-slate-900 text-slate-100 border border-slate-950 p-2 rounded-md overflow-x-auto whitespace-pre-wrap break-all">
+                            {step.message || 'No output log.'}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -790,46 +1229,52 @@ const CreateProfileModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">New LLM Profile</h3>
-        <div className="space-y-3">
-          <Field label="Profile Name">
-            <TextInput
-              value={name}
-              onChange={setName}
-              placeholder="e.g. Production RAG"
-            />
-          </Field>
-          <Field label="Description">
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-155">
+        <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
+          <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
+            Create LLM Profile
+          </h3>
+          <button
+            onClick={onCancel}
+            className="text-gray-400 hover:text-gray-600 font-bold text-xs cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-655">Profile Name</label>
+            <TextInput value={name} onChange={setName} placeholder="e.g. Production RAG" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-655">Description</label>
             <TextInput
               value={description}
               onChange={setDescription}
               placeholder="Optional description"
             />
-          </Field>
-          <Toggle
-            checked={isDefault}
-            onChange={setIsDefault}
-            label="Set as tenant default"
-          />
+          </div>
+          <Toggle checked={isDefault} onChange={setIsDefault} label="Set as tenant default" />
           {error && <p className="text-xs text-red-500">{error}</p>}
-        </div>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onCancel}
-            className="rounded-md border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 transition"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={create}
-            disabled={saving || !name.trim()}
-            className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60 transition"
-          >
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Create Profile
-          </button>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-2.5 bg-gray-150 hover:bg-gray-200 text-gray-755 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={create}
+              disabled={saving || !name.trim()}
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              Create Profile
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -913,87 +1358,102 @@ export default function ProfilesPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-120px)] gap-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      {/* Sidebar — profile list */}
-      <div className="w-64 flex-shrink-0 border-r border-gray-100 flex flex-col">
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
+    <div className="flex bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-[750px] font-sans text-gray-800">
+      {/* Left Profile Sidebar */}
+      <div className="w-1/4 border-r border-gray-200 flex flex-col h-full bg-slate-50/20">
+        <div className="p-4 border-b border-gray-250 bg-gray-50/50 flex items-center justify-between">
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+            LLM Profiles
+          </h3>
           <div className="flex items-center gap-2">
-            <Brain className="h-4 w-4 text-blue-600" />
-            <span className="text-xs font-semibold text-gray-900">LLM Profiles</span>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="p-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
+              title="Create LLM Profile"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700 transition"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            New
-          </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-2">
+        <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+            <div className="p-6 text-center text-gray-400 text-sm">
+              <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-500" />
+              Loading...
             </div>
           ) : error ? (
-            <p className="px-4 py-3 text-xs text-red-500">{error}</p>
+            <div className="p-4 text-xs text-red-500">{error}</div>
           ) : profiles.length === 0 ? (
-            <div className="px-4 py-8 text-center">
-              <Settings2 className="mx-auto h-8 w-8 text-gray-300 mb-2" />
-              <p className="text-xs text-gray-400">No profiles yet</p>
+            <div className="p-8 text-center text-gray-400 text-sm">
+              <Settings2 className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              No profiles found.
             </div>
           ) : (
-            profiles.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedId(p.id)}
-                className={`w-full flex items-center gap-2 px-4 py-2.5 text-left transition ${
-                  selectedId === p.id
-                    ? 'bg-blue-50 border-r-2 border-blue-600'
-                    : 'hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium text-gray-900 truncate">{p.name}</span>
-                    {p.is_default && <Star className="h-3 w-3 text-amber-500 flex-shrink-0" />}
+            profiles.map((p) => {
+              const isSelected = selectedId === p.id;
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => setSelectedId(p.id)}
+                  className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
+                    isSelected ? 'bg-blue-50/40 border-l-4 border-blue-600' : ''
+                  }`}
+                >
+                  <div className="space-y-1.5 pr-2 min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4
+                        className={`font-bold text-sm ${
+                          isSelected ? 'text-blue-700' : 'text-slate-800'
+                        }`}
+                      >
+                        {p.name}
+                      </h4>
+                      {p.is_default && (
+                        <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    {p.description && (
+                      <p className="text-xs text-gray-555 line-clamp-2 leading-relaxed">
+                        {p.description}
+                      </p>
+                    )}
                   </div>
-                  {p.description && (
-                    <p className="text-xs text-gray-400 truncate mt-0.5">{p.description}</p>
-                  )}
                 </div>
-                <ChevronRight className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
-              </button>
-            ))
+              );
+            })
           )}
         </div>
       </div>
 
-      {/* Main — profile editor */}
-      <div className="flex-1 overflow-hidden p-6">
-        {selectedProfile ? (
+      {/* Main LLM Profile Area */}
+      {selectedProfile ? (
+        <div className="flex-1 flex flex-col h-full bg-white overflow-hidden">
           <ProfileEditor
             key={selectedProfile.id}
             profile={selectedProfile}
             onSaved={handleSaved}
             onDeleted={handleDeleted}
           />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <Zap className="mx-auto h-12 w-12 text-gray-200 mb-3" />
-              <p className="text-sm text-gray-400">Select a profile to configure</p>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="mt-4 flex items-center gap-2 mx-auto rounded-md bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 transition"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Create first profile
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/10">
+          <Zap className="w-12 h-12 text-gray-300 mb-3" />
+          <h3 className="font-semibold text-gray-700 text-sm mb-1">No LLM Profile Selected</h3>
+          <p className="text-xs text-gray-400 text-center max-w-sm">
+            Select or create an LLM profile on the left to configure embedding, search, reranking, and generation settings.
+          </p>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
+          >
+            Create LLM Profile
+          </button>
+        </div>
+      )}
 
       {showCreate && (
         <CreateProfileModal onCreated={handleCreated} onCancel={() => setShowCreate(false)} />

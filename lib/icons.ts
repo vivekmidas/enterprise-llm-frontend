@@ -30,6 +30,7 @@ import {
   Network,
   X,
   Save,
+  List,
   Power,
   Search,
   Workflow,
@@ -89,5 +90,6 @@ export const IconMap: Record<string, any> = {
   refreshCw: RefreshCcw,
   search: BookOpen,
   flaskround: FlaskRound,
+  list: List
 };
 export default IconMap;

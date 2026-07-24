@@ -1,10 +1,10 @@
 export const theme = {
   colors: {
-    primary: '#5b3cf5',
+    primary: '#B2EDC5',
     secondary: '#25272c',
     text: {
       primary: '#09090b', // black-900
-      secondary: '#111827', // gray-900
+      secondary: '#B2EDC5', // gray-900
     },
     background: '#ffffff',
     card: '#f8fafc',

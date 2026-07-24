@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { getDemoFlowById } from '@/lib/demo-flows';
 import {
   useNodesState,
   useEdgesState,
@@ -53,8 +55,10 @@ function AgentBuilderContent() {
   const [workflowOwnerId, setWorkflowOwnerId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const { screenToFlowPosition, getNodes, fitView } = useReactFlow();
   const [description, setAgentDescription] = useState('');
+  const searchParams = useSearchParams();
 
   const onCenter = useCallback(() => {
     fitView({ duration: 300 });
@@ -81,6 +85,24 @@ function AgentBuilderContent() {
           window.location.href = '/login';
         });
     }
+
+    // ── Demo mode: load pre-built flow from ?demo=<id> ──
+    const demoId = searchParams?.get('demo');
+    if (demoId) {
+      const demo = getDemoFlowById(demoId);
+      if (demo) {
+        setNodes(demo.payload.nodes as any);
+        setEdges(demo.payload.edges as any);
+        setAgentId(demo.payload.id);
+        setAgentName(demo.payload.name);
+        setAgentDescription(demo.payload.description);
+        setAgentCategory(demo.payload.category);
+        setIsDemoMode(true);
+        setStatus(`Demo loaded: ${demo.name}`);
+        setTimeout(() => fitView({ duration: 500, padding: 0.15 }), 300);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync all existing nodes on the canvas if the list of available agents refreshes
@@ -861,6 +883,22 @@ function AgentBuilderContent() {
         onCenter={onCenter}
         onNewAgent={handleNewAgent}
       />
+
+      {/* Demo mode banner */}
+      {isDemoMode && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs font-medium">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            Demo Mode — inspect every node, customize properties, then click Save to make it yours.
+          </span>
+          <button
+            onClick={() => setIsDemoMode(false)}
+            className="ml-auto text-amber-500 hover:text-amber-700 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <AgentSidebar

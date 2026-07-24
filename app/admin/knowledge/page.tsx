@@ -586,7 +586,7 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
                   key={kb.id}
                   onClick={() => {
                     setSelectedKb(kb);
-                    openEditKbModal(kb);
+                    
                   }}
                   className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
                     isSelected ? 'bg-blue-50/40 border-l-4 border-blue-600' : ''
