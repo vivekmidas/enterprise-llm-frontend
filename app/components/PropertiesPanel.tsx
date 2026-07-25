@@ -2055,7 +2055,7 @@ export default function PropertiesPanel({
   // Placeholder state when no node is selected
   if (!selectedNode && !selectedEdge) {
     return (
-      <div className="w-[340px] shrink-0 border-l border-slate-100 bg-white p-6 flex flex-col items-center justify-center h-full">
+      <div className="w-[340px] shrink-0 border-l border-properties-border bg-properties-bg text-properties-fg p-6 flex flex-col items-center justify-center h-full">
         <div className="text-center text-slate-400 max-w-[200px]">
           <div className="w-12 h-12 bg-slate-50 border border-slate-150 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
             <Settings className="w-5 h-5 text-slate-500 animate-[spin_6s_linear_infinite]" />
@@ -2072,7 +2072,7 @@ export default function PropertiesPanel({
   // If an edge is selected, render the Edge Editor
   if (selectedEdge) {
     return (
-      <div className="w-[340px] shrink-0 border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden">
+      <div className="w-[340px] shrink-0 border-l border-properties-border bg-properties-bg text-properties-fg flex flex-col h-full overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
           <div className="font-bold text-xs text-slate-700 flex items-center gap-2 uppercase tracking-wider">
             <ArrowRightLeft className="w-4 h-4 text-indigo-500" />
@@ -2187,7 +2187,7 @@ export default function PropertiesPanel({
   }
 
   return (
-    <div className="w-[340px] shrink-0 border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden">
+    <div className="w-[340px] shrink-0 border-l border-properties-border bg-properties-bg text-properties-fg flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
         <div className="font-bold text-xs text-slate-700 flex items-center gap-2 uppercase tracking-wider">

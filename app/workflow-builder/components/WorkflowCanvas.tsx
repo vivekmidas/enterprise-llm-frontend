@@ -67,7 +67,7 @@ export default function WorkflowCanvas({
 
   return (
     <div
-      className="flex-1 h-full relative bg-gray-50 overflow-hidden"
+      className="flex-1 h-full relative bg-background overflow-hidden"
       onDragOver={onDragOver}
       onDrop={onDrop}
     >

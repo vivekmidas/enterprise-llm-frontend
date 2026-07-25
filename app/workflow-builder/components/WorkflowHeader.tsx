@@ -55,7 +55,7 @@ export default function WorkflowHeader({
 }: WorkflowHeaderProps) {
   return (
     <>
-      <div className="h-16 border-b border-slate-100 bg-white flex items-center px-6 justify-between shadow-sm">
+      <div className="h-16 border-b border-workflow-header-border bg-workflow-header-bg text-workflow-header-fg flex items-center px-6 justify-between shadow-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             {isEditingName ? (

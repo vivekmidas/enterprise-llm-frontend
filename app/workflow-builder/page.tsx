@@ -160,7 +160,7 @@ function AgentBuilderContent() {
     (params: Connection) =>
       setEdges((eds) => {
         if (params.source === params.target) {
-          setStatus('❌ Self-connections are not allowed to prevent loops.');
+          setStatus('Self-connections are not allowed to prevent loops.');
           return eds;
         }
 
@@ -622,13 +622,13 @@ function AgentBuilderContent() {
     try {
       const success = await api.deleteWorkflow(agentId);
       if (success) {
-        setStatus('✅ Workflow deleted successfully.');
+        setStatus('Workflow deleted successfully.');
         handleNewAgent();
       } else {
-        setStatus('❌ Failed to delete workflow.');
+        setStatus('Failed to delete workflow.');
       }
     } catch (err: any) {
-      setStatus(`❌ Error deleting workflow: ${err.message}`);
+      setStatus(`Error deleting workflow: ${err.message}`);
     }
   }, [agentId, handleNewAgent, setStatus]);
 
@@ -855,7 +855,7 @@ function AgentBuilderContent() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-64px)] flex-col bg-gray-50 text-black overflow-hidden">
+    <div className="flex h-[calc(100vh-64px)] flex-col bg-background text-foreground overflow-hidden">
       <WorkflowHeader
         agentId={agentId}
         agentDescription={description}

@@ -4,13 +4,13 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
+  --background: #f2fcf5;
   --foreground: #09090b;
   --card: #f8fafc;
   --card-foreground: #09090b;
   --popover: #ffffff;
   --popover-foreground: #09090b;
-  --primary: #5b3cf5;
+  --primary: #FF4F00;
   --primary-foreground: #ffffff;
   --secondary: #25272c;
   --secondary-foreground: #ffffff;
@@ -37,6 +37,26 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #e2e8f0;
   --sidebar-ring: #5b3cf5;
+
+  /* ── MULTI-TENANT COMPONENT THEME TOKENS ── */
+  --nav-bg: #ffffff;
+  --nav-fg: #09090b;
+  --nav-border: #e2e8f0;
+
+  --sidebar-bg: #ffffff;
+  --sidebar-fg: #09090b;
+  --sidebar-border: #e2e8f0;
+  --sidebar-header-bg: #f8fafc;
+
+  --properties-bg: #ffffff;
+  --properties-fg: #09090b;
+  --properties-border: #e2e8f0;
+  --properties-header-bg: #f8fafc;
+
+  --workflow-header-bg: #ffffff;
+  --workflow-header-fg: #09090b;
+  --workflow-header-border: #e2e8f0;
+
   /* Added custom font family tokens for design system */
   --font-dm-sans: 'DM Sans', sans-serif;
   --font-space-grotesk: 'Space Grotesk', sans-serif;
@@ -75,6 +95,25 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #27272a;
   --sidebar-ring: #5b3cf5;
+
+  /* Dark mode tenant component fallbacks */
+  --nav-bg: #09090b;
+  --nav-fg: #f8fafc;
+  --nav-border: #27272a;
+
+  --sidebar-bg: #09090b;
+  --sidebar-fg: #f8fafc;
+  --sidebar-border: #27272a;
+  --sidebar-header-bg: #18181b;
+
+  --properties-bg: #18181b;
+  --properties-fg: #f8fafc;
+  --properties-border: #27272a;
+  --properties-header-bg: #09090b;
+
+  --workflow-header-bg: #09090b;
+  --workflow-header-fg: #f8fafc;
+  --workflow-header-border: #27272a;
 }
 
 .theme-bank {
@@ -83,6 +122,10 @@
   --secondary: #B2EDC5;
   --secondary-foreground: #ffffff;
   --ring: #5b3cf5;
+  --nav-bg: #0c2d1c;
+  --nav-fg: #B2EDC5;
+  --sidebar-bg: #0f3823;
+  --properties-bg: #0f3823;
 }
 
 .dark .theme-bank {
@@ -91,6 +134,10 @@
   --secondary: #25272c;
   --secondary-foreground: #ffffff;
   --ring: #5b3cf5;
+  --nav-bg: #05140c;
+  --nav-fg: #B2EDC5;
+  --sidebar-bg: #081d12;
+  --properties-bg: #081d12;
 }
   
 @theme inline {
@@ -130,6 +177,26 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Multi-tenant component Tailwind color utilities */
+  --color-nav-bg: var(--nav-bg);
+  --color-nav-fg: var(--nav-fg);
+  --color-nav-border: var(--nav-border);
+
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-fg: var(--sidebar-fg);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-header-bg: var(--sidebar-header-bg);
+
+  --color-properties-bg: var(--properties-bg);
+  --color-properties-fg: var(--properties-fg);
+  --color-properties-border: var(--properties-border);
+  --color-properties-header-bg: var(--properties-header-bg);
+
+  --color-workflow-header-bg: var(--workflow-header-bg);
+  --color-workflow-header-fg: var(--workflow-header-fg);
+  --color-workflow-header-border: var(--workflow-header-border);
+
   /* Added custom font family tokens for design system */
   --font-sans: var(--font-dm-sans);
   --font-heading: var(--font-space-grotesk);

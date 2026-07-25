@@ -16,7 +16,7 @@ export default function GoogleOAuthPage() {
         </p>
         <a
           href="/api/oauth/google/connect"
-          className="block w-full bg-[#4285F4] hover:bg-[#357ae8] text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md"
+          className="block w-full bg-primary hover:bg-[#357ae8] text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md"
         >
           Connect Google Account
         </a>

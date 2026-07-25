@@ -216,7 +216,7 @@ export default function AgentSidebar({
   };
 
   return (
-    <div className="w-[300px] shrink-0 flex flex-col h-full border-r border-slate-150 bg-white overflow-hidden shadow-sm">
+    <div className="w-[300px] shrink-0 flex flex-col h-full border-r border-sidebar-border bg-sidebar-bg text-sidebar-fg overflow-hidden shadow-sm">
       {/* Main scrolling content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-5">
         {/* Saved Workflows Section */}
