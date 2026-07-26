@@ -12,6 +12,7 @@ import {
   Filter,
   FlaskRound,
   Loader2,
+  Lock,
   MessageSquare,
   Pencil,
   Plus,
@@ -38,6 +39,8 @@ interface EmbeddingSection {
 }
 
 interface SearchSection {
+  provider: string;
+  model: string;
   approach: 'hybrid' | 'vector' | 'keyword';
   top_k: number;
   min_score: number;
@@ -46,6 +49,7 @@ interface SearchSection {
 }
 
 interface RerankSection {
+  provider: string;
   enabled: boolean;
   url: string;
   model: string;
@@ -92,6 +96,8 @@ const DEFAULT_SETTINGS: ProfileSettings = {
     dimension: 768,
   },
   search: {
+    provider: 'ollama',
+    model: 'qwen3:0.6b',
     approach: 'hybrid',
     top_k: 10,
     min_score: 0.65,
@@ -99,6 +105,7 @@ const DEFAULT_SETTINGS: ProfileSettings = {
     enable_rrf: true,
   },
   reranking: {
+    provider: 'ollama',
     enabled: false,
     url: 'http://localhost:11434/api/chat',
     model: 'qwen3:0.6b',
@@ -166,18 +173,28 @@ const TextInput = ({
   onChange,
   placeholder,
   type = 'text',
+  disabled = false,
+  readOnly = false,
 }: {
   value: string | number;
   onChange: (v: string) => void;
   placeholder?: string;
   type?: string;
+  disabled?: boolean;
+  readOnly?: boolean;
 }) => (
   <input
     type={type}
     value={value}
+    disabled={disabled}
+    readOnly={readOnly}
     onChange={(e) => onChange(e.target.value)}
     placeholder={placeholder}
-    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-gray-900 focus:outline-none focus:border-blue-500 transition-colors"
+    className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-none transition-colors ${
+      disabled || readOnly
+        ? 'bg-gray-100/90 text-gray-500 cursor-not-allowed border-gray-200'
+        : 'bg-white focus:border-blue-500'
+    }`}
   />
 );
 
@@ -357,12 +374,27 @@ const EmbeddingEditor = ({
           )}
         </Field>
       </div>
-      <Field label="Endpoint URL" hint="Full URL to the embedding API">
-        <TextInput
-          value={data.url}
-          onChange={(v) => onChange({ ...data, url: v })}
-          placeholder="http://localhost:11434/api/embeddings"
-        />
+      {/* BLOCK COMMENT: READ-ONLY PROVIDER BASE URL */}
+      <Field
+        label="Endpoint URL"
+        hint="Configured by System Admin (Provider Preset Base URL)"
+      >
+        <div className="relative flex items-center">
+          <TextInput
+            value={
+              currentPreset
+                ? `${currentPreset.base_url.replace(/\/$/, '')}${currentPreset.embedding_endpoint || '/api/embeddings'}`
+                : data.url
+            }
+            onChange={(v) => onChange({ ...data, url: v })}
+            placeholder="http://localhost:11434/api/embeddings"
+            readOnly
+          />
+          <div className="absolute right-2.5 flex items-center gap-1 text-[10px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded">
+            <Lock className="w-3 h-3 text-gray-500" />
+            <span>Read-only</span>
+          </div>
+        </div>
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Vector Dimension">
@@ -389,61 +421,119 @@ const EmbeddingEditor = ({
 const SearchEditor = ({
   data,
   onChange,
+  presets = [],
 }: {
   data: SearchSection;
   onChange: (d: SearchSection) => void;
-}) => (
-  <div className="space-y-4">
-    <SectionHeader
-      icon={<Search className="h-4 w-4" />}
-      title="Search"
-      subtitle="Retrieval strategy and candidate selection parameters"
-    />
-    <Field label="Search Approach" hint="Hybrid combines vector + keyword (BM25) with RRF fusion">
-      <Select
-        value={data.approach}
-        onChange={(v) => onChange({ ...data, approach: v as SearchSection['approach'] })}
-        options={[
-          { label: 'Hybrid (Vector + Keyword)', value: 'hybrid' },
-          { label: 'Vector only (semantic)', value: 'vector' },
-          { label: 'Keyword only (BM25)', value: 'keyword' },
-        ]}
+  presets?: any[];
+}) => {
+  const currentPreset = presets.find((p) => p.provider_key === data.provider);
+  const providerOptions =
+    presets.length > 0
+      ? presets.map((p) => ({ label: p.name, value: p.provider_key }))
+      : [
+          { label: 'Ollama', value: 'ollama' },
+          { label: 'OpenAI', value: 'openai' },
+          { label: 'Azure', value: 'azure' },
+          { label: 'vLLM', value: 'vllm' },
+          { label: 'Grok / xAI', value: 'grok' },
+          { label: 'Anthropic', value: 'anthropic' },
+        ];
+
+  const handleProviderChange = (newProvider: string) => {
+    const preset = presets.find((p) => p.provider_key === newProvider);
+    if (preset) {
+      const modelName = preset.default_rerank_model || preset.rerank_models?.[0] || data.model;
+      onChange({
+        ...data,
+        provider: newProvider,
+        model: modelName,
+      });
+    } else {
+      onChange({ ...data, provider: newProvider });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <SectionHeader
+        icon={<Search className="h-4 w-4" />}
+        title="Search"
+        subtitle="Retrieval strategy and candidate selection parameters"
       />
-    </Field>
-    <div className="grid grid-cols-2 gap-4">
-      <Field label="Top K Chunks" hint="Candidates returned after retrieval">
-        <TextInput
-          type="number"
-          value={data.top_k}
-          onChange={(v) => onChange({ ...data, top_k: parseInt(v) || 10 })}
-          placeholder="10"
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Provider">
+          <Select
+            value={data.provider || 'ollama'}
+            onChange={handleProviderChange}
+            options={providerOptions}
+          />
+        </Field>
+        <Field label="Model">
+          {currentPreset?.rerank_models && currentPreset.rerank_models.length > 0 ? (
+            <Select
+              value={data.model || ''}
+              onChange={(v) => onChange({ ...data, model: v })}
+              options={currentPreset.rerank_models.map((m: string) => ({
+                label: m,
+                value: m,
+              }))}
+            />
+          ) : (
+            <TextInput
+              value={data.model || ''}
+              onChange={(v) => onChange({ ...data, model: v })}
+              placeholder="qwen3:0.6b"
+            />
+          )}
+        </Field>
+      </div>
+      <Field label="Search Approach" hint="Hybrid combines vector + keyword (BM25) with RRF fusion">
+        <Select
+          value={data.approach}
+          onChange={(v) => onChange({ ...data, approach: v as SearchSection['approach'] })}
+          options={[
+            { label: 'Hybrid (Vector + Keyword)', value: 'hybrid' },
+            { label: 'Vector only (semantic)', value: 'vector' },
+            { label: 'Keyword only (BM25)', value: 'keyword' },
+          ]}
         />
       </Field>
-      <Field label="Max Context Tokens">
-        <TextInput
-          type="number"
-          value={data.max_context_tokens}
-          onChange={(v) => onChange({ ...data, max_context_tokens: parseInt(v) || 6000 })}
-          placeholder="6000"
-        />
-      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Top K Chunks" hint="Candidates returned after retrieval">
+          <TextInput
+            type="number"
+            value={data.top_k}
+            onChange={(v) => onChange({ ...data, top_k: parseInt(v) || 10 })}
+            placeholder="10"
+          />
+        </Field>
+        <Field label="Max Context Tokens">
+          <TextInput
+            type="number"
+            value={data.max_context_tokens}
+            onChange={(v) => onChange({ ...data, max_context_tokens: parseInt(v) || 6000 })}
+            placeholder="6000"
+          />
+        </Field>
+      </div>
+      <SliderField
+        label="Min Score Threshold"
+        value={data.min_score}
+        min={0}
+        max={1}
+        step={0.05}
+        onChange={(v) => onChange({ ...data, min_score: v })}
+        hint="Chunks below this score are discarded"
+      />
+      <Toggle
+        checked={data.enable_rrf}
+        onChange={(v) => onChange({ ...data, enable_rrf: v })}
+        label="Enable Reciprocal Rank Fusion (RRF) for result merging"
+      />
     </div>
-    <SliderField
-      label="Min Score Threshold"
-      value={data.min_score}
-      min={0}
-      max={1}
-      step={0.05}
-      onChange={(v) => onChange({ ...data, min_score: v })}
-      hint="Chunks below this score are discarded"
-    />
-    <Toggle
-      checked={data.enable_rrf}
-      onChange={(v) => onChange({ ...data, enable_rrf: v })}
-      label="Enable Reciprocal Rank Fusion (RRF) for result merging"
-    />
-  </div>
-);
+  );
+};
 
 const RerankEditor = ({
   data,
@@ -454,7 +544,41 @@ const RerankEditor = ({
   onChange: (d: RerankSection) => void;
   presets?: any[];
 }) => {
-  const activePreset = presets.find((p) => p.rerank_models?.includes(data.model)) || presets[0];
+  const currentPreset =
+    presets.find((p) => p.provider_key === data.provider) ||
+    presets.find((p) => p.rerank_models?.includes(data.model)) ||
+    presets[0];
+
+  const providerOptions =
+    presets.length > 0
+      ? presets.map((p) => ({ label: p.name, value: p.provider_key }))
+      : [
+          { label: 'Ollama', value: 'ollama' },
+          { label: 'OpenAI', value: 'openai' },
+          { label: 'Azure', value: 'azure' },
+          { label: 'vLLM', value: 'vllm' },
+          { label: 'Grok / xAI', value: 'grok' },
+          { label: 'Anthropic', value: 'anthropic' },
+        ];
+
+  const handleProviderChange = (newProvider: string) => {
+    const preset = presets.find((p) => p.provider_key === newProvider);
+    if (preset) {
+      const modelName = preset.default_rerank_model || preset.rerank_models?.[0] || data.model;
+      const url =
+        newProvider === 'ollama'
+          ? `${preset.base_url.replace(/\/$/, '')}/api/chat`
+          : preset.base_url;
+      onChange({
+        ...data,
+        provider: newProvider,
+        url: url,
+        model: modelName,
+      });
+    } else {
+      onChange({ ...data, provider: newProvider });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -471,27 +595,48 @@ const RerankEditor = ({
       <div
         className={`space-y-4 transition-opacity ${data.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}
       >
-        <Field label="Reranker Endpoint URL" hint="Chat-completion endpoint used as relevance judge">
-          <TextInput
-            value={data.url}
-            onChange={(v) => onChange({ ...data, url: v })}
-            placeholder="http://localhost:11434/api/chat"
-          />
-        </Field>
-        <Field label="Reranker Model">
-          {activePreset?.rerank_models && activePreset.rerank_models.length > 0 ? (
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Provider">
             <Select
-              value={data.model}
-              onChange={(v) => onChange({ ...data, model: v })}
-              options={activePreset.rerank_models.map((m: string) => ({ label: m, value: m }))}
+              value={data.provider || 'ollama'}
+              onChange={handleProviderChange}
+              options={providerOptions}
             />
-          ) : (
+          </Field>
+          <Field label="Reranker Model">
+            {currentPreset?.rerank_models && currentPreset.rerank_models.length > 0 ? (
+              <Select
+                value={data.model}
+                onChange={(v) => onChange({ ...data, model: v })}
+                options={currentPreset.rerank_models.map((m: string) => ({ label: m, value: m }))}
+              />
+            ) : (
+              <TextInput
+                value={data.model}
+                onChange={(v) => onChange({ ...data, model: v })}
+                placeholder="qwen3:0.6b"
+              />
+            )}
+          </Field>
+        </div>
+        {/* BLOCK COMMENT: READ-ONLY PROVIDER BASE URL */}
+        <Field label="Reranker Endpoint URL" hint="Configured by System Admin (Provider Preset Base URL)">
+          <div className="relative flex items-center">
             <TextInput
-              value={data.model}
-              onChange={(v) => onChange({ ...data, model: v })}
-              placeholder="qwen3:0.6b"
+              value={
+                currentPreset
+                  ? `${currentPreset.base_url.replace(/\/$/, '')}${currentPreset.rerank_endpoint || '/api/chat'}`
+                  : data.url
+              }
+              onChange={(v) => onChange({ ...data, url: v })}
+              placeholder="http://localhost:11434/api/chat"
+              readOnly
             />
-          )}
+            <div className="absolute right-2.5 flex items-center gap-1 text-[10px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded">
+              <Lock className="w-3 h-3 text-gray-500" />
+              <span>Read-only</span>
+            </div>
+          </div>
         </Field>
         <Field label="Candidate Limit" hint="How many chunks to pass to the reranker">
           <TextInput
@@ -580,12 +725,24 @@ const GenerationEditor = ({
           )}
         </Field>
       </div>
-      <Field label="Endpoint URL">
-        <TextInput
-          value={data.url}
-          onChange={(v) => onChange({ ...data, url: v })}
-          placeholder="http://localhost:11434/api/chat"
-        />
+      {/* BLOCK COMMENT: READ-ONLY PROVIDER BASE URL */}
+      <Field label="Endpoint URL" hint="Configured by System Admin (Provider Preset Base URL)">
+        <div className="relative flex items-center">
+          <TextInput
+            value={
+              currentPreset
+                ? `${currentPreset.base_url.replace(/\/$/, '')}${currentPreset.search_endpoint || '/api/chat'}`
+                : data.url
+            }
+            onChange={(v) => onChange({ ...data, url: v })}
+            placeholder="http://localhost:11434/api/chat"
+            readOnly
+          />
+          <div className="absolute right-2.5 flex items-center gap-1 text-[10px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded">
+            <Lock className="w-3 h-3 text-gray-500" />
+            <span>Read-only</span>
+          </div>
+        </div>
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <SliderField
@@ -1024,6 +1181,7 @@ const ProfileEditor = ({
               <SearchEditor
                 data={settings.search}
                 onChange={(d) => setSettings({ ...settings, search: d })}
+                presets={providerPresets}
               />
             )}
             {activeSection === 'reranking' && (

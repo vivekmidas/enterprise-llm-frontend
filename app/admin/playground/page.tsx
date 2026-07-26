@@ -37,8 +37,9 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
   const [metaType, setMetaType] = useState('');
   const [metaTags, setMetaTags] = useState('');
 
-  // LLM Profiles list & selections for playground preset testing
+  // LLM Profiles & Provider Presets list for playground testing
   const [llmProfiles, setLlmProfiles] = useState<any[]>([]);
+  const [providerPresets, setProviderPresets] = useState<any[]>([]);
   const [companySettings, setCompanySettings] = useState<any>(null);
   const [llmProfileIdA, setLlmProfileIdA] = useState<string>('default');
   const [llmProfileIdB, setLlmProfileIdB] = useState<string>('default');
@@ -48,11 +49,12 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
 
     llmProfiles.forEach((p) => {
       const s = p.settings || {};
-      const cfg = s.llm_config || {};
+      const cfg = s.generation || s.search || s.llm_config || {};
+      const providerKey = cfg.provider || p.provider || 'ollama';
       list.push({
         id: String(p.id),
         name: `${p.name}${p.is_default ? ' (Default)' : ''}`,
-        provider: cfg.provider || p.llm_provider || 'openai',
+        provider: providerKey,
       });
     });
 
@@ -61,7 +63,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
         list.push({
           id: 'company',
           name: companySettings.active_config_name || companySettings.company_name || 'Tenant Settings',
-          provider: companySettings.llm_provider || 'openai',
+          provider: companySettings.llm_provider || 'ollama',
         });
       }
     }
@@ -70,44 +72,51 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
       list.push({
         id: 'default',
         name: 'Default LLM Profile',
-        provider: 'openai',
+        provider: 'ollama',
       });
     }
 
     return list;
   };
 
+  // BLOCK COMMENT: RESOLVE SYSTEM PROVIDER PRESET FOR PLAYGROUND
   const getResolvedLlmProfile = (profileId: string) => {
     const foundProf = llmProfiles.find((p) => String(p.id) === String(profileId));
     if (foundProf) {
       const s = foundProf.settings || {};
-      const cfg = s.llm_config || {};
+      const gen = s.generation || {};
+      const searchSec = s.search || {};
+      const providerKey = gen.provider || searchSec.provider || foundProf.provider || 'ollama';
+      const modelName = gen.model || searchSec.model || foundProf.model_name || 'llama3.2';
+
+      // Resolve system base_url from System Admin Provider Preset
+      const matchingPreset = providerPresets.find((p) => p.provider_key === providerKey.toLowerCase());
+      const baseUrl = matchingPreset ? matchingPreset.base_url : (s.base_url || foundProf.url || 'http://localhost:11434');
+
       return {
         id: foundProf.id,
         name: foundProf.name,
-        llm_provider: cfg.provider || foundProf.llm_provider || 'openai',
-        llm_model: cfg.model || foundProf.llm_model || 'gpt-4o',
-        llm_base_url: cfg.base_url || foundProf.llm_base_url || '',
+        llm_provider: providerKey,
+        llm_model: modelName,
+        llm_base_url: baseUrl,
+        is_system_preset: Boolean(matchingPreset),
       };
     }
 
     if (companySettings) {
+      const providerKey = companySettings.search?.provider || companySettings.llm_provider || 'ollama';
+      const matchingPreset = providerPresets.find((p) => p.provider_key === providerKey.toLowerCase());
+      const baseUrl = matchingPreset ? matchingPreset.base_url : (companySettings.llm_base_url || 'http://localhost:11434');
+
       return {
         id: 'company',
         name: companySettings.active_config_name || companySettings.company_name || 'Tenant Settings',
-        llm_provider: companySettings.llm_provider || 'openai',
-        llm_model: companySettings.llm_model || 'gpt-4o',
-        llm_base_url: companySettings.llm_base_url || '',
+        llm_provider: providerKey,
+        llm_model: companySettings.search?.model || companySettings.llm_model || 'llama3.2',
+        llm_base_url: baseUrl,
+        is_system_preset: Boolean(matchingPreset),
       };
     }
-
-    return {
-      id: 'default',
-      name: 'Default LLM Profile',
-      llm_provider: 'openai',
-      llm_model: 'gpt-4o',
-      llm_base_url: '',
-    };
   };
 
   // Config A parameters
@@ -171,10 +180,11 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
   useEffect(() => {
     async function loadData() {
       try {
-        const [kbs, profiles, settings] = await Promise.all([
+        const [kbs, profiles, settings, presets] = await Promise.all([
           api.getKnowledgeBases(),
           api.getLlmProfiles().catch(() => []),
           api.getCompanySettings().catch(() => null),
+          api.getProviderPresets().catch(() => []),
         ]);
         setKbList(kbs || []);
         if (initialKbId) {
@@ -184,6 +194,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
         }
         setLlmProfiles(profiles || []);
         setCompanySettings(settings);
+        setProviderPresets(presets || []);
 
         const firstProfId = (profiles && profiles.length > 0) ? String(profiles[0].id) : 'company';
         setLlmProfileIdA(firstProfId);
