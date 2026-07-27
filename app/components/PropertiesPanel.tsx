@@ -29,7 +29,7 @@ import { api } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
 import JsonSchemaGeneratorModal from './JsonSchemaGeneratorModal';
 
-/** Helper to parse choice options from arrays, JSON strings, or comma-separated strings */
+/* Robust choice options parser supporting arrays, objects, comma-separated strings, and nested schemas */
 const parseChoiceOptions = (rawOptions: any): string[] => {
   if (!rawOptions) return [];
   if (Array.isArray(rawOptions)) {
@@ -55,6 +55,18 @@ const parseChoiceOptions = (rawOptions: any): string[] => {
       }
     });
     return result;
+  }
+  if (typeof rawOptions === 'object' && rawOptions !== null) {
+    if (Array.isArray(rawOptions.options)) return parseChoiceOptions(rawOptions.options);
+    if (Array.isArray(rawOptions.choices)) return parseChoiceOptions(rawOptions.choices);
+    if (Array.isArray(rawOptions.values)) return parseChoiceOptions(rawOptions.values);
+    if (Array.isArray(rawOptions.allowed_values)) return parseChoiceOptions(rawOptions.allowed_values);
+    if (Array.isArray(rawOptions.allowedValues)) return parseChoiceOptions(rawOptions.allowedValues);
+    if (Array.isArray(rawOptions.enum)) return parseChoiceOptions(rawOptions.enum);
+    const keys = Object.keys(rawOptions);
+    if (keys.length > 0) {
+      return keys.map((k) => String(rawOptions[k] || k).trim()).filter(Boolean);
+    }
   }
   if (typeof rawOptions === 'string' && rawOptions.trim()) {
     const trimmed = rawOptions.trim();
@@ -92,21 +104,17 @@ const ensureArray = (val: any): any[] => {
   return [];
 };
 
-/** Extracts raw choice options without treating a single default value as an options list */
+/* Extracts raw choice options supporting options, choices, values, allowed_values, enum */
 const getRawChoiceOptions = (schema: any, key: string, sysProps: any, usrVal: any): any => {
   if (schema) {
     if (schema.options) return schema.options;
     if (schema.choices) return schema.choices;
     if (schema.configured_values) return schema.configured_values;
     if (schema.configuredValues) return schema.configuredValues;
-    if (
-      schema.values &&
-      (Array.isArray(schema.values) ||
-        (typeof schema.values === 'string' &&
-          (schema.values.includes(',') || schema.values.startsWith('['))))
-    ) {
-      return schema.values;
-    }
+    if (schema.allowed_values) return schema.allowed_values;
+    if (schema.allowedValues) return schema.allowedValues;
+    if (schema.enum) return schema.enum;
+    if (schema.values) return schema.values;
     if (Array.isArray(schema.value)) return schema.value;
     if (
       typeof schema.value === 'string' &&
@@ -131,11 +139,14 @@ const getRawChoiceOptions = (schema: any, key: string, sysProps: any, usrVal: an
     }
   }
 
-  if (typeof usrVal === 'string' && (usrVal.includes(',') || usrVal.startsWith('['))) {
-    return usrVal;
+  if (usrVal) {
+    if (Array.isArray(usrVal)) return usrVal;
+    if (typeof usrVal === 'string' && (usrVal.includes(',') || usrVal.startsWith('['))) {
+      return usrVal;
+    }
   }
 
-  return null;
+  return undefined;
 };
 
 /** Compact dropdown with checkboxes for multi-select. Replaces tall <select multiple>. */

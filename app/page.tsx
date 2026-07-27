@@ -31,6 +31,7 @@ import {
   Settings,
   Code2,
   Rocket,
+  Clock,
   Star,
 } from 'lucide-react';
 
@@ -214,6 +215,7 @@ export default function LandingPage() {
 
         {/* Floating nodes */}
         <FloatingNode icon={Mail} label="Email Trigger" x="8%" y="20%" delay={0} color="#8b5cf6" />
+        <FloatingNode icon={Clock} label="Scheduler" x="18%" y="40%" delay={0} color="#f6c55cff" />
         <FloatingNode icon={Bot} label="AI Agent" x="82%" y="15%" delay={0.5} color="#06b6d4" />
         <FloatingNode icon={Database} label="CRM Sync" x="75%" y="65%" delay={1} color="#10b981" />
         <FloatingNode icon={FileText} label="PDF Parser" x="5%" y="70%" delay={1.5} color="#f59e0b" />

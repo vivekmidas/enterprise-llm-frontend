@@ -10,10 +10,10 @@
   --card-foreground: #09090b;
   --popover: #ffffff;
   --popover-foreground: #09090b;
-  --primary: #FF4F00;
+  --primary: #fafafa;
   --primary-foreground: #ffffff;
   --secondary: #25272c;
-  --secondary-foreground: #ffffff;
+  --secondary-foreground: #000000;
   --muted: #f1f5f9;
   --muted-foreground: #111827;
   --accent: #f1f5f9;
@@ -117,9 +117,9 @@
 }
 
 .theme-bank {
-  --primary: #B2EDC5;
+  --primary: #e3f4e9;
   --primary-foreground: #ffffff;
-  --secondary: #B2EDC5;
+  --secondary: #f2f9f4;
   --secondary-foreground: #ffffff;
   --ring: #5b3cf5;
   --nav-bg: #0c2d1c;

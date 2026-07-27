@@ -492,6 +492,21 @@ export default function CustomersTab() {
     }));
   };
 
+  /* BLOCK COMMENT: Toggle isolated node testing allowed state for customer node (defaults to false) */
+  const handleToggleTestingAllowed = (nodeName: string) => {
+    setCustomerNodeProperties((prev) => {
+      const currentProps = prev[nodeName] || {};
+      const currentTesting = currentProps.allow_node_testing === true;
+      return {
+        ...prev,
+        [nodeName]: {
+          ...currentProps,
+          allow_node_testing: !currentTesting,
+        },
+      };
+    });
+  };
+
   const handleBulkToggle = (enable: boolean) => {
     const nextAssignments = { ...customerNodeAssignments };
     Object.keys(selectedNodesForBulk).forEach((nodeName) => {
@@ -1605,6 +1620,27 @@ export default function CustomersTab() {
                         </div>
                       </div>
 
+                      {/* BLOCK COMMENT: Isolated Node Testing (Debug Mode) toggle switch */}
+                      <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-4 flex items-center justify-between">
+                        <div>
+                          <h5 className="text-xs font-bold text-purple-900">
+                            Isolated Node Testing (Debug Mode)
+                          </h5>
+                          <p className="text-[11px] text-purple-700 mt-0.5">
+                            Allow administrators & developers to execute single-node playground tests in isolation for this tenant.
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={(customerNodeProperties[configuringNode.name] || {}).allow_node_testing === true}
+                            onChange={() => handleToggleTestingAllowed(configuringNode.name)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:translate-x-full peer-checked:bg-purple-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                        </label>
+                      </div>
+
                       {/* Overrides form */}
                       <div className="space-y-4 max-w-xl">
                         {configuringNode.properties?.length > 0 ? (
@@ -1824,16 +1860,28 @@ export default function CustomersTab() {
                                   {node.description || 'No description available.'}
                                 </div>
 
-                                <div className="border-t mt-4 pt-3 flex justify-between items-center">
-                                  <span
-                                    className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border ${
-                                      isChecked
-                                        ? 'bg-green-50 text-green-700 border-green-100'
-                                        : 'bg-red-50 text-red-700 border-red-100'
-                                    }`}
-                                  >
-                                    {isChecked ? 'Allowed' : 'Disallowed'}
-                                  </span>
+                                <div className="border-t mt-4 pt-3 flex justify-between items-center gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border ${
+                                        isChecked
+                                          ? 'bg-green-50 text-green-700 border-green-100'
+                                          : 'bg-red-50 text-red-700 border-red-100'
+                                      }`}
+                                    >
+                                      {isChecked ? 'Allowed' : 'Disallowed'}
+                                    </span>
+                                    {/* BLOCK COMMENT: Testing Allowed toggle badge in Grid View */}
+                                    <label className="flex items-center gap-1 cursor-pointer text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100" title="Toggle isolated node testing (debug mode)">
+                                      <input
+                                        type="checkbox"
+                                        checked={(customerNodeProperties[node.name] || {}).allow_node_testing === true}
+                                        onChange={() => handleToggleTestingAllowed(node.name)}
+                                        className="accent-purple-600 h-3 w-3 cursor-pointer"
+                                      />
+                                      Testing
+                                    </label>
+                                  </div>
                                   {isChecked && (
                                     <button
                                       type="button"
@@ -1863,6 +1911,10 @@ export default function CustomersTab() {
                               </th>
                               <th className="px-4 py-2.5 font-bold text-gray-500 uppercase text-center w-24">
                                 Allowed
+                              </th>
+                              {/* BLOCK COMMENT: Testing Allowed Column Header */}
+                              <th className="px-4 py-2.5 font-bold text-gray-500 uppercase text-center w-32">
+                                Testing Allowed
                               </th>
                               <th className="px-4 py-2.5 font-bold text-gray-500 uppercase text-right w-36"></th>
                             </tr>
@@ -1923,6 +1975,18 @@ export default function CustomersTab() {
                                         checked={isChecked}
                                         onChange={() => handleToggleSingleAssignment(node.name)}
                                         className="rounded border-gray-300 text-blue-600 w-4 h-4 cursor-pointer"
+                                      />
+                                    </td>
+                                    {/* BLOCK COMMENT: Testing Allowed toggle checkbox cell */}
+                                    <td className="px-4 py-3 text-center">
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          (customerNodeProperties[node.name] || {}).allow_node_testing === true
+                                        }
+                                        onChange={() => handleToggleTestingAllowed(node.name)}
+                                        className="rounded border-gray-300 text-purple-600 w-4 h-4 cursor-pointer"
+                                        title="Toggle isolated node testing (debug mode) for this node"
                                       />
                                     </td>
                                     <td className="px-4 py-3 text-right">

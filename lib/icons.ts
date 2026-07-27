@@ -39,9 +39,11 @@ import {
   History,
   Bell,
   Blocks,
-  RefreshCcw,
+  RefreshCw,
   BookOpen,
   FlaskRound,
+  Heart,
+  Fence, Cloud
 } from 'lucide-react';
 
 export const IconMap: Record<string, any> = {
@@ -86,10 +88,13 @@ export const IconMap: Record<string, any> = {
   x: X,
   X: X,
   save: Save,
+  fence: Fence,
   power: Power,
-  refreshCw: RefreshCcw,
+  refreshCw: RefreshCw,
   search: BookOpen,
   flaskround: FlaskRound,
-  list: List
+  list: List,
+  heart: Heart,
+  cloud:Cloud
 };
 export default IconMap;

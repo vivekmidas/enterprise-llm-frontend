@@ -65,27 +65,54 @@ type ContractRule = {
   };
 };
 
-/** Helper to parse choice options from arrays, JSON strings, or comma-separated strings */
+/* BLOCK COMMENT: Robust choice options parser supporting arrays, objects, comma-separated strings, and nested schemas */
 const parseChoiceOptions = (rawOptions: any): string[] => {
   if (!rawOptions) return [];
   if (Array.isArray(rawOptions)) {
-    return rawOptions
-      .map((opt) => {
-        if (typeof opt === 'string') return opt.trim();
-        if (typeof opt === 'number') return String(opt);
-        if (typeof opt === 'object' && opt !== null) {
-          return String(opt.key || opt.value || opt.label || opt.name || opt.id || '').trim();
+    const result: string[] = [];
+    rawOptions.forEach((opt) => {
+      if (typeof opt === 'string') {
+        if (opt.includes(',')) {
+          opt.split(',').forEach((s) => {
+            const trimmed = s.trim();
+            if (trimmed && !result.includes(trimmed)) result.push(trimmed);
+          });
+        } else {
+          const trimmed = opt.trim();
+          if (trimmed && !result.includes(trimmed)) result.push(trimmed);
         }
-        return String(opt).trim();
-      })
-      .filter(Boolean);
+      } else if (typeof opt === 'number' || typeof opt === 'boolean') {
+        const str = String(opt);
+        if (!result.includes(str)) result.push(str);
+      } else if (typeof opt === 'object' && opt !== null) {
+        const val = opt.key ?? opt.value ?? opt.label ?? opt.name ?? opt.id ?? '';
+        const str = String(val).trim();
+        if (str && !result.includes(str)) result.push(str);
+      }
+    });
+    return result;
   }
-  if (typeof rawOptions === 'string') {
+  if (typeof rawOptions === 'object' && rawOptions !== null) {
+    if (Array.isArray(rawOptions.options)) return parseChoiceOptions(rawOptions.options);
+    if (Array.isArray(rawOptions.choices)) return parseChoiceOptions(rawOptions.choices);
+    if (Array.isArray(rawOptions.values)) return parseChoiceOptions(rawOptions.values);
+    if (Array.isArray(rawOptions.allowed_values)) return parseChoiceOptions(rawOptions.allowed_values);
+    if (Array.isArray(rawOptions.allowedValues)) return parseChoiceOptions(rawOptions.allowedValues);
+    if (Array.isArray(rawOptions.enum)) return parseChoiceOptions(rawOptions.enum);
+    const keys = Object.keys(rawOptions);
+    if (keys.length > 0) {
+      return keys.map((k) => String(rawOptions[k] || k).trim()).filter(Boolean);
+    }
+  }
+  if (typeof rawOptions === 'string' && rawOptions.trim()) {
     const trimmed = rawOptions.trim();
-    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    if (
+      (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+      (trimmed.startsWith('{') && trimmed.endsWith('}'))
+    ) {
       try {
         const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) return parseChoiceOptions(parsed);
+        if (parsed) return parseChoiceOptions(parsed);
       } catch (e) {
         // Fall back
       }
@@ -534,6 +561,49 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
       setTestingConsoleLogs('Console initialized. Ready to execute test.');
     }
   }, [testingAgent]);
+
+  /* BLOCK COMMENT: Helper to validate JSON input string real-time */
+  const getJsonValidationStatus = (inputStr: string): { isValid: boolean; message: string } => {
+    const trimmed = (inputStr || '').trim();
+    if (!trimmed) {
+      return { isValid: true, message: 'Empty Payload' };
+    }
+    try {
+      JSON.parse(trimmed);
+      return { isValid: true, message: 'Valid JSON' };
+    } catch (e: any) {
+      return { isValid: false, message: e.message || 'Invalid JSON syntax' };
+    }
+  };
+
+  /* BLOCK COMMENT: Synchronize property configuration change into input payload JSON and validate JSON */
+  const handlePropConfigChange = (propKey: string, newValue: any) => {
+    setTestingConfig((prev) => {
+      const nextConfig = { ...prev, [propKey]: newValue };
+
+      // Dynamic sync to testingInputData if it is a valid JSON object
+      if (testingInputData && typeof testingInputData === 'string') {
+        try {
+          const parsed = JSON.parse(testingInputData);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            const matchingKey = Object.keys(parsed).find(
+              (k) => k === propKey || k.toLowerCase() === propKey.toLowerCase()
+            );
+            if (matchingKey) {
+              parsed[matchingKey] = newValue;
+            } else {
+              parsed[propKey] = newValue;
+            }
+            setTestingInputData(JSON.stringify(parsed, null, 2));
+          }
+        } catch (e) {
+          // Do not overwrite if user is typing custom raw text or invalid JSON
+        }
+      }
+
+      return nextConfig;
+    });
+  };
 
   const handleExecuteTest = async () => {
     if (!testingAgent) return;
@@ -2060,7 +2130,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               const next = already
                                 ? selectedIds.filter((x) => String(x) !== idStr)
                                 : [...selectedIds, id];
-                              setTestingConfig({ ...testingConfig, [prop.key]: next });
+                              handlePropConfigChange(prop.key, next);
                             };
 
                             return (
@@ -2122,12 +2192,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                   <select
                                     className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
                                     value={value !== '' && value !== undefined && value !== null ? String(value) : ''}
-                                    onChange={(e) =>
-                                      setTestingConfig({
-                                        ...testingConfig,
-                                        [prop.key]: e.target.value,
-                                      })
-                                    }
+                                    onChange={(e) => handlePropConfigChange(prop.key, e.target.value)}
                                   >
                                     <option value="">— Select —</option>
                                     {opts.map((opt) => (
@@ -2148,15 +2213,25 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                           }
                         }
 
-                        // Static choice field handling (options, choices, values, configured_values)
+                        /* BLOCK COMMENT: Choice field resolution supporting field_type choice, values, allowed_values, options, enum */
                         const rawOpts =
                           prop.options ||
                           prop.choices ||
                           prop.values ||
+                          prop.allowed_values ||
+                          prop.allowedValues ||
                           prop.configured_values ||
-                          prop.configuredValues;
+                          prop.configuredValues ||
+                          prop.enum ||
+                          (prop.items ? (prop.items.options || prop.items.values || prop.items.allowed_values || prop.items) : undefined) ||
+                          (Array.isArray(prop.value) ? prop.value : undefined) ||
+                          (typeof prop.value === 'string' && (prop.value.includes(',') || prop.value.startsWith('[')) ? prop.value : undefined) ||
+                          (Array.isArray(prop.default) ? prop.default : undefined) ||
+                          (typeof prop.default === 'string' && (prop.default.includes(',') || prop.default.startsWith('[')) ? prop.default : undefined);
+
                         const parsedOpts = parseChoiceOptions(rawOpts);
-                        const isChoiceType = prop.type === 'choice' || parsedOpts.length > 0;
+                        const propType = String(prop.type || prop.field_type || '').toLowerCase();
+                        const isChoiceType = propType === 'choice' || propType === 'select' || propType === 'dropdown' || parsedOpts.length > 0;
 
                         if (isChoiceType) {
                           const isMultiple = !!prop.multiple;
@@ -2175,7 +2250,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               const next = already
                                 ? selectedVals.filter((x) => x !== optVal)
                                 : [...selectedVals, optVal];
-                              setTestingConfig({ ...testingConfig, [prop.key]: next });
+                              handlePropConfigChange(prop.key, next);
                             };
 
                             return (
@@ -2192,13 +2267,13 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                     className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none"
                                     value={Array.isArray(value) ? value.join(', ') : value}
                                     onChange={(e) =>
-                                      setTestingConfig({
-                                        ...testingConfig,
-                                        [prop.key]: e.target.value
+                                      handlePropConfigChange(
+                                        prop.key,
+                                        e.target.value
                                           .split(',')
                                           .map((v) => v.trim())
-                                          .filter(Boolean),
-                                      })
+                                          .filter(Boolean)
+                                      )
                                     }
                                   />
                                 ) : (
@@ -2243,12 +2318,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                 <select
                                   className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
                                   value={value !== undefined && value !== null ? String(value) : ''}
-                                  onChange={(e) =>
-                                    setTestingConfig({
-                                      ...testingConfig,
-                                      [prop.key]: e.target.value,
-                                    })
-                                  }
+                                  onChange={(e) => handlePropConfigChange(prop.key, e.target.value)}
                                 >
                                   <option value="">— Select —</option>
                                   {parsedOpts.map((opt) => (
@@ -2277,21 +2347,14 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               <textarea
                                 className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none"
                                 value={value}
-                                onChange={(e) =>
-                                  setTestingConfig({ ...testingConfig, [prop.key]: e.target.value })
-                                }
+                                onChange={(e) => handlePropConfigChange(prop.key, e.target.value)}
                                 rows={2}
                               />
                             ) : prop.type === 'boolean' ? (
                               <select
                                 className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
                                 value={value === true ? 'true' : 'false'}
-                                onChange={(e) =>
-                                  setTestingConfig({
-                                    ...testingConfig,
-                                    [prop.key]: e.target.value === 'true',
-                                  })
-                                }
+                                onChange={(e) => handlePropConfigChange(prop.key, e.target.value === 'true')}
                               >
                                 <option value="false">False</option>
                                 <option value="true">True</option>
@@ -2301,9 +2364,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                 type={prop.type === 'password' ? 'password' : 'text'}
                                 className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none"
                                 value={value}
-                                onChange={(e) =>
-                                  setTestingConfig({ ...testingConfig, [prop.key]: e.target.value })
-                                }
+                                onChange={(e) => handlePropConfigChange(prop.key, e.target.value)}
                               />
                             )}
                             {prop.description && (
@@ -2319,20 +2380,51 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
 
                   {/* Right Column: Run-time input data payload */}
                   <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider border-b pb-1">
-                      Input Data Payload (Run-time `data`)
-                    </h4>
+                    <div className="flex items-center justify-between border-b pb-1">
+                      <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        Input Data Payload (Run-time `data`)
+                      </h4>
+                      {/* BLOCK COMMENT: Real-time JSON validation status badge */}
+                      {(() => {
+                        const { isValid, message } = getJsonValidationStatus(testingInputData);
+                        if (!testingInputData.trim()) {
+                          return (
+                            <span className="text-[10px] text-gray-400 font-mono px-2 py-0.5 rounded bg-gray-100 border border-gray-200">
+                              Empty Payload
+                            </span>
+                          );
+                        }
+                        return isValid ? (
+                          <span className="text-[10px] text-emerald-700 font-bold font-mono px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 flex items-center gap-1">
+                            ✓ Valid JSON
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-red-700 font-bold font-mono px-2 py-0.5 rounded bg-red-50 border border-red-200 flex items-center gap-1">
+                            ✕ {message}
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <div className="space-y-1 h-full flex flex-col">
                       <label className="block text-[11px] font-bold text-gray-505 uppercase">
                         Run-Time Input (JSON or Plaintext)
                       </label>
                       <textarea
-                        className="w-full flex-1 min-h-[220px] rounded-lg border border-gray-200 p-3 text-xs font-mono text-black bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none overflow-auto"
+                        className={`w-full flex-1 min-h-[220px] rounded-lg border p-3 text-xs font-mono text-black outline-none overflow-auto transition-colors ${
+                          !getJsonValidationStatus(testingInputData).isValid && testingInputData.trim()
+                            ? 'border-red-400 bg-red-50/20 focus:ring-2 focus:ring-red-400'
+                            : 'border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500'
+                        }`}
                         value={testingInputData}
                         onChange={(e) => setTestingInputData(e.target.value)}
                         placeholder='e.g. { "text": "value" } or "raw string"'
                         style={{ fontFamily: "'Consolas', 'Courier New', monospace" }}
                       />
+                      {!getJsonValidationStatus(testingInputData).isValid && testingInputData.trim() && (
+                        <p className="text-[10px] text-red-600 font-mono italic">
+                          JSON Syntax Error: {getJsonValidationStatus(testingInputData).message}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2380,8 +2472,8 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               </button>
               <button
                 onClick={handleExecuteTest}
-                disabled={testingLoading}
-                className="flex items-center gap-1.5 rounded-lg bg-purple-900 px-6 py-1.5 text-xs font-bold text-white hover:bg-purple-700 shadow-md disabled:bg-purple-400 disabled:cursor-not-allowed transition-all cursor-pointer"
+                disabled={testingLoading || (!getJsonValidationStatus(testingInputData).isValid && testingInputData.trim().length > 0)}
+                className="flex items-center gap-1.5 rounded-lg bg-purple-900 px-6 py-1.5 text-xs font-bold text-white hover:bg-purple-700 shadow-md disabled:bg-purple-300 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
                 {testingLoading ? (
                   <>
