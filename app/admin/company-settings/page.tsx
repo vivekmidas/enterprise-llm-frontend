@@ -161,10 +161,7 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
 
   // Load profiles & company settings
   const loadData = async () => {
-    if (userRole === 'system_admin' && !selectedCustomerId) {
-      setLoading(false);
-      return;
-    }
+
     setLoading(true);
     try {
       const [companySettings, configs] = await Promise.all([

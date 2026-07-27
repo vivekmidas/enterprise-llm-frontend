@@ -6,13 +6,26 @@ import { Cpu, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import Alert from '@mui/material/Alert';
-import { CheckIcon } from 'lucide-react';
+import Snackbar from '@mui/material/Snackbar';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'error' | 'success' | 'warning' | 'info';
+  }>({
+    open: false,
+    message: '',
+    severity: 'error',
+  });
+
+  const handleCloseSnackbar = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,10 +44,19 @@ export default function LoginPage() {
       } else {
         router.push('/workflow-builder');
       }
-    } catch (err) {
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
-        Login failed. Please check your credentials.
-      </Alert>;
+    } catch (err: any) {
+      const isInvalidCreds =
+        err?.message === 'Invalid credentials' ||
+        err?.message?.toLowerCase().includes('invalid credential');
+      const message = isInvalidCreds
+        ? 'Invalid credential or password does not match'
+        : err?.message || 'Login failed. Please check your credentials.';
+
+      setSnackbar({
+        open: true,
+        message,
+        severity: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -42,6 +64,17 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
       <div className="mb-8 flex flex-col items-center gap-2">
         <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-200">
           <Cpu className="h-8 w-8 text-white" />

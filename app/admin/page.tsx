@@ -46,7 +46,7 @@ const ALL_TABS: { id: ActiveTabType; label: string; roles: string[] }[] = [
   { id: 'knowledge', label: 'Knowledge Bases', roles: ['admin', 'system_admin'] },
   { id: 'profiles', label: 'LLM Profiles', roles: ['admin', 'system_admin'] },
   // BLOCK COMMENT: SYSTEM ADMIN RESTRICTION FOR PROVIDER PRESETS TAB
-  { id: 'provider-presets', label: 'Provider Presets', roles: ['system_admin'] },
+  { id: 'provider-presets', label: 'Provider Presets', roles: ['admin', 'system_admin'] },
   { id: 'settings', label: 'LLM Settings', roles: ['admin', 'system_admin'] },
   { id: 'playground', label: 'Retrieval Playground', roles: ['admin', 'system_admin'] },
 ];
@@ -186,6 +186,7 @@ export default function AdminPage() {
           'settings',
           'playground',
           'profiles',
+          'provider-presets',
         ].includes(tab)
       ) {
         setActiveTab(tab as ActiveTabType);
@@ -460,10 +461,10 @@ export default function AdminPage() {
             />
           )}
           {activeTab === 'profiles' && (userRole === 'admin' || userRole === 'system_admin') && (
-            <ProfilesTab />
+            <ProfilesTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
-          {activeTab === 'provider-presets' && userRole === 'system_admin' && (
-            <ProviderPresetsTab />
+          {activeTab === 'provider-presets' && (userRole === 'admin' || userRole === 'system_admin') && (
+            <ProviderPresetsTab userRole={userRole} />
           )}
           {activeTab === 'settings' && (userRole === 'admin' || userRole === 'system_admin') && (
             <CompanySettingsTab

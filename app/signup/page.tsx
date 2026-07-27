@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { Shield } from 'lucide-react';
 import { RegisterPayload } from '@/lib/types/login';
 import Alert from '@mui/material/Alert';
-import { CheckIcon } from 'lucide-react';
+import Snackbar from '@mui/material/Snackbar';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -18,20 +18,39 @@ export default function SignupPage() {
     password: '',
   });
   const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'error' | 'success' | 'warning' | 'info';
+  }>({
+    open: false,
+    message: '',
+    severity: 'error',
+  });
+
+  const handleCloseSnackbar = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await api.register(formData as RegisterPayload);
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
-        Registration successful! Please login.
-      </Alert>;
-      router.push('/admin');
-    } catch (err) {
-      <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
-        Registration failed. Ensure all fields are filled correctly.
-      </Alert>;
+      setSnackbar({
+        open: true,
+        message: 'Registration successful! Please login.',
+        severity: 'success',
+      });
+      setTimeout(() => {
+        router.push('/admin');
+      }, 1000);
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err?.message || 'Registration failed. Ensure all fields are filled correctly.',
+        severity: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -39,6 +58,17 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
       <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl border border-gray-200">
         <div className="text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">

@@ -15,7 +15,7 @@ import {
   Folder,
   FileCode,
   Search,
-  Brackets,
+  Braces,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -53,7 +53,7 @@ const convertRulesToSchema = (parsed: any): any => {
   const rules = Array.isArray(parsed.rules) ? parsed.rules : [];
   rules.forEach((rule: any) => {
     if (!rule || typeof rule !== 'object') return;
-    const fieldName = rule.field_name || rule.field || rule.key || '';
+    const fieldName = rule.field_name || rule.name || rule.field || rule.key || '';
     if (!fieldName) return;
 
     const fieldSchema: any = {
@@ -175,6 +175,11 @@ const normalizeContract = (contract: any): any => {
   if (!parsed || typeof parsed !== 'object') {
     return { type: 'object', properties: {} };
   }
+
+  if (parsed.input_contract) return normalizeContract(parsed.input_contract);
+  if (parsed.output_contract) return normalizeContract(parsed.output_contract);
+  if (parsed.inputContract) return normalizeContract(parsed.inputContract);
+  if (parsed.outputContract) return normalizeContract(parsed.outputContract);
 
   if (Array.isArray(parsed.rules)) {
     return normalizeJsonSchema(convertRulesToSchema(parsed));
@@ -436,7 +441,7 @@ function SourceTreePopover({
             placeholder="Search source fields..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-7 pr-2 py-1 text-xs border border-slate-200 rounded-md outline-none focus:border-blue-500 transition-all bg-white"
+            className="w-full pl-7 pr-2 py-1 text-xs border border-slate-200 rounded-md outline-none focus:border-blue-500 transition-all bg-white text-slate-800 placeholder:text-slate-400"
             autoFocus
           />
           <Search size={12} className="absolute left-2.5 top-2 text-slate-400" />
@@ -763,7 +768,7 @@ export default function FieldMapperModal({
                     }
                     onChange={(e) => updateMapping(node.path, e.target.value)}
                     placeholder={readOnly ? 'No mapping configured' : '{{ field_name }}'}
-                    className="w-full px-1.5 py-1.5 text-xs font-mono outline-none bg-transparent disabled:opacity-75 disabled:cursor-not-allowed"
+                    className="w-full px-1.5 py-1.5 text-xs font-mono outline-none bg-white text-slate-800 placeholder:text-slate-400 disabled:opacity-75 disabled:cursor-not-allowed"
                     disabled={readOnly}
                   />
                   {mapping[node.path] && !readOnly && (
@@ -792,7 +797,7 @@ export default function FieldMapperModal({
                     }`}
                     title="Select field from source"
                   >
-                    <Brackets size={14} />
+                    <Braces size={14} />
                   </button>
                 )}
 

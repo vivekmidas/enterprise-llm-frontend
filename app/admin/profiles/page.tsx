@@ -78,6 +78,7 @@ interface LLMProfile {
   id: number;
   name: string;
   description?: string;
+  customer_id?: number;
   is_default: boolean;
   settings: ProfileSettings;
   created_at: string;
@@ -1341,15 +1342,24 @@ const ProfileEditor = ({
 // ---------------------------------------------------------------------------
 
 const CreateProfileModal = ({
+  userRole,
+  customers = [],
+  defaultCustomerId,
   onCreated,
   onCancel,
 }: {
+  userRole?: string | null;
+  customers?: any[];
+  defaultCustomerId?: number | null;
   onCreated: (p: LLMProfile) => void;
   onCancel: () => void;
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isDefault, setIsDefault] = useState(false);
+  const [selectedCustId, setSelectedCustId] = useState<number | null>(
+    defaultCustomerId || (customers.length > 0 ? customers[0].id : null)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1358,15 +1368,20 @@ const CreateProfileModal = ({
     setSaving(true);
     setError(null);
     try {
+      const payload: any = {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        is_default: isDefault,
+        settings: DEFAULT_SETTINGS,
+      };
+      if (userRole === 'system_admin' && selectedCustId) {
+        payload.customer_id = selectedCustId;
+      }
+
       const res = await fetch(`${BACKEND_URL}/api/profiles`, {
         method: 'POST',
         headers: getHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim() || undefined,
-          is_default: isDefault,
-          settings: DEFAULT_SETTINGS,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         let msg = 'Failed to create profile';
@@ -1401,6 +1416,22 @@ const CreateProfileModal = ({
           </button>
         </div>
         <div className="p-6 space-y-4">
+          {userRole === 'system_admin' && customers.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-gray-655">Customer</label>
+              <select
+                value={selectedCustId || ''}
+                onChange={(e) => setSelectedCustId(Number(e.target.value))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-gray-900 focus:outline-none focus:border-blue-500 cursor-pointer"
+              >
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name || `Customer #${c.id}`} (ID: {c.id})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-655">Profile Name</label>
             <TextInput value={name} onChange={setName} placeholder="e.g. Production RAG" />
@@ -1443,12 +1474,31 @@ const CreateProfileModal = ({
 // Main page
 // ---------------------------------------------------------------------------
 
-export default function ProfilesPage() {
+export default function ProfilesPage({
+  userRole,
+  customerId,
+}: {
+  userRole?: string | null;
+  customerId?: number | null;
+} = {}) {
   const [profiles, setProfiles] = useState<LLMProfile[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [customerFilter, setCustomerFilter] = useState<string>(
+    customerId ? String(customerId) : 'all'
+  );
+
+  useEffect(() => {
+    if (userRole === 'system_admin') {
+      api.getCustomers()
+        .then((list) => setCustomers(list || []))
+        .catch((err) => console.error('Failed to load customers list', err));
+    }
+  }, [userRole]);
 
   const selectedProfile = profiles.find((p) => p.id === selectedId) ?? null;
 
@@ -1456,7 +1506,11 @@ export default function ProfilesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/profiles`, {
+      const url = new URL(`${BACKEND_URL}/api/profiles`);
+      if (userRole === 'system_admin' && customerFilter !== 'all') {
+        url.searchParams.append('customer_id', customerFilter);
+      }
+      const res = await fetch(url.toString(), {
         headers: getHeaders(),
       });
       if (!res.ok) {
@@ -1477,15 +1531,17 @@ export default function ProfilesPage() {
         settings: normalizeSettings(p.settings),
       }));
       setProfiles(normalized);
-      if (data.length > 0 && !selectedId) {
-        setSelectedId(data.find((p) => p.is_default)?.id ?? data[0].id);
+      if (data.length > 0) {
+        setSelectedId((prev) => (prev && data.some((p) => p.id === prev) ? prev : (data.find((p) => p.is_default)?.id ?? data[0].id)));
+      } else {
+        setSelectedId(null);
       }
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userRole, customerFilter]);
 
   useEffect(() => {
     load();
@@ -1515,6 +1571,12 @@ export default function ProfilesPage() {
     setShowCreate(false);
   };
 
+  const getCustomerName = (cid?: number) => {
+    if (!cid) return null;
+    const found = customers.find((c) => c.id === cid);
+    return found ? (found.name || `Customer #${cid}`) : `Customer #${cid}`;
+  };
+
   return (
     <div className="flex bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-[750px] font-sans text-gray-800">
       {/* Left Profile Sidebar */}
@@ -1533,6 +1595,28 @@ export default function ProfilesPage() {
             </button>
           </div>
         </div>
+
+        {/* Customer Filter Dropdown for System Admin */}
+        {userRole === 'system_admin' && (
+          <div className="p-3 bg-slate-100/80 border-b border-gray-200 flex items-center justify-between gap-2 shrink-0">
+            <span className="text-xs font-semibold text-gray-600 flex items-center gap-1.5 shrink-0">
+              <Filter className="w-3.5 h-3.5 text-gray-500" />
+              Customer:
+            </span>
+            <select
+              value={customerFilter}
+              onChange={(e) => setCustomerFilter(e.target.value)}
+              className="w-full bg-white border border-gray-300 text-xs font-medium text-gray-800 rounded-md px-2 py-1 focus:outline-none focus:border-blue-500 cursor-pointer"
+            >
+              <option value="all">All Customers</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name || `Customer #${c.id}`} (ID: {c.id})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
           {loading ? (
@@ -1574,6 +1658,13 @@ export default function ProfilesPage() {
                         </span>
                       )}
                     </div>
+                    {userRole === 'system_admin' && p.customer_id && (
+                      <div className="mt-1">
+                        <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 bg-slate-200/80 rounded border border-slate-300/50">
+                          {getCustomerName(p.customer_id)}
+                        </span>
+                      </div>
+                    )}
                     {p.description && (
                       <p className="text-xs text-gray-555 line-clamp-2 leading-relaxed">
                         {p.description}
@@ -1614,7 +1705,13 @@ export default function ProfilesPage() {
       )}
 
       {showCreate && (
-        <CreateProfileModal onCreated={handleCreated} onCancel={() => setShowCreate(false)} />
+        <CreateProfileModal
+          userRole={userRole}
+          customers={customers}
+          defaultCustomerId={customerFilter !== 'all' ? Number(customerFilter) : customerId}
+          onCreated={handleCreated}
+          onCancel={() => setShowCreate(false)}
+        />
       )}
     </div>
   );

@@ -355,6 +355,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
 
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [jsonExpandedState, setJsonExpandedState] = useState<Record<string, boolean>>({});
 
   // Category Edit State
@@ -712,6 +713,27 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     }
     if (filterType !== 'all') {
       if (agent.node_type.toLowerCase() !== filterType.toLowerCase()) return false;
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchName = agent.name?.toLowerCase().includes(q);
+      const matchLabel = agent.label?.toLowerCase().includes(q);
+      const matchDesc = agent.description?.toLowerCase().includes(q);
+      const matchCat = agent.category?.toLowerCase().includes(q);
+      const matchGroup = agent.group?.toLowerCase().includes(q);
+      const matchBadge = agent.badge?.toLowerCase().includes(q);
+      const matchNodeType = agent.node_type?.toLowerCase().includes(q);
+      if (
+        !matchName &&
+        !matchLabel &&
+        !matchDesc &&
+        !matchCat &&
+        !matchGroup &&
+        !matchBadge &&
+        !matchNodeType
+      ) {
+        return false;
+      }
     }
     return true;
   });
@@ -1240,6 +1262,27 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
 
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* Search Bar */}
+            <div className="relative flex items-center">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search nodes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-8 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm w-48 sm:w-64"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
             {/* Category Dropdown Filter */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-gray-500 uppercase">Category:</span>
@@ -1429,6 +1472,30 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                     </td>
                     <td className="px-4 py-3 text-right min-w-[100px]">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const nextVal = !(agent.allow_node_testing === true);
+                              await api.configureCustomerNode(
+                                agent.name,
+                                { fieldname: 'properties.allow_node_testing', value: nextVal },
+                                customerId || undefined,
+                              );
+                              fetchData();
+                            } catch (err: any) {
+                              alert('Failed to toggle node testing: ' + err.message);
+                            }
+                          }}
+                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                            agent.allow_node_testing === true
+                              ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                              : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                          }`}
+                          title="Toggle Isolated Node Testing (Debug Mode)"
+                        >
+                          <FlaskRound className="h-3 w-3" />
+                          <span>{agent.allow_node_testing === true ? 'Testing ON' : 'Testing OFF'}</span>
+                        </button>
                         {customerId &&
                           (agent.is_enabled === false ? (
                             <div className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border bg-red-50 text-red-700 border-red-200 cursor-not-allowed select-none transition-all shadow-sm">
@@ -1500,6 +1567,13 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   </tr>
                 );
               })}
+              {filteredAgents.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
+                    No nodes found matching search filter.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -2051,18 +2125,78 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   {testingAgent.label || testingAgent.name} (v{testingAgent.version})
                 </p>
               </div>
-              <button
-                onClick={() => setTestingAgent(null)}
-                className="text-gray-400 hover:text-gray-650 cursor-pointer"
-              >
-                <X className="h-6 w-6" />
-              </button>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl">
+                  <span className="text-xs font-bold text-purple-900">Isolated Node Testing</span>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={testingAgent.allow_node_testing === true}
+                      onChange={async () => {
+                        const nextVal = !(testingAgent.allow_node_testing === true);
+                        try {
+                          await api.configureCustomerNode(
+                            testingAgent.name,
+                            { fieldname: 'properties.allow_node_testing', value: nextVal },
+                            customerId || undefined,
+                          );
+                          setTestingAgent({
+                            ...testingAgent,
+                            allow_node_testing: nextVal,
+                          });
+                          fetchData();
+                        } catch (err: any) {
+                          alert('Failed to update testing switch: ' + err.message);
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-8 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:translate-x-full peer-checked:bg-purple-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all"></div>
+                  </label>
+                </div>
+                <button
+                  onClick={() => setTestingAgent(null)}
+                  className="text-gray-400 hover:text-gray-650 cursor-pointer"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
             </div>
 
             {/* Modal Body */}
             <div className="flex flex-1 flex-col overflow-hidden">
               {/* Top Form Section (70%) */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
+                {/* Testing switch disabled warning banner */}
+                {testingAgent.allow_node_testing !== true && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Info className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span>Isolated node testing is currently <strong>disabled</strong> for this node. Flip the switch above to enable testing.</span>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await api.configureCustomerNode(
+                            testingAgent.name,
+                            { fieldname: 'properties.allow_node_testing', value: true },
+                            customerId || undefined,
+                          );
+                          setTestingAgent({
+                            ...testingAgent,
+                            allow_node_testing: true,
+                          });
+                          fetchData();
+                        } catch (err: any) {
+                          alert('Failed to enable testing: ' + err.message);
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 transition-colors shrink-0"
+                    >
+                      Enable Testing Now
+                    </button>
+                  </div>
+                )}
                 {/* Expected Input Contract Schema Details */}
                 {testingAgent.input_contract && (
                   <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-4">

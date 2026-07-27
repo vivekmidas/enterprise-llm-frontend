@@ -30,14 +30,15 @@ export const api = {
   /** Authentication */
 
   login: async (credentials: LoginPayload) => {
-    const token = getToken();
-
     const res = await fetch(`${BACKEND_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),
     });
-    if (!res.ok) throw new Error('Login failed');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Login failed');
+    }
     return res.json();
   },
 
@@ -72,7 +73,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Registration failed');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Registration failed');
+    }
     return res.json();
   },
 

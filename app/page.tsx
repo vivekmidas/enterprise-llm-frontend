@@ -203,7 +203,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-primary text-white font-sans overflow-x-hidden">
+    <div className="min-h-screen text-white font-sans overflow-x-hidden">
       {/* ── HERO ── */}
       <section className="relative px-6 pt-16 pb-28 md:pt-24 md:pb-40 overflow-hidden">
         {/* Background gradient orbs */}

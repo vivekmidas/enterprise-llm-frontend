@@ -362,6 +362,104 @@ const PathPropertyField = ({
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+interface JsonObjectPropertyFieldProps {
+  label: string;
+  fieldKey: string;
+  value: any;
+  isDisabled?: boolean;
+  description?: string;
+  handlePropertyChange: (key: string, value: any) => void;
+}
+
+const JsonObjectPropertyField = ({
+  label,
+  fieldKey,
+  value,
+  isDisabled,
+  description,
+  handlePropertyChange,
+}: JsonObjectPropertyFieldProps) => {
+  const [jsonText, setJsonText] = useState(() => {
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (value === undefined || value === null) {
+      setJsonText('');
+    } else if (typeof value === 'string') {
+      setJsonText(value);
+    } else {
+      try {
+        setJsonText(JSON.stringify(value, null, 2));
+      } catch {
+        setJsonText(String(value));
+      }
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setJsonText(text);
+    if (!text.trim()) {
+      setError(null);
+      handlePropertyChange(fieldKey, {});
+      return;
+    }
+    try {
+      const parsed = JSON.parse(text);
+      setError(null);
+      handlePropertyChange(fieldKey, parsed);
+    } catch {
+      setError('Invalid JSON');
+    }
+  };
+
+  return (
+    <div key={fieldKey} className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <label
+          className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest flex items-center gap-1.5 cursor-help"
+          title={description}
+        >
+          {label}
+          {description && (
+            <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+              i
+            </span>
+          )}
+        </label>
+        <span className="text-[9px] font-mono px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded border border-slate-200">
+          JSON Object
+        </span>
+      </div>
+      <textarea
+        value={jsonText}
+        disabled={isDisabled}
+        onChange={handleChange}
+        placeholder="{}"
+        rows={4}
+        className={`w-full border rounded-xl px-3 py-2 text-xs font-mono bg-white text-slate-900 outline-none focus:ring-2 transition-all resize-y min-h-20 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100 ${
+          error
+            ? 'border-amber-400 focus:ring-amber-100'
+            : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-100 shadow-inner-sm'
+        }`}
+      />
+      {error && (
+        <p className="text-[10px] text-amber-600 font-medium italic mt-0.5">{error}</p>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface SourcePropertyFieldProps {
   field: any;
   isDisabled?: boolean;
@@ -492,6 +590,15 @@ const SourcePropertyField = ({
   // Resolve the currently saved key(s) to display label(s)
   const resolveLabel = (val: any): string => {
     if (val === undefined || val === null || val === '') return '';
+    if (typeof val === 'object' && val !== null) {
+      const extracted = val.name ?? val.label ?? val.title ?? val.key ?? val.id ?? val.value;
+      if (extracted !== undefined && extracted !== null) return String(extracted);
+      try {
+        return JSON.stringify(val);
+      } catch {
+        return String(val);
+      }
+    }
     const strVal = String(val);
     return keyLabelMap[strVal] || strVal;
   };
@@ -499,11 +606,17 @@ const SourcePropertyField = ({
   // For the select value, always use the stored key
   const selectValue = isMultiple
     ? Array.isArray(propVal)
-      ? propVal.map(String)
+      ? propVal.map((v) =>
+          typeof v === 'object' && v !== null
+            ? String(v.id ?? v.key ?? v.value ?? '')
+            : String(v),
+        )
       : typeof propVal === 'string' && propVal.trim()
         ? propVal.split(',')
         : []
-    : String(propVal ?? '');
+    : typeof propVal === 'object' && propVal !== null
+      ? String(propVal.id ?? propVal.key ?? propVal.value ?? propVal.name ?? '')
+      : String(propVal ?? '');
 
   // Show the currently selected label(s) while loading or as a subtitle
   const currentLabel = isMultiple
@@ -569,7 +682,11 @@ const SourcePropertyField = ({
             Selected:
           </span>
           <span className="font-medium text-gray-800">
-            {loading ? String(propVal) : currentLabel || String(propVal)}
+            {loading
+              ? typeof propVal === 'object'
+                ? resolveLabel(propVal)
+                : String(propVal)
+              : currentLabel || (typeof propVal === 'object' ? resolveLabel(propVal) : String(propVal))}
           </span>
         </div>
       )}
@@ -851,9 +968,10 @@ const ContractTreeRenderer: React.FC<{
   nodes: ContractTreeNode[];
   depth?: number;
   isOutput?: boolean;
+  readOnly?: boolean;
   onToggleRequired?: (path: string, isReq: boolean) => void;
   onToggleStateable?: (path: string, isState: boolean) => void;
-}> = ({ nodes, depth = 0, isOutput = false, onToggleRequired, onToggleStateable }) => {
+}> = ({ nodes, depth = 0, isOutput = false, readOnly = false, onToggleRequired, onToggleStateable }) => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   return (
@@ -973,6 +1091,7 @@ const ContractTreeRenderer: React.FC<{
                 nodes={node.children!}
                 depth={depth + 1}
                 isOutput={isOutput}
+                readOnly={readOnly}
                 onToggleRequired={onToggleRequired}
                 onToggleStateable={onToggleStateable}
               />
@@ -1210,9 +1329,23 @@ export default function PropertiesPanel({
   }, [selectedNode?.id]);
 
   const systemKeys = Object.keys(systemProperties);
-  const entries = Object.entries(properties).filter(
-    ([key]) => key.toLowerCase() !== 'mapping_template' && !systemKeys.includes(key),
+  const userPropsArray = ensureArray((selectedNode?.data as any)?.user_properties);
+  const systemPropsArray = ensureArray((selectedNode?.data as any)?.system_properties);
+  const schemaArray = ensureArray(
+    (selectedNode?.data as any)?.propertySchema || (selectedNode?.data as any)?.property_schema,
   );
+
+  const allParamKeys = Array.from(
+    new Set([
+      ...schemaArray.map((f: any) => f?.key).filter(Boolean),
+      ...userPropsArray.map((f: any) => f?.key).filter(Boolean),
+      ...Object.keys(properties),
+    ]),
+  );
+
+  const entries = allParamKeys
+    .filter((key) => key.toLowerCase() !== 'mapping_template' && !systemKeys.includes(key))
+    .map((key) => [key, properties[key]] as [string, any]);
   const systemEntries = Object.entries(systemProperties);
 
   const handleSaveContract = (type: 'input' | 'output', newSchema: any) => {
@@ -1233,7 +1366,11 @@ export default function PropertiesPanel({
   };
 
   const handleCopy = (key: string, value: any) => {
-    navigator.clipboard.writeText(String(value ?? ''));
+    const copyText =
+      typeof value === 'object' && value !== null
+        ? JSON.stringify(value, null, 2)
+        : String(value ?? '');
+    navigator.clipboard.writeText(copyText);
     setCopiedKey(key);
     setTimeout(() => {
       setCopiedKey(null);
@@ -2234,7 +2371,7 @@ export default function PropertiesPanel({
                 label: val,
               });
             }}
-            disabled={false}
+            disabled={userRole === 'user'}
             placeholder="e.g. LLM Node"
             className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all font-medium disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
           />
@@ -2298,25 +2435,35 @@ export default function PropertiesPanel({
                     <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">
                       Output Structure
                     </label>
-                    <button
-                      onClick={() => {
-                        setGeneratorModalType('output');
-                        setIsGeneratorModalOpen(true);
-                      }}
-                      className="flex items-center gap-1 text-[12px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
-                    >
-                      <Sparkles className="w-2.5 h-2.5" />
-                      Define from JSON
-                    </button>
+                    {userRole !== 'user' ? (
+                      <button
+                        onClick={() => {
+                          setGeneratorModalType('output');
+                          setIsGeneratorModalOpen(true);
+                        }}
+                        className="flex items-center gap-1 text-[12px] font-bold text-emerald-650 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-1 rounded transition-colors cursor-pointer border border-emerald-150"
+                      >
+                        <Sparkles className="w-2.5 h-2.5" />
+                        Define from JSON
+                      </button>
+                    ) : (
+                      <span className="flex items-center gap-1 text-[9px] font-bold text-slate-450 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 tracking-wide uppercase">
+                        <Lock className="w-2.5 h-2.5" />
+                        Read-only
+                      </span>
+                    )}
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 shadow-inner max-h-56 overflow-y-auto custom-scrollbar flex">
                     {outputTree.length > 0 ? (
                       <ContractTreeRenderer
                         nodes={outputTree}
                         isOutput={true}
-                        onToggleRequired={(path, isReq) => handleToggleRequiredField(path, isReq)}
+                        readOnly={userRole === 'user'}
+                        onToggleRequired={(path, isReq) =>
+                          userRole !== 'user' && handleToggleRequiredField(path, isReq)
+                        }
                         onToggleStateable={(path, isState) =>
-                          handleToggleStateableField(path, isState)
+                          userRole !== 'user' && handleToggleStateableField(path, isState)
                         }
                       />
                     ) : (
@@ -2378,7 +2525,9 @@ export default function PropertiesPanel({
                               ? 'boolean'
                               : typeof value === 'number'
                                 ? 'number'
-                                : 'string';
+                                : typeof value === 'object' && value !== null
+                                  ? 'object'
+                                  : 'string';
 
                           const userPropsArray = ensureArray(
                             (selectedNode?.data as any)?.user_properties,
@@ -2421,8 +2570,29 @@ export default function PropertiesPanel({
                                   multiple: fieldSchema?.multiple,
                                   description: fieldSchema?.description,
                                 }}
-                                isDisabled={false}
+                                isDisabled={userRole === 'user'}
                                 propVal={propVal}
+                                handlePropertyChange={handlePropertyChange}
+                              />
+                            );
+                          }
+
+                          // Object / JSON type
+                          if (
+                            fieldType === 'object' ||
+                            fieldType === 'json' ||
+                            fieldType === 'dict' ||
+                            fieldType === 'record' ||
+                            (typeof value === 'object' && value !== null && !Array.isArray(value))
+                          ) {
+                            return (
+                              <JsonObjectPropertyField
+                                key={key}
+                                label={label}
+                                fieldKey={key}
+                                value={value}
+                                isDisabled={userRole === 'user'}
+                                description={fieldSchema?.description}
                                 handlePropertyChange={handlePropertyChange}
                               />
                             );
@@ -2437,14 +2607,31 @@ export default function PropertiesPanel({
                             );
 
                             let options = parseChoiceOptions(rawOptions);
-                            const strVal = value !== undefined && value !== null ? String(value) : '';
-                            if (strVal && !strVal.includes(',') && !options.includes(strVal)) {
+                            const extractValStr = (val: any): string => {
+                              if (val === undefined || val === null) return '';
+                              if (typeof val === 'object') {
+                                return String(
+                                  val.key ?? val.value ?? val.id ?? val.name ?? val.label ?? '',
+                                );
+                              }
+                              return String(val);
+                            };
+
+                            const rawVal =
+                              value !== undefined && value !== null ? value : fieldSchema?.default;
+                            const strVal = extractValStr(rawVal);
+                            if (
+                              strVal &&
+                              !strVal.includes(',') &&
+                              !options.some((o) => o.toLowerCase() === strVal.toLowerCase())
+                            ) {
                               options = [strVal, ...options];
                             }
                             const isMultiple = Boolean(fieldSchema?.multiple);
-                            const selectedVal = options.includes(strVal)
-                              ? strVal
-                              : options[0] || '';
+                            const matchedOption = options.find(
+                              (o) => o.toLowerCase() === strVal.toLowerCase(),
+                            );
+                            const selectedVal = matchedOption || (options.length > 0 ? options[0] : '');
 
                             if (isMultiple) {
                               return (
@@ -2461,9 +2648,12 @@ export default function PropertiesPanel({
                                     )}
                                   </label>
                                   <MultiSelectDropdown
+                                    disabled={userRole === 'user'}
                                     selected={Array.isArray(value) ? value.map(String) : []}
                                     options={options.map((o) => ({ key: o, label: o }))}
-                                    onChange={(values) => handlePropertyChange(key, values)}
+                                    onChange={(values) =>
+                                      userRole !== 'user' && handlePropertyChange(key, values)
+                                    }
                                   />
                                 </div>
                               );
@@ -2484,13 +2674,15 @@ export default function PropertiesPanel({
                                 </label>
                                 <select
                                   value={selectedVal}
+                                  disabled={userRole === 'user'}
                                   onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+                                    userRole !== 'user' &&
                                     handlePropertyChange(key, event.target.value)
                                   }
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm cursor-pointer"
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm cursor-pointer disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                                 >
                                   {options.map((option) => (
-                                    <option key={option} value={option}>
+                                    <option key={option} value={option} className="bg-white text-slate-900">
                                       {option}
                                     </option>
                                   ))}
@@ -2509,7 +2701,10 @@ export default function PropertiesPanel({
                                 <input
                                   type="checkbox"
                                   checked={Boolean(value)}
-                                  onChange={(e) => handlePropertyChange(key, e.target.checked)}
+                                  disabled={userRole === 'user'}
+                                  onChange={(e) =>
+                                    userRole !== 'user' && handlePropertyChange(key, e.target.checked)
+                                  }
                                   className="h-4 w-4 accent-indigo-600 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                               </label>
@@ -2525,19 +2720,27 @@ export default function PropertiesPanel({
                                 <input
                                   type="number"
                                   value={Number(value ?? 0)}
+                                  disabled={userRole === 'user'}
                                   onChange={(e) =>
+                                    userRole !== 'user' &&
                                     handlePropertyChange(key, Number(e.target.value))
                                   }
                                   placeholder="Value"
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
                                 />
                               </div>
                             );
                           }
 
+                          // Helper for stringifying values safely
+                          const displayStr =
+                            typeof value === 'object' && value !== null
+                              ? JSON.stringify(value, null, 2)
+                              : String(value ?? '');
+
                           // Multiline textarea for prompts/long strings
                           const isMultiline =
-                            String(value ?? '').length > 40 ||
+                            displayStr.length > 40 ||
                             key.toLowerCase().includes('prompt') ||
                             key.toLowerCase().includes('query');
 
@@ -2548,11 +2751,14 @@ export default function PropertiesPanel({
                               </label>
                               {isMultiline ? (
                                 <textarea
-                                  value={String(value ?? '')}
-                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
+                                  value={displayStr}
+                                  disabled={userRole === 'user'}
+                                  onChange={(e) =>
+                                    userRole !== 'user' && handlePropertyChange(key, e.target.value)
+                                  }
                                   placeholder="Enter text/variables..."
                                   rows={3}
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
                                 />
                               ) : (
                                 <input
@@ -2562,10 +2768,13 @@ export default function PropertiesPanel({
                                       ? 'password'
                                       : 'text'
                                   }
-                                  value={String(value ?? '')}
-                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
+                                  value={displayStr}
+                                  disabled={userRole === 'user'}
+                                  onChange={(e) =>
+                                    userRole !== 'user' && handlePropertyChange(key, e.target.value)
+                                  }
                                   placeholder="Enter value..."
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-slate-50/30 focus:bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
                                 />
                               )}
                             </div>
@@ -2712,9 +2921,15 @@ export default function PropertiesPanel({
                               <div className="flex items-center gap-1.5 max-w-[70%]">
                                 <span
                                   className="font-mono text-[10px] text-slate-700 bg-white border border-slate-150 px-2 py-0.5 rounded shadow-inner-sm truncate"
-                                  title={String(value ?? '')}
+                                  title={
+                                    typeof value === 'object' && value !== null
+                                      ? JSON.stringify(value)
+                                      : String(value ?? '')
+                                  }
                                 >
-                                  {String(value ?? '')}
+                                  {typeof value === 'object' && value !== null
+                                    ? JSON.stringify(value)
+                                    : String(value ?? '')}
                                 </span>
                                 <button
                                   type="button"

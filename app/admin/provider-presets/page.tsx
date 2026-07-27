@@ -30,6 +30,7 @@ export interface ProviderPreset {
   id: number;
   provider_key: string;
   name: string;
+  display_name?: string;
   description?: string;
   base_url: string;
   chat_models: string[];
@@ -71,7 +72,8 @@ const EMPTY_PRESET: Omit<ProviderPreset, 'id'> = {
   is_active: true,
 };
 
-export default function ProviderPresetsAdminTab() {
+export default function ProviderPresetsAdminTab({ userRole }: { userRole?: string | null }) {
+  const isSystemAdmin = userRole === 'system_admin';
   const [presets, setPresets] = useState<ProviderPreset[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -233,25 +235,34 @@ export default function ProviderPresetsAdminTab() {
             Node & Profile properties will pre-fill from these presets without breaking existing workflows when updated.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSeedPresets}
-            disabled={seeding}
-            className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-300 transition"
-            title="Restore standard default provider templates"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${seeding ? 'animate-spin' : ''}`} />
-            {seeding ? 'Seeding...' : 'Seed Standard Defaults'}
-          </button>
-          <button
-            onClick={handleOpenCreateModal}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition"
-          >
-            <Plus className="h-4 w-4" />
-            Add Provider Preset
-          </button>
-        </div>
+        {isSystemAdmin && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSeedPresets}
+              disabled={seeding}
+              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-300 transition cursor-pointer"
+              title="Restore standard default provider templates"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${seeding ? 'animate-spin' : ''}`} />
+              {seeding ? 'Seeding...' : 'Seed Standard Defaults'}
+            </button>
+            <button
+              onClick={handleOpenCreateModal}
+              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              Add Provider Preset
+            </button>
+          </div>
+        )}
       </div>
+
+      {!isSystemAdmin && (
+        <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-medium">
+          <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <span>Read-Only View: System Admin permission is required to create, edit, or re-seed provider presets.</span>
+        </div>
+      )}
 
       {/* Alert Notification */}
       {notification && (
@@ -314,22 +325,24 @@ export default function ProviderPresetsAdminTab() {
                     </span>
                     <h3 className="text-base font-bold text-gray-900 mt-1">{preset.name}</h3>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenEditModal(preset)}
-                      className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
-                      title="Edit preset"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeletePreset(preset)}
-                      className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
-                      title="Delete preset"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                  {isSystemAdmin && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEditModal(preset)}
+                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
+                        title="Edit preset"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePreset(preset)}
+                        className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                        title="Delete preset"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-xs text-gray-500 mb-4 line-clamp-2">
@@ -397,11 +410,11 @@ export default function ProviderPresetsAdminTab() {
       {/* Edit / Create Modal */}
       {isModalOpen && editingPreset && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl border border-gray-200 w-full overflow-hidden my-8">
+          <div className="bg-white text-gray-900 rounded-xl shadow-2xl border border-gray-200 w-full max-w-4xl overflow-hidden my-8">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
                 <Sliders className="h-4 w-4 text-blue-600" />
-                {editingPreset.id ? `Edit Provider Preset: ${editingPreset.name}` : 'Create Provider Preset'}
+                {editingPreset.id ? `Edit Provider Preset: ${editingPreset.display_name || editingPreset.name}` : 'Create Provider Preset'}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -420,7 +433,7 @@ export default function ProviderPresetsAdminTab() {
                     placeholder="e.g. ollama, vllm, grok, openai"
                     value={editingPreset.provider_key || ''}
                     onChange={(e) => setEditingPreset({ ...editingPreset, provider_key: e.target.value.toLowerCase().trim() })}
-                    className="w-full p-2 border border-gray-300 rounded-md font-mono focus:ring-1 focus:ring-blue-500"
+                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono focus:ring-1 focus:ring-blue-500"
                   />
                   <p className="text-[10px] text-gray-400 mt-1">Unique identifier key used by profile forms.</p>
                 </div>
@@ -429,9 +442,9 @@ export default function ProviderPresetsAdminTab() {
                   <input
                     type="text"
                     placeholder="e.g. Grok / xAI API"
-                    value={editingPreset.name || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, name: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    value={editingPreset.display_name || editingPreset.name || ''}
+                    onChange={(e) => setEditingPreset({ ...editingPreset, display_name: e.target.value, name: editingPreset.name || e.target.value })}
+                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -443,7 +456,7 @@ export default function ProviderPresetsAdminTab() {
                   placeholder="http://localhost:11434 or https://api.x.ai/v1"
                   value={editingPreset.base_url || ''}
                   onChange={(e) => setEditingPreset({ ...editingPreset, base_url: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-md font-mono focus:ring-1 focus:ring-blue-500"
+                  className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono focus:ring-1 focus:ring-blue-500"
                 />
               </div>
 
@@ -454,7 +467,7 @@ export default function ProviderPresetsAdminTab() {
                   placeholder="Brief summary of provider endpoint"
                   value={editingPreset.description || ''}
                   onChange={(e) => setEditingPreset({ ...editingPreset, description: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md focus:ring-1 focus:ring-blue-500"
                 />
               </div>
 
@@ -466,21 +479,21 @@ export default function ProviderPresetsAdminTab() {
                     placeholder="llama3.2&#10;qwen2.5-coder&#10;mistral"
                     value={chatModelsInput}
                     onChange={(e) => setChatModelsInput(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md font-mono text-[11px]"
+                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono text-[11px]"
                   />
                   <input
                     type="text"
                     placeholder="Default Chat Model"
                     value={editingPreset.default_chat_model || ''}
                     onChange={(e) => setEditingPreset({ ...editingPreset, default_chat_model: e.target.value })}
-                    className="w-full mt-2 p-1.5 border border-gray-300 rounded text-[11px] font-mono"
+                    className="w-full mt-2 p-1.5 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded text-[11px] font-mono"
                   />
                   <input
                     type="text"
                     placeholder="Chat Endpoint Path (e.g. /chat/completions)"
                     value={editingPreset.search_endpoint || ''}
                     onChange={(e) => setEditingPreset({ ...editingPreset, search_endpoint: e.target.value })}
-                    className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-blue-700 bg-blue-50/50"
+                    className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-blue-700 bg-blue-50/80 placeholder-gray-400"
                   />
                 </div>
 
@@ -491,21 +504,21 @@ export default function ProviderPresetsAdminTab() {
                     placeholder="nomic-embed-text:768&#10;bge-m3:1024&#10;text-embedding-3-small:1536"
                     value={embeddingModelsInput}
                     onChange={(e) => setEmbeddingModelsInput(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md font-mono text-[11px]"
+                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono text-[11px]"
                   />
                   <input
                     type="text"
                     placeholder="Default Embedding Model"
                     value={editingPreset.default_embedding_model || ''}
                     onChange={(e) => setEditingPreset({ ...editingPreset, default_embedding_model: e.target.value })}
-                    className="w-full mt-2 p-1.5 border border-gray-300 rounded text-[11px] font-mono"
+                    className="w-full mt-2 p-1.5 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded text-[11px] font-mono"
                   />
                   <input
                     type="text"
                     placeholder="Embed Endpoint Path (e.g. /embeddings)"
                     value={editingPreset.embedding_endpoint || ''}
                     onChange={(e) => setEditingPreset({ ...editingPreset, embedding_endpoint: e.target.value })}
-                    className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-emerald-700 bg-emerald-50/50"
+                    className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-emerald-700 bg-emerald-50/80 placeholder-gray-400"
                   />
                 </div>
 
@@ -516,21 +529,21 @@ export default function ProviderPresetsAdminTab() {
                     placeholder="qwen3:0.6b&#10;bge-reranker-large"
                     value={rerankModelsInput}
                     onChange={(e) => setRerankModelsInput(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md font-mono text-[11px]"
+                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono text-[11px]"
                   />
                   <input
                     type="text"
                     placeholder="Default Rerank Model"
                     value={editingPreset.default_rerank_model || ''}
                     onChange={(e) => setEditingPreset({ ...editingPreset, default_rerank_model: e.target.value })}
-                    className="w-full mt-2 p-1.5 border border-gray-300 rounded text-[11px] font-mono"
+                    className="w-full mt-2 p-1.5 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded text-[11px] font-mono"
                   />
                   <input
                     type="text"
                     placeholder="Rerank Endpoint Path (e.g. /rerank)"
                     value={editingPreset.rerank_endpoint || ''}
                     onChange={(e) => setEditingPreset({ ...editingPreset, rerank_endpoint: e.target.value })}
-                    className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-amber-700 bg-amber-50/50"
+                    className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-amber-700 bg-amber-50/80 placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -543,7 +556,7 @@ export default function ProviderPresetsAdminTab() {
                     step="0.1"
                     value={editingPreset.default_temperature ?? 0.7}
                     onChange={(e) => setEditingPreset({ ...editingPreset, default_temperature: parseFloat(e.target.value) })}
-                    className="w-full p-2 border border-gray-300 rounded-md"
+                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md"
                   />
                 </div>
                 <div>
@@ -552,7 +565,7 @@ export default function ProviderPresetsAdminTab() {
                     type="number"
                     value={editingPreset.default_max_tokens ?? 1024}
                     onChange={(e) => setEditingPreset({ ...editingPreset, default_max_tokens: parseInt(e.target.value, 10) })}
-                    className="w-full p-2 border border-gray-300 rounded-md"
+                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md"
                   />
                 </div>
                 <div>
@@ -562,7 +575,7 @@ export default function ProviderPresetsAdminTab() {
                     placeholder="Authorization or api-key"
                     value={editingPreset.api_key_header || ''}
                     onChange={(e) => setEditingPreset({ ...editingPreset, api_key_header: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded-md font-mono"
+                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono"
                   />
                 </div>
               </div>
