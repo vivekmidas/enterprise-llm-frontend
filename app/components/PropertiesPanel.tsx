@@ -465,8 +465,6 @@ interface SourcePropertyFieldProps {
   isDisabled?: boolean;
   propVal: any;
   handlePropertyChange: (key: string, value: any) => void;
-  handleMultiplePropertiesChange?: (updates: Record<string, any>) => void;
-  allProperties?: Record<string, any>;
 }
 
 const SourcePropertyField = ({
@@ -474,8 +472,6 @@ const SourcePropertyField = ({
   isDisabled,
   propVal,
   handlePropertyChange,
-  handleMultiplePropertiesChange,
-  allProperties,
 }: SourcePropertyFieldProps) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -561,10 +557,8 @@ const SourcePropertyField = ({
 
   const isList = Array.isArray(resolvedData);
   const isDict = resolvedData !== null && typeof resolvedData === 'object' && !isList;
-
   const isMultiple = !!field.multiple;
 
-  // Helper: extract key and label from an option item
   const getOptKeyLabel = (opt: any): { key: string; label: string } => {
     if (opt && typeof opt === 'object') {
       const key = String(opt.id ?? opt.key ?? opt.value ?? opt.name ?? '');
@@ -574,36 +568,6 @@ const SourcePropertyField = ({
     return { key: String(opt), label: String(opt) };
   };
 
-  // Build a key→label lookup from resolved data
-  const keyLabelMap: Record<string, string> = {};
-  if (isList) {
-    for (const opt of resolvedData) {
-      const { key, label } = getOptKeyLabel(opt);
-      keyLabelMap[key] = label;
-    }
-  } else if (isDict) {
-    for (const [k, v] of Object.entries(resolvedData)) {
-      keyLabelMap[k] = String(v);
-    }
-  }
-
-  // Resolve the currently saved key(s) to display label(s)
-  const resolveLabel = (val: any): string => {
-    if (val === undefined || val === null || val === '') return '';
-    if (typeof val === 'object' && val !== null) {
-      const extracted = val.name ?? val.label ?? val.title ?? val.key ?? val.id ?? val.value;
-      if (extracted !== undefined && extracted !== null) return String(extracted);
-      try {
-        return JSON.stringify(val);
-      } catch {
-        return String(val);
-      }
-    }
-    const strVal = String(val);
-    return keyLabelMap[strVal] || strVal;
-  };
-
-  // For the select value, always use the stored key
   const selectValue = isMultiple
     ? Array.isArray(propVal)
       ? propVal.map((v) =>
@@ -618,52 +582,29 @@ const SourcePropertyField = ({
       ? String(propVal.id ?? propVal.key ?? propVal.value ?? propVal.name ?? '')
       : String(propVal ?? '');
 
-  // Show the currently selected label(s) while loading or as a subtitle
-  const currentLabel = isMultiple
-    ? Array.isArray(propVal)
-      ? propVal
-          .map((v: any) => resolveLabel(v))
-          .filter(Boolean)
-          .join(', ')
-      : resolveLabel(propVal)
-    : resolveLabel(propVal);
-
-  const handleSelectOption = (newVal: any) => {
+  const handleChange = (newVal: any) => {
     if (isDisabled) return;
-
-    let selectedOpt: any = null;
-    if (isList && Array.isArray(resolvedData)) {
-      selectedOpt = resolvedData.find((opt: any) => {
-        const { key } = getOptKeyLabel(opt);
-        return key === String(newVal);
-      });
-    } else if (isDict && resolvedData) {
-      selectedOpt = resolvedData[String(newVal)];
-    }
-
-    const updates: Record<string, any> = {
-      [field.key]: newVal,
-    };
-
-    if (selectedOpt && typeof selectedOpt === 'object' && !Array.isArray(selectedOpt)) {
-      Object.assign(updates, selectedOpt);
-      updates[field.key] = newVal;
-    }
-
-    if (handleMultiplePropertiesChange) {
-      handleMultiplePropertiesChange(updates);
-    } else {
-      for (const [k, v] of Object.entries(updates)) {
-        handlePropertyChange(k, v);
-      }
-    }
+    handlePropertyChange(field.key, newVal);
   };
 
+  // Extract selected item object to display key-value pair details
+  const selectedItem = isList
+    ? (resolvedData as any[])?.find((opt: any) => getOptKeyLabel(opt).key === String(selectValue))
+    : isDict
+      ? (resolvedData as Record<string, any>)?.[String(selectValue)]
+      : null;
+
+  const displayKeyValuePairs = selectedItem && typeof selectedItem === 'object' && !Array.isArray(selectedItem)
+    ? Object.entries(selectedItem).filter(
+        ([k]) => !['id', 'created_at', 'updated_at', 'customer_id', 'tenant_id', 'created_by'].includes(k.toLowerCase()),
+      )
+    : [];
+
   return (
-    <div className="space-y-3.5 p-4 border border-gray-200 rounded-xl bg-slate-50/50 shadow-sm w-full">
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <label
-          className="block text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1.5 cursor-help"
+          className="block text-xs font-semibold text-gray-500 flex items-center gap-1.5 cursor-help"
           title={field.description}
         >
           {field.label}
@@ -673,117 +614,96 @@ const SourcePropertyField = ({
             </span>
           )}
         </label>
+        {loading && <span className="text-[10px] text-blue-500 animate-pulse">Loading...</span>}
+        {error && <span className="text-[10px] text-red-500" title={error}>Error loading</span>}
       </div>
 
-      {/* Show current selection label */}
-      {propVal && (
-        <div className="text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-1.5">
-          <span className="text-[10px] text-gray-400 uppercase font-semibold mr-1.5">
-            Selected:
-          </span>
-          <span className="font-medium text-gray-800">
-            {loading
-              ? typeof propVal === 'object'
-                ? resolveLabel(propVal)
-                : String(propVal)
-              : currentLabel || (typeof propVal === 'object' ? resolveLabel(propVal) : String(propVal))}
-          </span>
+      {/* Element 1: Dropdown / MultiSelect selection */}
+      {isList ? (
+        isMultiple ? (
+          <MultiSelectDropdown
+            disabled={isDisabled}
+            selected={Array.isArray(selectValue) ? selectValue : []}
+            options={resolvedData.map((opt: any) => getOptKeyLabel(opt))}
+            onChange={(values) => handleChange(values)}
+            placeholder={`Select ${field.label || 'options'}...`}
+          />
+        ) : (
+          <select
+            disabled={isDisabled}
+            value={selectValue}
+            onChange={(e) => handleChange(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:outline-none focus:border-blue-500 bg-white text-black font-medium shadow-sm"
+          >
+            <option value="">Select {field.label || 'option'}...</option>
+            {resolvedData.map((opt: any, idx: number) => {
+              const { key, label } = getOptKeyLabel(opt);
+              return (
+                <option key={`${key}-${idx}`} value={key}>
+                  {label}
+                </option>
+              );
+            })}
+          </select>
+        )
+      ) : isDict ? (
+        isMultiple ? (
+          <MultiSelectDropdown
+            disabled={isDisabled}
+            selected={Array.isArray(selectValue) ? selectValue : []}
+            options={Object.entries(resolvedData).map(([k, v]) => ({ key: k, label: String(v) }))}
+            onChange={(values) => handleChange(values)}
+            placeholder={`Select ${field.label || 'options'}...`}
+          />
+        ) : (
+          <select
+            disabled={isDisabled}
+            value={selectValue}
+            onChange={(e) => handleChange(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:outline-none focus:border-blue-500 bg-white text-black font-medium shadow-sm"
+          >
+            <option value="">Select {field.label || 'option'}...</option>
+            {Object.entries(resolvedData).map(([k, v], idx) => (
+              <option key={`${k}-${idx}`} value={k}>
+                {String(v)}
+              </option>
+            ))}
+          </select>
+        )
+      ) : !loading && !error ? (
+        <input
+          type="text"
+          disabled={isDisabled}
+          value={String(propVal ?? '')}
+          onChange={(e) => handleChange(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500 shadow-sm"
+          placeholder={`Enter ${field.label || 'value'}...`}
+        />
+      ) : null}
+
+      {/* Element 2: Key-value pair read-only values of the selected option */}
+      {displayKeyValuePairs.length > 0 && (
+        <div className="mt-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50/80 space-y-1.5 shadow-inner">
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+            Details (Read-Only)
+          </div>
+          {displayKeyValuePairs.map(([k, v]) => (
+            <div key={k} className="flex justify-between items-center text-xs border-b border-slate-200/50 pb-1 last:border-0 last:pb-0">
+              <span className="font-semibold text-slate-600 capitalize text-[11px]">{k.replace(/_/g, ' ')}</span>
+              <span
+                className="font-mono text-[11px] text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 truncate max-w-[65%]"
+                title={typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')}
+              >
+                {typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')}
+              </span>
+            </div>
+          ))}
         </div>
       )}
-
-      <div className="space-y-1.5">
-        <div className="flex justify-between items-center">
-          <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-            {isMultiple ? 'Select Values (Multi)' : 'Change Selection'}
-          </label>
-          {loading && (
-            <span className="text-[10px] text-blue-500 animate-pulse">Loading options...</span>
-          )}
-          {error && (
-            <span className="text-[10px] text-red-500" title={error}>
-              Error loading source
-            </span>
-          )}
-        </div>
-        {isList ? (
-          isMultiple ? (
-            <MultiSelectDropdown
-              disabled={isDisabled}
-              selected={
-                Array.isArray(propVal)
-                  ? propVal.map(String)
-                  : typeof propVal === 'string' && propVal.trim()
-                    ? propVal.split(',')
-                    : []
-              }
-              options={resolvedData.map((opt: any) => getOptKeyLabel(opt))}
-              onChange={(values) => handleSelectOption(values)}
-              placeholder="Select options..."
-            />
-          ) : (
-            <select
-              disabled={isDisabled}
-              value={selectValue}
-              onChange={(e) => handleSelectOption(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white text-black"
-            >
-              <option value="">Select option...</option>
-              {resolvedData.map((opt: any, idx: number) => {
-                const { key, label } = getOptKeyLabel(opt);
-                return (
-                  <option key={`${key}-${idx}`} value={key}>
-                    {label}
-                  </option>
-                );
-              })}
-            </select>
-          )
-        ) : isDict ? (
-          isMultiple ? (
-            <MultiSelectDropdown
-              disabled={isDisabled}
-              selected={
-                Array.isArray(propVal)
-                  ? propVal.map(String)
-                  : typeof propVal === 'string' && propVal.trim()
-                    ? propVal.split(',')
-                    : []
-              }
-              options={Object.entries(resolvedData).map(([k, v]) => ({ key: k, label: String(v) }))}
-              onChange={(values) => handleSelectOption(values)}
-              placeholder="Select options..."
-            />
-          ) : (
-            <select
-              disabled={isDisabled}
-              value={selectValue}
-              onChange={(e) => handleSelectOption(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 bg-white text-black"
-            >
-              <option value="">Select option...</option>
-              {Object.entries(resolvedData).map(([k, v], idx) => (
-                <option key={`${k}-${idx}`} value={k}>
-                  {String(v)}
-                </option>
-              ))}
-            </select>
-          )
-        ) : !loading && !error ? (
-          <input
-            type="text"
-            disabled={isDisabled}
-            value={String(propVal)}
-            onChange={(e) => handleSelectOption(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white text-black focus:outline-none focus:border-blue-500"
-            placeholder="Enter value..."
-          />
-        ) : null}
-      </div>
-
-
     </div>
   );
 };
+
 
 // Helper to normalize and parse system properties from different database formats
 const parseSystemProperties = (value: any): Record<string, any> => {
@@ -1343,10 +1263,31 @@ export default function PropertiesPanel({
     ]),
   );
 
+  const IGNORED_METADATA_KEYS = new Set([
+    'created_at',
+    'updated_at',
+    'last_updated',
+    'last_updated_at',
+    'id',
+    'customer_id',
+    'node_type',
+    'version',
+    'created_by',
+    'tenant_id',
+  ]);
+
   const entries = allParamKeys
-    .filter((key) => key.toLowerCase() !== 'mapping_template' && !systemKeys.includes(key))
+    .filter(
+      (key) =>
+        key.toLowerCase() !== 'mapping_template' &&
+        !systemKeys.includes(key) &&
+        !IGNORED_METADATA_KEYS.has(key.toLowerCase()),
+    )
     .map((key) => [key, properties[key]] as [string, any]);
-  const systemEntries = Object.entries(systemProperties);
+
+  const systemEntries = Object.entries(systemProperties).filter(
+    ([key]) => !IGNORED_METADATA_KEYS.has(key.toLowerCase()),
+  );
 
   const handleSaveContract = (type: 'input' | 'output', newSchema: any) => {
     if (!selectedNode) return;
@@ -1815,73 +1756,13 @@ export default function PropertiesPanel({
       : systemProps.hasOwnProperty(field.key)
         ? systemProps[field.key]
         : getPropertyValue(userProps, field);
-    const isDisabled = isSystem;
+    const isDisabled = Boolean((field as any).readonly || (field as any).readOnly);
     const fieldType = field.type || (field as any).field_type;
     const displayValue =
       (isSystem || hasUserValue) && fieldType === 'password' && value
         ? '••••••••'
         : String(value ?? '');
 
-    // Custom check for knowledge base selector
-    if (field.key === 'knowledge_base_ids') {
-      return (
-        <div key={field.key} className="space-y-1.5">
-          <label
-            className="block text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1.5 cursor-help"
-            title={field.description}
-          >
-            {field.label}
-            {field.description && (
-              <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
-                i
-              </span>
-            )}
-          </label>
-          <div className="border rounded-lg p-2.5 bg-white space-y-2 max-h-48 overflow-y-auto border-gray-300">
-            {kbList.length === 0 ? (
-              <p className="text-xs text-gray-400 italic">
-                No active knowledge bases found. Create one in the admin menu.
-              </p>
-            ) : (
-              kbList.map((kb) => {
-                const currentVal = Array.isArray(value) ? (value as any[]).map(String) : [];
-                const isChecked = currentVal.includes(String(kb.id));
-                return (
-                  <label
-                    key={kb.id}
-                    className="flex items-center gap-2 text-xs font-medium text-black cursor-pointer hover:bg-gray-50 p-1 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      disabled={isDisabled}
-                      onChange={(e) => {
-                        if (isDisabled) return;
-                        let nextVal: string[];
-                        if (e.target.checked) {
-                          nextVal = [...currentVal, String(kb.id)];
-                        } else {
-                          nextVal = currentVal.filter((id) => id !== String(kb.id));
-                        }
-                        handlePropertyChange(field.key, nextVal);
-                      }}
-                      className="h-3.5 w-3.5 accent-blue-600 rounded text-blue-600"
-                    />
-                    <span>
-                      {kb.name}{' '}
-                      <span className="text-[10px] text-gray-400 font-normal">(ID: {kb.id})</span>
-                    </span>
-                  </label>
-                );
-              })
-            )}
-          </div>
-          <p className="text-[10px] text-gray-450 italic mt-1">
-            Leave unselected to query all active knowledge bases.
-          </p>
-        </div>
-      );
-    }
 
     // Boolean Toggle
     if (fieldType === 'boolean') {
@@ -2040,7 +1921,7 @@ export default function PropertiesPanel({
     }
 
     // Source Configuration
-    if (fieldType === 'source') {
+    if (fieldType === 'source' || Boolean(field.source)) {
       const propVal = value !== undefined && value !== null ? value : '';
 
       return (
@@ -2050,8 +1931,6 @@ export default function PropertiesPanel({
           isDisabled={isDisabled}
           propVal={propVal}
           handlePropertyChange={handlePropertyChange}
-          handleMultiplePropertiesChange={handleMultiplePropertiesChange}
-          allProperties={properties}
         />
       );
     }
@@ -2557,7 +2436,7 @@ export default function PropertiesPanel({
                             fieldSchema?.type || fieldSchema?.field_type || valueType;
 
                           // Source type: show label, save key
-                          if (fieldType === 'source') {
+                          if (fieldType === 'source' || Boolean(fieldSchema?.source)) {
                             const propVal = value !== undefined && value !== null ? value : '';
                             return (
                               <SourcePropertyField
@@ -2570,7 +2449,7 @@ export default function PropertiesPanel({
                                   multiple: fieldSchema?.multiple,
                                   description: fieldSchema?.description,
                                 }}
-                                isDisabled={userRole === 'user'}
+                                isDisabled={false}
                                 propVal={propVal}
                                 handlePropertyChange={handlePropertyChange}
                               />
@@ -2591,7 +2470,7 @@ export default function PropertiesPanel({
                                 label={label}
                                 fieldKey={key}
                                 value={value}
-                                isDisabled={userRole === 'user'}
+                                isDisabled={false}
                                 description={fieldSchema?.description}
                                 handlePropertyChange={handlePropertyChange}
                               />
@@ -2648,12 +2527,10 @@ export default function PropertiesPanel({
                                     )}
                                   </label>
                                   <MultiSelectDropdown
-                                    disabled={userRole === 'user'}
+                                    disabled={false}
                                     selected={Array.isArray(value) ? value.map(String) : []}
                                     options={options.map((o) => ({ key: o, label: o }))}
-                                    onChange={(values) =>
-                                      userRole !== 'user' && handlePropertyChange(key, values)
-                                    }
+                                    onChange={(values) => handlePropertyChange(key, values)}
                                   />
                                 </div>
                               );
@@ -2674,12 +2551,11 @@ export default function PropertiesPanel({
                                 </label>
                                 <select
                                   value={selectedVal}
-                                  disabled={userRole === 'user'}
+                                  disabled={false}
                                   onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-                                    userRole !== 'user' &&
                                     handlePropertyChange(key, event.target.value)
                                   }
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm cursor-pointer disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm cursor-pointer"
                                 >
                                   {options.map((option) => (
                                     <option key={option} value={option} className="bg-white text-slate-900">
@@ -2701,11 +2577,9 @@ export default function PropertiesPanel({
                                 <input
                                   type="checkbox"
                                   checked={Boolean(value)}
-                                  disabled={userRole === 'user'}
-                                  onChange={(e) =>
-                                    userRole !== 'user' && handlePropertyChange(key, e.target.checked)
-                                  }
-                                  className="h-4 w-4 accent-indigo-600 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={false}
+                                  onChange={(e) => handlePropertyChange(key, e.target.checked)}
+                                  className="h-4 w-4 accent-indigo-600 rounded cursor-pointer"
                                 />
                               </label>
                             );
@@ -2720,13 +2594,10 @@ export default function PropertiesPanel({
                                 <input
                                   type="number"
                                   value={Number(value ?? 0)}
-                                  disabled={userRole === 'user'}
-                                  onChange={(e) =>
-                                    userRole !== 'user' &&
-                                    handlePropertyChange(key, Number(e.target.value))
-                                  }
+                                  disabled={false}
+                                  onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
                                   placeholder="Value"
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none transition-all shadow-inner-sm"
                                 />
                               </div>
                             );
@@ -2752,13 +2623,11 @@ export default function PropertiesPanel({
                               {isMultiline ? (
                                 <textarea
                                   value={displayStr}
-                                  disabled={userRole === 'user'}
-                                  onChange={(e) =>
-                                    userRole !== 'user' && handlePropertyChange(key, e.target.value)
-                                  }
+                                  disabled={false}
+                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
                                   placeholder="Enter text/variables..."
                                   rows={3}
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20"
                                 />
                               ) : (
                                 <input
@@ -2769,12 +2638,10 @@ export default function PropertiesPanel({
                                       : 'text'
                                   }
                                   value={displayStr}
-                                  disabled={userRole === 'user'}
-                                  onChange={(e) =>
-                                    userRole !== 'user' && handlePropertyChange(key, e.target.value)
-                                  }
+                                  disabled={false}
+                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
                                   placeholder="Enter value..."
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm"
                                 />
                               )}
                             </div>
