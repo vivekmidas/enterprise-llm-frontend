@@ -550,7 +550,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                 <div className="ml-auto flex items-center gap-1">
                   <span>Top K:</span>
                   <Tooltip content={PARAM_TOOLTIPS.top_k?.description || ''}>
-                    <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
+                    <Info className="w-16 h-3 text-gray-400 cursor-pointer" />
                   </Tooltip>
                   <input
                     type="number"
@@ -918,7 +918,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     onChange={(e) => {
                       setTopKB(Number(e.target.value));
                     }}
-                    className="border border-gray-300 rounded w-8 px-1 py-0.5 text-center bg-white text-black"
+                    className="border border-gray-300 rounded w-16 px-1 py-0.5 text-center bg-white text-black"
                   />
                 </div>
               </div>

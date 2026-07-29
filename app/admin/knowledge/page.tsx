@@ -36,11 +36,28 @@ const EMBEDDING_MODELS = [
   { name: 'bge-large-en-v1.5 (Ollama, 1024d)', value: 'bge-large-en-v1.5', dimension: 1024 },
 ];
 
+/* BLOCK: Multi-tenant support for system-admin in KnowledgeBasesTab */
+import { BACKEND_URL, getHeaders } from '@/lib/api';
+
 export interface KnowledgeBasesTabProps {
+  userRole?: string;
+  customerId?: number | null;
   onSwitchToPlayground?: (kbId: string) => void;
 }
 
-export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBasesTabProps = {}) {
+export default function KnowledgeBasesTab({
+  userRole,
+  customerId,
+  onSwitchToPlayground,
+}: KnowledgeBasesTabProps = {}) {
+  const isSystemAdmin = userRole === 'system_admin';
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>(
+    customerId ? String(customerId) : 'all',
+  );
+  const [customersMap, setCustomersMap] = useState<Record<number, string>>({});
+  const [createKbTargetCustomer, setCreateKbTargetCustomer] = useState<string>('');
+
   const [kbList, setKbList] = useState<any[]>([]);
   const [selectedKb, setSelectedKb] = useState<any>(null);
   const [docList, setDocList] = useState<any[]>([]);
@@ -73,12 +90,20 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
 
   const fetchDocTypes = async () => {
     try {
-      const types = await api.getDocumentTypes();
-      setDocTypes(types || []);
-      if (types && types.length > 0) {
-        const lowercaseTypes = types.map((t: string) => t.toLowerCase());
-        if (!lowercaseTypes.includes(docType.toLowerCase())) {
-          setDocType(types[0].toLowerCase());
+      const targetCustId = isSystemAdmin && selectedCustomerFilter !== 'all' ? selectedCustomerFilter : undefined;
+      const url = new URL(`${BACKEND_URL}/api/knowledge/document-types`);
+      if (targetCustId) {
+        url.searchParams.append('customer_id', targetCustId);
+      }
+      const res = await fetch(url.toString(), { headers: getHeaders() });
+      if (res.ok) {
+        const types = await res.json();
+        setDocTypes(types || []);
+        if (types && types.length > 0) {
+          const lowercaseTypes = types.map((t: string) => t.toLowerCase());
+          if (!lowercaseTypes.includes(docType.toLowerCase())) {
+            setDocType(types[0].toLowerCase());
+          }
         }
       }
     } catch (err) {
@@ -90,9 +115,23 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
     e.preventDefault();
     setSavingDocTypes(true);
     try {
-      const updated = await api.updateDocumentTypes(docTypes);
-      setDocTypes(updated || []);
-      setShowDocTypesModal(false);
+      const targetCustId = isSystemAdmin && selectedCustomerFilter !== 'all' ? selectedCustomerFilter : undefined;
+      const url = new URL(`${BACKEND_URL}/api/knowledge/document-types`);
+      if (targetCustId) {
+        url.searchParams.append('customer_id', targetCustId);
+      }
+      const res = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(docTypes),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setDocTypes(updated || []);
+        setShowDocTypesModal(false);
+      } else {
+        alert('Failed to save document types');
+      }
     } catch (err) {
       console.error('Failed to save document types', err);
       alert('Failed to save document types');
@@ -145,14 +184,22 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
   const [editDocType, setEditDocType] = useState('');
   const [savingDoc, setSavingDoc] = useState(false);
 
-  const fetchKBs = async () => {
+  const fetchKBs = async (targetCustId?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getKnowledgeBases();
+      const custToFetch = targetCustId !== undefined ? targetCustId : selectedCustomerFilter;
+      const data = await api.getKnowledgeBases(custToFetch);
       setKbList(data || []);
-      if (data && data.length > 0 && !selectedKb) {
-        setSelectedKb(data[0]);
+      if (data && data.length > 0) {
+        setSelectedKb((prev: any) => {
+          if (prev && data.some((kb: any) => kb.id === prev.id)) {
+            return prev;
+          }
+          return data[0];
+        });
+      } else {
+        setSelectedKb(null);
       }
     } catch (err: any) {
       console.error(err);
@@ -190,11 +237,21 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
   };
 
   useEffect(() => {
-    fetchKBs();
+    if (isSystemAdmin) {
+      api.getCustomers()
+        .then((list: any[]) => {
+          setCustomers(list || []);
+          const map: Record<number, string> = {};
+          (list || []).forEach((c: any) => {
+            map[c.id] = c.name || c.domain || `Tenant #${c.id}`;
+          });
+          setCustomersMap(map);
+        })
+        .catch((err) => console.error('Failed to fetch customers list', err));
+    }
+    fetchKBs(selectedCustomerFilter);
     fetchDocTypes();
-    // Load users for name resolution
-    api
-      .getUsers()
+    api.getUsers()
       .then((users: any[]) => {
         const map: Record<number, string> = {};
         (users || []).forEach((u: any) => {
@@ -203,7 +260,12 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
         setUsersMap(map);
       })
       .catch(() => {});
-  }, []);
+  }, [userRole]);
+
+  useEffect(() => {
+    fetchKBs(selectedCustomerFilter);
+    fetchDocTypes();
+  }, [selectedCustomerFilter]);
 
   useEffect(() => {
     if (selectedKb) {
@@ -239,16 +301,21 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
 
       const selectedModel = EMBEDDING_MODELS.find((m) => m.value === newKbEmbeddingModel);
 
+      const settingsPayload: any = {
+        tags: tagsList,
+        embedding_model: selectedModel?.value || 'nomic-embed-text',
+        vector_dimension: selectedModel?.dimension || 768,
+        chunk_size: Number(newKbChunkSize) || 1000,
+        chunk_overlap: Number(newKbChunkOverlap) || 200,
+      };
+      if (isSystemAdmin && createKbTargetCustomer) {
+        settingsPayload.customer_id = Number(createKbTargetCustomer);
+      }
+
       const newKb = await api.createKnowledgeBase({
         name: newKbName,
         description: newKbPurpose,
-        settings: {
-          tags: tagsList,
-          embedding_model: selectedModel?.value || 'nomic-embed-text',
-          vector_dimension: selectedModel?.dimension || 768,
-          chunk_size: Number(newKbChunkSize) || 1000,
-          chunk_overlap: Number(newKbChunkOverlap) || 200,
-        },
+        settings: settingsPayload,
       });
       setKbList((prev) => [...prev, newKb]);
       setSelectedKb(newKb);
@@ -266,6 +333,7 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
       setCreating(false);
     }
   };
+/* END BLOCK */
 
   const handleDeleteKB = async (id: number) => {
     if (
@@ -549,7 +617,12 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
               <Settings className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                if (selectedCustomerFilter !== 'all') {
+                  setCreateKbTargetCustomer(selectedCustomerFilter);
+                }
+                setShowCreateModal(true);
+              }}
               className="p-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
               title="Create Knowledge Base"
             >
@@ -557,6 +630,28 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
             </button>
           </div>
         </div>
+
+        {/* BLOCK: Customer Filter Dropdown for System Admin */}
+        {isSystemAdmin && (
+          <div className="p-3 bg-slate-100 border-b border-gray-200 space-y-1">
+            <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">
+              Customer / Tenant Filter
+            </label>
+            <select
+              value={selectedCustomerFilter}
+              onChange={(e) => setSelectedCustomerFilter(e.target.value)}
+              className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 focus:outline-none focus:border-blue-500 cursor-pointer"
+            >
+              <option value="all">All Customers (Tenants)</option>
+              {customers.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.name} ({c.domain})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {/* END BLOCK */}
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
           {loading ? (
@@ -603,6 +698,15 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
                         {kb.description}
                       </p>
                     )}
+                    {/* BLOCK: Tenant badge for system_admin */}
+                    {isSystemAdmin && kb.customer_id && (
+                      <div className="pt-0.5">
+                        <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold">
+                          Tenant: {customersMap[kb.customer_id] || `Tenant #${kb.customer_id}`}
+                        </span>
+                      </div>
+                    )}
+                    {/* END BLOCK */}
                     <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-gray-400">
                       <span className="inline-flex items-center gap-1">
                         <svg
@@ -948,6 +1052,28 @@ export default function KnowledgeBasesTab({ onSwitchToPlayground }: KnowledgeBas
               </button>
             </div>
             <form onSubmit={handleCreateKB} className="p-6 space-y-4">
+              {/* BLOCK: Customer selector for system_admin */}
+              {isSystemAdmin && (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Target Customer Tenant
+                  </label>
+                  <select
+                    value={createKbTargetCustomer}
+                    onChange={(e) => setCreateKbTargetCustomer(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value="">Select Customer Tenant...</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={String(c.id)}>
+                        {c.name} ({c.domain})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {/* END BLOCK */}
+
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-gray-655">
                   Knowledge Base Name

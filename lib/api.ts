@@ -596,14 +596,20 @@ export const api = {
     return res.json();
   },
 
-  getKnowledgeBases: async () => {
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases`, {
+/* BLOCK: Allow customer_id filter for knowledge bases */
+  getKnowledgeBases: async (customerId?: string | number) => {
+    const url = new URL(`${BACKEND_URL}/api/knowledge/bases`);
+    if (customerId && customerId !== 'all') {
+      url.searchParams.append('customer_id', String(customerId));
+    }
+    const res = await fetch(url.toString(), {
       headers: getHeaders(),
       method: 'GET',
     });
     if (!res.ok) throw new Error('Failed to fetch knowledge bases');
     return res.json();
   },
+/* END BLOCK */
 
   createKnowledgeBase: async (payload: { name: string; description?: string; settings?: any }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases`, {

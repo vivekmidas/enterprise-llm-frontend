@@ -452,14 +452,18 @@ export default function AdminPage() {
           {activeTab === 'metrics' && (userRole === 'admin' || userRole === 'system_admin') && (
             <MetricsTab userRole={userRole} />
           )}
+          {/* BLOCK: Pass userRole and customerId to KnowledgeBasesTab */}
           {activeTab === 'knowledge' && (userRole === 'admin' || userRole === 'system_admin') && (
             <KnowledgeBasesTab
+              userRole={userRole}
+              customerId={customerId ? Number(customerId) : null}
               onSwitchToPlayground={(kbId: string) => {
                 setPlaygroundKbId(kbId);
                 handleTabChange('playground');
               }}
             />
           )}
+          {/* END BLOCK */}
           {activeTab === 'profiles' && (userRole === 'admin' || userRole === 'system_admin') && (
             <ProfilesTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
