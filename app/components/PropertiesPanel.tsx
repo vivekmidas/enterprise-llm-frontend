@@ -1699,6 +1699,8 @@ export default function PropertiesPanel({
       const payload = {
         ...sanitizedProps,
         label: (selectedNode.data as any).label || (selectedNode.data as any).name || '',
+        input_contract: inputContract,
+        output_contract: outputContract,
       };
       await onSaveInstanceProperties(selectedNode.id, payload);
 
@@ -2286,6 +2288,9 @@ export default function PropertiesPanel({
           if (viewMode === 'contract') {
             const inputTree = buildTreeFromSchema(normalizeContract(inputContract));
             const outputTree = buildTreeFromSchema(normalizeContract(outputContract));
+            const nodeName = String((selectedNode?.data as any)?.name || '');
+            const isWebhookNode = nodeName === 'api_webhook_agent' || nodeName.toLowerCase().includes('webhook');
+            const canEditOutputContract = userRole !== 'user' || isWebhookNode;
 
             return (
               <div className="space-y-5">
@@ -2314,7 +2319,7 @@ export default function PropertiesPanel({
                     <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">
                       Output Structure
                     </label>
-                    {userRole !== 'user' ? (
+                    {canEditOutputContract ? (
                       <button
                         onClick={() => {
                           setGeneratorModalType('output');
@@ -2337,12 +2342,12 @@ export default function PropertiesPanel({
                       <ContractTreeRenderer
                         nodes={outputTree}
                         isOutput={true}
-                        readOnly={userRole === 'user'}
+                        readOnly={!canEditOutputContract}
                         onToggleRequired={(path, isReq) =>
-                          userRole !== 'user' && handleToggleRequiredField(path, isReq)
+                          canEditOutputContract && handleToggleRequiredField(path, isReq)
                         }
                         onToggleStateable={(path, isState) =>
-                          userRole !== 'user' && handleToggleStateableField(path, isState)
+                          canEditOutputContract && handleToggleStateableField(path, isState)
                         }
                       />
                     ) : (
