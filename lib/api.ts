@@ -571,7 +571,6 @@ export const api = {
     return res.json();
   },
 
-
   getCustomerNodeConfigs: async (customerId?: string | number) => {
     const url = customerId
       ? `${BACKEND_URL}/nodes/customer/config?customer_id=${customerId}`
@@ -596,7 +595,7 @@ export const api = {
     return res.json();
   },
 
-/* BLOCK: Allow customer_id filter for knowledge bases */
+  /* BLOCK: Allow customer_id filter for knowledge bases */
   getKnowledgeBases: async (customerId?: string | number) => {
     const url = new URL(`${BACKEND_URL}/api/knowledge/bases`);
     if (customerId && customerId !== 'all') {
@@ -609,7 +608,7 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch knowledge bases');
     return res.json();
   },
-/* END BLOCK */
+  /* END BLOCK */
 
   createKnowledgeBase: async (payload: { name: string; description?: string; settings?: any }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases`, {
@@ -749,8 +748,6 @@ export const api = {
     return res.json();
   },
 
-
-
   getDocumentTypes: async (): Promise<string[]> => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/document-types`, {
       headers: getHeaders(),
@@ -853,7 +850,7 @@ export const api = {
 
   deleteLlmProfile: async (id: number | string, customerId?: string | number) => {
     const url = new URL(`${BACKEND_URL}/api/llm-profiles/${id}/${customerId}`);
- 
+
     const res = await fetch(url.toString(), {
       method: 'DELETE',
       headers: getHeaders(),
@@ -887,7 +884,6 @@ export const api = {
     }
     return res.json();
   },
-
 
   testLlmConnection: async (payload: any) => {
     const res = await fetch(`${BACKEND_URL}/api/admin/company/settings/test-connection`, {

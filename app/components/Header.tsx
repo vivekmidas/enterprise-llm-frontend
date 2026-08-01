@@ -83,7 +83,9 @@ export default function Header() {
             <div className="bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 rounded-lg">
               <Workflow className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">nFlow</span>
+            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+              nFlow
+            </span>
           </Link>
         </div>
 

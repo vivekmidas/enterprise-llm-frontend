@@ -65,7 +65,7 @@ export function SearchFilterBar({
               onClick={() => onFilter?.(filter.id)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                 selectedFilter === filter.id
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >

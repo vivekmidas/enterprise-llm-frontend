@@ -23,7 +23,7 @@ export function MetricCard({
   const trendIsGood = isPositive ? trend! > 0 : trend! < 0;
 
   return (
-    <div className="rounded-xl border border-l-4 border-l-blue-500 border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
+    <div className="rounded-xl border border-l-4 border-l-primary border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           {icon && <div className="p-2 rounded-lg bg-blue-50">{icon}</div>}

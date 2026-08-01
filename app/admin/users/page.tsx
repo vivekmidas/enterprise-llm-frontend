@@ -83,7 +83,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
         </div>
         <button
           onClick={() => setShowAddUserModal(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold shadow-sm transition-all cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <IconMap.plus className="h-4 w-4" /> Add User
         </button>
@@ -180,7 +180,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                   required
                   value={newUserName}
                   onChange={(e) => setNewUserName(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none"
                   placeholder="e.g. Jane Smith"
                 />
               </div>
@@ -193,7 +193,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                   required
                   value={newUserEmail}
                   onChange={(e) => setNewUserEmail(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none"
                   placeholder="e.g. jane@acme.com"
                 />
               </div>
@@ -206,7 +206,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                   required
                   value={newUserPassword}
                   onChange={(e) => setNewUserPassword(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none"
                   placeholder="••••••••"
                 />
               </div>
@@ -215,7 +215,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                 <select
                   value={newUserRole}
                   onChange={(e) => setNewUserRole(e.target.value as 'admin' | 'user')}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none"
                 >
                   <option value="user">User (can build workflows)</option>
                   <option value="admin">Admin (can manage users + config nodes)</option>
@@ -231,7 +231,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
+                  className="px-6 py-2 text-sm font-bold rounded-lg shadow-md transition-all cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   Add User
                 </button>

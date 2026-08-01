@@ -360,7 +360,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
           </h3>
 
           <div className="space-y-1">
-            <label className="block text-xs font-bold text-gray-655 uppercase">Target KB</label>
+            <label className="block text-black text-xs font-bold text-gray-655 uppercase">Target KB</label>
             <select
               value={selectedKbId}
               onChange={(e) => setSelectedKbId(e.target.value)}
@@ -375,7 +375,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-bold text-gray-655 uppercase">Search Query</label>
+            <label className="block text-black text-xs font-bold text-gray-655 uppercase">Search Query</label>
             <textarea
               required
               rows={3}
@@ -417,7 +417,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
           <button
             type="submit"
             disabled={runningSearch || !searchQuery.trim()}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full py-2.5 bg-primary hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Search className="w-4 h-4" />
             {runningSearch ? 'Searching Pipeline...' : 'Run Benchmarking'}
@@ -524,7 +524,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       setEnableRrfA(e.target.checked);
                     }}
                     disabled={approachA !== 'hybrid'}
-                    className="rounded border-gray-350 w-3 h-3 text-blue-600 cursor-pointer"
+                    className="rounded border-gray-350 w-3 h-3 text-bg-primary cursor-pointer"
                   />
                   <span>Enable RRF</span>
                   <Tooltip content={PARAM_TOOLTIPS.enable_rrf?.description || ''}>
@@ -539,7 +539,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     onChange={(e) => {
                       setEnableRerankingA(e.target.checked);
                     }}
-                    className="rounded border-gray-350 w-3 h-3 text-blue-600 cursor-pointer"
+                    className="rounded border-gray-350 w-3 h-3 text-bg-primary cursor-pointer"
                   />
                   <span>Rerank</span>
                   <Tooltip content={PARAM_TOOLTIPS.enable_reranking?.description || ''}>
@@ -611,7 +611,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                             <div key={idx} className="text-[11px] p-2 bg-slate-50 rounded border border-slate-100 space-y-1">
                               <div className="flex justify-between font-semibold text-gray-600">
                                 <span>{c.document_name} (chunk {c.chunk_index})</span>
-                                <span className="text-blue-600 font-mono">Score: {c.score?.toFixed(4)}</span>
+                                <span className="text-bg-primary font-mono">Score: {c.score?.toFixed(4)}</span>
                               </div>
                               <p className="text-gray-500 font-normal line-clamp-2">{c.content}</p>
                             </div>
@@ -893,7 +893,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       setEnableRrfB(e.target.checked);
                     }}
                     disabled={approachB !== 'hybrid'}
-                    className="rounded border-gray-350 w-3 h-3 text-blue-600 cursor-pointer"
+                    className="rounded border-gray-350 w-3 h-3 text-bg-primary cursor-pointer"
                   />
                   Enable RRF
                 </label>
@@ -905,7 +905,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                     onChange={(e) => {
                       setEnableRerankingB(e.target.checked);
                     }}
-                    className="rounded border-gray-350 w-3 h-3 text-blue-600 cursor-pointer"
+                    className="rounded border-gray-350 w-3 h-3 text-bg-primary cursor-pointer"
                   />
                   Rerank
                 </label>
@@ -970,7 +970,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                             <div key={idx} className="text-[11px] p-2 bg-slate-50 rounded border border-slate-100 space-y-1">
                               <div className="flex justify-between font-semibold text-gray-600">
                                 <span>{c.document_name} (chunk {c.chunk_index})</span>
-                                <span className="text-blue-600 font-mono">Score: {c.score?.toFixed(4)}</span>
+                                <span className="text-bg-primary font-mono">Score: {c.score?.toFixed(4)}</span>
                               </div>
                               <p className="text-gray-500 font-normal line-clamp-2">{c.content}</p>
                             </div>

@@ -395,7 +395,7 @@ function SourceTreePopover({
                 type="checkbox"
                 checked={isChecked}
                 readOnly
-                className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 mr-1 cursor-pointer flex-shrink-0"
+                className="w-3.5 h-3.5 rounded border-slate-300 text-bg-primary focus:ring-blue-500 mr-1 cursor-pointer flex-shrink-0"
               />
             )}
             {!isLeaf ? (
@@ -473,7 +473,7 @@ function SourceTreePopover({
               }
             }}
             disabled={selectedPaths.length === 0}
-            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded shadow-sm transition-all shadow-blue-500/10 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
+            className="px-3 py-1 bg-primary hover:bg-blue-700 text-white text-[10px] font-bold rounded shadow-sm transition-all shadow-blue-500/10 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
           >
             Insert
           </button>
@@ -792,7 +792,7 @@ export default function FieldMapperModal({
                     }}
                     className={`p-1.5 border rounded-lg flex items-center justify-center transition-all ${
                       activePopover === node.path
-                        ? 'bg-blue-50 border-blue-300 text-blue-600 shadow-sm'
+                        ? 'bg-blue-50 border-blue-300 text-bg-primary shadow-sm'
                         : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800'
                     }`}
                     title="Select field from source"
@@ -832,7 +832,7 @@ export default function FieldMapperModal({
       <div className="bg-white rounded-xl shadow-2xl w-[75vw] min-w-[75vw] max-w-[95vw] h-[80vh] flex flex-col overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+            <ArrowRightLeft className="w-5 h-5 text-bg-primary" />
             <h2 className="text-sm font-bold text-slate-800">
               Mapping: {sourceNodeName || 'Source'} → {targetNodeName || 'Target'}
             </h2>
@@ -854,7 +854,7 @@ export default function FieldMapperModal({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowRawContracts(!showRawContracts)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 text-xs font-bold rounded-lg transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 text-bg-primary hover:bg-blue-50 text-xs font-bold rounded-lg transition-all"
             >
               {showRawContracts ? <EyeOff size={14} /> : <Eye size={14} />}
               {showRawContracts ? 'Hide Contracts' : 'View Contracts'}
@@ -862,7 +862,7 @@ export default function FieldMapperModal({
             {!readOnly && (
               <button
                 onClick={handleAutoMap}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm shadow-blue-500/20"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm shadow-blue-500/20"
               >
                 <Wand2 size={14} />
                 Auto-map by Name
@@ -915,7 +915,7 @@ export default function FieldMapperModal({
           {readOnly ? (
             <button
               onClick={onClose}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shadow-blue-500/20"
+              className="px-5 py-2 bg-primary hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shadow-blue-500/20"
             >
               Close
             </button>
@@ -968,7 +968,7 @@ export default function FieldMapperModal({
                   }
                   onSaveMapping(cleanedMapping);
                 }}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm shadow-blue-500/20"
+                className="px-5 py-2 bg-primary hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm shadow-blue-500/20"
               >
                 Apply Mapping
               </button>

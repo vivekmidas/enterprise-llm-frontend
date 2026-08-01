@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { IconMap } from '@/lib/icons';
 
+
 export default function OAuthTab() {
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +61,7 @@ export default function OAuthTab() {
               icon: 'box',
             })
           }
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all cursor-pointer"
         >
           <IconMap.plus className="h-4 w-4" /> Add Provider
         </button>
@@ -86,7 +87,7 @@ export default function OAuthTab() {
             </div>
             <button
               onClick={() => setEditingProvider(provider)}
-              className="w-full py-2 text-sm font-semibold text-blue-600 border border-blue-100 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+              className="w-full py-2 text-sm font-semibold text-bg-primary border border-blue-100 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
             >
               Configure
             </button>
@@ -202,7 +203,7 @@ export default function OAuthTab() {
               </button>
               <button
                 onClick={handleSaveProvider}
-                className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
+                className="bg-primary px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
               >
                 {editingProvider.id ? 'Update Provider' : 'Create Provider'}
               </button>

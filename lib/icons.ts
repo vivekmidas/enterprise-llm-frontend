@@ -43,7 +43,8 @@ import {
   BookOpen,
   FlaskRound,
   Heart,
-  Fence, Cloud
+  Fence,
+  Cloud,
 } from 'lucide-react';
 
 export const IconMap: Record<string, any> = {
@@ -95,6 +96,6 @@ export const IconMap: Record<string, any> = {
   flaskround: FlaskRound,
   list: List,
   heart: Heart,
-  cloud:Cloud
+  cloud: Cloud,
 };
 export default IconMap;

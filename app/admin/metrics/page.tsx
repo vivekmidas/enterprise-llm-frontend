@@ -19,6 +19,7 @@ import {
   Copy,
 } from 'lucide-react';
 
+
 interface MetricsTabProps {
   userRole: string | null;
 }
@@ -181,7 +182,7 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
     <section className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-150 pb-4">
         <div className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-blue-600 animate-pulse" />
+          <Activity className="h-5 w-5 text-bg-primary animate-pulse" />
           <h2 className="text-xl font-semibold text-black font-sans">
             Performance Metrics & Traces
           </h2>
@@ -191,7 +192,7 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
           <select
             value={metricsTimeRange}
             onChange={(e) => setMetricsTimeRange(Number(e.target.value))}
-            className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+            className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-bg-primary transition-colors cursor-pointer"
           >
             <option value={5}>Last 5 Minutes</option>
             <option value={10}>Last 10 Minutes</option>
@@ -203,7 +204,7 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
           <select
             value={metricsSelectedWorkflow}
             onChange={(e) => setMetricsSelectedWorkflow(e.target.value)}
-            className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+            className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-bg-primary transition-colors cursor-pointer"
           >
             <option value="all">All Workflows</option>
             {workflows?.map((wf: any) => (
@@ -218,7 +219,7 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
             <select
               value={metricsSelectedCustomer}
               onChange={(e) => setMetricsSelectedCustomer(e.target.value)}
-              className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+              className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-bg-primary transition-colors cursor-pointer"
             >
               <option value="all">All Customers</option>
               {customers?.map((cust: any) => (
@@ -267,7 +268,7 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
           {kbMetrics && (
             <div className="space-y-4 border-t pt-6 border-slate-200">
               <h3 className="text-lg font-semibold text-black flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-blue-600" />
+                <BookOpen className="h-5 w-5 text-bg-primary" />
                 Knowledge Ingestion Metrics
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -298,7 +299,7 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
           {/* Traces Table */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-black flex items-center gap-2">
-              <IconMap.database className="h-5 w-5 text-blue-600" />
+              <IconMap.database className="h-5 w-5 text-bg-primary" />
               Recent Traces
             </h3>
             {!metricsData?.traces || metricsData.traces.length === 0 ? (
@@ -337,7 +338,7 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                 trace.status === 'running'
-                                  ? 'bg-blue-50 text-blue-600 border border-blue-100 animate-pulse'
+                                  ? 'bg-blue-50 text-bg-primary border border-blue-100 animate-pulse'
                                   : trace.status === 'stopped'
                                     ? 'bg-gray-100 text-gray-600 border border-gray-200'
                                     : trace.status === 'failure' ||

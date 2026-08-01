@@ -51,7 +51,7 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
         return {
           cardBorder: 'border-blue-500 shadow-md ring-1 ring-blue-500/20',
           badge: (
-            <span className="flex items-center text-[8px] text-blue-600 animate-pulse bg-blue-50/50 px-1 rounded font-semibold border border-blue-200">
+            <span className="flex items-center text-[8px] text-bg-primary animate-pulse bg-blue-50/50 px-1 rounded font-semibold border border-blue-200">
               <Loader2 size={8} className="animate-spin mr-0.5" /> Run
             </span>
           ),

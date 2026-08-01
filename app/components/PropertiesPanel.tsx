@@ -60,8 +60,10 @@ const parseChoiceOptions = (rawOptions: any): string[] => {
     if (Array.isArray(rawOptions.options)) return parseChoiceOptions(rawOptions.options);
     if (Array.isArray(rawOptions.choices)) return parseChoiceOptions(rawOptions.choices);
     if (Array.isArray(rawOptions.values)) return parseChoiceOptions(rawOptions.values);
-    if (Array.isArray(rawOptions.allowed_values)) return parseChoiceOptions(rawOptions.allowed_values);
-    if (Array.isArray(rawOptions.allowedValues)) return parseChoiceOptions(rawOptions.allowedValues);
+    if (Array.isArray(rawOptions.allowed_values))
+      return parseChoiceOptions(rawOptions.allowed_values);
+    if (Array.isArray(rawOptions.allowedValues))
+      return parseChoiceOptions(rawOptions.allowedValues);
     if (Array.isArray(rawOptions.enum)) return parseChoiceOptions(rawOptions.enum);
     const keys = Object.keys(rawOptions);
     if (keys.length > 0) {
@@ -216,7 +218,7 @@ const MultiSelectDropdown = ({
                   type="checkbox"
                   checked={selected.includes(opt.key)}
                   onChange={() => toggle(opt.key)}
-                  className="h-3.5 w-3.5 rounded accent-blue-600"
+                  className="h-3.5 w-3.5 rounded accent-bg-primary"
                 />
                 <span className="truncate">{opt.label}</span>
               </label>
@@ -451,9 +453,7 @@ const JsonObjectPropertyField = ({
             : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-100 shadow-inner-sm'
         }`}
       />
-      {error && (
-        <p className="text-[10px] text-amber-600 font-medium italic mt-0.5">{error}</p>
-      )}
+      {error && <p className="text-[10px] text-amber-600 font-medium italic mt-0.5">{error}</p>}
     </div>
   );
 };
@@ -571,9 +571,7 @@ const SourcePropertyField = ({
   const selectValue = isMultiple
     ? Array.isArray(propVal)
       ? propVal.map((v) =>
-          typeof v === 'object' && v !== null
-            ? String(v.id ?? v.key ?? v.value ?? '')
-            : String(v),
+          typeof v === 'object' && v !== null ? String(v.id ?? v.key ?? v.value ?? '') : String(v),
         )
       : typeof propVal === 'string' && propVal.trim()
         ? propVal.split(',')
@@ -594,11 +592,15 @@ const SourcePropertyField = ({
       ? (resolvedData as Record<string, any>)?.[String(selectValue)]
       : null;
 
-  const displayKeyValuePairs = selectedItem && typeof selectedItem === 'object' && !Array.isArray(selectedItem)
-    ? Object.entries(selectedItem).filter(
-        ([k]) => !['id', 'created_at', 'updated_at', 'customer_id', 'tenant_id', 'created_by'].includes(k.toLowerCase()),
-      )
-    : [];
+  const displayKeyValuePairs =
+    selectedItem && typeof selectedItem === 'object' && !Array.isArray(selectedItem)
+      ? Object.entries(selectedItem).filter(
+          ([k]) =>
+            !['id', 'created_at', 'updated_at', 'customer_id', 'tenant_id', 'created_by'].includes(
+              k.toLowerCase(),
+            ),
+        )
+      : [];
 
   return (
     <div className="space-y-1.5">
@@ -615,7 +617,11 @@ const SourcePropertyField = ({
           )}
         </label>
         {loading && <span className="text-[10px] text-blue-500 animate-pulse">Loading...</span>}
-        {error && <span className="text-[10px] text-red-500" title={error}>Error loading</span>}
+        {error && (
+          <span className="text-[10px] text-red-500" title={error}>
+            Error loading
+          </span>
+        )}
       </div>
 
       {/* Element 1: Dropdown / MultiSelect selection */}
@@ -688,8 +694,13 @@ const SourcePropertyField = ({
             Details (Read-Only)
           </div>
           {displayKeyValuePairs.map(([k, v]) => (
-            <div key={k} className="flex justify-between items-center text-xs border-b border-slate-200/50 pb-1 last:border-0 last:pb-0">
-              <span className="font-semibold text-slate-600 capitalize text-[11px]">{k.replace(/_/g, ' ')}</span>
+            <div
+              key={k}
+              className="flex justify-between items-center text-xs border-b border-slate-200/50 pb-1 last:border-0 last:pb-0"
+            >
+              <span className="font-semibold text-slate-600 capitalize text-[11px]">
+                {k.replace(/_/g, ' ')}
+              </span>
               <span
                 className="font-mono text-[11px] text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 truncate max-w-[65%]"
                 title={typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')}
@@ -703,7 +714,6 @@ const SourcePropertyField = ({
     </div>
   );
 };
-
 
 // Helper to normalize and parse system properties from different database formats
 const parseSystemProperties = (value: any): Record<string, any> => {
@@ -891,7 +901,14 @@ const ContractTreeRenderer: React.FC<{
   readOnly?: boolean;
   onToggleRequired?: (path: string, isReq: boolean) => void;
   onToggleStateable?: (path: string, isState: boolean) => void;
-}> = ({ nodes, depth = 0, isOutput = false, readOnly = false, onToggleRequired, onToggleStateable }) => {
+}> = ({
+  nodes,
+  depth = 0,
+  isOutput = false,
+  readOnly = false,
+  onToggleRequired,
+  onToggleStateable,
+}) => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   return (
@@ -1085,7 +1102,7 @@ function FieldMapperModal({
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[80vh]">
         <div className="p-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+            <ArrowRightLeft className="w-5 h-5 text-bg-primary" />
             <h2 className="text-lg font-bold text-gray-800">Field Mapper</h2>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
@@ -1100,7 +1117,7 @@ function FieldMapperModal({
           </p>
           <button
             onClick={handleAutoMap}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
           >
             <Wand2 size={14} />
             Auto-map Fields
@@ -1145,7 +1162,7 @@ function FieldMapperModal({
           </button>
           <button
             onClick={() => onSaveMapping(mapping)}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg"
+            className="px-6 py-2 bg-primary hover:bg-blue-700 text-white text-sm font-bold rounded-lg"
           >
             Apply Mapping
           </button>
@@ -1669,7 +1686,10 @@ export default function PropertiesPanel({
           ...systemSchema,
           options: catalogSchema.options || userSchema.options || systemSchema.options,
           choices: catalogSchema.choices || userSchema.choices || systemSchema.choices,
-          configured_values: catalogSchema.configured_values || userSchema.configured_values || systemSchema.configured_values,
+          configured_values:
+            catalogSchema.configured_values ||
+            userSchema.configured_values ||
+            systemSchema.configured_values,
           values: catalogSchema.values || userSchema.values || systemSchema.values,
         };
 
@@ -1765,7 +1785,6 @@ export default function PropertiesPanel({
         ? '••••••••'
         : String(value ?? '');
 
-
     // Boolean Toggle
     if (fieldType === 'boolean') {
       return (
@@ -1789,7 +1808,7 @@ export default function PropertiesPanel({
               onChange={(event) =>
                 !isDisabled && handlePropertyChange(field.key, event.target.checked)
               }
-              className="h-4 w-4 accent-blue-600"
+              className="h-4 w-4 accent-bg-primary"
             />
           </label>
         </div>
@@ -1905,8 +1924,8 @@ export default function PropertiesPanel({
               }}
               className={`w-full py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 ${
                 credentialId
-                  ? 'bg-white border border-blue-200 text-blue-600 hover:bg-blue-50'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none'
+                  ? 'bg-white border border-blue-200 text-bg-primary hover:bg-blue-50'
+                  : 'bg-primary text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none'
               }`}
             >
               {credentialId ? 'Reconnect Account' : 'Authenticate & Connect'}
@@ -1946,9 +1965,7 @@ export default function PropertiesPanel({
       if (strVal && !strVal.includes(',') && !options.includes(strVal)) {
         options = [strVal, ...options];
       }
-      const selectedValue = options.includes(strVal)
-        ? strVal
-        : options[0] || '';
+      const selectedValue = options.includes(strVal) ? strVal : options[0] || '';
 
       // Multi-select mode
       if (field.multiple) {
@@ -2289,7 +2306,8 @@ export default function PropertiesPanel({
             const inputTree = buildTreeFromSchema(normalizeContract(inputContract));
             const outputTree = buildTreeFromSchema(normalizeContract(outputContract));
             const nodeName = String((selectedNode?.data as any)?.name || '');
-            const isWebhookNode = nodeName === 'api_webhook_agent' || nodeName.toLowerCase().includes('webhook');
+            const isWebhookNode =
+              nodeName === 'api_webhook_agent' || nodeName.toLowerCase().includes('webhook');
             const canEditOutputContract = userRole !== 'user' || isWebhookNode;
 
             return (
@@ -2424,18 +2442,27 @@ export default function PropertiesPanel({
                               (selectedNode?.data as any)?.property_schema,
                           );
 
-                          const catalogSchema = schemaArray.find((f: any) => f && f.key === key) || {};
-                          const userSchema = userPropsArray.find((f: any) => f && f.key === key) || {};
-                          const systemSchema = systemPropsArray.find((f: any) => f && f.key === key) || {};
+                          const catalogSchema =
+                            schemaArray.find((f: any) => f && f.key === key) || {};
+                          const userSchema =
+                            userPropsArray.find((f: any) => f && f.key === key) || {};
+                          const systemSchema =
+                            systemPropsArray.find((f: any) => f && f.key === key) || {};
 
                           const fieldSchema = {
                             ...catalogSchema,
                             ...userSchema,
                             ...systemSchema,
-                            options: catalogSchema.options || userSchema.options || systemSchema.options,
-                            choices: catalogSchema.choices || userSchema.choices || systemSchema.choices,
-                            configured_values: catalogSchema.configured_values || userSchema.configured_values || systemSchema.configured_values,
-                            values: catalogSchema.values || userSchema.values || systemSchema.values,
+                            options:
+                              catalogSchema.options || userSchema.options || systemSchema.options,
+                            choices:
+                              catalogSchema.choices || userSchema.choices || systemSchema.choices,
+                            configured_values:
+                              catalogSchema.configured_values ||
+                              userSchema.configured_values ||
+                              systemSchema.configured_values,
+                            values:
+                              catalogSchema.values || userSchema.values || systemSchema.values,
                           };
                           const fieldType =
                             fieldSchema?.type || fieldSchema?.field_type || valueType;
@@ -2515,7 +2542,8 @@ export default function PropertiesPanel({
                             const matchedOption = options.find(
                               (o) => o.toLowerCase() === strVal.toLowerCase(),
                             );
-                            const selectedVal = matchedOption || (options.length > 0 ? options[0] : '');
+                            const selectedVal =
+                              matchedOption || (options.length > 0 ? options[0] : '');
 
                             if (isMultiple) {
                               return (
@@ -2563,7 +2591,11 @@ export default function PropertiesPanel({
                                   className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm cursor-pointer"
                                 >
                                   {options.map((option) => (
-                                    <option key={option} value={option} className="bg-white text-slate-900">
+                                    <option
+                                      key={option}
+                                      value={option}
+                                      className="bg-white text-slate-900"
+                                    >
                                       {option}
                                     </option>
                                   ))}
@@ -2600,7 +2632,9 @@ export default function PropertiesPanel({
                                   type="number"
                                   value={Number(value ?? 0)}
                                   disabled={false}
-                                  onChange={(e) => handlePropertyChange(key, Number(e.target.value))}
+                                  onChange={(e) =>
+                                    handlePropertyChange(key, Number(e.target.value))
+                                  }
                                   placeholder="Value"
                                   className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none transition-all shadow-inner-sm"
                                 />

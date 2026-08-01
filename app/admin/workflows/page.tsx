@@ -122,14 +122,14 @@ export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
             </button>
           )}
           {/* View Mode Toggle */}
-          <div className="flex items-center border border-gray-200 rounded-lg p-0.5 bg-white shadow-sm">
+          <div className="flex items-center border border-border rounded-lg p-0.5 shadow-sm bg-background">
             <button
               type="button"
               onClick={() => setWorkflowViewMode('list')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
                 workflowViewMode === 'list'
-                  ? 'bg-blue-50 text-blue-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-800'
+                  ? 'bg-accent text-foreground border border-ring'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <List className="h-3.5 w-3.5" />
@@ -140,8 +140,8 @@ export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
               onClick={() => setWorkflowViewMode('card')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
                 workflowViewMode === 'card'
-                  ? 'bg-blue-50 text-blue-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-800'
+                  ? 'bg-accent text-foreground border border-ring'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />

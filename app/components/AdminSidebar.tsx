@@ -15,6 +15,8 @@ import {
   BookOpen,
 } from 'lucide-react';
 
+
+
 interface NavItem {
   label: string;
   href: string;
@@ -94,7 +96,7 @@ export function AdminSidebar() {
       >
         <div className="p-6 border-b border-gray-800">
           <div className={`flex items-center gap-2 ${isCollapsed ? 'justify-center' : ''}`}>
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold">
               A
             </div>
             {!isCollapsed && <span className="font-semibold">Admin</span>}
@@ -128,8 +130,8 @@ export function AdminSidebar() {
                       href={item.href}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
                         isActive(item.href)
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                          ? 'font-bold bg-accent text-foreground border border-ring'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                       }`}
                       title={isCollapsed ? item.label : undefined}
                     >
@@ -138,7 +140,7 @@ export function AdminSidebar() {
                         <>
                           <span className="flex-1 text-sm">{item.label}</span>
                           {item.badge && (
-                            <span className="px-2 py-0.5 text-xs bg-blue-600 rounded-full">
+                            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-primary text-primary-foreground">
                               {item.badge}
                             </span>
                           )}

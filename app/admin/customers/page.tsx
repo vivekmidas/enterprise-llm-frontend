@@ -697,7 +697,7 @@ export default function CustomersTab() {
                 }}
                 className={`pb-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
                   customerDetailTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
+                    ? 'border-bg-primary text-bg-primary'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -721,7 +721,7 @@ export default function CustomersTab() {
                         required
                         value={editCustomerName}
                         onChange={(e) => setEditCustomerName(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                       />
                     </div>
                     <div>
@@ -733,7 +733,7 @@ export default function CustomersTab() {
                         required
                         value={editCustomerDomain}
                         onChange={(e) => setEditCustomerDomain(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                       />
                     </div>
                   </div>
@@ -746,7 +746,7 @@ export default function CustomersTab() {
                         type="email"
                         value={editCustomerEmail}
                         onChange={(e) => setEditCustomerEmail(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                         placeholder="billing@tenant.com"
                       />
                     </div>
@@ -758,7 +758,7 @@ export default function CustomersTab() {
                         type="text"
                         value={editCustomerContactPerson}
                         onChange={(e) => setEditCustomerContactPerson(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                         placeholder="John Doe"
                       />
                     </div>
@@ -771,7 +771,7 @@ export default function CustomersTab() {
                       rows={2}
                       value={editCustomerAddress}
                       onChange={(e) => setEditCustomerAddress(e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                      className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                       placeholder="123 Business Rd, Suite 100"
                     />
                   </div>
@@ -783,7 +783,7 @@ export default function CustomersTab() {
                       <select
                         value={editCustomerStatus}
                         onChange={(e) => setEditCustomerStatus(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white cursor-pointer"
+                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white cursor-pointer"
                       >
                         <option value="active">Active</option>
                         <option value="suspended">Suspended</option>
@@ -799,7 +799,7 @@ export default function CustomersTab() {
                           id="editCustomerPluginsEnabled"
                           checked={editCustomerPluginsEnabled}
                           onChange={(e) => setEditCustomerPluginsEnabled(e.target.checked)}
-                          className="rounded text-blue-600 focus:ring-blue-500 w-4.5 h-4.5"
+                          className="rounded text-bg-primary focus:ring-blue-500 w-4.5 h-4.5"
                         />
                         <label
                           htmlFor="editCustomerPluginsEnabled"
@@ -819,7 +819,7 @@ export default function CustomersTab() {
                         type="text"
                         value={editCustomerStoragePath}
                         onChange={(e) => setEditCustomerStoragePath(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                         placeholder="plugins/nodes/client/1"
                       />
                     </div>
@@ -827,7 +827,7 @@ export default function CustomersTab() {
                   <div className="flex gap-2 pt-2">
                     <button
                       type="submit"
-                      className="bg-blue-600 px-4 py-2 text-sm font-bold text-white rounded-lg hover:bg-blue-700 shadow-sm cursor-pointer"
+                      className="bg-primary px-4 py-2 text-sm font-bold text-white rounded-lg hover:bg-blue-700 shadow-sm cursor-pointer"
                     >
                       Save Changes
                     </button>
@@ -929,7 +929,7 @@ export default function CustomersTab() {
                     setSelectedCustomerIdForUser(selectedCustomer.id);
                     setShowAddCustomerUserModal(true);
                   }}
-                  className="bg-blue-600 px-3 py-1.5 text-xs font-bold text-white rounded-lg hover:bg-blue-700 shadow-sm cursor-pointer"
+                  className="bg-primary px-3 py-1.5 text-xs font-bold text-white rounded-lg hover:bg-blue-700 shadow-sm cursor-pointer"
                 >
                   + Add Tenant User
                 </button>
@@ -1009,9 +1009,9 @@ export default function CustomersTab() {
                 </div>
                 <button
                   onClick={saveCustomerNodesConfig}
-                  className="bg-blue-600 px-4 py-2 text-xs font-bold text-white rounded-lg hover:bg-blue-700 flex items-center gap-1 shadow-sm cursor-pointer"
+                  className="bg-primary px-4 py-2 text-xs font-bold text-white rounded-lg hover:bg-blue-700 flex items-center gap-1 shadow-sm cursor-pointer"
                 >
-                  💾 Save Config
+                Save Config
                 </button>
               </div>
               {customerNodesLoading ? (
@@ -1045,7 +1045,7 @@ export default function CustomersTab() {
                             }}
                             className="sr-only peer"
                           />
-                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                         </label>
                       </div>
                       <div>
@@ -1065,7 +1065,7 @@ export default function CustomersTab() {
                             setCustomerNodes(updated);
                           }}
                           placeholder="{}"
-                          className="w-full text-xs font-mono rounded-lg border border-gray-200 p-2 text-black focus:border-blue-600 focus:outline-none bg-white"
+                          className="w-full text-xs font-mono rounded-lg border border-gray-200 p-2 text-black focus:border-bg-primary focus:outline-none bg-white"
                         />
                       </div>
                     </div>
@@ -1093,7 +1093,7 @@ export default function CustomersTab() {
                     <span className="block text-xs font-bold text-gray-500 uppercase">
                       Total Requests
                     </span>
-                    <span className="text-2xl font-bold text-blue-600">
+                    <span className="text-2xl font-bold text-bg-primary">
                       {customerMetricsSummary.total_requests}
                     </span>
                   </div>
@@ -1101,7 +1101,7 @@ export default function CustomersTab() {
                     <span className="block text-xs font-bold text-gray-500 uppercase">
                       Avg Latency
                     </span>
-                    <span className="text-2xl font-bold text-blue-600">
+                    <span className="text-2xl font-bold text-bg-primary">
                       {customerMetricsSummary.avg_latency_ms}ms
                     </span>
                   </div>
@@ -1194,7 +1194,7 @@ export default function CustomersTab() {
             </div>
             <button
               onClick={() => setShowAddCustomerModal(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all cursor-pointer"
             >
               <IconMap.plus className="h-4 w-4" /> Add Customer
             </button>
@@ -1245,7 +1245,7 @@ export default function CustomersTab() {
                           onChange={() => handleTogglePlugins(c)}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                       </label>
                     </td>
                     <td
@@ -1285,7 +1285,7 @@ export default function CustomersTab() {
                           setSelectedCustomerIdForUser(c.id);
                           setShowAddCustomerUserModal(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
+                        className="text-bg-primary hover:text-blue-800 font-semibold cursor-pointer"
                       >
                         Add Admin User
                       </button>
@@ -1302,7 +1302,7 @@ export default function CustomersTab() {
                         c.domain?.toLowerCase() !== 'system' && (
                           <button
                             onClick={() => handleDeleteCustomer(c.id)}
-                            className="text-red-650 hover:text-red-750 font-semibold cursor-pointer"
+                            className="text-red-900 hover:text-red-750 font-normal cursor-pointer"
                           >
                             Delete
                           </button>
@@ -1338,7 +1338,7 @@ export default function CustomersTab() {
                   required
                   value={newCustomerName}
                   onChange={(e) => setNewCustomerName(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                   placeholder="e.g. Acme Corp"
                 />
               </div>
@@ -1351,7 +1351,7 @@ export default function CustomersTab() {
                   required
                   value={newCustomerDomain}
                   onChange={(e) => setNewCustomerDomain(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                   placeholder="e.g. acme"
                 />
               </div>
@@ -1364,7 +1364,7 @@ export default function CustomersTab() {
                     type="text"
                     value={newCustomerIcon}
                     onChange={(e) => setNewCustomerIcon(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                   />
                 </div>
                 <div>
@@ -1388,7 +1388,7 @@ export default function CustomersTab() {
                     type="email"
                     value={newCustomerEmail}
                     onChange={(e) => setNewCustomerEmail(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                     placeholder="billing@tenant.com"
                   />
                 </div>
@@ -1400,7 +1400,7 @@ export default function CustomersTab() {
                     type="text"
                     value={newCustomerContactPerson}
                     onChange={(e) => setNewCustomerContactPerson(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                    className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                     placeholder="John Doe"
                   />
                 </div>
@@ -1413,7 +1413,7 @@ export default function CustomersTab() {
                   rows={2}
                   value={newCustomerAddress}
                   onChange={(e) => setNewCustomerAddress(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                   placeholder="123 Corporate Way, City, State"
                 />
               </div>
@@ -1424,7 +1424,7 @@ export default function CustomersTab() {
                     id="newCustomerPluginsEnabled"
                     checked={newCustomerPluginsEnabled}
                     onChange={(e) => setNewCustomerPluginsEnabled(e.target.checked)}
-                    className="rounded text-blue-600 focus:ring-blue-500 w-4.5 h-4.5"
+                    className="rounded text-bg-primary focus:ring-blue-500 w-4.5 h-4.5"
                   />
                   <label
                     htmlFor="newCustomerPluginsEnabled"
@@ -1442,7 +1442,7 @@ export default function CustomersTab() {
                       type="text"
                       value={newCustomerStoragePath}
                       onChange={(e) => setNewCustomerStoragePath(e.target.value)}
-                      className="w-full rounded-lg border border-gray-250 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                      className="w-full rounded-lg border border-gray-250 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                       placeholder="e.g. plugins/nodes/acme"
                     />
                   </div>
@@ -1458,7 +1458,7 @@ export default function CustomersTab() {
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
+                  className="bg-primary px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
                 >
                   Create Customer
                 </button>
@@ -1483,7 +1483,7 @@ export default function CustomersTab() {
                   required
                   value={customerUserName}
                   onChange={(e) => setCustomerUserName(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                   placeholder="e.g. John Doe"
                 />
               </div>
@@ -1496,7 +1496,7 @@ export default function CustomersTab() {
                   required
                   value={customerUserEmail}
                   onChange={(e) => setCustomerUserEmail(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                   placeholder="e.g. admin@acme.com"
                 />
               </div>
@@ -1509,7 +1509,7 @@ export default function CustomersTab() {
                   required
                   value={customerUserPassword}
                   onChange={(e) => setCustomerUserPassword(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-blue-600 focus:outline-none bg-white"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                   placeholder="••••••••"
                 />
               </div>
@@ -1523,7 +1523,7 @@ export default function CustomersTab() {
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
+                  className="bg-primary px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
                 >
                   Onboard Admin
                 </button>
@@ -1567,7 +1567,7 @@ export default function CustomersTab() {
                       <button
                         type="button"
                         onClick={() => setConfiguringNode(null)}
-                        className="hover:text-blue-600 transition-colors cursor-pointer"
+                        className="hover:text-bg-primary transition-colors cursor-pointer"
                       >
                         Node Library
                       </button>
@@ -1579,7 +1579,7 @@ export default function CustomersTab() {
                     <button
                       type="button"
                       onClick={() => setConfiguringNode(null)}
-                      className="text-xs text-blue-600 font-bold hover:underline cursor-pointer"
+                      className="text-xs text-bg-primary font-bold hover:underline cursor-pointer"
                     >
                       Back to Catalog
                     </button>
@@ -1587,7 +1587,7 @@ export default function CustomersTab() {
 
                   <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 border flex-shrink-0">
+                      <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center text-bg-primary border flex-shrink-0">
                         {IconMap[configuringNode.icon] ? (
                           React.createElement(IconMap[configuringNode.icon], {
                             className: 'h-6 w-6',
@@ -1680,7 +1680,7 @@ export default function CustomersTab() {
                     <button
                       type="button"
                       onClick={() => setConfiguringNode(null)}
-                      className="bg-blue-600 hover:bg-blue-700 px-5 py-2 text-xs font-bold text-white rounded-lg shadow-sm cursor-pointer"
+                      className="bg-primary hover:bg-blue-700 px-5 py-2 text-xs font-bold text-white rounded-lg shadow-sm cursor-pointer"
                     >
                       Done Override
                     </button>
@@ -1699,7 +1699,7 @@ export default function CustomersTab() {
                           value={nodeSearchQuery}
                           onChange={(e) => setNodeSearchQuery(e.target.value)}
                           placeholder="Search nodes..."
-                          className="w-48 bg-white border border-gray-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-black focus:outline-none focus:border-blue-600"
+                          className="w-48 bg-white border border-gray-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-black focus:outline-none focus:border-bg-primary"
                         />
                         <IconMap.search className="h-3.5 w-3.5 text-gray-400 absolute left-2.5 top-2.5" />
                       </div>
@@ -1731,7 +1731,7 @@ export default function CustomersTab() {
                         <button
                           type="button"
                           onClick={handleSelectAllForBulk}
-                          className="text-[10px] text-gray-500 hover:text-blue-600 font-bold hover:underline cursor-pointer"
+                          className="text-[10px] text-gray-500 hover:text-bg-primary font-bold hover:underline cursor-pointer"
                         >
                           Select All
                         </button>
@@ -1739,7 +1739,7 @@ export default function CustomersTab() {
                         <button
                           type="button"
                           onClick={handleDeselectAllForBulk}
-                          className="text-[10px] text-gray-500 hover:text-blue-600 font-bold hover:underline cursor-pointer"
+                          className="text-[10px] text-gray-500 hover:text-bg-primary font-bold hover:underline cursor-pointer"
                         >
                           Deselect All
                         </button>
@@ -1749,7 +1749,7 @@ export default function CustomersTab() {
                         <button
                           type="button"
                           onClick={handleBulkEnableAll}
-                          className="text-[10px] text-blue-600 font-bold hover:underline cursor-pointer"
+                          className="text-[10px] text-bg-primary font-bold hover:underline cursor-pointer"
                         >
                           Enable All
                         </button>
@@ -1770,7 +1770,7 @@ export default function CustomersTab() {
                           onClick={() => setNodeViewMode('grid')}
                           className={`p-1 rounded cursor-pointer ${
                             nodeViewMode === 'grid'
-                              ? 'bg-white shadow-xs text-blue-600'
+                              ? 'bg-white shadow-xs text-bg-primary'
                               : 'text-gray-400 hover:text-gray-655'
                           }`}
                         >
@@ -1781,7 +1781,7 @@ export default function CustomersTab() {
                           onClick={() => setNodeViewMode('list')}
                           className={`p-1 rounded cursor-pointer ${
                             nodeViewMode === 'list'
-                              ? 'bg-white shadow-xs text-blue-600'
+                              ? 'bg-white shadow-xs text-bg-primary'
                               : 'text-gray-400 hover:text-gray-655'
                           }`}
                         >
@@ -1823,7 +1823,7 @@ export default function CustomersTab() {
                                           [node.name]: e.target.checked,
                                         }))
                                       }
-                                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1 h-3.5 w-3.5"
+                                      className="rounded border-gray-300 text-bg-primary focus:ring-blue-500 mt-1 h-3.5 w-3.5"
                                     />
                                     <div className="h-10 w-10 bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-center text-gray-550 flex-shrink-0">
                                       {IconMap[node.icon] ? (
@@ -1852,7 +1852,7 @@ export default function CustomersTab() {
                                       onChange={() => handleToggleSingleAssignment(node.name)}
                                       className="sr-only peer"
                                     />
-                                    <div className="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    <div className="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-primary"></div>
                                   </label>
                                 </div>
 
@@ -1886,7 +1886,7 @@ export default function CustomersTab() {
                                     <button
                                       type="button"
                                       onClick={() => setConfiguringNode(node)}
-                                      className="text-xs text-blue-600 font-bold hover:underline cursor-pointer"
+                                      className="text-xs text-bg-primary font-bold hover:underline cursor-pointer"
                                     >
                                       Configure Override
                                     </button>
@@ -1942,7 +1942,7 @@ export default function CustomersTab() {
                                             [node.name]: e.target.checked,
                                           }))
                                         }
-                                        className="rounded border-gray-300 text-blue-600 h-3.5 w-3.5"
+                                        className="rounded border-gray-300 text-bg-primary h-3.5 w-3.5"
                                       />
                                     </td>
                                     <td className="px-4 py-3">
@@ -1974,7 +1974,7 @@ export default function CustomersTab() {
                                         type="checkbox"
                                         checked={isChecked}
                                         onChange={() => handleToggleSingleAssignment(node.name)}
-                                        className="rounded border-gray-300 text-blue-600 w-4 h-4 cursor-pointer"
+                                        className="rounded border-gray-300 text-bg-primary w-4 h-4 cursor-pointer"
                                       />
                                     </td>
                                     {/* BLOCK COMMENT: Testing Allowed toggle checkbox cell */}
@@ -2034,7 +2034,7 @@ export default function CustomersTab() {
                     type="button"
                     onClick={handleSaveCustomerNodes}
                     disabled={savingNodes}
-                    className="bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-bold text-white rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="bg-primary hover:bg-blue-700 px-4 py-2 text-xs font-bold text-white rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     {savingNodes ? <RefreshCw className="h-3 w-3 animate-spin" /> : null}
                     Save Node Assignments

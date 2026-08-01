@@ -64,7 +64,12 @@ export default function SignupPage() {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>
@@ -72,7 +77,7 @@ export default function SignupPage() {
       <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl border border-gray-200">
         <div className="text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-            <Shield className="h-8 w-8 text-blue-600" />
+            <Shield className="h-8 w-8 text-bg-primary" />
           </div>
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Create Account</h2>
           <p className="mt-2 text-sm text-gray-600">Enter your details to register</p>
@@ -133,14 +138,14 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="group relative flex w-full justify-center rounded-lg border border-transparent bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-lg"
+            className="group relative flex w-full justify-center rounded-lg border border-transparent bg-primary py-3 text-sm font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-lg"
           >
             {loading ? 'Creating Account...' : 'Register Now'}
           </button>
         </form>
 
         <div className="text-center mt-4">
-          <Link href="/admin" className="text-sm text-blue-600 hover:underline">
+          <Link href="/admin" className="text-sm text-bg-primary hover:underline">
             Already have an account? Login
           </Link>
         </div>

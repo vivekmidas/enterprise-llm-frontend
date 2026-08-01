@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Tooltip } from '@/app/components/Tooltip';
 
+
 export interface CompanySettingsTabProps {
   userRole?: string | null;
   customerId?: number | null;
@@ -80,9 +81,13 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
     s3_region: '',
     network_path: '',
   };
-  const [tempFileConfig, setTempFileConfig] = useState<typeof defaultTempFileConfig>(defaultTempFileConfig);
+  const [tempFileConfig, setTempFileConfig] =
+    useState<typeof defaultTempFileConfig>(defaultTempFileConfig);
   const [tempFileSaving, setTempFileSaving] = useState(false);
-  const [tempFileSaveResult, setTempFileSaveResult] = useState<{ status: 'success' | 'error' | null; message: string }>({ status: null, message: '' });
+  const [tempFileSaveResult, setTempFileSaveResult] = useState<{
+    status: 'success' | 'error' | null;
+    message: string;
+  }>({ status: null, message: '' });
   const [tempFileSectionOpen, setTempFileSectionOpen] = useState(false);
 
   useEffect(() => {
@@ -161,7 +166,6 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
 
   // Load profiles & company settings
   const loadData = async () => {
-
     setLoading(true);
     try {
       const [companySettings, configs] = await Promise.all([
@@ -176,9 +180,10 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
       const tfc = companySettings?.settings?.temp_file_config;
       if (tfc) setTempFileConfig({ ...defaultTempFileConfig, ...tfc });
 
-      const activeId = companySettings.active_config_id || companySettings.active_profile_id
-        ? String(companySettings.active_config_id || companySettings.active_profile_id)
-        : null;
+      const activeId =
+        companySettings.active_config_id || companySettings.active_profile_id
+          ? String(companySettings.active_config_id || companySettings.active_profile_id)
+          : null;
       setActiveConfigId(activeId);
 
       // If active config exists in list, select it; else pick first or start new
@@ -250,7 +255,6 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
     });
   };
 
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     let val: any = value;
@@ -288,11 +292,14 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
     try {
       if (selectedConfigId === 'new') {
         // Create new LLMProfile
-        const created = await api.createLlmProfile({
-          name: configName.trim(),
-          description: configDesc.trim() || undefined,
-          settings: nestedSettings,
-        }, selectedCustomerId || undefined);
+        const created = await api.createLlmProfile(
+          {
+            name: configName.trim(),
+            description: configDesc.trim() || undefined,
+            settings: nestedSettings,
+          },
+          selectedCustomerId || undefined,
+        );
 
         // Set as active default
         await api.activateLlmProfile(created.id, selectedCustomerId || undefined);
@@ -308,11 +315,15 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
         });
       } else {
         // Update existing LLMProfile
-        await api.updateLlmProfile(Number(selectedConfigId), {
-          name: configName.trim(),
-          description: configDesc.trim() || undefined,
-          settings: nestedSettings,
-        }, selectedCustomerId || undefined);
+        await api.updateLlmProfile(
+          Number(selectedConfigId),
+          {
+            name: configName.trim(),
+            description: configDesc.trim() || undefined,
+            settings: nestedSettings,
+          },
+          selectedCustomerId || undefined,
+        );
 
         const updatedList = await api.getLlmProfiles(selectedCustomerId || undefined);
         setSavedConfigs(updatedList || []);
@@ -389,7 +400,12 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
       { step: 2, name: 'Network Reachability Check', status: 'pending', message: 'Pending...' },
       { step: 3, name: 'Credential Validation', status: 'pending', message: 'Pending...' },
       { step: 4, name: 'API Client Initialization', status: 'pending', message: 'Pending...' },
-      { step: 5, name: 'Provider Model Availability Check', status: 'pending', message: 'Pending...' },
+      {
+        step: 5,
+        name: 'Provider Model Availability Check',
+        status: 'pending',
+        message: 'Pending...',
+      },
       { step: 6, name: 'Model Verification', status: 'pending', message: 'Pending...' },
       { step: 7, name: 'Prompt Preparation', status: 'pending', message: 'Pending...' },
       { step: 8, name: 'Endpoint Connection', status: 'pending', message: 'Pending...' },
@@ -494,7 +510,8 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
             )}
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Configure LLM engines, vector embedding models, and search pipeline settings for your tenant.
+            Configure LLM engines, vector embedding models, and search pipeline settings for your
+            tenant.
           </p>
         </div>
 
@@ -519,7 +536,7 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
           <button
             type="button"
             onClick={handleStartNewConfig}
-            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             New Config
@@ -595,7 +612,9 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
               </div>
 
               <div className="space-y-1 col-span-2 md:col-span-1">
-                <label className="text-xs font-semibold text-gray-900">Description (Optional)</label>
+                <label className="text-xs font-semibold text-gray-900">
+                  Description (Optional)
+                </label>
                 <input
                   type="text"
                   placeholder="e.g. Primary cloud RAG pipeline with cross-encoder reranking"
@@ -727,7 +746,9 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
 
               <div className="space-y-1">
                 <div className="flex items-center gap-1">
-                  <label className="text-xs font-semibold text-gray-900">Max Generation Tokens</label>
+                  <label className="text-xs font-semibold text-gray-900">
+                    Max Generation Tokens
+                  </label>
                   <Tooltip
                     content="Maximum token length for output responses."
                     position="top"
@@ -855,7 +876,7 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                   name="enable_reranking"
                   checked={!!settings.enable_reranking}
                   onChange={handleChange}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                  className="rounded border-gray-300 text-bg-primary focus:ring-blue-500 w-4 h-4 cursor-pointer"
                 />
                 Enable Cross-Encoder Reranking
               </label>
@@ -927,7 +948,7 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
               <button
                 type="submit"
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="bg-primary hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {saving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
                 Save Configuration
@@ -940,7 +961,7 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
         <div className="space-y-6 col-span-1">
           <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-xs space-y-4">
             <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-              <FlaskRound className="w-4 h-4 text-blue-600" />
+              <FlaskRound className="w-4 h-4 text-bg-primary" />
               Gateway Diagnostic
             </h4>
             <p className="text-xs text-gray-500 leading-relaxed">
@@ -981,7 +1002,9 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                   <span>
                     Execution Steps ({testSteps.filter((s) => s.status === 'success').length}/11)
                   </span>
-                  {testingConnection && <span className="text-blue-500 animate-pulse">Running...</span>}
+                  {testingConnection && (
+                    <span className="text-blue-500 animate-pulse">Running...</span>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -994,7 +1017,9 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                         case 'error':
                           return <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />;
                         case 'loading':
-                          return <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />;
+                          return (
+                            <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />
+                          );
                         case 'skipped':
                           return (
                             <div className="w-3.5 h-3.5 rounded-full border border-gray-300 flex items-center justify-center shrink-0">
@@ -1003,7 +1028,9 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                           );
                         case 'pending':
                         default:
-                          return <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200 shrink-0" />;
+                          return (
+                            <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200 shrink-0" />
+                          );
                       }
                     };
 
@@ -1029,7 +1056,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                             </span>
                           </div>
                           <div className="text-gray-400 shrink-0">
-                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            {isExpanded ? (
+                              <ChevronUp className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
                           </div>
                         </div>
 
@@ -1066,7 +1097,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
             <span className="text-[10px] text-gray-400">
               Configure where transient files are staged during workflow execution.
             </span>
-            {tempFileSectionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {tempFileSectionOpen ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
           </div>
         </button>
 
@@ -1074,17 +1109,25 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
           <div className="p-5 space-y-5 border-t border-gray-200">
             {/* Storage type selector */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">Storage Type</label>
+              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">
+                Storage Type
+              </label>
               <div className="flex gap-3">
                 {(['local', 's3', 'network_path'] as const).map((t) => {
-                  const labels: Record<string, string> = { local: 'Local Disk', s3: 'S3 Bucket', network_path: 'Network Path' };
+                  const labels: Record<string, string> = {
+                    local: 'Local Disk',
+                    s3: 'S3 Bucket',
+                    network_path: 'Network Path',
+                  };
                   const isAvailable = t === 'local';
                   return (
                     <button
                       key={t}
                       type="button"
                       disabled={!isAvailable}
-                      onClick={() => isAvailable && setTempFileConfig((c) => ({ ...c, storage_type: t }))}
+                      onClick={() =>
+                        isAvailable && setTempFileConfig((c) => ({ ...c, storage_type: t }))
+                      }
                       className={`flex-1 py-2 rounded-lg border text-xs font-semibold transition-all
                         ${
                           tempFileConfig.storage_type === t
@@ -1102,12 +1145,16 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                   );
                 })}
               </div>
-              <p className="text-[10px] text-gray-400">S3 and network paths are planned for a future release.</p>
+              <p className="text-[10px] text-gray-400">
+                S3 and network paths are planned for a future release.
+              </p>
             </div>
 
             {/* Local dir */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">Local Temp Directory</label>
+              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">
+                Local Temp Directory
+              </label>
               <input
                 type="text"
                 value={tempFileConfig.local_dir}
@@ -1116,39 +1163,53 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                 placeholder="/tmp/nflow"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono bg-white text-black focus:outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
               />
-              <p className="text-[10px] text-gray-400">Absolute path on the server where transient files are written.</p>
+              <p className="text-[10px] text-gray-400">
+                Absolute path on the server where transient files are written.
+              </p>
             </div>
 
             {/* Max file size + retention — two columns */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">Max File Size (MB)</label>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">
+                  Max File Size (MB)
+                </label>
                 <input
                   type="number"
                   min={1}
                   max={2048}
                   value={tempFileConfig.max_file_size_mb}
-                  onChange={(e) => setTempFileConfig((c) => ({ ...c, max_file_size_mb: Number(e.target.value) }))}
+                  onChange={(e) =>
+                    setTempFileConfig((c) => ({ ...c, max_file_size_mb: Number(e.target.value) }))
+                  }
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-black focus:outline-none focus:border-blue-500"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">Retention (minutes)</label>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">
+                  Retention (minutes)
+                </label>
                 <input
                   type="number"
                   min={1}
                   value={tempFileConfig.retention_minutes}
-                  onChange={(e) => setTempFileConfig((c) => ({ ...c, retention_minutes: Number(e.target.value) }))}
+                  onChange={(e) =>
+                    setTempFileConfig((c) => ({ ...c, retention_minutes: Number(e.target.value) }))
+                  }
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-black focus:outline-none focus:border-blue-500"
                 />
-                <p className="text-[10px] text-gray-400">Auto-purge temp files after this window.</p>
+                <p className="text-[10px] text-gray-400">
+                  Auto-purge temp files after this window.
+                </p>
               </div>
             </div>
 
             {/* S3 fields — greyed out */}
             <div className="grid grid-cols-2 gap-4 opacity-40 pointer-events-none">
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">S3 Bucket</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  S3 Bucket
+                </label>
                 <input
                   type="text"
                   disabled
@@ -1158,7 +1219,9 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">S3 Region</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  S3 Region
+                </label>
                 <input
                   type="text"
                   disabled
@@ -1170,7 +1233,9 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
             </div>
 
             <div className="opacity-40 pointer-events-none space-y-1.5">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Network / UNC Path</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                Network / UNC Path
+              </label>
               <input
                 type="text"
                 disabled
@@ -1178,17 +1243,22 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                 placeholder="\\\\server\\share\\nflow-temp"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono bg-gray-50 text-gray-400 cursor-not-allowed"
               />
-              <p className="text-[10px] text-gray-400">SMB/UNC network share — planned for future release.</p>
+              <p className="text-[10px] text-gray-400">
+                SMB/UNC network share — planned for future release.
+              </p>
             </div>
 
             {/* Save bar */}
             <div className="flex items-center justify-between pt-2 border-t border-gray-100">
               <div>
                 {tempFileSaveResult.status && (
-                  <span className={`text-xs font-semibold ${
-                    tempFileSaveResult.status === 'success' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {tempFileSaveResult.status === 'success' ? '✓ ' : '✗ '}{tempFileSaveResult.message}
+                  <span
+                    className={`text-xs font-semibold ${
+                      tempFileSaveResult.status === 'success' ? 'text-green-600' : 'text-red-600'
+                    }`}
+                  >
+                    {tempFileSaveResult.status === 'success' ? '✓ ' : '✗ '}
+                    {tempFileSaveResult.message}
                   </span>
                 )}
               </div>
@@ -1196,12 +1266,16 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                 type="button"
                 onClick={handleSaveTempFileConfig}
                 disabled={tempFileSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
               >
                 {tempFileSaving ? (
-                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…
+                  </>
                 ) : (
-                  <><CheckCircle className="w-3.5 h-3.5" /> Save Temp File Settings</>
+                  <>
+                    <CheckCircle className="w-3.5 h-3.5" /> Save Temp File Settings
+                  </>
                 )}
               </button>
             </div>

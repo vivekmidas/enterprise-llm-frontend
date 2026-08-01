@@ -1347,7 +1347,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                     output_contract: {},
                   })
                 }
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm cursor-pointer"
               >
                 + Add New Node
               </button>
@@ -1412,7 +1412,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                             </span>
                           </div>
                           {agent.sub_label && (
-                            <span className="text-xs text-blue-600 font-medium mt-0.5">
+                            <span className="text-xs text-bg-primary font-medium mt-0.5">
                               {agent.sub_label}
                             </span>
                           )}
@@ -1444,7 +1444,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => toggleJsonExpanded(agent)}
-                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-xs whitespace-nowrap cursor-pointer"
+                        className="inline-flex items-center gap-1 text-bg-primary hover:text-blue-800 font-medium text-xs whitespace-nowrap cursor-pointer"
                       >
                         <Code2 className="h-3.5 w-3.5" />
                         {jsonExpandedState[agentKey] ? 'Hide Definition' : 'Show Definition'}
@@ -1546,7 +1546,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                           className={`p-1 rounded transition-colors ${
                             agent.is_enabled === false
                               ? 'text-gray-300 cursor-not-allowed'
-                              : 'text-blue-600 hover:bg-blue-50 cursor-pointer'
+                              : 'text-bg-primary hover:bg-blue-50 cursor-pointer'
                           }`}
                         >
                           <Edit2 className="h-4 w-4" />
@@ -1711,7 +1711,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   {userRole === 'system_admin' && (
                     <button
                       onClick={() => openPropModal()}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 cursor-pointer"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-bg-primary hover:text-blue-700 uppercase bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 cursor-pointer"
                     >
                       + Add Property
                     </button>
@@ -1918,7 +1918,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               </button>
               <button
                 onClick={handleSaveNode}
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-2 text-sm font-bold text-white hover:bg-blue-700 shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-2 rounded-lg bg-primary px-8 py-2 text-sm font-bold text-white hover:bg-blue-700 shadow-md transition-all cursor-pointer"
               >
                 {editingAgent.id ? 'Update Registry' : 'Create Node Type'}
               </button>
@@ -1956,7 +1956,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-200">
             <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3">
               <h3 className="text-lg font-bold text-black flex items-center gap-2">
-                <Settings className="h-5 w-5 text-blue-600" />
+                <Settings className="h-5 w-5 text-bg-primary" />
                 {isEditingProp ? 'Edit Property' : 'Add Property'}
               </h3>
               <button
@@ -1972,7 +1972,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   onClick={() => setPropModal({ ...propModal, target: 'user' })}
                   className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${
                     propModal.target === 'user'
-                      ? 'bg-white text-blue-600 shadow-sm'
+                      ? 'bg-white text-bg-primary shadow-sm'
                       : 'text-gray-500'
                   }`}
                 >
@@ -1982,7 +1982,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   onClick={() => setPropModal({ ...propModal, target: 'system' })}
                   className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${
                     propModal.target === 'system'
-                      ? 'bg-white text-blue-600 shadow-sm'
+                      ? 'bg-white text-bg-primary shadow-sm'
                       : 'text-gray-500'
                   }`}
                 >
@@ -2068,7 +2068,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                       id="prop-multiple"
                       checked={!!propModal.multiple}
                       onChange={(e) => setPropModal({ ...propModal, multiple: e.target.checked })}
-                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                      className="rounded text-bg-primary focus:ring-blue-500 h-4 w-4 cursor-pointer"
                     />
                     <label
                       htmlFor="prop-multiple"
@@ -2102,7 +2102,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               </button>
               <button
                 onClick={handleSavePropFromModal}
-                className="bg-blue-600 px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
+                className="bg-primary px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
               >
                 Save Property
               </button>

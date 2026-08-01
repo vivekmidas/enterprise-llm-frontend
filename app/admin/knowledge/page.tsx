@@ -623,7 +623,7 @@ export default function KnowledgeBasesTab({
                 }
                 setShowCreateModal(true);
               }}
-              className="p-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
+              className="p-1.5 bg-primary text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
               title="Create Knowledge Base"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -684,7 +684,7 @@ export default function KnowledgeBasesTab({
                     
                   }}
                   className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
-                    isSelected ? 'bg-blue-50/40 border-l-4 border-blue-600' : ''
+                    isSelected ? 'bg-blue-50/40 border-l-4 border-bg-primary' : ''
                   }`}
                 >
                   <div className="space-y-1.5 pr-2 min-w-0 flex-1">
@@ -763,7 +763,7 @@ export default function KnowledgeBasesTab({
                         e.stopPropagation();
                         openEditKbModal(kb);
                       }}
-                      className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-all cursor-pointer"
+                      className="p-1 text-gray-400 hover:text-bg-primary rounded hover:bg-blue-50 transition-all cursor-pointer"
                       title="KB Settings"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -796,7 +796,7 @@ export default function KnowledgeBasesTab({
                 <h3 className="font-bold text-base text-gray-800">{selectedKb.name}</h3>
                 <button
                   onClick={() => openEditKbModal(selectedKb)}
-                  className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors cursor-pointer"
+                  className="p-1 text-gray-400 hover:text-bg-primary rounded transition-colors cursor-pointer"
                   title="Edit Settings"
                 >
                   <Pencil className="w-3.5 h-3.5" />
@@ -825,14 +825,14 @@ export default function KnowledgeBasesTab({
                   type="checkbox"
                   checked={autoRefresh}
                   onChange={(e) => setAutoRefresh(e.target.checked)}
-                  className="rounded border-gray-350 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                  className="rounded border-gray-350 text-bg-primary focus:ring-blue-500 w-3.5 h-3.5"
                 />
                 Auto-Refresh Status
               </label>
 
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
               >
                 <Upload className="w-3.5 h-3.5" />
                 Upload Document
@@ -900,7 +900,7 @@ export default function KnowledgeBasesTab({
                               value={docType.toLowerCase()}
                               disabled={updatingDocTypeIds[doc.id]}
                               onChange={(e) => handleUpdateDocType(doc, e.target.value)}
-                              className="appearance-none pl-2 pr-5 py-0.5 bg-blue-50 hover:bg-blue-100 disabled:bg-blue-50 text-blue-600 rounded text-xs font-bold uppercase tracking-wider border-none focus:ring-1 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed outline-none transition-colors duration-150"
+                              className="appearance-none pl-2 pr-5 py-0.5 bg-blue-50 hover:bg-blue-100 disabled:bg-blue-50 text-bg-primary rounded text-xs font-bold uppercase tracking-wider border-none focus:ring-1 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed outline-none transition-colors duration-150"
                               title="Change Document Type"
                             >
                               {(docTypes && docTypes.length > 0
@@ -916,7 +916,7 @@ export default function KnowledgeBasesTab({
                                 </option>
                               ))}
                             </select>
-                            <span className="absolute right-1.5 pointer-events-none text-blue-600 flex items-center justify-center">
+                            <span className="absolute right-1.5 pointer-events-none text-bg-primary flex items-center justify-center">
                               {updatingDocTypeIds[doc.id] ? (
                                 <RefreshCw className="w-2.5 h-2.5 animate-spin" />
                               ) : (
@@ -984,7 +984,7 @@ export default function KnowledgeBasesTab({
                         <button
                           onClick={() => refreshDocStatus(doc.id)}
                           disabled={fetchingDocIds[doc.id]}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-all cursor-pointer"
+                          className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-all cursor-pointer"
                           title="Refresh Status"
                         >
                           <RefreshCw
@@ -993,7 +993,7 @@ export default function KnowledgeBasesTab({
                         </button>
                         <button
                           onClick={() => openEditDocModal(doc)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                          className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
                           title="Edit Document Meta"
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -1029,7 +1029,7 @@ export default function KnowledgeBasesTab({
           </p>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
+            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
           >
             New Knowledge Base
           </button>
@@ -1167,7 +1167,7 @@ export default function KnowledgeBasesTab({
                 <button
                   type="submit"
                   disabled={creating || !newKbName.trim()}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {creating ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1243,7 +1243,7 @@ export default function KnowledgeBasesTab({
                       >
                         <div className="flex items-center justify-between text-xs">
                           <div className="flex items-center gap-2 truncate pr-2 flex-1">
-                            <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                            <FileText className="w-4 h-4 text-bg-primary shrink-0" />
                             <span className="font-semibold text-gray-800 truncate">
                               {item.file.name}
                             </span>
@@ -1282,7 +1282,7 @@ export default function KnowledgeBasesTab({
                         {item.status === 'uploading' && (
                           <div className="w-full bg-gray-150 rounded-full h-1.5 overflow-hidden">
                             <div
-                              className="bg-blue-600 h-full transition-all duration-300 animate-pulse"
+                              className="bg-primary h-full transition-all duration-300 animate-pulse"
                               style={{ width: `${item.progress}%` }}
                             />
                           </div>
@@ -1361,7 +1361,7 @@ export default function KnowledgeBasesTab({
                 <button
                   type="submit"
                   disabled={uploading || uploadQueue.length === 0}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {uploading ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1444,7 +1444,7 @@ export default function KnowledgeBasesTab({
                 <button
                   type="submit"
                   disabled={savingDocTypes}
-                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {savingDocTypes ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
                   Save Document Types
@@ -1572,7 +1572,7 @@ export default function KnowledgeBasesTab({
                 <button
                   type="submit"
                   disabled={savingKb || !editKbName.trim()}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {savingKb ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1664,7 +1664,7 @@ export default function KnowledgeBasesTab({
                 <button
                   type="submit"
                   disabled={savingDoc || !editDocName.trim()}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {savingDoc ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />

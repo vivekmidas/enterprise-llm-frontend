@@ -21,6 +21,7 @@ import PlaygroundTab from './playground/page';
 import ProfilesTab from './profiles/page';
 import ProviderPresetsTab from './provider-presets/page';
 
+
 type ActiveTabType =
   | 'nodes'
   | 'workflows'
@@ -47,7 +48,7 @@ const ALL_TABS: { id: ActiveTabType; label: string; roles: string[] }[] = [
   { id: 'profiles', label: 'LLM Profiles', roles: ['admin', 'system_admin'] },
   // BLOCK COMMENT: SYSTEM ADMIN RESTRICTION FOR PROVIDER PRESETS TAB
   { id: 'provider-presets', label: 'Provider Presets', roles: ['admin', 'system_admin'] },
-  { id: 'settings', label: 'LLM Settings', roles: ['admin', 'system_admin'] },
+  // { id: 'settings', label: 'LLM Settings', roles: ['admin', 'system_admin'] },
   { id: 'playground', label: 'Retrieval Playground', roles: ['admin', 'system_admin'] },
 ];
 
@@ -91,8 +92,7 @@ export default function AdminPage() {
 
       // Check if element is cut off left or right (with 4px margin of error)
       const isVisible =
-        rect.left >= containerRect.left - 4 &&
-        rect.right <= containerRect.right + 4;
+        rect.left >= containerRect.left - 4 && rect.right <= containerRect.right + 4;
 
       if (!isVisible) {
         newHidden.add(tab.id);
@@ -249,7 +249,7 @@ export default function AdminPage() {
         <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl border border-gray-200">
           <div className="text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-              <Shield className="h-8 w-8 text-blue-600" />
+              <Shield className="h-8 w-8 text-bg-primary" />
             </div>
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
               {isRegistering ? 'Create Account' : 'Admin Portal'}
@@ -303,7 +303,7 @@ export default function AdminPage() {
             </div>
             <button
               type="submit"
-              className="group relative flex w-full justify-center rounded-lg border border-transparent bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all shadow-lg cursor-pointer"
+              className="group relative flex w-full justify-center rounded-lg border border-transparent bg-primary py-3 text-sm font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all shadow-lg cursor-pointer"
             >
               <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                 <Lock className="h-5 w-5 text-blue-500 group-hover:text-blue-400" />
@@ -317,7 +317,7 @@ export default function AdminPage() {
                 setAlertMessage(null);
                 setIsRegistering(!isRegistering);
               }}
-              className="text-sm text-blue-600 hover:underline cursor-pointer"
+              className="text-sm text-bg-primary hover:underline cursor-pointer"
             >
               {isRegistering ? 'Already have an account? Login' : 'Need an account? Register'}
             </button>
@@ -331,7 +331,7 @@ export default function AdminPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-2">
-          <IconMap.activity className="h-8 w-8 animate-spin text-blue-600" />
+          <IconMap.activity className="h-8 w-8 animate-spin text-bg-primary" />
           <p className="text-sm font-medium text-gray-500">Loading system registry...</p>
         </div>
       </div>
@@ -362,10 +362,10 @@ export default function AdminPage() {
                       if (tab.id === 'playground') setPlaygroundKbId(null);
                       handleTabChange(tab.id);
                     }}
-                    className={`px-4 py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                    className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 rounded-t-md ${
                       activeTab === tab.id
-                        ? 'border-b-2 border-blue-600 text-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'bg-white text-primary border-b-2 border-ring'
+                        : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent'
                     }`}
                   >
                     {tab.label}
@@ -378,14 +378,14 @@ export default function AdminPage() {
                 <div className="relative shrink-0 pr-2">
                   <button
                     onClick={() => setIsMenuOpen((prev) => !prev)}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-600 hover:text-blue-600 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg shadow-sm transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider bg-card border border-border text-muted-foreground rounded-lg shadow-sm transition-all cursor-pointer hover:text-foreground"
                     title="More options"
                     aria-expanded={isMenuOpen}
                   >
                     <span>+{hiddenTabs.length} More</span>
                     <ChevronDown
                       className={`h-4 w-4 transition-transform duration-200 ${
-                        isMenuOpen ? 'rotate-180 text-blue-600' : ''
+                        isMenuOpen ? 'rotate-180 text-foreground' : 'text-muted-foreground'
                       }`}
                     />
                   </button>
@@ -393,8 +393,12 @@ export default function AdminPage() {
                   {isMenuOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
-                      <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 max-h-96 overflow-y-auto">
-                        <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                      <div
+                        className="absolute right-0 top-full mt-2 w-60 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1 z-50 max-h-96 overflow-y-auto"
+                      >
+                        <div
+                          className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border-b border-border text-muted-foreground"
+                        >
                           Hidden Options
                         </div>
                         {hiddenTabs.map((tab) => (
@@ -415,13 +419,13 @@ export default function AdminPage() {
                             }}
                             className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors cursor-pointer ${
                               activeTab === tab.id
-                                ? 'text-blue-600 bg-blue-50/80 font-bold'
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                ? 'bg-accent text-foreground font-bold'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                             }`}
                           >
                             <span>{tab.label}</span>
                             {activeTab === tab.id && (
-                              <Check className="h-4 w-4 text-blue-600 shrink-0 ml-2" />
+                              <Check className="h-4 w-4 shrink-0 ml-2 text-primary" />
                             )}
                           </button>
                         ))}
@@ -467,9 +471,10 @@ export default function AdminPage() {
           {activeTab === 'profiles' && (userRole === 'admin' || userRole === 'system_admin') && (
             <ProfilesTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
-          {activeTab === 'provider-presets' && (userRole === 'admin' || userRole === 'system_admin') && (
-            <ProviderPresetsTab userRole={userRole} />
-          )}
+          {activeTab === 'provider-presets' &&
+            (userRole === 'admin' || userRole === 'system_admin') && (
+              <ProviderPresetsTab userRole={userRole} />
+            )}
           {activeTab === 'settings' && (userRole === 'admin' || userRole === 'system_admin') && (
             <CompanySettingsTab
               userRole={userRole}
@@ -480,7 +485,6 @@ export default function AdminPage() {
             <PlaygroundTab initialKbId={playgroundKbId} />
           )}
         </div>
-
       </div>
     </div>
   );

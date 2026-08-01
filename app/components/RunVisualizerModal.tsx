@@ -227,7 +227,7 @@ export default function RunVisualizerModal({
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-gray-150 px-6 py-4 bg-gray-50">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg bg-blue-50 text-blue-600`}>
+            <div className={`p-2 rounded-lg bg-blue-50 text-bg-primary`}>
               <Activity className="h-5 w-5" />
             </div>
             <div>
@@ -243,7 +243,7 @@ export default function RunVisualizerModal({
             <span
               className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
                 trace.status === 'running'
-                  ? 'bg-blue-50 text-blue-600 border-blue-200 animate-pulse'
+                  ? 'bg-blue-50 text-bg-primary border-blue-200 animate-pulse'
                   : trace.status === 'stopped'
                     ? 'bg-gray-100 text-gray-600 border-gray-300'
                     : trace.status === 'failure' || trace.status === 'failed'
@@ -279,7 +279,7 @@ export default function RunVisualizerModal({
         <div className="flex flex-1 relative overflow-hidden bg-gray-50/50">
           {loading ? (
             <div className="flex flex-col items-center justify-center w-full h-full gap-3">
-              <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
+              <RefreshCw className="h-8 w-8 text-bg-primary animate-spin" />
               <span className="text-sm font-semibold text-gray-500">
                 Loading execution graph...
               </span>
@@ -344,7 +344,7 @@ export default function RunVisualizerModal({
                             selectedNode.status === 'success'
                               ? 'text-emerald-600'
                               : selectedNode.status === 'running'
-                                ? 'text-blue-600 animate-pulse'
+                                ? 'text-bg-primary animate-pulse'
                                 : selectedNode.status === 'exception' ||
                                     selectedNode.status === 'failure'
                                   ? 'text-rose-600'

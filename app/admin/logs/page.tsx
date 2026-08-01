@@ -7,6 +7,7 @@ import { JsonTreeView } from '@components/JsonTreeView';
 import RunVisualizerModal from '@components/RunVisualizerModal';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 
+
 interface LogsTabProps {
   userRole: string | null;
 }
@@ -168,7 +169,7 @@ export default function LogsTab({ userRole }: LogsTabProps) {
           <select
             value={logMode}
             onChange={(e) => setLogMode(e.target.value as 'audit' | 'execution')}
-            className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+            className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-bg-primary transition-colors cursor-pointer"
           >
             <option value="audit">Admin Audit</option>
             <option value="execution">Execution Traces</option>
@@ -179,7 +180,7 @@ export default function LogsTab({ userRole }: LogsTabProps) {
             <select
               value={minutesFilter}
               onChange={(e) => setMinutesFilter(Number(e.target.value))}
-              className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+              className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-bg-primary transition-colors cursor-pointer"
             >
               <option value={5}>Last 5 Minutes</option>
               <option value={10}>Last 10 Minutes</option>
@@ -193,7 +194,7 @@ export default function LogsTab({ userRole }: LogsTabProps) {
             <select
               value={selectedWorkflowFilter}
               onChange={(e) => setSelectedWorkflowFilter(e.target.value)}
-              className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+              className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-bg-primary transition-colors cursor-pointer"
             >
               <option value="all">All Workflows</option>
               {workflows?.map((wf: any) => (
@@ -209,7 +210,7 @@ export default function LogsTab({ userRole }: LogsTabProps) {
             <select
               value={selectedCustomerFilter}
               onChange={(e) => setSelectedCustomerFilter(e.target.value)}
-              className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-600 transition-colors cursor-pointer"
+              className="bg-white border border-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-bg-primary transition-colors cursor-pointer"
             >
               <option value="all">All Customers</option>
               {customers?.map((cust: any) => (
@@ -334,7 +335,7 @@ export default function LogsTab({ userRole }: LogsTabProps) {
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                           log.status === 'running'
-                            ? 'bg-blue-50 text-blue-600 border border-blue-100 animate-pulse'
+                            ? 'bg-blue-50 text-bg-primary border border-blue-100 animate-pulse'
                             : log.status === 'stopped'
                               ? 'bg-gray-100 text-gray-600 border border-gray-200'
                               : log.status === 'failure' ||

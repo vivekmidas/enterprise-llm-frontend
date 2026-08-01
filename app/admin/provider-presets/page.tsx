@@ -227,7 +227,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <Server className="h-6 w-6 text-blue-600" />
+            <Server className="h-6 w-6 text-bg-primary" />
             <h1 className="text-xl font-bold text-gray-900">Provider Presets & Sample Configs</h1>
           </div>
           <p className="text-xs text-gray-500 mt-1">
@@ -248,7 +248,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
             </button>
             <button
               onClick={handleOpenCreateModal}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-primary hover:bg-blue-700 rounded-lg shadow-sm transition cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               Add Provider Preset
@@ -297,7 +297,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
       {/* Cards Grid */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+          <Loader2 className="h-8 w-8 text-bg-primary animate-spin" />
         </div>
       ) : filteredPresets.length === 0 ? (
         <div className="bg-white p-12 text-center rounded-xl border border-gray-200">
@@ -329,7 +329,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleOpenEditModal(preset)}
-                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
+                        className="p-1.5 text-gray-500 hover:text-bg-primary hover:bg-blue-50 rounded-md transition"
                         title="Edit preset"
                       >
                         <Pencil className="h-4 w-4" />
@@ -413,7 +413,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
           <div className="bg-white text-gray-900 rounded-xl shadow-2xl border border-gray-200 w-full max-w-4xl overflow-hidden my-8">
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-blue-600" />
+                <Sliders className="h-4 w-4 text-bg-primary" />
                 {editingPreset.id ? `Edit Provider Preset: ${editingPreset.display_name || editingPreset.name}` : 'Create Provider Preset'}
               </h3>
               <button
@@ -586,7 +586,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                   id="is_active"
                   checked={editingPreset.is_active ?? true}
                   onChange={(e) => setEditingPreset({ ...editingPreset, is_active: e.target.checked })}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-gray-300 text-bg-primary focus:ring-blue-500"
                 />
                 <label htmlFor="is_active" className="font-semibold text-gray-700">
                   Active (available to users in provider selection)
@@ -604,7 +604,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
               <button
                 onClick={handleSavePreset}
                 disabled={saving}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2 shadow-sm transition"
+                className="px-4 py-2 bg-primary hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2 shadow-sm transition"
               >
                 {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {editingPreset.id ? 'Update Preset' : 'Create Preset'}

@@ -1,15 +1,17 @@
-export const theme = {
-  colors: {
-    primary: '#B2EDC5',
-    secondary: '#25272c',
-    text: {
-      primary: '#09090b', // black-900
-      secondary: '#B2EDC5', // gray-900
-    },
-    background: '#ffffff',
-    card: '#f8fafc',
-    border: '#e2e8f0',
-  },
-} as const;
+export const THEME = {
+  mint: 'var(--text-black)',
+  mintLight: 'var(--secondary)',
+  mintBorder: 'var(--ring)',
+  primary: 'var(--primary)',
+  secondary: 'var(--secondary)',
+  bg: 'var(--background)',
+  card: 'var(--background)',
+  border: 'var(--border)',
+  textPrimary: 'var(--text-primary)',
+  textSecondary: 'var(--text-secondary)',
+  textMuted: 'var(--text-secondary)',
+};
 
-export type Theme = typeof theme;
+export const theme = THEME;
+export type Theme = typeof THEME;
+

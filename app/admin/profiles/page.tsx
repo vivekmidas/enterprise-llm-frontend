@@ -143,7 +143,7 @@ const SectionHeader = ({
   subtitle: string;
 }) => (
   <div className="flex items-center gap-3 mb-4">
-    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-primary">
       {icon}
     </div>
     <div>
@@ -237,7 +237,7 @@ const Toggle = ({
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none cursor-pointer ${
-        checked ? 'bg-blue-600' : 'bg-gray-200'
+        checked ? 'bg-primary' : 'bg-gray-200'
       }`}
     >
       <span
@@ -275,7 +275,7 @@ const SliderField = ({
       step={step}
       value={value}
       onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="w-full accent-blue-600 cursor-pointer"
+      className="w-full accent-primary cursor-pointer"
     />
     <div className="flex justify-between text-[10px] text-gray-400 font-medium">
       <span>{min}</span>
@@ -1084,7 +1084,8 @@ const ProfileEditor = ({
             <button
               onClick={saveProfileName}
               disabled={savingName || !profileName.trim()}
-              className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition cursor-pointer"
+              className="p-1.5 rounded-lg bg-primary
+              text-white hover:bg-blue-700 disabled:opacity-50 transition cursor-pointer"
               title="Save name"
             >
               {savingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
@@ -1107,7 +1108,7 @@ const ProfileEditor = ({
               <h3 className="font-bold text-base text-gray-800">{profile.name}</h3>
               <button
                 onClick={() => setIsEditingName(true)}
-                className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors cursor-pointer"
+                className="p-1 text-gray-400 hover:text-primary rounded transition-colors cursor-pointer"
                 title="Edit Profile Name"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -1210,7 +1211,7 @@ const ProfileEditor = ({
             <button
               onClick={() => saveSection(activeSection)}
               disabled={!!savingSection}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer disabled:opacity-60"
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer disabled:opacity-60"
             >
               {savingSection === activeSection ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1226,7 +1227,7 @@ const ProfileEditor = ({
         <div className="w-[340px] shrink-0 p-4 overflow-y-auto bg-slate-50/20">
           <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-xs space-y-3">
             <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-              <FlaskRound className="w-4 h-4 text-blue-600" />
+              <FlaskRound className="w-4 h-4 text-primary" />
               Gateway Diagnostic
             </h4>
             <p className="text-xs text-gray-500 leading-relaxed">
@@ -1458,9 +1459,9 @@ const CreateProfileModal = ({
               type="button"
               onClick={create}
               disabled={saving || !name.trim()}
-              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+              className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
             >
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5 bg-primary" />}
               Create Profile
             </button>
           </div>
@@ -1588,7 +1589,7 @@ export default function ProfilesPage({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowCreate(true)}
-              className="p-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
+              className="p-1.5 bg-primary text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
               title="Create LLM Profile"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -1639,7 +1640,7 @@ export default function ProfilesPage({
                   key={p.id}
                   onClick={() => setSelectedId(p.id)}
                   className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
-                    isSelected ? 'bg-blue-50/40 border-l-4 border-blue-600' : ''
+                    isSelected ? 'bg-blue-50/40 border-l-4 border-primary' : ''
                   }`}
                 >
                   <div className="space-y-1.5 pr-2 min-w-0 flex-1">
@@ -1697,7 +1698,7 @@ export default function ProfilesPage({
           </p>
           <button
             onClick={() => setShowCreate(true)}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
+            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
           >
             Create LLM Profile
           </button>

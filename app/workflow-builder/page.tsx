@@ -102,7 +102,7 @@ function AgentBuilderContent() {
         setTimeout(() => fitView({ duration: 500, padding: 0.15 }), 300);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync all existing nodes on the canvas if the list of available agents refreshes

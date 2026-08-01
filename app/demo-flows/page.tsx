@@ -252,7 +252,9 @@ export default function DemoFlowsPage() {
       {/* How it works */}
       <section className="bg-white border-t border-gray-100 px-6 py-14">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">How Demo Flows Work</h2>
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">
+            How Demo Flows Work
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {

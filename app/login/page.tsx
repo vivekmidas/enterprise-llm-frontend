@@ -70,13 +70,18 @@ export default function LoginPage() {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>
 
       <div className="mb-8 flex flex-col items-center gap-2">
-        <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-200">
+        <div className="bg-primary p-2 rounded-xl shadow-lg shadow-blue-200">
           <Cpu className="h-8 w-8 text-white" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
@@ -101,7 +106,7 @@ export default function LoginPage() {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <label className=" font-bold text-gray-500 uppercase tracking-wider">Password</label>
-              <Link href="#" className=" font-bold text-blue-600 hover:text-blue-700">
+              <Link href="#" className=" font-bold text-bg-primary hover:text-blue-700">
                 Forgot?
               </Link>
             </div>
@@ -118,7 +123,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-200 disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 bg-primary text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-200 disabled:opacity-50"
           >
             {loading ? 'Logging in...' : 'Log in to Console'} <ArrowRight className="h-4 w-4" />
           </button>
@@ -126,7 +131,7 @@ export default function LoginPage() {
 
         <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-center gap-2">
           <span className="text-sm text-gray-500">New to Gateway?</span>
-          <Link href="/signup" className="text-sm font-bold text-blue-600 hover:text-blue-700">
+          <Link href="/signup" className="text-sm font-bold text-bg-primary hover:text-blue-700">
             Create an account
           </Link>
         </div>

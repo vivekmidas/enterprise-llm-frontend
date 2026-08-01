@@ -43,9 +43,9 @@ export const Tabs: React.FC<TabsProps> = ({
   };
 
   const activeClasses = {
-    default: 'text-gray-900 border-b-blue-600',
+    default: 'text-gray-900 border-b-bg-primary',
     pill: 'bg-white text-gray-900 shadow-sm',
-    underline: 'text-gray-900 border-b-blue-600',
+    underline: 'text-gray-900 border-b-bg-primary',
   };
 
   const inactiveClasses = {

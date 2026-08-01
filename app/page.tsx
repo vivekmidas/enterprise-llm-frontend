@@ -104,7 +104,7 @@ function FeatureCard({
       ([entry]) => {
         if (entry.isIntersecting) setVisible(true);
       },
-      { threshold: 0.15 }
+      { threshold: 0.15 },
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
@@ -218,8 +218,22 @@ export default function LandingPage() {
         <FloatingNode icon={Clock} label="Scheduler" x="18%" y="40%" delay={0} color="#f6c55cff" />
         <FloatingNode icon={Bot} label="AI Agent" x="82%" y="15%" delay={0.5} color="#06b6d4" />
         <FloatingNode icon={Database} label="CRM Sync" x="75%" y="65%" delay={1} color="#10b981" />
-        <FloatingNode icon={FileText} label="PDF Parser" x="5%" y="70%" delay={1.5} color="#f59e0b" />
-        <FloatingNode icon={MessageSquare} label="Slack Notify" x="88%" y="45%" delay={0.8} color="#ec4899" />
+        <FloatingNode
+          icon={FileText}
+          label="PDF Parser"
+          x="5%"
+          y="70%"
+          delay={1.5}
+          color="#f59e0b"
+        />
+        <FloatingNode
+          icon={MessageSquare}
+          label="Slack Notify"
+          x="88%"
+          y="45%"
+          delay={0.8}
+          color="#ec4899"
+        />
 
         <div className="relative max-w-5xl mx-auto text-center z-10">
           {/* Badge */}
@@ -466,8 +480,8 @@ export default function LandingPage() {
                 <h3 className="text-2xl font-bold">Deep Observability</h3>
               </div>
               <p className="text-gray-400 mb-8 leading-relaxed">
-                Full MELT support. Every workflow execution is traced, measured, and logged. Debug in
-                seconds, not hours.
+                Full MELT support. Every workflow execution is traced, measured, and logged. Debug
+                in seconds, not hours.
               </p>
               <div className="space-y-3">
                 {[
@@ -579,8 +593,9 @@ export default function LandingPage() {
                   Launch your own nodes
                 </h2>
                 <p className="text-gray-400 leading-relaxed mb-6">
-                  Write custom workflow nodes in Python or JavaScript. Package them as plugins, share
-                  across your org, and version them independently. Your business logic, your rules.
+                  Write custom workflow nodes in Python or JavaScript. Package them as plugins,
+                  share across your org, and version them independently. Your business logic, your
+                  rules.
                 </p>
                 <ul className="space-y-3">
                   {[

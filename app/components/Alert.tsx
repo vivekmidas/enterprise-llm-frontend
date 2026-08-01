@@ -39,7 +39,7 @@ const typeConfig = {
     bg: 'bg-blue-50',
     border: 'border-blue-200',
     text: 'text-blue-800',
-    iconColor: 'text-blue-600',
+    iconColor: 'text-bg-primary',
   },
 };
 
