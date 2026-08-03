@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { TagInput, getColor } from '@/lib/tag-utils';
 import {
@@ -18,6 +18,11 @@ import {
   X,
   ChevronDown,
   FileText,
+  LayoutGrid,
+  Code2,
+  FileJson,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { COLOR_PALETTE } from '@/lib/utils';
 
@@ -87,6 +92,184 @@ export default function KnowledgeBasesTab({
   const [docTypes, setDocTypes] = useState<string[]>([]);
   const [newDocType, setNewDocType] = useState('');
   const [savingDocTypes, setSavingDocTypes] = useState(false);
+
+  // EKP Inspect Modal state
+  const [ekpLoading, setEkpLoading] = useState(false);
+  const [selectedEkpDoc, setSelectedEkpDoc] = useState<any>(null);
+  const [showEkpInspectModal, setShowEkpInspectModal] = useState(false);
+  const [ekpParagraphs, setEkpParagraphs] = useState<any[]>([]);
+  const [ekpEntities, setEkpEntities] = useState<any[]>([]);
+  const [activeInspectTab, setActiveInspectTab] = useState<'paragraphs' | 'entities'>('paragraphs');
+  const [entityDisplayMode, setEntityDisplayMode] = useState<'cards' | 'json'>('cards');
+  const [copiedJson, setCopiedJson] = useState(false);
+
+  // Entity Edit state
+  const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
+  const [editEntityForm, setEditEntityForm] = useState<{
+    entity_type: string;
+    entity_key: string;
+    value: string;
+    confidence: number;
+    basis: string;
+  }>({ entity_type: '', entity_key: '', value: '', confidence: 1.0, basis: 'FACT' });
+  const [savingEntity, setSavingEntity] = useState(false);
+
+  // Clean entity_key for card header (hide raw array indices like lawyers[1].advocate)
+  const formatEntityKey = (entityKey?: string, entityType?: string) => {
+    if (!entityKey) return entityType || 'Entity';
+    const cleanPath = entityKey.replace(/\[\d+\]/g, '');
+    const parts = cleanPath.split('.').filter(Boolean);
+    if (parts.length === 0) return entityType || 'Entity';
+
+    const formattedParts = parts.map((p) => {
+      const w = p.replace(/_/g, ' ');
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    });
+
+    if (entityType && formattedParts[0].toLowerCase() === entityType.toLowerCase()) {
+      formattedParts.shift();
+    }
+
+    return formattedParts.length > 0 ? formattedParts.join(' → ') : (entityType || 'Entity');
+  };
+
+  // Reconstruct prettified structured JSON object from extracted entities
+  const prettifiedEntitiesJson = useMemo(() => {
+    if (!ekpEntities || ekpEntities.length === 0) return '{}';
+    const result: Record<string, any> = {};
+
+    ekpEntities.forEach((ent) => {
+      let parsedVal = ent.value;
+      if (typeof parsedVal === 'string' && (parsedVal.trim().startsWith('{') || parsedVal.trim().startsWith('['))) {
+        try {
+          parsedVal = JSON.parse(parsedVal);
+        } catch (_) {}
+      }
+
+      const keyPath = ent.entity_key || ent.entity_type || 'entity';
+      const parts = keyPath.split('.').filter(Boolean);
+
+      let current = result;
+      for (let i = 0; i < parts.length; i++) {
+        let rawPart = parts[i];
+        let propName = rawPart.replace(/\[\d+\]/g, '').trim();
+        let indexMatch = rawPart.match(/\[(\d+)\]/);
+        let arrayIdx = indexMatch ? parseInt(indexMatch[1], 10) : null;
+
+        const isLast = i === parts.length - 1;
+
+        if (!propName && arrayIdx !== null) {
+          continue;
+        }
+
+        if (isLast) {
+          if (arrayIdx !== null) {
+            if (!Array.isArray(current[propName])) {
+              current[propName] = [];
+            }
+            current[propName][arrayIdx] = parsedVal;
+          } else {
+            current[propName || rawPart] = parsedVal;
+          }
+        } else {
+          if (arrayIdx !== null) {
+            if (!Array.isArray(current[propName])) {
+              current[propName] = [];
+            }
+            if (!current[propName][arrayIdx]) {
+              current[propName][arrayIdx] = {};
+            }
+            current = current[propName][arrayIdx];
+          } else {
+            if (!current[propName] || typeof current[propName] !== 'object') {
+              current[propName] = {};
+            }
+            current = current[propName];
+          }
+        }
+      }
+    });
+
+    return JSON.stringify(result, null, 2);
+  }, [ekpEntities]);
+
+  const fetchEkpDocDetails = async (doc: any) => {
+    setSelectedEkpDoc(doc);
+    setEkpLoading(true);
+    setShowEkpInspectModal(true);
+    try {
+      const [pRes, eRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/paragraphs`, { headers: getHeaders() }),
+        fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/entities`, { headers: getHeaders() }),
+      ]);
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        setEkpParagraphs(pData);
+      } else {
+        setEkpParagraphs([]);
+      }
+      if (eRes.ok) {
+        const eData = await eRes.json();
+        setEkpEntities(eData);
+      } else {
+        setEkpEntities([]);
+      }
+    } catch (err) {
+      console.error('Failed to load EKP details:', err);
+      setEkpParagraphs([]);
+      setEkpEntities([]);
+    } finally {
+      setEkpLoading(false);
+    }
+  };
+
+  const startEditEntity = (ent: any) => {
+    setEditingEntityId(ent.id);
+    setEditEntityForm({
+      entity_type: ent.entity_type || '',
+      entity_key: ent.entity_key || '',
+      value: typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value || ''),
+      confidence: ent.confidence ?? 1.0,
+      basis: ent.basis || 'FACT',
+    });
+  };
+
+  const handleSaveEntity = async (entityId: string) => {
+    setSavingEntity(true);
+    try {
+      let parsedValue: any = editEntityForm.value;
+      try {
+        if (editEntityForm.value.startsWith('{') || editEntityForm.value.startsWith('[')) {
+          parsedValue = JSON.parse(editEntityForm.value);
+        }
+      } catch (_) {}
+
+      const res = await fetch(`${BACKEND_URL}/api/v3/knowledge/entities/${entityId}`, {
+        method: 'PUT',
+        headers: {
+          ...getHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          entity_type: editEntityForm.entity_type,
+          entity_key: editEntityForm.entity_key,
+          value: parsedValue,
+          confidence: editEntityForm.confidence,
+          basis: editEntityForm.basis,
+        }),
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setEkpEntities((prev) => prev.map((item) => (item.id === entityId ? updated : item)));
+        setEditingEntityId(null);
+      }
+    } catch (err) {
+      console.error('Failed to update entity:', err);
+    } finally {
+      setSavingEntity(false);
+    }
+  };
 
   const fetchDocTypes = async () => {
     try {
@@ -982,6 +1165,13 @@ export default function KnowledgeBasesTab({
                       {/* Operations */}
                       <div className="flex items-center gap-1.5">
                         <button
+                          onClick={() => fetchEkpDocDetails(doc)}
+                          className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                          title="Inspect EKP Spans & Entities"
+                        >
+                          <SlidersHorizontal className="w-3.5 h-3.5 text-purple-600" />
+                        </button>
+                        <button
                           onClick={() => refreshDocStatus(doc.id)}
                           disabled={fetchingDocIds[doc.id]}
                           className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-all cursor-pointer"
@@ -1675,6 +1865,344 @@ export default function KnowledgeBasesTab({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* EKP DOCUMENT INSPECT DRAWER */}
+      {showEkpInspectModal && selectedEkpDoc && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-end z-[120] animate-fade-in">
+          <div className="bg-white w-full max-w-5xl h-full shadow-2xl flex flex-col border-l border-gray-200 overflow-hidden animate-in slide-in-from-right duration-200">
+            {/* DRAWER HEADER */}
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/20 text-purple-300 rounded-lg">
+                  <SlidersHorizontal className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm flex items-center gap-2">
+                    <span>{selectedEkpDoc.file_name || selectedEkpDoc.name || 'Document Details'}</span>
+                    <span className="text-[10px] font-mono bg-purple-900/80 text-purple-200 px-2 py-0.5 rounded uppercase">
+                      EKP V3 Active
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-mono">ID: {selectedEkpDoc.id}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {ekpLoading && (
+                  <span className="text-xs text-purple-300 flex items-center gap-1.5 font-medium">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading Spans...
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    setShowEkpInspectModal(false);
+                    setSelectedEkpDoc(null);
+                    setEditingEntityId(null);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* DRAWER MAIN CONTENT */}
+            <div className="flex-1 grid grid-cols-2 divide-x overflow-hidden divide-gray-200">
+              {/* LEFT VERTICAL SECTION: PARAGRAPH SPANS */}
+              <div className="flex flex-col h-full overflow-hidden p-4 space-y-3 bg-slate-50/50">
+                <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                  <h4 className="font-bold text-xs uppercase tracking-wider flex items-center gap-2 text-slate-800">
+                    <FileText className="w-4 h-4 text-emerald-600" />
+                    Original CDM Paragraph Spans ({ekpParagraphs.length})
+                  </h4>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Source Document
+                  </span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                  {ekpParagraphs.length === 0 ? (
+                    <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
+                      No original document paragraph spans loaded yet.
+                    </div>
+                  ) : (
+                    ekpParagraphs.map((p) => (
+                      <div
+                        key={p.span_id}
+                        className="p-3 rounded-lg border space-y-1.5 hover:bg-slate-50 transition-colors text-xs bg-white border-gray-200"
+                      >
+                        <div className="flex items-center justify-between text-[10px] font-semibold text-gray-500">
+                          <span className="font-mono text-emerald-700 font-bold">{p.span_id}</span>
+                          <span>
+                            Page {p.page_number} · Para {p.paragraph_number}
+                          </span>
+                        </div>
+                        <p className="leading-relaxed font-sans text-xs text-gray-800">
+                          {p.text_content}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* RIGHT VERTICAL SECTION: EXTRACTED INFORMATION & ENTITIES */}
+              <div className="flex flex-col h-full overflow-hidden p-4 space-y-3 bg-white">
+                <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                  <h4 className="font-bold text-xs uppercase tracking-wider flex items-center gap-2 text-slate-800">
+                    <SlidersHorizontal className="w-4 h-4 text-purple-600" />
+                    Extracted Information ({ekpEntities.length})
+                  </h4>
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                    <button
+                      onClick={() => setEntityDisplayMode('cards')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                        entityDisplayMode === 'cards'
+                          ? 'bg-white text-purple-700 shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <LayoutGrid className="w-3 h-3" />
+                      Cards
+                    </button>
+                    <button
+                      onClick={() => setEntityDisplayMode('json')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                        entityDisplayMode === 'json'
+                          ? 'bg-white text-purple-700 shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <Code2 className="w-3 h-3" />
+                      Prettified JSON
+                    </button>
+                  </div>
+                </div>
+
+                {entityDisplayMode === 'json' ? (
+                  <div className="flex-1 flex flex-col min-h-0 bg-slate-950 rounded-xl border border-slate-800 p-3 shadow-inner overflow-hidden">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 shrink-0">
+                      <span className="text-[10px] font-mono text-purple-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <FileJson className="w-3.5 h-3.5 text-purple-400" />
+                        Prettified LLM JSON Output
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(prettifiedEntitiesJson);
+                          setCopiedJson(true);
+                          setTimeout(() => setCopiedJson(false), 2000);
+                        }}
+                        className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-purple-300 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded transition-colors cursor-pointer"
+                      >
+                        {copiedJson ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-400">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy JSON</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <pre className="flex-1 overflow-auto text-[11px] font-mono text-emerald-400 leading-relaxed pr-2 select-text font-medium whitespace-pre-wrap">
+                      {prettifiedEntitiesJson}
+                    </pre>
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                    {ekpEntities.length === 0 ? (
+                      <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
+                        No extracted domain entities available for this document.
+                      </div>
+                    ) : (
+                      ekpEntities.map((ent) => {
+                        const isEditing = editingEntityId === ent.id;
+                        return (
+                          <div
+                            key={ent.id}
+                            className="p-3.5 rounded-xl border space-y-2 transition-all shadow-2xs bg-white border-gray-200"
+                          >
+                            {isEditing ? (
+                              <div className="space-y-3 p-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+                                    Editing Entity
+                                  </span>
+                                  <button
+                                    onClick={() => setEditingEntityId(null)}
+                                    className="text-xs text-slate-400 hover:text-slate-600 font-bold"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">
+                                      Entity Type
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={editEntityForm.entity_type}
+                                      onChange={(e) =>
+                                        setEditEntityForm((prev) => ({ ...prev, entity_type: e.target.value }))
+                                      }
+                                      className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">
+                                      Entity Key
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={editEntityForm.entity_key}
+                                      onChange={(e) =>
+                                        setEditEntityForm((prev) => ({ ...prev, entity_key: e.target.value }))
+                                      }
+                                      className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase">
+                                    Extracted Value
+                                  </label>
+                                  <textarea
+                                    rows={2}
+                                    value={editEntityForm.value}
+                                    onChange={(e) =>
+                                      setEditEntityForm((prev) => ({ ...prev, value: e.target.value }))
+                                    }
+                                    className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5 resize-none"
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">
+                                      Confidence (0.0 - 1.0)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      step="0.05"
+                                      min="0"
+                                      max="1"
+                                      value={editEntityForm.confidence}
+                                      onChange={(e) =>
+                                        setEditEntityForm((prev) => ({
+                                          ...prev,
+                                          confidence: parseFloat(e.target.value),
+                                        }))
+                                      }
+                                      className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">
+                                      Basis
+                                    </label>
+                                    <select
+                                      value={editEntityForm.basis}
+                                      onChange={(e) =>
+                                        setEditEntityForm((prev) => ({ ...prev, basis: e.target.value }))
+                                      }
+                                      className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5 cursor-pointer"
+                                    >
+                                      <option value="FACT">FACT</option>
+                                      <option value="INFERENCE">INFERENCE</option>
+                                      <option value="UNKNOWN">UNKNOWN</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <button
+                                  onClick={() => handleSaveEntity(ent.id)}
+                                  disabled={savingEntity}
+                                  className="w-full py-1.5 rounded text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-opacity bg-primary text-white"
+                                >
+                                  {savingEntity ? <RefreshCw className="w-3 h-3 animate-spin" /> : null}
+                                  Save Entity Changes
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold uppercase">
+                                      {ent.entity_type}
+                                    </span>
+                                    <span className="font-bold text-xs text-slate-900">
+                                      {formatEntityKey(ent.entity_key, ent.entity_type)}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => startEditEntity(ent)}
+                                    className="p-1 rounded text-slate-400 hover:text-emerald-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                    title="Edit Entity"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+
+                                <p className="text-xs text-slate-800 font-medium leading-relaxed bg-slate-50/70 p-2 rounded border border-slate-150">
+                                  {typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value)}
+                                </p>
+
+                                <div className="flex items-center justify-between text-[10px] font-medium text-slate-500 pt-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span>
+                                      Confidence: <strong>{(ent.confidence * 100).toFixed(0)}%</strong>
+                                    </span>
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                        ent.basis === 'FACT'
+                                          ? 'bg-green-100 text-green-800'
+                                          : 'bg-amber-100 text-amber-800'
+                                      }`}
+                                    >
+                                      {ent.basis}
+                                    </span>
+                                  </div>
+                                  {ent.provenance_span_id && (
+                                    <span className="font-mono text-emerald-700 font-semibold text-[10px]">
+                                      Span: {ent.provenance_span_id}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* DRAWER FOOTER */}
+            <div className="p-4 border-t border-gray-200 flex items-center justify-between shrink-0 bg-slate-50">
+              <span className="text-xs font-medium text-slate-500">
+                {ekpParagraphs.length} Paragraph Spans · {ekpEntities.length} Domain Entities
+              </span>
+              <button
+                onClick={() => {
+                  setShowEkpInspectModal(false);
+                  setSelectedEkpDoc(null);
+                  setEditingEntityId(null);
+                }}
+                className="px-4 py-2 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-opacity cursor-pointer"
+              >
+                Done Viewing
+              </button>
+            </div>
           </div>
         </div>
       )}
