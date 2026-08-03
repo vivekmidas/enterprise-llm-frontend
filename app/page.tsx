@@ -205,7 +205,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen text-white font-sans overflow-x-hidden">
       {/* ── HERO ── */}
-      <section className="relative px-6 pt-16 pb-28 md:pt-24 md:pb-40 overflow-hidden bg-primary">
+      <section className="relative px-6 pt-16 pb-28 md:pt-24 md:pb-40 overflow-hidden bg-black">
         {/* Background gradient orbs */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-violet-600/8 blur-[120px]" />
@@ -256,9 +256,9 @@ export default function LandingPage() {
 
           {/* Sub */}
           <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-        Enterprise Knowledge base (EKB) is workflow automation platform and knowledge extraction
-        platform that lets small &amp; mid-size enterprises connect internal systems, launch custom
-        nodes, extract knowledge from documents and orchestrate AI-powered processes — with full RBAC and observability built in.
+            Enterprise Knowledge base (EKB) is workflow automation platform and knowledge extraction
+            platform that lets small &amp; mid-size enterprises connect internal systems, launch custom
+            nodes, extract knowledge from documents and orchestrate AI-powered processes — with full RBAC and observability built in.
           </p>
 
           {/* CTAs */}
@@ -293,7 +293,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── WORKFLOW VISUAL PREVIEW ── */}
-      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-primary">
+      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-black/90">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl bg-dark-gray text-white font-extrabold tracking-tight mb-4">
@@ -354,7 +354,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CORE FEATURES ── */}
-      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-primary">
+      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-black">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">
@@ -414,7 +414,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── RBAC & OBSERVABILITY DEEP DIVE ── */}
-      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-primary/95">
+      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-black/85">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
             {/* RBAC Column */}
@@ -546,7 +546,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── INTEGRATIONS ── */}
-      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-primary">
+      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-black">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">
             Connects to{' '}
@@ -577,7 +577,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CUSTOM NODES CTA ── */}
-      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-primary/95">
+      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-black/85">
         <div className="max-w-5xl mx-auto">
           <div className="relative rounded-3xl border border-gray-800/60 bg-gradient-to-br from-violet-950/40 to-fuchsia-950/30 p-10 md:p-16 overflow-hidden">
             {/* Background glow */}
@@ -648,7 +648,7 @@ class SentimentAnalyzer(Node):
       </section>
 
       {/* ── WHY SMEs CHOOSE nFlow ── */}
-      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-primary">
+      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-black">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">
             Why growing teams choose{' '}
@@ -703,7 +703,7 @@ class SentimentAnalyzer(Node):
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-primary/95">
+      <section className="px-6 py-20 md:py-28 border-t border-gray-800/50 bg-black/95">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-6">
             Ready to extract knowledge from data?

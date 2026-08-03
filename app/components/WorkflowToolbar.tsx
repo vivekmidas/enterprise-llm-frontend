@@ -66,7 +66,7 @@ export default function WorkflowToolbar({
 
       <button
         onClick={onSave}
-        className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-lg text-xs font-semibold shadow-sm transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.98] cursor-pointer"
+        className="flex items-center gap-1.5 px-4 py-1.5 bg-secondary text-primary hover:bg-indigo-750  rounded-lg text-xs font-semibold shadow-sm transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.98] cursor-pointer"
       >
         <Save className="w-3.5 h-3.5" /> Save
       </button>
@@ -74,7 +74,7 @@ export default function WorkflowToolbar({
       <button
         onClick={onExecute}
         disabled={isExecuting}
-        className="flex items-center gap-1.5 px-4.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-450 rounded-lg text-xs font-bold text-white shadow-sm transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.98] cursor-pointer"
+        className="flex items-center gap-1.5 px-4.5 py-1.5 bg-primary hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-450 rounded-lg text-xs font-bold text-white shadow-sm transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.98] cursor-pointer"
       >
         {isExecuting ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />

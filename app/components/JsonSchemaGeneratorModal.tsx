@@ -405,9 +405,8 @@ export default function JsonSchemaGeneratorModal({
       <div key={path} className="flex flex-col w-full">
         {/* Node selector row */}
         <div
-          className={`flex items-center justify-between py-1 px-3 hover:bg-slate-50 border-b border-slate-100 gap-4 transition-colors ${
-            isSelected ? 'bg-slate-50/30' : 'opacity-60'
-          }`}
+          className={`flex items-center justify-between py-1 px-3 hover:bg-slate-50 border-b border-slate-100 gap-4 transition-colors ${isSelected ? 'bg-slate-50/30' : 'opacity-60'
+            }`}
           style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -640,7 +639,7 @@ export default function JsonSchemaGeneratorModal({
           <button
             onClick={handleApply}
             disabled={Object.keys(fieldsMap).length === 0}
-            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white rounded-lg shadow-sm shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="px-5 py-2 bg-primary hover:bg-indigo-700 text-xs font-bold text-white rounded-lg shadow-sm shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             Apply & Save Schema
           </button>

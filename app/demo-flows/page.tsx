@@ -192,7 +192,7 @@ export default function DemoFlowsPage() {
       {/* Hero */}
       <section className="bg-white border-b border-gray-100 px-6 py-16 text-center">
         <div className="max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-violet-600 bg-violet-50 px-4 py-1.5 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-primary bg-violet-50 px-4 py-1.5 rounded-full mb-6">
             <Zap className="h-3.5 w-3.5" />
             Live Demo Flows
           </div>

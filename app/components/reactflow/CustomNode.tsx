@@ -76,7 +76,7 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
         };
       default:
         return {
-          cardBorder: selected ? 'border-slate-400' : 'border-slate-200 hover:border-slate-300',
+          cardBorder: selected ? 'border-slate-100' : 'border-slate-200 hover:border-slate-300',
           badge: null,
         };
     }

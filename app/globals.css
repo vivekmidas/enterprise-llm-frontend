@@ -5,113 +5,111 @@
 
 
 
-:root {
-  --text-black: #000000;
-  --primary: #06040A;
-  --secondary: #ffffff;
-  --background: var(--secondary);
-  --text-primary: #ffffff;
-  --text-secondary: #4d08b5;
-  --foreground: var(--primary);
-  --card: #ffffff;
-  --card-foreground: #09090b;
-  --popover: #ffffff;
-  --popover-foreground: #09090b;
+  :root {
 
-  /* Button text is secondary color when button background is primary */
-  --primary-foreground: var(--secondary);
-  --secondary-foreground: #ffffff;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #e6f9ed;
-  --accent-foreground: #09090b;
-  --destructive: #b3261e;
-  --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #f1f5f9;
-  --ring: #4d08b5;
+    --primary: #170280e1;
+    --secondary: #f8f8f8;
+    --background: var(--secondary);
+    --text-primary: #ffffff;
+    --text-secondary: #4d08b5;
+    --foreground: var(--primary);
+    --card: #ffffff;
+    --card-foreground: #09090b;
+    --popover: #ffffff;
+    --popover-foreground: #09090b;
+    --page: #100536;
 
-  /* Multi-tenant component tokens */
-  --nav-bg: var(--secondary);
-  --nav-fg: var(--primary);
-  --nav-border: #e2e8f0;
+    /* Button text is secondary color when button background is primary */
+    --primary-foreground: var(--secondary);
+    --secondary-foreground: #ffffff;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #e6f9ed;
+    --accent-foreground: #09090b;
+    --destructive: #b3261e;
+    --destructive-foreground: #ffffff;
+    --border: #e2e8f0;
+    --input: #f1f5f9;
+    --ring: #4d08b5;
 
-  --sidebar-bg: var(--secondary);
-  --sidebar-fg: var(--primary);
-  --sidebar-border: #e2e8f0;
-  --sidebar-header-bg: var(--secondary);
+    /* Multi-tenant component tokens */
+    --nav-bg: var(--secondary);
+    --nav-fg: var(--primary);
+    --nav-border: #e2e8f0;
 
-  --properties-bg: var(--secondary);
-  --properties-fg: var(--primary);
-  --properties-border: #e2e8f0;
-  --properties-header-bg: var(--secondary);
+    --sidebar-bg: var(--secondary);
+    --sidebar-fg: var(--primary);
+    --sidebar-border: #e2e8f0;
+    --sidebar-header-bg: var(--secondary);
 
-  --workflow-header-bg: var(--secondary);
-  --workflow-header-fg: var(--primary);
-  --workflow-header-border: #e2e8f0;
+    --properties-bg: var(--secondary);
+    --properties-fg: var(--primary);
+    --properties-border: #e2e8f0;
+    --properties-header-bg: var(--secondary);
 
-  --font-dm-sans: 'DM Sans', sans-serif;
-  --font-space-grotesk: 'Space Grotesk', sans-serif;
-}
+    --workflow-header-bg: var(--secondary);
+    --workflow-header-fg: var(--primary);
+    --workflow-header-border: #e2e8f0;
 
-.dark {
-  --primary: #5b3cf5;
-  --secondary: #25272c;
+    --font-dm-sans: 'DM Sans', sans-serif;
+    --font-space-grotesk: 'Space Grotesk', sans-serif;
+  }
 
-  --background: var(--secondary);
-  --foreground: var(--primary);
-  --card: #18181b;
-  --card-foreground: #f8fafc;
-  --popover: #09090b;
-  --popover-foreground: #f8fafc;
+  .dark {
+    --primary: #5b3cf5;
+    --secondary: #25272c;
+    --background: var(--secondary);
+    --foreground: var(--primary);
+    --card: #18181b;
+    --card-foreground: #f8fafc;
+    --popover: #09090b;
+    --popover-foreground: #f8fafc;
+    --primary-foreground: var(--secondary);
+    --secondary-foreground: #ffffff;
+    --muted: #27272a;
+    --muted-foreground: #94a3b8;
+    --accent: #27272a;
+    --accent-foreground: #f8fafc;
+    --destructive: #7f1d1d;
+    --destructive-foreground: #ffffff;
+    --border: #27272a;
+    --input: #27272a;
+    --ring: #5b3cf5;
 
-  --primary-foreground: var(--secondary);
+    --chart-1: #5b3cf5;
+    --chart-2: #25272c;
+    --chart-3: #818cf8;
+    --chart-4: #a78bfa;
+    --chart-5: #c084fc;
 
-  --secondary-foreground: #ffffff;
-  --muted: #27272a;
-  --muted-foreground: #94a3b8;
-  --accent: #27272a;
-  --accent-foreground: #f8fafc;
-  --destructive: #7f1d1d;
-  --destructive-foreground: #ffffff;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #5b3cf5;
+    --sidebar: var(--secondary);
+    --sidebar-foreground: var(--primary);
+    --sidebar-primary: #5b3cf5;
+    --sidebar-primary-foreground: var(--secondary);
+    --sidebar-accent: #25272c;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #27272a;
+    --sidebar-ring: #5b3cf5;
 
-  --chart-1: #5b3cf5;
-  --chart-2: #25272c;
-  --chart-3: #818cf8;
-  --chart-4: #a78bfa;
-  --chart-5: #c084fc;
+    /* Dark mode tenant fallbacks */
+    --nav-bg: var(--secondary);
+    --nav-fg: var(--primary);
+    --nav-border: #27272a;
 
-  --sidebar: var(--secondary);
-  --sidebar-foreground: var(--primary);
-  --sidebar-primary: #5b3cf5;
-  --sidebar-primary-foreground: var(--secondary);
-  --sidebar-accent: #25272c;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #27272a;
-  --sidebar-ring: #5b3cf5;
+    --sidebar-bg: var(--secondary);
+    --sidebar-fg: var(--primary);
+    --sidebar-border: #27272a;
+    --sidebar-header-bg: var(--secondary);
 
-  /* Dark mode tenant fallbacks */
-  --nav-bg: var(--secondary);
-  --nav-fg: var(--primary);
-  --nav-border: #27272a;
+    --properties-bg: var(--secondary);
+    --properties-fg: var(--primary);
+    --properties-border: #27272a;
+    --properties-header-bg: var(--secondary);
 
-  --sidebar-bg: var(--secondary);
-  --sidebar-fg: var(--primary);
-  --sidebar-border: #27272a;
-  --sidebar-header-bg: var(--secondary);
-
-  --properties-bg: var(--secondary);
-  --properties-fg: var(--primary);
-  --properties-border: #27272a;
-  --properties-header-bg: var(--secondary);
-
-  --workflow-header-bg: var(--secondary);
-  --workflow-header-fg: var(--primary);
-  --workflow-header-border: #27272a;
-}
+    --workflow-header-bg: var(--secondary);
+    --workflow-header-fg: var(--primary);
+    --workflow-header-border: #27272a;
+  }
 
   .theme-bank {
     --primary: #000000;
@@ -120,7 +118,7 @@
     --secondary-foreground: #0c2d1c;
     --ring: #5b3cf5;
     --nav-bg: #0c2d1c;
-    --nav-fg: #b2edc5;
+    --nav-fg: #3b3b3b;
     --sidebar-bg: #0f3823;
     --properties-bg: #0f3823;
   }
@@ -205,12 +203,14 @@
     * {
       @apply border-border outline-ring/50;
     }
+
     body {
       @apply bg-background text-foreground;
       /* Added custom font family for body */
       font-family: var(--font-sans);
       font-size: 13px;
     }
+
     h1,
     h2,
     h3,
@@ -220,6 +220,7 @@
       /* Added custom font family for headings */
       font-family: var(--font-heading);
     }
+
     button,
     [role='button'] {
       @apply rounded-full;
@@ -301,6 +302,7 @@
     from {
       stroke-dashoffset: 20;
     }
+
     to {
       stroke-dashoffset: 0;
     }
@@ -355,73 +357,35 @@
 
   /* ===== Modern Button System (Fixed) ===== */
 
-.btn-primary {
-  @apply inline-flex items-center justify-center gap-2
-         px-4 py-2 rounded-lg text-sm font-medium
-         transition-all duration-200
-         bg-primary text-primary-foreground
-         hover:bg-primary/90 hover:shadow-md
-         focus-visible:outline-none focus-visible:ring-2 
-         focus-visible:ring-ring focus-visible:ring-offset-2
-         disabled:opacity-50 disabled:pointer-events-none
-         active:scale-[0.98];
-}
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98];
+  }
 
-.btn-secondary {
-  @apply inline-flex items-center justify-center gap-2
-         px-4 py-2 rounded-lg text-sm font-medium
-         transition-all duration-200
-         bg-secondary text-secondary-foreground
-         hover:bg-secondary/80
-         focus-visible:outline-none focus-visible:ring-2 
-         focus-visible:ring-ring focus-visible:ring-offset-2
-         disabled:opacity-50 disabled:pointer-events-none
-         active:scale-[0.98];
-}
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98];
+  }
 
-.btn-ghost {
-  @apply inline-flex items-center justify-center gap-2
-         px-4 py-2 rounded-lg text-sm font-medium
-         transition-all duration-200
-         text-foreground hover:bg-muted
-         focus-visible:outline-none focus-visible:ring-2 
-         focus-visible:ring-ring focus-visible:ring-offset-2
-         disabled:opacity-50 disabled:pointer-events-none
-         active:scale-[0.98];
-}
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98];
+  }
 
-.btn-outline {
-  @apply inline-flex items-center justify-center gap-2
-         px-4 py-2 rounded-lg text-sm font-medium
-         transition-all duration-200
-         border border-border bg-transparent
-         hover:bg-accent hover:text-accent-foreground
-         focus-visible:outline-none focus-visible:ring-2 
-         focus-visible:ring-ring focus-visible:ring-offset-2
-         disabled:opacity-50 disabled:pointer-events-none
-         active:scale-[0.98];
-}
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border border-border bg-transparent hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98];
+  }
 
-.btn-destructive {
-  @apply inline-flex items-center justify-center gap-2
-         px-4 py-2 rounded-lg text-sm font-medium
-         transition-all duration-200
-         bg-destructive text-destructive-foreground
-         hover:bg-destructive/90
-         focus-visible:outline-none focus-visible:ring-2 
-         focus-visible:ring-ring focus-visible:ring-offset-2
-         disabled:opacity-50 disabled:pointer-events-none
-         active:scale-[0.98];
-}
+  .btn-destructive {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98];
+  }
 
-/* Optional sizes */
-.btn-sm {
-  @apply px-3 py-1.5 text-xs;
-}
+  /* Optional sizes */
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
 
-.btn-lg {
-  @apply px-6 py-3 text-base;
-}
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
   /* Form field improvements */
   .form-input {
     @apply w-full rounded-lg border border-input bg-input px-3 py-2;
@@ -569,6 +533,7 @@
       opacity: 0;
       transform: translateY(4px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -580,6 +545,7 @@
       opacity: 0;
       transform: translateX(-4px);
     }
+
     to {
       opacity: 1;
       transform: translateX(0);
@@ -591,6 +557,7 @@
       opacity: 0;
       transform: translateX(4px);
     }
+
     to {
       opacity: 1;
       transform: translateX(0);
@@ -598,10 +565,12 @@
   }
 
   @keyframes pulse {
+
     0%,
     100% {
       opacity: 1;
     }
+
     50% {
       opacity: 0.5;
     }
@@ -611,6 +580,7 @@
     0% {
       background-position: -1000px 0;
     }
+
     100% {
       background-position: 1000px 0;
     }
@@ -773,13 +743,16 @@
   }
 
   @keyframes shake {
+
     0%,
     100% {
       transform: translateX(0);
     }
+
     25% {
       transform: translateX(-4px);
     }
+
     75% {
       transform: translateX(4px);
     }
@@ -806,6 +779,7 @@
 
   /* Performance: reduce motion for users who prefer it */
   @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {

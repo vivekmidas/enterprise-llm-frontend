@@ -2,14 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { 
-  SlidersHorizontal, 
-  Search, 
-  Settings, 
-  Sparkles, 
-  Clock, 
-  FileText, 
-  CheckCircle, 
+import {
+  SlidersHorizontal,
+  Search,
+  Settings,
+  Sparkles,
+  Clock,
+  FileText,
+  CheckCircle,
   AlertCircle,
   FolderOpen,
   Bookmark,
@@ -352,7 +352,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
 
       {/* Main Layout Grid */}
       <div className="grid grid-cols-4 gap-6 items-start">
-        
+
         {/* Sidebar inputs */}
         <form onSubmit={handleSearch} className="col-span-1 bg-white border border-gray-250 p-5 rounded-xl shadow-xs space-y-4">
           <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b pb-1.5 border-gray-150">
@@ -426,7 +426,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
 
         {/* Side-by-side comparison workspace */}
         <div className="col-span-3 grid grid-cols-2 gap-6">
-          
+
           {/* Config A Box */}
           <div className="bg-white border border-gray-250 rounded-xl overflow-hidden shadow-xs flex flex-col min-h-[500px]">
             <div className="bg-slate-50 border-b border-gray-200 p-4 space-y-3">
@@ -570,7 +570,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
               <div className="flex justify-between items-center text-xs text-gray-400 font-bold uppercase tracking-wider pb-2 border-b border-gray-100">
                 <span>Pipeline Emulation (Config A)</span>
                 {latencyA !== null && (
-                  <span className="text-violet-600 flex items-center gap-0.5 font-semibold normal-case">
+                  <span className="text-primary flex items-center gap-0.5 font-semibold normal-case">
                     <Clock className="w-3 h-3" />
                     {latencyA} ms
                   </span>
@@ -744,7 +744,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                               <p className="text-xs text-gray-700 leading-relaxed font-sans font-normal whitespace-pre-line bg-white p-2 rounded border border-gray-100">
                                 {chunk.content}
                               </p>
-                              
+
                               {/* Chunk diagnostic badges */}
                               <div className="flex flex-wrap items-center gap-2 pt-1 text-[9px] text-gray-400">
                                 <span className="bg-slate-100 px-1 py-0.5 rounded text-gray-600 font-mono">
@@ -776,7 +776,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-indigo-50 hover:bg-indigo-100/50 px-3 py-2.5 flex items-center justify-between text-xs font-extrabold text-indigo-900 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[9px]">5</span>
+                        <span className="w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center text-[9px]">5</span>
                         LLM Synthesis Response
                       </span>
                       <span className="flex items-center gap-2 text-indigo-500">
@@ -1103,7 +1103,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                               <p className="text-xs text-gray-700 leading-relaxed font-sans font-normal whitespace-pre-line bg-white p-2 rounded border border-gray-100">
                                 {chunk.content}
                               </p>
-                              
+
                               {/* Chunk diagnostic badges */}
                               <div className="flex flex-wrap items-center gap-2 pt-1 text-[9px] text-gray-400">
                                 <span className="bg-slate-100 px-1 py-0.5 rounded text-gray-600 font-mono">
