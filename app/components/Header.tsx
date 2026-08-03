@@ -100,15 +100,15 @@ export default function Header() {
                 <User className="h-4 w-4 text-gray-400" />
                 <span className="text-sm font-medium text-gray-600">{userName || 'User'}</span>
                 {userRole && (
-                  <span className="text-xs font-medium text-gray-500 ml-2">({userRole})</span>
+                  <span className="text-sm font-medium text-gray-500 ml-2">({userRole})</span>
                 )}
-                {userId && (
+                {/* {userId && (
                   <span className="text-xs font-medium text-gray-500 ml-2">ID: {userId}</span>
-                )}
+                )} */}
               </div>
               <Link
                 href="/admin"
-                className="text-sm font-bold text-violet-600 hover:text-violet-700 px-3 py-2 rounded-lg hover:bg-violet-50 transition-all duration-200"
+                className="text-sm font-bold text-primary hover:text-violet-700 px-3 py-2 rounded-lg hover:bg-violet-50 transition-all duration-200"
               >
                 Console
               </Link>

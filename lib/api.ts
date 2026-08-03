@@ -105,7 +105,7 @@ export const api = {
     return res.json();
   },
 
-  getNodesForCategories: async (category_id: number): Promise<{ nodes: CategoryItem[] }> => {
+  getNodesForCategories: async (category_id: string): Promise<{ nodes: CategoryItem[] }> => {
     const res = await fetch(`${BACKEND_URL}/nodes/categories/${category_id}`, {
       headers: getHeaders(),
       method: 'GET',
@@ -122,7 +122,7 @@ export const api = {
     return res.json();
   },
 
-  getCategory: async (category_id: number): Promise<{ category: CategoryItem }> => {
+  getCategory: async (category_id: string): Promise<{ category: CategoryItem }> => {
     const res = await fetch(`${BACKEND_URL}/categories/${category_id}`, {
       headers: getHeaders(),
       method: 'GET',
@@ -285,7 +285,7 @@ export const api = {
   },
 
   /** Updates an existing category */
-  updateCategory: async (id: number, category: any) => {
+  updateCategory: async (id: string, category: any) => {
     const res = await fetch(`${BACKEND_URL}/categories/${id}`, {
       method: 'PUT',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -295,7 +295,7 @@ export const api = {
   },
 
   /** Deletes a category */
-  deleteCategory: async (id: number) => {
+  deleteCategory: async (id: string) => {
     const res = await fetch(`${BACKEND_URL}/categories/${id}`, {
       method: 'DELETE',
       headers: getHeaders({
@@ -534,7 +534,7 @@ export const api = {
     return res.json();
   },
 
-  updateProviderPreset: async (id: number, payload: any) => {
+  updateProviderPreset: async (id: string, payload: any) => {
     const res = await fetch(`${BACKEND_URL}/api/admin/provider-presets/${id}`, {
       method: 'PUT',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -547,7 +547,7 @@ export const api = {
     return res.json();
   },
 
-  deleteProviderPreset: async (id: number) => {
+  deleteProviderPreset: async (id: string) => {
     const res = await fetch(`${BACKEND_URL}/api/admin/provider-presets/${id}`, {
       method: 'DELETE',
       headers: getHeaders(),
@@ -666,7 +666,7 @@ export const api = {
   },
 
   uploadDocument: async (
-    kbId: number | string,
+    kbId: string,
     file: File,
     metadata?: { description?: string; tags?: string; doc_type?: string },
   ) => {
@@ -686,13 +686,13 @@ export const api = {
       try {
         const errData = await res.json();
         msg = errData.detail || msg;
-      } catch {}
+      } catch { }
       throw new Error(msg);
     }
     return res.json();
   },
 
-  deleteDocument: async (kbId: number | string, docId: number | string) => {
+  deleteDocument: async (kbId: string, docId: string) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}`, {
       method: 'DELETE',
       headers: getHeaders(),
@@ -701,7 +701,7 @@ export const api = {
     return res.json();
   },
 
-  getDocumentStatus: async (kbId: number | string, docId: number | string) => {
+  getDocumentStatus: async (kbId: string, docId: string) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}`, {
       headers: getHeaders(),
       method: 'GET',
@@ -820,7 +820,7 @@ export const api = {
     return res.json();
   },
 
-  createLlmProfile: async (profile: any, customerId?: string | number) => {
+  createLlmProfile: async (profile: any, customerId?: string) => {
     const url = new URL(`${BACKEND_URL}/api/llm-profiles`);
     if (customerId) {
       url.searchParams.append('customer_id', String(customerId));
@@ -834,7 +834,7 @@ export const api = {
     return res.json();
   },
 
-  updateLlmProfile: async (id: number | string, profile: any, customerId?: string | number) => {
+  updateLlmProfile: async (id: string, profile: any, customerId?: string) => {
     const url = new URL(`${BACKEND_URL}/api/llm-profiles/${id}`);
     if (customerId) {
       url.searchParams.append('customer_id', String(customerId));
@@ -848,7 +848,7 @@ export const api = {
     return res.json();
   },
 
-  deleteLlmProfile: async (id: number | string, customerId?: string | number) => {
+  deleteLlmProfile: async (id: string, customerId?: string) => {
     const url = new URL(`${BACKEND_URL}/api/llm-profiles/${id}/${customerId}`);
 
     const res = await fetch(url.toString(), {

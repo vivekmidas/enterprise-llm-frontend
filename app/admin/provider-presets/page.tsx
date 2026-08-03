@@ -27,7 +27,7 @@ export interface EmbeddingModelItem {
 }
 
 export interface ProviderPreset {
-  id: number;
+  id: string;
   provider_key: string;
   name: string;
   display_name?: string;
@@ -267,11 +267,10 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
       {/* Alert Notification */}
       {notification && (
         <div
-          className={`flex items-center gap-3 p-4 rounded-lg text-xs font-medium border ${
-            notification.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border-rose-200'
-          }`}
+          className={`flex items-center gap-3 p-4 rounded-lg text-xs font-medium border ${notification.type === 'success'
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}
         >
           {notification.type === 'success' ? (
             <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
@@ -312,9 +311,8 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
           {filteredPresets.map((preset) => (
             <div
               key={preset.id}
-              className={`bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between ${
-                preset.is_active ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-75'
-              }`}
+              className={`bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between ${preset.is_active ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-75'
+                }`}
             >
               <div>
                 {/* Card Top */}

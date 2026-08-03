@@ -13,7 +13,7 @@ import {
   Lock,
   Edit2,
   X,
-  Settings, 
+  Settings,
   Info,
   CheckCircle,
   RefreshCw,
@@ -239,9 +239,9 @@ const normalizeContractRule = (rule: any): ContractRule => {
     nullable: boolFromValue(rule.nullable ?? false),
     items: rule.items
       ? {
-          field_type: rule.items.field_type || 'string',
-          ...rule.items,
-        }
+        field_type: rule.items.field_type || 'string',
+        ...rule.items,
+      }
       : undefined,
   };
 };
@@ -483,11 +483,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
             const raw: any[] = Array.isArray(json)
               ? json
               : json.items ??
-                json.profiles ??
-                json.bases ??
-                json.results ??
-                json.data ??
-                [];
+              json.profiles ??
+              json.bases ??
+              json.results ??
+              json.data ??
+              [];
 
             const options = raw.map((item: any) => {
               if (item !== null && typeof item === 'object') {
@@ -762,7 +762,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     }
   };
 
-  const handleDeleteCategory = async (id: number) => {
+  const handleDeleteCategory = async (id: string) => {
     if (!confirm('Are you sure you want to delete this category?')) return;
     try {
       await api.deleteCategory(id);
@@ -930,7 +930,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
           ) {
             finalOutputContract = editingAgent.output_contract;
           }
-        } catch (e) {}
+        } catch (e) { }
 
         await api.configureCustomerNode(
           editingAgent.name,
@@ -1432,11 +1432,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase ${
-                          agent.node_type.toLowerCase() === 'trigger'
+                        className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase ${agent.node_type.toLowerCase() === 'trigger'
                             ? 'bg-green-50 text-green-700 border border-green-100'
                             : 'bg-amber-50 text-amber-700 border border-amber-100'
-                        }`}
+                          }`}
                       >
                         {agent.node_type}
                       </span>
@@ -1450,11 +1449,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         {jsonExpandedState[agentKey] ? 'Hide Definition' : 'Show Definition'}
                       </button>
                       <div
-                        className={`w-full max-w-xs overflow-hidden rounded-lg bg-gray-950 font-mono text-emerald-400 shadow-inner transition-all duration-300 ${
-                          jsonExpandedState[agentKey]
+                        className={`w-full max-w-xs overflow-hidden rounded-lg bg-gray-950 font-mono text-emerald-400 shadow-inner transition-all duration-300 ${jsonExpandedState[agentKey]
                             ? 'max-h-64 p-3 mt-2 overflow-auto opacity-100'
                             : 'max-h-0 p-0 opacity-0'
-                        }`}
+                          }`}
                       >
                         <pre className="text-[10px]">
                           {JSON.stringify(
@@ -1486,11 +1484,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               alert('Failed to toggle node testing: ' + err.message);
                             }
                           }}
-                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
-                            agent.allow_node_testing === true
+                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${agent.allow_node_testing === true
                               ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
                               : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                          }`}
+                            }`}
                           title="Toggle Isolated Node Testing (Debug Mode)"
                         >
                           <FlaskRound className="h-3 w-3" />
@@ -1528,11 +1525,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                             setTestingAgent({ ...agent });
                           }}
                           disabled={agent.is_enabled === false}
-                          className={`p-1 rounded transition-colors ${
-                            agent.is_enabled === false
+                          className={`p-1 rounded transition-colors ${agent.is_enabled === false
                               ? 'text-gray-300 cursor-not-allowed'
                               : 'text-purple-600 hover:bg-purple-50 cursor-pointer'
-                          }`}
+                            }`}
                           title="Test Node directly"
                         >
                           <FlaskRound className="h-4 w-4" />
@@ -1543,11 +1539,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                             setEditingAgent({ ...agent });
                           }}
                           disabled={agent.is_enabled === false}
-                          className={`p-1 rounded transition-colors ${
-                            agent.is_enabled === false
+                          className={`p-1 rounded transition-colors ${agent.is_enabled === false
                               ? 'text-gray-300 cursor-not-allowed'
                               : 'text-bg-primary hover:bg-blue-50 cursor-pointer'
-                          }`}
+                            }`}
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
@@ -1555,13 +1550,13 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                           agent.customer_id &&
                           agent.customer_id === customerId) ||
                           userRole === 'system_admin') && (
-                          <button
-                            onClick={() => handleDeleteNode(agent.name)}
-                            className="p-1 bg-red-900 text-red-850 hover:bg-white-900 hover:text-red-900  rounded cursor-pointer"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                            <button
+                              onClick={() => handleDeleteNode(agent.name)}
+                              className="p-1 bg-red-900 text-red-850 hover:bg-white-900 hover:text-red-900  rounded cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                       </div>
                     </td>
                   </tr>
@@ -1766,11 +1761,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                           >
                             <td className="px-4 py-3">
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                                  row.category === 'user'
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${row.category === 'user'
                                     ? 'bg-blue-50 text-blue-700 border-blue-100'
                                     : 'bg-gray-100 text-gray-600 border-gray-200'
-                                }`}
+                                  }`}
                               >
                                 {row.category}
                               </span>
@@ -1970,21 +1964,19 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               <div className="flex bg-gray-100 p-1 rounded-lg">
                 <button
                   onClick={() => setPropModal({ ...propModal, target: 'user' })}
-                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${
-                    propModal.target === 'user'
+                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${propModal.target === 'user'
                       ? 'bg-white text-bg-primary shadow-sm'
                       : 'text-gray-500'
-                  }`}
+                    }`}
                 >
                   User Property
                 </button>
                 <button
                   onClick={() => setPropModal({ ...propModal, target: 'system' })}
-                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${
-                    propModal.target === 'system'
+                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${propModal.target === 'system'
                       ? 'bg-white text-bg-primary shadow-sm'
                       : 'text-gray-500'
-                  }`}
+                    }`}
                 >
                   System Property
                 </button>
@@ -2253,9 +2245,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               ? value
                               : value !== '' && value !== undefined && value !== null
                                 ? String(value)
-                                    .split(',')
-                                    .map((v: string) => v.trim())
-                                    .filter(Boolean)
+                                  .split(',')
+                                  .map((v: string) => v.trim())
+                                  .filter(Boolean)
                                 : [];
 
                             const toggleId = (id: any) => {
@@ -2374,9 +2366,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               ? value.map(String)
                               : value !== '' && value !== undefined && value !== null
                                 ? String(value)
-                                    .split(',')
-                                    .map((v: string) => v.trim())
-                                    .filter(Boolean)
+                                  .split(',')
+                                  .map((v: string) => v.trim())
+                                  .filter(Boolean)
                                 : [];
 
                             const toggleVal = (optVal: string) => {
@@ -2544,11 +2536,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         Run-Time Input (JSON or Plaintext)
                       </label>
                       <textarea
-                        className={`w-full flex-1 min-h-[220px] rounded-lg border p-3 text-xs font-mono text-black outline-none overflow-auto transition-colors ${
-                          !getJsonValidationStatus(testingInputData).isValid && testingInputData.trim()
+                        className={`w-full flex-1 min-h-[220px] rounded-lg border p-3 text-xs font-mono text-black outline-none overflow-auto transition-colors ${!getJsonValidationStatus(testingInputData).isValid && testingInputData.trim()
                             ? 'border-red-400 bg-red-50/20 focus:ring-2 focus:ring-red-400'
                             : 'border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500'
-                        }`}
+                          }`}
                         value={testingInputData}
                         onChange={(e) => setTestingInputData(e.target.value)}
                         placeholder='e.g. { "text": "value" } or "raw string"'

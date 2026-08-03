@@ -24,7 +24,7 @@ export default function AgentSidebar({
   const [logic, setLogic] = useState<any[]>([]);
   const [savedAgents, setSavedAgents] = useState<any[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [activeGroup, setActiveGroup] = useState<number>(1);
+  const [activeGroup, setActiveGroup] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<CategoryItem | null>(null);
@@ -57,7 +57,7 @@ export default function AgentSidebar({
         setLogic(activeAgents.filter(isLogic));
         setCategoryNodes(
           activeAgents.filter(
-            (n: any) => Number(n.category) === activeGroup && !isTrigger(n) && !isLogic(n),
+            (n: any) => String(n.category) === activeGroup && !isTrigger(n) && !isLogic(n),
           ),
         );
 
@@ -70,7 +70,7 @@ export default function AgentSidebar({
           ? categoryData
           : categoryData.categories || [];
         const mappedCategories: CategoryItem[] = fetchedCats.map((cat: any, index: number) => {
-          const id = typeof cat === 'object' ? Number(cat.id || index + 1) : index + 1;
+          const id = typeof cat === 'object' ? (cat.id || index + 1) : index + 1;
           const label = typeof cat === 'object' ? cat.label || cat.name || 'default' : String(cat);
 
           return {
@@ -82,7 +82,7 @@ export default function AgentSidebar({
           };
         });
 
-        setSelectedCategory(selectedCategory);
+        setSelectedCategory(nodesForCategories?.category || null);
         setCategories(mappedCategories);
 
         if (mappedCategories.length > 0 && !mappedCategories.some((c) => c.id === activeGroup)) {
@@ -105,7 +105,7 @@ export default function AgentSidebar({
    * Handles category selection and refreshes the node registry to ensure
    * the latest component definitions are retrieved from the backend.
    */
-  const handleCategoryClick = async (category_id: number) => {
+  const handleCategoryClick = async (category_id: string) => {
     setActiveGroup(category_id);
     try {
       const nodesData = await api.getNodesForCategories(category_id);
@@ -137,7 +137,7 @@ export default function AgentSidebar({
   const logicNodes = logic.filter(searchFilter);
 
   const actionNodes = categoryNodes.filter(
-    (n) => Number(n.category) === activeGroup && searchFilter(n),
+    (n) => (n.category) === activeGroup && searchFilter(n),
   );
 
   const onDragStart = (event: DragEvent<HTMLDivElement>, agent: any) => {
@@ -250,7 +250,7 @@ export default function AgentSidebar({
         {/* Triggers & Flow Logic Group */}
         <div>
           <h4 className="mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Core Nodes
+            Triggers
           </h4>
           <div className="grid grid-cols-2 gap-2">
             {triggerNodes.map((node, index) =>
@@ -265,7 +265,7 @@ export default function AgentSidebar({
         {/* Actions Library */}
         <div className="border-t border-slate-100 pt-4">
           <h4 className="mb-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Action Registry
+            Action Nodes
           </h4>
 
           {/* Search bar */}
@@ -293,11 +293,10 @@ export default function AgentSidebar({
                     title={category.label}
                     aria-label={category.label}
                     onClick={() => handleCategoryClick(category.id)}
-                    className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all hover:scale-[1.05] cursor-pointer ${
-                      isActive
-                        ? 'border-indigo-400 bg-indigo-50 shadow-sm ring-1 ring-indigo-300'
-                        : 'border-slate-200 bg-white hover:border-slate-350 hover:bg-slate-50'
-                    }`}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all hover:scale-[1.05] cursor-pointer ${isActive
+                      ? 'border-indigo-400 bg-indigo-50 shadow-sm ring-1 ring-indigo-300'
+                      : 'border-slate-200 bg-white hover:border-slate-350 hover:bg-slate-50'
+                      }`}
                   >
                     <Icon className="h-4.5 w-4.5" style={{ color: category.color }} />
                   </button>
