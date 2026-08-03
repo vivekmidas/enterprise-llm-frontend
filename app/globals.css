@@ -7,7 +7,7 @@
 
 :root {
   --text-black: #000000;
-  --primary: #2f0071;
+  --primary: #06040A;
   --secondary: #ffffff;
   --background: var(--secondary);
   --text-primary: #ffffff;
@@ -219,6 +219,10 @@
     h6 {
       /* Added custom font family for headings */
       font-family: var(--font-heading);
+    }
+    button,
+    [role='button'] {
+      @apply rounded-full;
     }
   }
 
