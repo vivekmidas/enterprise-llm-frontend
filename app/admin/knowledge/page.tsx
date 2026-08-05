@@ -23,6 +23,7 @@ import {
   FileJson,
   Copy,
   Check,
+  Bug,
 } from 'lucide-react';
 import { COLOR_PALETTE } from '@/lib/utils';
 
@@ -63,6 +64,9 @@ export default function KnowledgeBasesTab({
   const [customersMap, setCustomersMap] = useState<Record<number, string>>({});
   const [createKbTargetCustomer, setCreateKbTargetCustomer] = useState<string>('');
 
+  // Top Main Tab Navigation
+  const [activeMainTab, setActiveMainTab] = useState<'kb' | 'domains'>('kb');
+
   const [kbList, setKbList] = useState<any[]>([]);
   const [selectedKb, setSelectedKb] = useState<any>(null);
   const [docList, setDocList] = useState<any[]>([]);
@@ -70,13 +74,38 @@ export default function KnowledgeBasesTab({
   const [docsLoading, setDocsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
+  const [reprocessingDocIds, setReprocessingDocIds] = useState<Record<string, boolean>>({});
 
   // KB Form state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newKbName, setNewKbName] = useState('');
   const [newKbPurpose, setNewKbPurpose] = useState('');
   const [newKbTags, setNewKbTags] = useState('');
+  const [newKbDomainId, setNewKbDomainId] = useState('');
+  const [domainSchemas, setDomainSchemas] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
+
+  // 2-Frame Domain Tab State
+  const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null);
+  const [domainSearchQuery, setDomainSearchQuery] = useState('');
+  const [domainScopeFilter, setDomainScopeFilter] = useState<'ALL' | 'SYSTEM' | 'TENANT'>('ALL');
+
+  useEffect(() => {
+    api.getDomainSchemas().then((data) => {
+      setDomainSchemas(data || []);
+      if (data && data.length > 0 && !selectedDomainId) {
+        setSelectedDomainId(data[0].id);
+      }
+    }).catch((err) => console.error('Failed to load domain schemas', err));
+  }, []);
+
+  const domainSchemasMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    domainSchemas.forEach((d) => {
+      map[d.id] = d;
+    });
+    return map;
+  }, [domainSchemas]);
 
   // Doc Form state
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -93,6 +122,133 @@ export default function KnowledgeBasesTab({
   const [newDocType, setNewDocType] = useState('');
   const [savingDocTypes, setSavingDocTypes] = useState(false);
 
+  // Domain Schemas Modal state
+  const [showDomainModal, setShowDomainModal] = useState(false);
+  const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
+  const [domainName, setDomainName] = useState('');
+  const [domainKey, setDomainKey] = useState('');
+  const [domainScope, setDomainScope] = useState<'SYSTEM' | 'TENANT'>('SYSTEM');
+  const [domainDescription, setDomainDescription] = useState('');
+  const [domainSystemPrompt, setDomainSystemPrompt] = useState(
+    "You are an expert domain knowledge extractor.\nExtract structured field values accurately from the provided document content based on the target schema.\nIf you find additional relevant domain knowledge that is not covered by the target schema, output it under the 'extra_fields' key.\nReturn valid JSON only."
+  );
+  const [domainUserPrompt, setDomainUserPrompt] = useState(
+    'Document Filename: {filename}\n\nTarget Schema Fields:\n{fields_summary}\n\nContent:\n{content}'
+  );
+  const [domainFields, setDomainFields] = useState<
+    Array<{ key: string; label: string; description?: string; type?: string; weight: number; importance: string; required?: boolean }>
+  >([
+    { key: 'case_number', label: 'Case Number', description: 'Extract case reference number e.g. W.P. No.348 of 1998', weight: 2.0, importance: 'high', required: true },
+    { key: 'parties', label: 'Parties Involved', description: 'Extract petitioners and respondents with name and type', weight: 2.0, importance: 'high', required: false },
+    { key: 'rulings', label: 'Court Rulings', description: 'Extract ruling decisions, reasoning, and consequences', weight: 2.5, importance: 'critical', required: false },
+  ]);
+  const [savingDomain, setSavingDomain] = useState(false);
+  const [domainError, setDomainError] = useState<string | null>(null);
+
+  const handleOpenCreateDomain = () => {
+    setEditingDomainId(null);
+    setDomainName('');
+    setDomainKey('');
+    setDomainScope(isSystemAdmin ? 'SYSTEM' : 'TENANT');
+    setDomainDescription('');
+    setDomainSystemPrompt(
+      "You are an expert domain knowledge extractor.\nExtract structured field values accurately from the provided document content based on the target schema.\nIf you find additional relevant domain knowledge that is not covered by the target schema, output it under the 'extra_fields' key.\nReturn valid JSON only."
+    );
+    setDomainUserPrompt(
+      'Document Filename: {filename}\n\nTarget Schema Fields:\n{fields_summary}\n\nContent:\n{content}'
+    );
+    setDomainFields([
+      { key: 'policy_number', label: 'Policy Number', type: 'string', weight: 2.0, importance: 'high', required: true },
+      { key: 'validity_expiry', label: 'Validity Expiry', type: 'date', weight: 1.5, importance: 'medium', required: false },
+    ]);
+    setDomainError(null);
+    setShowDomainModal(true);
+  };
+
+  const handleOpenEditDomain = (domain: any) => {
+    setEditingDomainId(domain.id);
+    setDomainName(domain.name || '');
+    setDomainKey(domain.domain_key || '');
+    setDomainScope(domain.scope || 'SYSTEM');
+    setDomainDescription(domain.description || '');
+    setDomainSystemPrompt(
+      domain.system_prompt ||
+      "You are an expert domain knowledge extractor.\nExtract structured field values accurately from the provided document content based on the target schema.\nIf you find additional relevant domain knowledge that is not covered by the target schema, output it under the 'extra_fields' key.\nReturn valid JSON only."
+    );
+    setDomainUserPrompt(
+      domain.user_prompt ||
+      'Document Filename: {filename}\n\nTarget Schema Fields:\n{fields_summary}\n\nContent:\n{content}'
+    );
+    setDomainFields(domain.schema_json?.fields || []);
+    setDomainError(null);
+    setShowDomainModal(true);
+  };
+
+  const handleAddField = () => {
+    setDomainFields((prev) => [
+      ...prev,
+      { key: '', label: '', type: 'string', weight: 1.0, importance: 'medium', required: false },
+    ]);
+  };
+
+  const handleRemoveField = (idx: number) => {
+    setDomainFields((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateField = (idx: number, key: string, val: any) => {
+    setDomainFields((prev) =>
+      prev.map((f, i) => (i === idx ? { ...f, [key]: val } : f))
+    );
+  };
+
+  const handleSaveDomain = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!domainName.trim() || !domainKey.trim()) {
+      setDomainError('Schema Name and Domain Key are required.');
+      return;
+    }
+    setSavingDomain(true);
+    setDomainError(null);
+    try {
+      const payload = {
+        name: domainName.trim(),
+        domain_key: domainKey.trim().toLowerCase(),
+        scope: domainScope,
+        description: domainDescription.trim(),
+        system_prompt: domainSystemPrompt.trim(),
+        user_prompt: domainUserPrompt.trim(),
+        fields: domainFields,
+      };
+
+      if (editingDomainId) {
+        await api.updateDomainSchema(editingDomainId, payload);
+      } else {
+        await api.createDomainSchema(payload);
+      }
+
+      const updatedList = await api.getDomainSchemas();
+      setDomainSchemas(updatedList);
+      setShowDomainModal(false);
+    } catch (err: any) {
+      console.error(err);
+      setDomainError(err.message || 'Failed to save Domain Schema.');
+    } finally {
+      setSavingDomain(false);
+    }
+  };
+
+  const handleDeleteDomainSchema = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this Domain Schema?')) return;
+    try {
+      await api.deleteDomainSchema(id);
+      const updatedList = await api.getDomainSchemas();
+      setDomainSchemas(updatedList);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to delete Domain Schema. It may be linked to active Knowledge Bases.');
+    }
+  };
+
   // EKP Inspect Modal state
   const [ekpLoading, setEkpLoading] = useState(false);
   const [selectedEkpDoc, setSelectedEkpDoc] = useState<any>(null);
@@ -100,7 +256,7 @@ export default function KnowledgeBasesTab({
   const [ekpParagraphs, setEkpParagraphs] = useState<any[]>([]);
   const [ekpEntities, setEkpEntities] = useState<any[]>([]);
   const [activeInspectTab, setActiveInspectTab] = useState<'paragraphs' | 'entities'>('paragraphs');
-  const [entityDisplayMode, setEntityDisplayMode] = useState<'cards' | 'json'>('cards');
+  const [entityDisplayMode, setEntityDisplayMode] = useState<'cards' | 'json' | 'debug'>('cards');
   const [copiedJson, setCopiedJson] = useState(false);
 
   // Entity Edit state
@@ -143,7 +299,7 @@ export default function KnowledgeBasesTab({
       if (typeof parsedVal === 'string' && (parsedVal.trim().startsWith('{') || parsedVal.trim().startsWith('['))) {
         try {
           parsedVal = JSON.parse(parsedVal);
-        } catch (_) {}
+        } catch (_) { }
       }
 
       const keyPath = ent.entity_key || ent.entity_type || 'entity';
@@ -204,15 +360,78 @@ export default function KnowledgeBasesTab({
       ]);
       if (pRes.ok) {
         const pData = await pRes.json();
-        setEkpParagraphs(pData);
+        setEkpParagraphs(pData || []);
       } else {
         setEkpParagraphs([]);
       }
+
+      let entities: any[] = [];
       if (eRes.ok) {
-        const eData = await eRes.json();
-        setEkpEntities(eData);
+        entities = await eRes.json();
+      }
+
+      // Fallback: If EKP backend entities array is empty, construct entities from domain_info metadata
+      if ((!entities || entities.length === 0) && doc.metadata_json?.domain_info) {
+        const domainInfo = doc.metadata_json.domain_info;
+        const domainTag = domainInfo.domain_key || domainInfo.domain_name || 'domain';
+        const allFields = { ...(domainInfo.extracted_fields || {}), ...(domainInfo.extra_fields || {}) };
+        const synthesized: any[] = [];
+        let counter = 0;
+
+        const flattenEntry = (prefix: string, val: any) => {
+          if (val === null || val === undefined) return;
+
+          if (Array.isArray(val)) {
+            val.forEach((item, idx) => {
+              if (typeof item === 'object' && item !== null) {
+                if (item.name && item.type) {
+                  synthesized.push({
+                    id: `ent_${counter++}`,
+                    entity_type: domainTag,
+                    entity_key: `${prefix}.${item.type}`,
+                    value: item.name,
+                    confidence: 1.0,
+                    basis: 'FACT',
+                  });
+                } else {
+                  Object.entries(item).forEach(([subK, subV]) => {
+                    flattenEntry(`${prefix}[${idx}].${subK}`, subV);
+                  });
+                }
+              } else {
+                synthesized.push({
+                  id: `ent_${counter++}`,
+                  entity_type: domainTag,
+                  entity_key: `${prefix}[${idx}]`,
+                  value: String(item),
+                  confidence: 1.0,
+                  basis: 'FACT',
+                });
+              }
+            });
+          } else if (typeof val === 'object' && val !== null) {
+            Object.entries(val).forEach(([subK, subV]) => {
+              flattenEntry(prefix ? `${prefix}.${subK}` : subK, subV);
+            });
+          } else {
+            synthesized.push({
+              id: `ent_${counter++}`,
+              entity_type: domainTag,
+              entity_key: prefix,
+              value: String(val),
+              confidence: 1.0,
+              basis: 'FACT',
+            });
+          }
+        };
+
+        Object.entries(allFields).forEach(([k, v]) => {
+          flattenEntry(k, v);
+        });
+
+        setEkpEntities(synthesized);
       } else {
-        setEkpEntities([]);
+        setEkpEntities(entities || []);
       }
     } catch (err) {
       console.error('Failed to load EKP details:', err);
@@ -242,7 +461,7 @@ export default function KnowledgeBasesTab({
         if (editEntityForm.value.startsWith('{') || editEntityForm.value.startsWith('[')) {
           parsedValue = JSON.parse(editEntityForm.value);
         }
-      } catch (_) {}
+      } catch (_) { }
 
       const res = await fetch(`${BACKEND_URL}/api/v3/knowledge/entities/${entityId}`, {
         method: 'PUT',
@@ -292,6 +511,29 @@ export default function KnowledgeBasesTab({
     } catch (err) {
       console.error('Failed to load document types', err);
     }
+  };
+
+  const handleReprocessDocument = async (docId: string | number) => {
+    if (!selectedKb) return;
+    setReprocessingDocIds((prev) => ({ ...prev, [docId]: true }));
+    try {
+      await api.reprocessDocument(String(selectedKb.id), String(docId));
+      setDocList((prev) =>
+        prev.map((d) => (d.id === docId ? { ...d, status: 'processing' } : d))
+      );
+    } catch (err: any) {
+      console.error('Failed to reprocess document', err);
+      alert(err.message || 'Failed to queue document for reprocessing.');
+    } finally {
+      setReprocessingDocIds((prev) => ({ ...prev, [docId]: false }));
+    }
+  };
+
+  const handleRefreshAllStatus = async () => {
+    if (selectedKb) {
+      await fetchDocs(selectedKb.id);
+    }
+    await fetchKBs();
   };
 
   const handleSaveDocTypes = async (e: React.FormEvent) => {
@@ -406,11 +648,11 @@ export default function KnowledgeBasesTab({
     }
   };
 
-  const refreshDocStatus = async (docId: number) => {
+  const refreshDocStatus = async (docId: number | string) => {
     if (!selectedKb) return;
     setFetchingDocIds((prev) => ({ ...prev, [docId]: true }));
     try {
-      const updatedDoc = await api.getDocumentStatus(selectedKb.id, docId);
+      const updatedDoc = await api.getDocumentStatus(String(selectedKb.id), String(docId));
       setDocList((prev) => prev.map((d) => (d.id === docId ? updatedDoc : d)));
     } catch (err) {
       console.error('Failed to refresh document status', err);
@@ -442,7 +684,7 @@ export default function KnowledgeBasesTab({
         });
         setUsersMap(map);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [userRole]);
 
   useEffect(() => {
@@ -498,6 +740,7 @@ export default function KnowledgeBasesTab({
       const newKb = await api.createKnowledgeBase({
         name: newKbName,
         description: newKbPurpose,
+        domain_id: newKbDomainId || undefined,
         settings: settingsPayload,
       });
       setKbList((prev) => [...prev, newKb]);
@@ -506,6 +749,7 @@ export default function KnowledgeBasesTab({
       setNewKbName('');
       setNewKbPurpose('');
       setNewKbTags('');
+      setNewKbDomainId('');
       setNewKbEmbeddingModel('nomic-embed-text');
       setNewKbChunkSize(1000);
       setNewKbChunkOverlap(200);
@@ -516,7 +760,7 @@ export default function KnowledgeBasesTab({
       setCreating(false);
     }
   };
-/* END BLOCK */
+  /* END BLOCK */
 
   const handleDeleteKB = async (id: number) => {
     if (
@@ -635,7 +879,7 @@ export default function KnowledgeBasesTab({
 
     setDocError(null);
     try {
-      await api.deleteDocument(selectedKb.id, docId);
+      await api.deleteDocument(String(selectedKb.id), String(docId));
       setDocList((prev) => prev.filter((doc) => doc.id !== docId));
     } catch (err: any) {
       console.error(err);
@@ -778,358 +1022,216 @@ export default function KnowledgeBasesTab({
   };
 
   return (
-    <div className="flex bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-[750px] font-sans text-gray-800">
-      {/* Left KB Sidebar */}
-      <div className="w-1/4 border-r border-gray-200 flex flex-col h-full bg-slate-50/20">
-        <div className="p-4 border-b border-gray-250 bg-gray-50/50 flex items-center justify-between">
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-            Knowledge Bases
-          </h3>
+    <>
+      <div className="flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-[820px] font-sans text-gray-800">
+        {/* SUB-TAB NAVIGATION BAR */}
+        <div className="bg-slate-100/90 border-b border-gray-200 px-6 py-2.5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                setNewDocType('');
-                if (!docTypes || docTypes.length === 0) {
-                  setDocTypes(['General', 'Policy', 'FAQ', 'Technical', 'Contract']);
-                }
-                setShowDocTypesModal(true);
-              }}
-              className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-750 rounded-md transition-colors cursor-pointer"
-              title="Manage Document Types"
+              onClick={() => setActiveMainTab('kb')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeMainTab === 'kb'
+                  ? 'bg-white text-indigo-700 shadow-xs border border-gray-200'
+                  : 'text-gray-600 hover:bg-slate-200/60'
+                }`}
             >
-              <Settings className="w-3.5 h-3.5" />
+              <BookOpen className="w-4 h-4" />
+              <span>Knowledge Bases</span>
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px]">
+                {kbList.length}
+              </span>
             </button>
+
             <button
-              onClick={() => {
-                if (selectedCustomerFilter !== 'all') {
-                  setCreateKbTargetCustomer(selectedCustomerFilter);
-                }
-                setShowCreateModal(true);
-              }}
-              className="p-1.5 bg-primary text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
-              title="Create Knowledge Base"
+              onClick={() => setActiveMainTab('domains')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeMainTab === 'domains'
+                  ? 'bg-white text-indigo-700 shadow-xs border border-gray-200'
+                  : 'text-gray-600 hover:bg-slate-200/60'
+                }`}
             >
-              <Plus className="w-3.5 h-3.5" />
+              <SlidersHorizontal className="w-4 h-4" />
+              <span>Domain Schemas</span>
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[10px]">
+                {domainSchemas.length}
+              </span>
             </button>
           </div>
-        </div>
 
-        {/* BLOCK: Customer Filter Dropdown for System Admin */}
-        {isSystemAdmin && (
-          <div className="p-3 bg-slate-100 border-b border-gray-200 space-y-1">
-            <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">
-              Customer / Tenant Filter
-            </label>
-            <select
-              value={selectedCustomerFilter}
-              onChange={(e) => setSelectedCustomerFilter(e.target.value)}
-              className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 focus:outline-none focus:border-blue-500 cursor-pointer"
-            >
-              <option value="all">All Customers (Tenants)</option>
-              {customers.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.name} ({c.domain})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {/* END BLOCK */}
-
-        <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-          {loading ? (
-            <div className="p-6 text-center text-gray-400 text-sm">
-              <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-500" />
-              Loading...
-            </div>
-          ) : kbList.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">
-              <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-              No knowledge bases found.
-            </div>
-          ) : (
-            kbList.map((kb) => {
-              const isSelected = selectedKb?.id === kb.id;
-              const tags = Array.isArray(kb.settings?.tags) ? kb.settings.tags : [];
-              const uploaderName = usersMap[kb.created_by] || `User #${kb.created_by}`;
-              const createdDate = kb.created_at
-                ? new Date(kb.created_at).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
-                : '-';
-              return (
-                <div
-                  key={kb.id}
+          {/* Global Action Bar */}
+          <div className="flex items-center gap-2">
+            {activeMainTab === 'kb' && (
+              <>
+                <button
+                  onClick={handleRefreshAllStatus}
+                  className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  title="Refresh Status"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Refresh Status</span>
+                </button>
+                <button
                   onClick={() => {
-                    setSelectedKb(kb);
-                    
+                    setNewDocType('');
+                    if (!docTypes || docTypes.length === 0) {
+                      setDocTypes(['General', 'Policy', 'FAQ', 'Technical', 'Contract']);
+                    }
+                    setShowDocTypesModal(true);
                   }}
-                  className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
-                    isSelected ? 'bg-blue-50/40 border-l-4 border-bg-primary' : ''
-                  }`}
+                  className="p-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-all cursor-pointer shadow-2xs"
+                  title="Manage Document Types"
                 >
-                  <div className="space-y-1.5 pr-2 min-w-0 flex-1">
-                    <h4
-                      className={`font-bold text-sm ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}
-                    >
-                      {kb.name}
-                    </h4>
-                    {kb.description && (
-                      <p className="text-xs text-gray-555 line-clamp-2 leading-relaxed">
-                        {kb.description}
-                      </p>
-                    )}
-                    {/* BLOCK: Tenant badge for system_admin */}
-                    {isSystemAdmin && kb.customer_id && (
-                      <div className="pt-0.5">
-                        <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold">
-                          Tenant: {customersMap[kb.customer_id] || `Tenant #${kb.customer_id}`}
-                        </span>
-                      </div>
-                    )}
-                    {/* END BLOCK */}
-                    <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-gray-400">
-                      <span className="inline-flex items-center gap-1">
-                        <svg
-                          className="w-3 h-3"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                        <span className="font-medium text-gray-550">{uploaderName}</span>
-                      </span>
-                      <span className="text-gray-300">·</span>
-                      <span className="inline-flex items-center gap-1">
-                        <svg
-                          className="w-3 h-3"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                        >
-                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                          <line x1="16" y1="2" x2="16" y2="6" />
-                          <line x1="8" y1="2" x2="8" y2="6" />
-                          <line x1="3" y1="10" x2="21" y2="10" />
-                        </svg>
-                        <span>{createdDate}</span>
-                      </span>
-                    </div>
-
-                    {tags.length > 0 && (
-                      <div className="flex items-center gap-1 flex-wrap pt-1">
-                        {tags.map((t: string) => (
-                          <span
-                            key={t}
-                            style={{
-                              backgroundColor: getColor(t).bg,
-                              border: getColor(t).border,
-                              color: getColor(t).text,
-                            }}
-                            className="px-1.5 py-0.5 rounded text-xs font-medium"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditKbModal(kb);
-                      }}
-                      className="p-1 text-gray-400 hover:text-bg-primary rounded hover:bg-blue-50 transition-all cursor-pointer"
-                      title="KB Settings"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteKB(kb.id);
-                      }}
-                      className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-all cursor-pointer"
-                      title="Delete Knowledge Base"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* Main Document / Retrieval Area */}
-      {selectedKb ? (
-        <div className="flex-1 flex flex-col h-full bg-white overflow-hidden">
-          {/* Header Row */}
-          <div className="p-4 border-b border-gray-200 bg-gray-50/30 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-base text-gray-800">{selectedKb.name}</h3>
-                <button
-                  onClick={() => openEditKbModal(selectedKb)}
-                  className="p-1 text-gray-400 hover:text-bg-primary rounded transition-colors cursor-pointer"
-                  title="Edit Settings"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
+                  <Settings className="w-4 h-4" />
                 </button>
-              </div>
-              {selectedKb.description && (
-                <p className="text-xs text-gray-500 mt-0.5">{selectedKb.description}</p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
                 <button
-                  onClick={() =>
-                    onSwitchToPlayground && onSwitchToPlayground(String(selectedKb.id))
-                  }
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-violet-750 bg-white rounded-md shadow-xs hover:bg-violet-50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    if (selectedCustomerFilter !== 'all') {
+                      setCreateKbTargetCustomer(selectedCustomerFilter);
+                    }
+                    setShowCreateModal(true);
+                  }}
+                  className="px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-blue-700 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
                 >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  Test Retrieval
+                  <Plus className="w-4 h-4" />
+                  <span>Create Knowledge Base</span>
                 </button>
-              </div>
+              </>
+            )}
 
-              <label className="flex items-center gap-1.5 text-xs text-gray-600 select-none cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={autoRefresh}
-                  onChange={(e) => setAutoRefresh(e.target.checked)}
-                  className="rounded border-gray-350 text-bg-primary focus:ring-blue-500 w-3.5 h-3.5"
-                />
-                Auto-Refresh Status
-              </label>
-
+            {activeMainTab === 'domains' && (
               <button
-                onClick={() => setShowUploadModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
+                onClick={handleOpenCreateDomain}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
               >
-                <Upload className="w-3.5 h-3.5" />
-                Upload Document
+                <Plus className="w-4 h-4" />
+                <span>Create Domain Schema</span>
               </button>
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* Error alerts */}
-          {error && (
-            <div className="mx-4 mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">
-              {error}
-            </div>
-          )}
-          {docError && (
-            <div className="mx-4 mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">
-              {docError}
-            </div>
-          )}
+        {/* TAB 1: KNOWLEDGE BASES LAYOUT */}
+        {activeMainTab === 'kb' && (
+          <div className="flex-1 flex overflow-hidden">
+            <div className="w-1/4 border-r border-gray-200 flex flex-col h-full bg-slate-50/20">
 
-          {/* Doc List Container */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {docsLoading && docList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm">
-                <RefreshCw className="w-6 h-6 animate-spin text-blue-500 mb-2" />
-                Loading documents...
-              </div>
-            ) : docList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
-                <Upload className="w-10 h-10 text-gray-300 mb-3" />
-                <p className="font-semibold text-gray-655">
-                  No documents uploaded in this knowledge base.
-                </p>
-                <p className="text-xs text-gray-400 mt-1 max-w-xs text-center">
-                  Click the "Upload Document" button above to ingest your text, PDF, or Word files.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {docList.map((doc) => {
-                  const status = doc.status?.toLowerCase();
-                  const isProcessing = ['processing', 'pending', 'chunking', 'embedding'].includes(
-                    status,
-                  );
-                  const isError = ['error', 'failed'].includes(status);
-                  const isSuccess = status === 'completed' || status === 'active';
-                  const docTags = Array.isArray(doc.metadata_json?.tags)
-                    ? doc.metadata_json.tags
-                    : [];
-                  const docDescription = doc.metadata_json?.description || '';
-                  const docType =
-                    doc.metadata_json?.type || doc.metadata_json?.doc_type || 'general';
+              {/* BLOCK: Customer Filter Dropdown for System Admin */}
+              {isSystemAdmin && (
+                <div className="p-3 bg-slate-100 border-b border-gray-200 space-y-1">
+                  <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">
+                    Customer / Tenant Filter
+                  </label>
+                  <select
+                    value={selectedCustomerFilter}
+                    onChange={(e) => setSelectedCustomerFilter(e.target.value)}
+                    className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 focus:outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value="all">All Customers (Tenants)</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={String(c.id)}>
+                        {c.name} ({c.domain})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {/* END BLOCK */}
 
-                  return (
-                    <div
-                      key={doc.id}
-                      className="border border-gray-150 rounded-xl p-4 flex items-start justify-between hover:bg-slate-50/30 transition-all shadow-xs"
-                    >
-                      <div className="space-y-2 flex-1 min-w-0 pr-4">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm text-gray-800 truncate">
-                            {doc.name}
-                          </span>
-                          <div className="relative group inline-flex items-center">
-                            <select
-                              value={docType.toLowerCase()}
-                              disabled={updatingDocTypeIds[doc.id]}
-                              onChange={(e) => handleUpdateDocType(doc, e.target.value)}
-                              className="appearance-none pl-2 pr-5 py-0.5 bg-blue-50 hover:bg-blue-100 disabled:bg-blue-50 text-bg-primary rounded text-xs font-bold uppercase tracking-wider border-none focus:ring-1 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed outline-none transition-colors duration-150"
-                              title="Change Document Type"
-                            >
-                              {(docTypes && docTypes.length > 0
-                                ? docTypes
-                                : ['General', 'Policy', 'FAQ', 'Technical', 'Contract']
-                              ).map((type) => (
-                                <option
-                                  key={type}
-                                  value={type.toLowerCase()}
-                                  className="bg-white text-gray-800 normal-case font-normal text-xs"
-                                >
-                                  {type.toUpperCase()}
-                                </option>
-                              ))}
-                            </select>
-                            <span className="absolute right-1.5 pointer-events-none text-bg-primary flex items-center justify-center">
-                              {updatingDocTypeIds[doc.id] ? (
-                                <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                              ) : (
-                                <ChevronDown className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                              )}
-                            </span>
-                          </div>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                              isSuccess
-                                ? 'bg-green-50 text-green-700'
-                                : isProcessing
-                                  ? 'bg-amber-50 text-amber-705 animate-pulse'
-                                  : 'bg-red-50 text-red-750'
-                            }`}
+              <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+                {loading ? (
+                  <div className="p-6 text-center text-gray-400 text-sm">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-500" />
+                    Loading...
+                  </div>
+                ) : kbList.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400 text-sm">
+                    <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                    No knowledge bases found.
+                  </div>
+                ) : (
+                  kbList.map((kb) => {
+                    const isSelected = selectedKb?.id === kb.id;
+                    const tags = Array.isArray(kb.settings?.tags) ? kb.settings.tags : [];
+                    const uploaderName = usersMap[kb.created_by] || `User #${kb.created_by}`;
+                    const createdDate = kb.created_at
+                      ? new Date(kb.created_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                      : '-';
+                    return (
+                      <div
+                        key={kb.id}
+                        onClick={() => {
+                          setSelectedKb(kb);
+
+                        }}
+                        className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${isSelected ? 'bg-blue-50/40 border-l-4 border-bg-primary' : ''
+                          }`}
+                      >
+                        <div className="space-y-1.5 pr-2 min-w-0 flex-1">
+                          <h4
+                            className={`font-bold text-sm ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}
                           >
-                            {doc.status || 'Unknown'}
-                          </span>
-                        </div>
-
-                        {/* Metadata Details Row */}
-                        <div className="flex items-center gap-3 text-xs text-gray-450 font-medium flex-wrap">
-                          {docDescription && (
-                            <p className="text-xs text-gray-550 leading-relaxed">
-                              {docDescription}
+                            {kb.name}
+                          </h4>
+                          {kb.description && (
+                            <p className="text-xs text-gray-555 line-clamp-2 leading-relaxed">
+                              {kb.description}
                             </p>
                           )}
-                          {docTags.length > 0 && (
-                            <div className="flex items-center gap-1 flex-wrap">
-                              {docTags.map((t: string) => (
+                          {/* BLOCK: Tenant badge for system_admin */}
+                          {isSystemAdmin && kb.customer_id && (
+                            <div className="pt-0.5">
+                              <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold">
+                                Tenant: {customersMap[kb.customer_id] || `Tenant #${kb.customer_id}`}
+                              </span>
+                            </div>
+                          )}
+                          {/* END BLOCK */}
+
+                          {/* Linked Domain Schema Badge */}
+                          {kb.domain_id && domainSchemasMap[kb.domain_id] && (
+                            <div className="pt-0.5">
+                              <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold inline-flex items-center gap-1">
+                                🏷️ {domainSchemasMap[kb.domain_id].name} ({domainSchemasMap[kb.domain_id].scope})
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-gray-400">
+                            <span className="inline-flex items-center gap-1">
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
+                              </svg>
+                              <span className="font-medium text-gray-550">{uploaderName}</span>
+                            </span>
+                            <span className="text-gray-300">·</span>
+                            <span className="inline-flex items-center gap-1">
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                viewBox="0 0 24 24"
+                              >
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                <line x1="16" y1="2" x2="16" y2="6" />
+                                <line x1="8" y1="2" x2="8" y2="6" />
+                                <line x1="3" y1="10" x2="21" y2="10" />
+                              </svg>
+                              <span>{createdDate}</span>
+                            </span>
+                          </div>
+
+                          {tags.length > 0 && (
+                            <div className="flex items-center gap-1 flex-wrap pt-1">
+                              {tags.map((t: string) => (
                                 <span
                                   key={t}
                                   style={{
@@ -1137,94 +1239,653 @@ export default function KnowledgeBasesTab({
                                     border: getColor(t).border,
                                     color: getColor(t).text,
                                   }}
-                                  className="px-1.5 py-0.5 bg-slate-100 text-slate-655 rounded text-xs font-medium"
+                                  className="px-1.5 py-0.5 rounded text-xs font-medium"
                                 >
                                   {t}
                                 </span>
                               ))}
                             </div>
                           )}
-                          <span>Size: {formatBytes(doc.file_size)}</span>
-                          <span>·</span>
-                          <span>Chunks: {doc.chunk_count ?? 0}</span>
-                          <span>·</span>
-                          <span>
-                            Created:{' '}
-                            {doc.created_at
-                              ? new Date(doc.created_at).toLocaleString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })
-                              : '-'}
-                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditKbModal(kb);
+                            }}
+                            className="p-1 text-gray-400 hover:text-bg-primary rounded hover:bg-blue-50 transition-all cursor-pointer"
+                            title="KB Settings"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteKB(kb.id);
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-all cursor-pointer"
+                            title="Delete Knowledge Base"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
 
-                      {/* Operations */}
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => fetchEkpDocDetails(doc)}
-                          className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
-                          title="Inspect EKP Spans & Entities"
-                        >
-                          <SlidersHorizontal className="w-3.5 h-3.5 text-purple-600" />
-                        </button>
-                        <button
-                          onClick={() => refreshDocStatus(doc.id)}
-                          disabled={fetchingDocIds[doc.id]}
-                          className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-all cursor-pointer"
-                          title="Refresh Status"
-                        >
-                          <RefreshCw
-                            className={`w-3.5 h-3.5 ${fetchingDocIds[doc.id] ? 'animate-spin' : ''}`}
-                          />
-                        </button>
-                        <button
-                          onClick={() => openEditDocModal(doc)}
-                          className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
-                          title="Edit Document Meta"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleUploadNewVersion(doc)}
-                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
-                          title="Upload New Version"
-                        >
-                          <Upload className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteDoc(doc.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                          title="Delete Document"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+            {/* Main Document / Retrieval Area */}
+            {selectedKb ? (
+              <div className="flex-1 flex flex-col h-full bg-white overflow-hidden">
+                {/* Header Row */}
+                <div className="p-4 border-b border-gray-200 bg-gray-50/30 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-base text-gray-800">{selectedKb.name}</h3>
+                      <button
+                        onClick={() => openEditKbModal(selectedKb)}
+                        className="p-1 text-gray-400 hover:text-bg-primary rounded transition-colors cursor-pointer"
+                        title="Edit Settings"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                  );
-                })}
+                    {selectedKb.description && (
+                      <p className="text-xs text-gray-500 mt-0.5">{selectedKb.description}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                      <button
+                        onClick={() =>
+                          onSwitchToPlayground && onSwitchToPlayground(String(selectedKb.id))
+                        }
+                        className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-violet-750 bg-white rounded-md shadow-xs hover:bg-violet-50 transition-colors cursor-pointer"
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                        Test Retrieval
+                      </button>
+                    </div>
+
+                    <label className="flex items-center gap-1.5 text-xs text-gray-600 select-none cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoRefresh}
+                        onChange={(e) => setAutoRefresh(e.target.checked)}
+                        className="rounded border-gray-350 text-bg-primary focus:ring-blue-500 w-3.5 h-3.5"
+                      />
+                      Auto-Refresh Status
+                    </label>
+
+                    <button
+                      onClick={() => setShowUploadModal(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload Document
+                    </button>
+                  </div>
+                </div>
+
+                {/* Error alerts */}
+                {error && (
+                  <div className="mx-4 mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">
+                    {error}
+                  </div>
+                )}
+                {docError && (
+                  <div className="mx-4 mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">
+                    {docError}
+                  </div>
+                )}
+
+                {/* Doc List Container */}
+                <div className="flex-1 overflow-y-auto p-4">
+                  {docsLoading && docList.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm">
+                      <RefreshCw className="w-6 h-6 animate-spin text-blue-500 mb-2" />
+                      Loading documents...
+                    </div>
+                  ) : docList.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+                      <Upload className="w-10 h-10 text-gray-300 mb-3" />
+                      <p className="font-semibold text-gray-655">
+                        No documents uploaded in this knowledge base.
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1 max-w-xs text-center">
+                        Click the "Upload Document" button above to ingest your text, PDF, or Word files.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {docList.map((doc) => {
+                        const status = doc.status?.toLowerCase();
+                        const isProcessing = ['processing', 'pending', 'chunking', 'embedding'].includes(
+                          status,
+                        );
+                        const isError = ['error', 'failed'].includes(status);
+                        const isSuccess = status === 'completed' || status === 'active';
+                        const docTags = Array.isArray(doc.metadata_json?.tags)
+                          ? doc.metadata_json.tags
+                          : [];
+                        const docDescription = doc.metadata_json?.description || '';
+                        const docType =
+                          doc.metadata_json?.type || doc.metadata_json?.doc_type || 'general';
+
+                        return (
+                          <div
+                            key={doc.id}
+                            className="border border-gray-150 rounded-xl p-4 flex items-start justify-between hover:bg-slate-50/30 transition-all shadow-xs"
+                          >
+                            <div className="space-y-2 flex-1 min-w-0 pr-4">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-sm text-gray-800 truncate">
+                                  {doc.name}
+                                </span>
+                                <div className="relative group inline-flex items-center">
+                                  <select
+                                    value={docType.toLowerCase()}
+                                    disabled={updatingDocTypeIds[doc.id]}
+                                    onChange={(e) => handleUpdateDocType(doc, e.target.value)}
+                                    className="appearance-none pl-2 pr-5 py-0.5 bg-blue-50 hover:bg-blue-100 disabled:bg-blue-50 text-bg-primary rounded text-xs font-bold uppercase tracking-wider border-none focus:ring-1 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed outline-none transition-colors duration-150"
+                                    title="Change Document Type"
+                                  >
+                                    {(docTypes && docTypes.length > 0
+                                      ? docTypes
+                                      : ['General', 'Policy', 'FAQ', 'Technical', 'Contract']
+                                    ).map((type) => (
+                                      <option
+                                        key={type}
+                                        value={type.toLowerCase()}
+                                        className="bg-white text-gray-800 normal-case font-normal text-xs"
+                                      >
+                                        {type.toUpperCase()}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <span className="absolute right-1.5 pointer-events-none text-bg-primary flex items-center justify-center">
+                                    {updatingDocTypeIds[doc.id] ? (
+                                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                    ) : (
+                                      <ChevronDown className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                                    )}
+                                  </span>
+                                </div>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${isSuccess
+                                      ? 'bg-green-50 text-green-700'
+                                      : isProcessing
+                                        ? 'bg-amber-50 text-amber-705 animate-pulse'
+                                        : 'bg-red-50 text-red-750'
+                                    }`}
+                                >
+                                  {doc.status || 'Unknown'}
+                                </span>
+                              </div>
+
+                              {/* Metadata Details Row */}
+                              <div className="flex items-center gap-3 text-xs text-gray-450 font-medium flex-wrap">
+                                {docDescription && (
+                                  <p className="text-xs text-gray-550 leading-relaxed">
+                                    {docDescription}
+                                  </p>
+                                )}
+                                {docTags.length > 0 && (
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {docTags.map((t: string) => (
+                                      <span
+                                        key={t}
+                                        style={{
+                                          backgroundColor: getColor(t).bg,
+                                          border: getColor(t).border,
+                                          color: getColor(t).text,
+                                        }}
+                                        className="px-2 py-0.5 rounded text-[11px] font-semibold"
+                                      >
+                                        #{t}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                <span>Size: {formatBytes(doc.file_size)}</span>
+                                <span>·</span>
+                                <span>Chunks: {doc.chunk_count ?? 0}</span>
+                                <span>·</span>
+                                <span>
+                                  Created:{' '}
+                                  {doc.created_at
+                                    ? new Date(doc.created_at).toLocaleString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })
+                                    : '-'}
+                                </span>
+                              </div>
+
+                              {/* BLOCK: Extracted Domain Knowledge Metadata */}
+                              {doc.metadata_json?.domain_info && (
+                                <div className="mt-2 text-xs bg-indigo-50/70 border border-indigo-150 rounded-lg p-2.5 space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-indigo-900 text-xs flex items-center gap-1">
+                                      🏷️ Domain: {doc.metadata_json.domain_info.domain_name} ({doc.metadata_json.domain_info.domain_key})
+                                    </span>
+                                  </div>
+                                  {Object.keys(doc.metadata_json.domain_info.extracted_fields || {}).length > 0 && (
+                                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                                      {Object.entries(doc.metadata_json.domain_info.extracted_fields).map(([k, v]) => (
+                                        <span key={k} className="bg-white px-2 py-0.5 rounded border border-indigo-200 text-indigo-800 text-[11px] font-mono">
+                                          <strong>{k}:</strong> {String(v)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {Object.keys(doc.metadata_json.domain_info.extra_fields || {}).length > 0 && (
+                                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                                      <span className="text-[10px] text-indigo-600 font-semibold uppercase">Extra:</span>
+                                      {Object.entries(doc.metadata_json.domain_info.extra_fields).map(([k, v]) => (
+                                        <span key={k} className="bg-indigo-100/60 px-1.5 py-0.5 rounded border border-indigo-200 text-indigo-900 text-[10px]">
+                                          {k}: {String(v)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Operations */}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => fetchEkpDocDetails(doc)}
+                                className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                                title="Inspect EKP Spans & Entities"
+                              >
+                                <SlidersHorizontal className="w-3.5 h-3.5 text-purple-600" />
+                              </button>
+                              {(() => {
+                                const isReprocessable = ['completed', 'active', 'ready', 'failed', 'error'].includes(status);
+                                const isProcessing = ['processing', 'pending', 'chunking', 'embedding'].includes(status) || reprocessingDocIds[doc.id];
+                                return (
+                                  <button
+                                    onClick={() => handleReprocessDocument(doc.id)}
+                                    disabled={!isReprocessable || isProcessing}
+                                    className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 border ${
+                                      isProcessing
+                                        ? 'bg-amber-50 text-amber-800 border-amber-200 cursor-not-allowed opacity-75'
+                                        : isReprocessable
+                                        ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs'
+                                        : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                    }`}
+                                    title={
+                                      isProcessing
+                                        ? 'Document processing currently in progress...'
+                                        : isReprocessable
+                                        ? 'Reprocess Document (Re-run domain extraction & vector embedding)'
+                                        : 'Reprocess is available once document processing completes'
+                                    }
+                                  >
+                                    <RefreshCw
+                                      className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin' : ''}`}
+                                    />
+                                    <span>{isProcessing ? 'Processing...' : 'Reprocess'}</span>
+                                  </button>
+                                );
+                              })()}
+                              <button
+                                onClick={() => openEditDocModal(doc)}
+                                className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                                title="Edit Document Meta"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleUploadNewVersion(doc)}
+                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                                title="Upload New Version"
+                              >
+                                <Upload className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDoc(doc.id)}
+                                className="p-1.5 text-gray-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                                title="Delete Document"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/10">
+                <BookOpen className="w-12 h-12 text-gray-300 mb-3" />
+                <h3 className="font-semibold text-gray-700 text-sm mb-1">No Knowledge Base Selected</h3>
+                <p className="text-xs text-gray-400 text-center max-w-sm">
+                  Select or create a knowledge base on the left to start uploading and managing documents.
+                </p>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
+                >
+                  New Knowledge Base
+                </button>
               </div>
             )}
           </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/10">
-          <BookOpen className="w-12 h-12 text-gray-300 mb-3" />
-          <h3 className="font-semibold text-gray-700 text-sm mb-1">No Knowledge Base Selected</h3>
-          <p className="text-xs text-gray-400 text-center max-w-sm">
-            Select or create a knowledge base on the left to start uploading and managing documents.
-          </p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
-          >
-            New Knowledge Base
-          </button>
-        </div>
-      )}
+        )}
+
+        {/* TAB 2: 2-FRAME DOMAIN SCHEMAS MANAGEMENT LAYOUT */}
+        {activeMainTab === 'domains' && (
+          <div className="flex-1 flex overflow-hidden">
+            {/* Left Frame: Master Domain List */}
+            <div className="w-1/3 border-r border-gray-200 flex flex-col h-full bg-slate-50/20">
+              {/* Search & Scope Filter Bar */}
+              <div className="p-3 border-b border-gray-200 bg-gray-50/50 space-y-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search domains..."
+                    value={domainSearchQuery}
+                    onChange={(e) => setDomainSearchQuery(e.target.value)}
+                    className="w-full bg-white border border-gray-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-gray-900 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Scope:</span>
+                  {(['ALL', 'SYSTEM', 'TENANT'] as const).map((sc) => (
+                    <button
+                      key={sc}
+                      type="button"
+                      onClick={() => setDomainScopeFilter(sc)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${domainScopeFilter === sc
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                        }`}
+                    >
+                      {sc}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Master List of Domains */}
+              <div className="flex-1 overflow-y-auto divide-y divide-gray-100 p-2 space-y-1">
+                {domainSchemas
+                  .filter((d) => {
+                    if (domainScopeFilter !== 'ALL' && d.scope !== domainScopeFilter) return false;
+                    if (
+                      domainSearchQuery &&
+                      !d.name.toLowerCase().includes(domainSearchQuery.toLowerCase()) &&
+                      !d.domain_key.toLowerCase().includes(domainSearchQuery.toLowerCase())
+                    )
+                      return false;
+                    return true;
+                  })
+                  .map((d) => {
+                    const isSelected = selectedDomainId === d.id;
+                    const fieldsCount = d.schema_json?.fields?.length || 0;
+                    return (
+                      <div
+                        key={d.id}
+                        onClick={() => {
+                          setSelectedDomainId(d.id);
+                          handleOpenEditDomain(d);
+                        }}
+                        className={`p-3 rounded-xl cursor-pointer transition-all border ${isSelected
+                            ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-200 shadow-xs'
+                            : 'bg-white border-gray-200 hover:border-indigo-200 hover:bg-slate-50'
+                          }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-xs text-gray-900 truncate">{d.name}</span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase ${d.scope === 'SYSTEM' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                              }`}
+                          >
+                            {d.scope}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-gray-500 font-mono">
+                          <span>key: {d.domain_key}</span>
+                          <span>{fieldsCount} Fields</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Right Frame: Detailed View & Editor Panel */}
+            <div className="w-2/3 flex flex-col h-full bg-white overflow-y-auto p-6 space-y-5">
+              {selectedDomainId && domainSchemasMap[selectedDomainId] ? (
+                <form onSubmit={handleSaveDomain} className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-base text-gray-900">
+                        {domainName || 'Domain Schema Details'}
+                      </h3>
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${domainScope === 'SYSTEM' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                          }`}
+                      >
+                        {domainScope} Scope
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {(isSystemAdmin || domainScope === 'TENANT') && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDomainSchema(selectedDomainId)}
+                          className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Delete Schema
+                        </button>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={savingDomain}
+                        className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-xs"
+                      >
+                        {savingDomain && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                        <span>Save Changes</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {domainError && (
+                    <div className="p-3 bg-red-50 text-red-700 text-xs font-semibold rounded-lg border border-red-200">
+                      {domainError}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-gray-700">Schema Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={domainName}
+                        disabled={!isSystemAdmin && domainScope === 'SYSTEM'}
+                        onChange={(e) => setDomainName(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-gray-900 focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-gray-700">Domain Key *</label>
+                      <input
+                        type="text"
+                        required
+                        value={domainKey}
+                        disabled={!isSystemAdmin && domainScope === 'SYSTEM'}
+                        onChange={(e) => setDomainKey(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono bg-white text-gray-900 focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-gray-700">Scope</label>
+                      <input
+                        type="text"
+                        disabled
+                        value={`${domainScope} (${domainScope === 'SYSTEM' ? 'Global System' : 'Tenant'})`}
+                        className="w-full border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-xs text-gray-700 font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-700">Description</label>
+                    <input
+                      type="text"
+                      value={domainDescription}
+                      disabled={!isSystemAdmin && domainScope === 'SYSTEM'}
+                      onChange={(e) => setDomainDescription(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-gray-900 focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                    />
+                  </div>
+
+                  {/* Schema Fields Builder Table */}
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider">
+                        Schema Fields ({domainFields.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAddField}
+                        className="px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Tenant Field</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1 border border-gray-200 rounded-xl p-2 bg-slate-50/50">
+                      {domainFields.map((field, idx) => {
+                        const isSystemField = domainScope === 'SYSTEM' && !isSystemAdmin;
+                        return (
+                          <div
+                            key={idx}
+                            className="grid grid-cols-12 gap-2 items-center bg-white p-2.5 rounded-lg border border-gray-200 text-xs shadow-2xs"
+                          >
+                            <div className="col-span-3">
+                              <input
+                                type="text"
+                                disabled={isSystemField}
+                                placeholder="Key"
+                                value={field.key}
+                                onChange={(e) =>
+                                  handleUpdateField(idx, 'key', e.target.value.toLowerCase().replace(/\s+/g, '_'))
+                                }
+                                className="w-full border border-gray-300 rounded px-2 py-1 font-mono text-xs bg-white disabled:bg-gray-100"
+                              />
+                            </div>
+
+                            <div className="col-span-3">
+                              <input
+                                type="text"
+                                disabled={isSystemField}
+                                placeholder="Label"
+                                value={field.label}
+                                onChange={(e) => handleUpdateField(idx, 'label', e.target.value)}
+                                className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white disabled:bg-gray-100"
+                              />
+                            </div>
+
+                            <div className="col-span-3">
+                              <input
+                                type="text"
+                                disabled={isSystemField}
+                                placeholder="Directive (e.g. Extract name & role)"
+                                value={field.description || ''}
+                                onChange={(e) => handleUpdateField(idx, 'description', e.target.value)}
+                                className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white disabled:bg-gray-100"
+                              />
+                            </div>
+
+                            <div className="col-span-2">
+                              <select
+                                value={field.importance}
+                                disabled={isSystemField}
+                                onChange={(e) => handleUpdateField(idx, 'importance', e.target.value)}
+                                className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white disabled:bg-gray-100"
+                              >
+                                <option value="low">low (1.0x)</option>
+                                <option value="medium">medium (1.5x)</option>
+                                <option value="high">high (2.0x)</option>
+                                <option value="critical">critical (3.0x)</option>
+                              </select>
+                            </div>
+
+                            <div className="col-span-2 flex items-center justify-end">
+                              {isSystemField ? (
+                                <span className="text-[10px] font-bold text-gray-400 flex items-center gap-0.5">
+                                  🔒 System Field
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveField(idx)}
+                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Extraction Prompts Panel */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-gray-700">Domain System Prompt</label>
+                      <textarea
+                        rows={4}
+                        value={domainSystemPrompt}
+                        disabled={!isSystemAdmin && domainScope === 'SYSTEM'}
+                        onChange={(e) => setDomainSystemPrompt(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-mono bg-slate-900 text-slate-100 focus:outline-none focus:border-indigo-500 resize-none disabled:opacity-80"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-gray-700">Domain User Prompt Template</label>
+                      <textarea
+                        rows={4}
+                        value={domainUserPrompt}
+                        disabled={!isSystemAdmin && domainScope === 'SYSTEM'}
+                        onChange={(e) => setDomainUserPrompt(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg p-2.5 text-xs font-mono bg-slate-900 text-slate-100 focus:outline-none focus:border-indigo-500 resize-none disabled:opacity-80"
+                      />
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                  <SlidersHorizontal className="w-10 h-10 mb-2 text-gray-300" />
+                  <p className="text-sm font-semibold">Select a Domain Schema on the left to edit or define fields.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* CREATE KB MODAL */}
       {showCreateModal && (
@@ -1288,6 +1949,24 @@ export default function KnowledgeBasesTab({
                   onChange={(e) => setNewKbPurpose(e.target.value)}
                   className="h-20 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-700">
+                  Linked Domain Schema (Optional)
+                </label>
+                <select
+                  value={newKbDomainId}
+                  onChange={(e) => setNewKbDomainId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="">None (General KB)</option>
+                  {domainSchemas.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.domain_key} - {d.scope})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1.5">
@@ -1444,15 +2123,14 @@ export default function KnowledgeBasesTab({
 
                           <div className="flex items-center gap-2 shrink-0">
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                item.status === 'completed'
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${item.status === 'completed'
                                   ? 'bg-green-100 text-green-700'
                                   : item.status === 'uploading'
                                     ? 'bg-amber-100 text-amber-700 animate-pulse'
                                     : item.status === 'failed'
                                       ? 'bg-red-100 text-red-700'
                                       : 'bg-gray-100 text-gray-600'
-                              }`}
+                                }`}
                             >
                               {item.status}
                             </span>
@@ -1965,7 +2643,7 @@ export default function KnowledgeBasesTab({
                       }`}
                     >
                       <LayoutGrid className="w-3 h-3" />
-                      Cards
+                      <span>Cards</span>
                     </button>
                     <button
                       onClick={() => setEntityDisplayMode('json')}
@@ -1976,12 +2654,75 @@ export default function KnowledgeBasesTab({
                       }`}
                     >
                       <Code2 className="w-3 h-3" />
-                      Prettified JSON
+                      <span>Prettified JSON</span>
+                    </button>
+                    <button
+                      onClick={() => setEntityDisplayMode('debug')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                        entityDisplayMode === 'debug'
+                          ? 'bg-white text-purple-700 shadow-2xs'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <Bug className="w-3 h-3 text-amber-500" />
+                      <span>Debug & Prompts</span>
                     </button>
                   </div>
                 </div>
 
-                {entityDisplayMode === 'json' ? (
+                {entityDisplayMode === 'debug' ? (
+                  <div className="flex-1 flex flex-col min-h-0 bg-slate-950 rounded-xl border border-slate-800 p-4 shadow-inner overflow-y-auto space-y-4 text-xs font-mono">
+                    <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-indigo-400 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                          🏷️ Linked Domain Schema
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 text-[10px] font-bold">
+                          {selectedEkpDoc.metadata_json?.domain_info?.domain_name || 'No Domain Linked'}
+                        </span>
+                      </div>
+                      {selectedEkpDoc.metadata_json?.domain_info?.status_note && (
+                        <p className="text-amber-400 text-[11px] font-sans pt-1">
+                          ⚠️ {selectedEkpDoc.metadata_json.domain_info.status_note}
+                        </p>
+                      )}
+                    </div>
+
+                    {selectedEkpDoc.metadata_json?.domain_info?.error && (
+                      <div className="p-3 bg-red-950/80 border border-red-800 rounded-lg text-red-300 space-y-1">
+                        <span className="font-bold text-red-400 uppercase tracking-wider block">⚠️ Extraction Exception</span>
+                        <pre className="text-[11px] whitespace-pre-wrap">{selectedEkpDoc.metadata_json.domain_info.error}</pre>
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <span className="text-purple-400 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1">
+                        📜 System Prompt Used:
+                      </span>
+                      <pre className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-slate-300 whitespace-pre-wrap text-[11px] leading-relaxed">
+                        {selectedEkpDoc.metadata_json?.domain_info?.debug_info?.system_prompt || 'No system prompt log stored for this document.'}
+                      </pre>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-purple-400 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1">
+                        📄 User Prompt & Content Passed to LLM:
+                      </span>
+                      <pre className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-slate-300 whitespace-pre-wrap text-[11px] leading-relaxed">
+                        {selectedEkpDoc.metadata_json?.domain_info?.debug_info?.user_prompt || 'No user prompt log stored for this document.'}
+                      </pre>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-emerald-400 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1">
+                        🤖 Raw LLM Completion Output:
+                      </span>
+                      <pre className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-emerald-300 whitespace-pre-wrap text-[11px] leading-relaxed">
+                        {selectedEkpDoc.metadata_json?.domain_info?.debug_info?.raw_response || 'No raw completion output log stored for this document.'}
+                      </pre>
+                    </div>
+                  </div>
+                ) : entityDisplayMode === 'json' ? (
                   <div className="flex-1 flex flex-col min-h-0 bg-slate-950 rounded-xl border border-slate-800 p-3 shadow-inner overflow-hidden">
                     <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 shrink-0">
                       <span className="text-[10px] font-mono text-purple-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
@@ -2161,11 +2902,10 @@ export default function KnowledgeBasesTab({
                                       Confidence: <strong>{(ent.confidence * 100).toFixed(0)}%</strong>
                                     </span>
                                     <span
-                                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                                        ent.basis === 'FACT'
+                                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${ent.basis === 'FACT'
                                           ? 'bg-green-100 text-green-800'
                                           : 'bg-amber-100 text-amber-800'
-                                      }`}
+                                        }`}
                                     >
                                       {ent.basis}
                                     </span>
@@ -2206,6 +2946,6 @@ export default function KnowledgeBasesTab({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
