@@ -1,51 +1,73 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import {
+  getRequiredPermissionForPath,
+  hasPermissionScope,
+  getDefaultRedirectForPermissions,
+} from '@/lib/config/route_permissions';
+
+/**
+ * Parses JWT payload at Edge Middleware runtime without native crypto dependencies.
+ */
+function parseJwtPayload(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // Define public paths that do not require authentication
-  // These are /login, /signup, and the main landing page /
   const publicPaths = ['/login', '/signup', '/'];
-
-  // Check if the current path is one of the public paths
   const isPublicPath = publicPaths.includes(pathname);
+  const token = request.cookies.get('token')?.value;
 
-  // Check if the user has an authentication token in their cookies
-  // This assumes your backend sets an httpOnly cookie named 'token' upon login.
-  const isAuthenticated = request.cookies.has('token');
-
-  // Case 1: User is NOT authenticated
-  if (!isAuthenticated) {
-    // If trying to access a protected path, redirect to login
+  // Case 1: Unauthenticated User Access
+  if (!token) {
     if (!isPublicPath) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
-    // If trying to access a public path, allow the request to proceed
     return NextResponse.next();
   }
 
-  // Case 2: User IS authenticated
-  // If trying to access a public authentication-related page (login/signup),
-  // redirect them to the workflow builder (or admin page if they are admin).
-  // Allow authenticated users to still view the main landing page ('/').
+  // Extract JWT claims at Edge runtime
+  const payload = parseJwtPayload(token);
+  const userPermissions: string[] = payload?.permissions || [];
+  const userRole: string = payload?.role || '';
+
+  // Case 2: Authenticated User Accessing Auth Pages (/login, /signup)
   if (isPublicPath && pathname !== '/') {
-    return NextResponse.redirect(new URL('/workflow-builder', request.url));
+    const defaultLandingPage = getDefaultRedirectForPermissions(userPermissions, userRole);
+    return NextResponse.redirect(new URL(defaultLandingPage, request.url));
   }
 
-  // If authenticated and trying to access a protected path, allow the request to proceed
+  // Case 3: URL Route-Permission Authorization Guard
+  const requiredPermission = getRequiredPermissionForPath(pathname);
+  if (requiredPermission) {
+    const isSuperOrTenantAdmin = userRole === 'admin' || userRole === 'system_admin';
+    const isAuthorized = isSuperOrTenantAdmin || hasPermissionScope(userPermissions, requiredPermission);
+
+    if (!isAuthorized) {
+      const fallbackRoute = getDefaultRedirectForPermissions(userPermissions, userRole);
+      return NextResponse.redirect(new URL(fallbackRoute, request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
-// Configure the paths where the middleware should run
 export const config = {
   matcher: [
-    // Match all request paths except for the ones starting with:
-    // - _next/static (static files)
-    // - _next/image (image optimization files)
-    // - favicon.ico (favicon file)
-    // - api (API routes)
-    // - any files in the public folder (e.g., /images, /docs)
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|js|css|map)$).*)',
   ],
 };

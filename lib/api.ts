@@ -1151,5 +1151,34 @@ export const api = {
     if (!res.ok) return [];
     return res.json();
   },
+
+  createPermission: async (data: { id: string; module: string; label: string; description?: string }) => {
+    const res = await fetch(`${BACKEND_URL}/roles/permissions`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create permission');
+    }
+    return res.json();
+  },
+
+  createModulePermissions: async (data: {
+    module_name: string;
+    permissions: Array<{ id: string; label: string; description?: string }>;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/roles/modules`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to register module permissions');
+    }
+    return res.json();
+  },
 };
 

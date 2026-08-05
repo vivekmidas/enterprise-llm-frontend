@@ -29,6 +29,86 @@ export default function RolesTab() {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Module & Permission Builder Modal States
+  const [showModuleModal, setShowModuleModal] = useState(false);
+  const [moduleName, setModuleName] = useState('HealthCare');
+  const [permissionRows, setPermissionRows] = useState<
+    Array<{ id: string; label: string; description: string }>
+  >([
+    { id: 'health:admin:*', label: 'Healthcare Admin Full Access', description: 'Full access to healthcare domain' },
+    { id: 'health:patient:view', label: 'View Patient Records', description: 'View HIPAA patient medical records' },
+    { id: 'health:claims:process', label: 'Process Insurance Claims', description: 'Verify and process insurance claims' },
+  ]);
+  const [savingModule, setSavingModule] = useState(false);
+
+  const handleAddPermissionRow = () => {
+    const modPrefix = moduleName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    setPermissionRows((prev) => [
+      ...prev,
+      { id: `${modPrefix}:resource:action`, label: 'New Permission Scope', description: '' },
+    ]);
+  };
+
+  const handleRemovePermissionRow = (index: number) => {
+    setPermissionRows((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRowChange = (index: number, field: string, val: string) => {
+    setPermissionRows((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, [field]: val } : row))
+    );
+  };
+
+  const handleSaveModuleAndPermissions = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!moduleName.trim() || permissionRows.length === 0) {
+      alert('Please specify a module name and at least one permission row.');
+      return;
+    }
+    setSavingModule(true);
+    try {
+      await api.createModulePermissions({
+        module_name: moduleName.trim(),
+        permissions: permissionRows.map((r) => ({
+          id: r.id.trim().toLowerCase(),
+          label: r.label.trim(),
+          description: r.description.trim(),
+        })),
+      });
+      setShowModuleModal(false);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save module and permissions');
+    } finally {
+      setSavingModule(false);
+    }
+  };
+
+  const handlePresetModuleSelect = (presetName: string) => {
+    if (presetName === 'HealthCare') {
+      setModuleName('HealthCare');
+      setPermissionRows([
+        { id: 'health:admin:*', label: 'Healthcare Admin Full Access', description: 'Full access to healthcare domain' },
+        { id: 'health:patient:view', label: 'View Patient Records', description: 'View HIPAA patient medical records' },
+        { id: 'health:claims:process', label: 'Process Insurance Claims', description: 'Verify and process insurance claims' },
+      ]);
+    } else if (presetName === 'Education') {
+      setModuleName('Education');
+      setPermissionRows([
+        { id: 'edu:admin:*', label: 'Education Admin Full Access', description: 'Full access to education portal' },
+        { id: 'edu:student:view', label: 'View Student Records', description: 'Access student profiles and transcripts' },
+        { id: 'edu:course:manage', label: 'Manage Courses & Curriculum', description: 'Create and update course material' },
+      ]);
+    } else if (presetName === 'Finance') {
+      setModuleName('Finance');
+      setPermissionRows([
+        { id: 'fin:admin:*', label: 'Finance Admin Full Access', description: 'Full access to financial records' },
+        { id: 'fin:ledger:view', label: 'View General Ledger', description: 'Inspect audit ledger and journal entries' },
+        { id: 'fin:payout:approve', label: 'Approve Payouts', description: 'Authorize high-value financial transfers' },
+      ]);
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -136,7 +216,8 @@ export default function RolesTab() {
   };
 
   const formatModuleName = (mod: string) => {
-    switch (mod) {
+    const key = (mod || '').toLowerCase();
+    switch (key) {
       case 'legal':
         return 'Legal & Court Domain';
       case 'knowledge':
@@ -151,8 +232,12 @@ export default function RolesTab() {
       case 'tenant':
       case 'admin':
         return 'Administration & Security';
+      case 'healthcare':
+        return 'Healthcare & Clinical Domain';
+      case 'finance':
+        return 'Finance & Accounting Domain';
       default:
-        return mod.toUpperCase();
+        return key.charAt(0).toUpperCase() + key.slice(1) + ' Domain';
     }
   };
 
@@ -172,18 +257,28 @@ export default function RolesTab() {
               </span>
             </h2>
             <p className="text-sm text-gray-500">
-              Configure role profiles, assign granular UI & API permission scopes, and manage access policies.
+              Configure role profiles, register domain permission scopes (e.g. Healthcare, Finance), and manage access policies.
             </p>
           </div>
         </div>
 
-        <button
-          onClick={handleOpenCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-all shadow-sm cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Create Custom Role</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowModuleModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-all shadow-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Add Module & Permissions</span>
+          </button>
+
+          <button
+            onClick={handleOpenCreateModal}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-all shadow-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Custom Role</span>
+          </button>
+        </div>
       </div>
 
       {/* Roles Cards Grid */}
@@ -433,6 +528,169 @@ export default function RolesTab() {
                   className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   {saving ? 'Saving...' : editingRole ? 'Save Changes' : 'Create Role'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Top-Level Module & Granular Permissions Modal */}
+      {showModuleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-2xl w-full p-6 space-y-5 animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 shrink-0">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Module & Permission Manager</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Register or edit top-level modules (e.g., HealthCare, Education, Finance) and add granular permission scopes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowModuleModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveModuleAndPermissions} className="space-y-5 overflow-y-auto pr-1 flex-1">
+              {/* Quick Template Presets */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Quick Load Module Preset
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePresetModuleSelect('HealthCare')}
+                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold cursor-pointer"
+                  >
+                    🏥 HealthCare Preset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePresetModuleSelect('Education')}
+                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold cursor-pointer"
+                  >
+                    🎓 Education Preset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePresetModuleSelect('Finance')}
+                    className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-semibold cursor-pointer"
+                  >
+                    💳 Finance Preset
+                  </button>
+                </div>
+              </div>
+
+              {/* Module Name Field */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Top Level Module Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="HealthCare, Education, Finance, Legal"
+                  value={moduleName}
+                  onChange={(e) => setModuleName(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs font-bold rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+                />
+              </div>
+
+              {/* Dynamic Permissions List Builder */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Granular Permission Scopes <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAddPermissionRow}
+                    className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Permission Scope</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {permissionRows.map((row, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-2 relative"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
+                            Permission ID (e.g. health:patient:view)
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="health:patient:view"
+                            value={row.id}
+                            onChange={(e) => handleRowChange(idx, 'id', e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs font-mono rounded-md border border-gray-300 focus:ring-2 focus:ring-emerald-500 bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
+                            Permission Label / Title
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="View Patient Records"
+                            value={row.label}
+                            onChange={(e) => handleRowChange(idx, 'label', e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-md border border-gray-300 focus:ring-2 focus:ring-emerald-500 bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Description (optional)"
+                          value={row.description}
+                          onChange={(e) => handleRowChange(idx, 'description', e.target.value)}
+                          className="flex-1 px-2.5 py-1 text-xs rounded-md border border-gray-300 focus:ring-2 focus:ring-emerald-500 bg-white text-gray-600"
+                        />
+                        {permissionRows.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePermissionRow(idx)}
+                            className="p-1 text-red-500 hover:bg-red-50 rounded cursor-pointer"
+                            title="Remove permission row"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit Footer */}
+              <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowModuleModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingModule}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                >
+                  {savingModule ? 'Saving Module & Scopes...' : 'Save Module & Permissions'}
                 </button>
               </div>
             </form>
