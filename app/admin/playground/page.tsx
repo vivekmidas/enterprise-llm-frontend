@@ -246,7 +246,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
       const startA = performance.now();
       const resA = await api.retrieveKnowledge({
         query: searchQuery,
-        knowledge_base_ids: [Number(selectedKbId)],
+        knowledge_base_ids: [selectedKbId],
         approach: approachA,
         enable_rrf: enableRrfA,
         top_k: topKA,
@@ -264,7 +264,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
       const startB = performance.now();
       const resB = await api.retrieveKnowledge({
         query: searchQuery,
-        knowledge_base_ids: [Number(selectedKbId)],
+        knowledge_base_ids: [selectedKbId],
         approach: approachB,
         enable_rrf: enableRrfB,
         top_k: topKB,

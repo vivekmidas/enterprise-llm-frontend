@@ -571,9 +571,10 @@ export default function KnowledgeBasesTab({
   const [updatingDocTypeIds, setUpdatingDocTypeIds] = useState<Record<number, boolean>>({});
 
   // KB creation settings
-  const [newKbEmbeddingModel, setNewKbEmbeddingModel] = useState('nomic-embed-text');
   const [newKbChunkSize, setNewKbChunkSize] = useState<number>(1000);
   const [newKbChunkOverlap, setNewKbChunkOverlap] = useState<number>(200);
+  const [newKbLlmProfileId, setNewKbLlmProfileId] = useState<string>('');
+  const [llmProfiles, setLlmProfiles] = useState<any[]>([]);
 
   // Multi-Doc Upload Queue
   interface UploadItem {
@@ -598,6 +599,7 @@ export default function KnowledgeBasesTab({
   const [editKbVectorDimension, setEditKbVectorDimension] = useState<number>(768);
   const [editKbChunkSize, setEditKbChunkSize] = useState<number>(1000);
   const [editKbChunkOverlap, setEditKbChunkOverlap] = useState<number>(200);
+  const [editKbLlmProfileId, setEditKbLlmProfileId] = useState<string>('');
   const [savingKb, setSavingKb] = useState(false);
 
   // Doc Edit State
@@ -661,6 +663,33 @@ export default function KnowledgeBasesTab({
     }
   };
 
+  const fetchLlmProfiles = async (targetCustId?: string) => {
+    try {
+      const custToFetch = targetCustId !== undefined ? targetCustId : selectedCustomerFilter;
+      const data = await api.getLlmProfiles(custToFetch !== 'all' ? custToFetch : undefined);
+      setLlmProfiles(data || []);
+    } catch (err) {
+      console.error('Failed to load LLM profiles', err);
+    }
+  };
+
+  const targetCustomerProfiles = useMemo(() => {
+    if (!isSystemAdmin) return llmProfiles;
+    const targetCust = createKbTargetCustomer || (selectedCustomerFilter !== 'all' ? selectedCustomerFilter : null);
+    if (targetCust) {
+      return llmProfiles.filter((p) => String(p.customer_id) === String(targetCust));
+    }
+    return llmProfiles;
+  }, [llmProfiles, isSystemAdmin, createKbTargetCustomer, selectedCustomerFilter]);
+
+  const llmProfilesMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    llmProfiles.forEach((p) => {
+      map[String(p.id)] = p;
+    });
+    return map;
+  }, [llmProfiles]);
+
   useEffect(() => {
     if (isSystemAdmin) {
       api.getCustomers()
@@ -675,6 +704,7 @@ export default function KnowledgeBasesTab({
         .catch((err) => console.error('Failed to fetch customers list', err));
     }
     fetchKBs(selectedCustomerFilter);
+    fetchLlmProfiles(selectedCustomerFilter);
     fetchDocTypes();
     api.getUsers()
       .then((users: any[]) => {
@@ -689,6 +719,7 @@ export default function KnowledgeBasesTab({
 
   useEffect(() => {
     fetchKBs(selectedCustomerFilter);
+    fetchLlmProfiles(selectedCustomerFilter);
     fetchDocTypes();
   }, [selectedCustomerFilter]);
 
@@ -724,15 +755,22 @@ export default function KnowledgeBasesTab({
         .map((t) => t.trim())
         .filter(Boolean);
 
-      const selectedModel = EMBEDDING_MODELS.find((m) => m.value === newKbEmbeddingModel);
+      const selectedProfile = targetCustomerProfiles.find((p) => String(p.id) === String(newKbLlmProfileId));
+      const profSettings = selectedProfile?.settings || {};
+      const embModel = profSettings.embedding_model || profSettings.embedding?.model;
+      const vecDim = profSettings.vector_dimension || profSettings.embedding?.dimension;
+      const chunkSize = profSettings.chunk_size || newKbChunkSize || 1000;
+      const chunkOverlap = profSettings.chunk_overlap || newKbChunkOverlap || 200;
 
       const settingsPayload: any = {
         tags: tagsList,
-        embedding_model: selectedModel?.value || 'nomic-embed-text',
-        vector_dimension: selectedModel?.dimension || 768,
-        chunk_size: Number(newKbChunkSize) || 1000,
-        chunk_overlap: Number(newKbChunkOverlap) || 200,
+        chunk_size: Number(chunkSize),
+        chunk_overlap: Number(chunkOverlap),
+        llm_profile_id: newKbLlmProfileId || undefined,
       };
+      if (embModel) settingsPayload.embedding_model = embModel;
+      if (vecDim) settingsPayload.vector_dimension = Number(vecDim);
+
       if (isSystemAdmin && createKbTargetCustomer) {
         settingsPayload.customer_id = Number(createKbTargetCustomer);
       }
@@ -750,7 +788,7 @@ export default function KnowledgeBasesTab({
       setNewKbPurpose('');
       setNewKbTags('');
       setNewKbDomainId('');
-      setNewKbEmbeddingModel('nomic-embed-text');
+      setNewKbLlmProfileId('');
       setNewKbChunkSize(1000);
       setNewKbChunkOverlap(200);
     } catch (err: any) {
@@ -760,7 +798,6 @@ export default function KnowledgeBasesTab({
       setCreating(false);
     }
   };
-  /* END BLOCK */
 
   const handleDeleteKB = async (id: number) => {
     if (
@@ -907,6 +944,7 @@ export default function KnowledgeBasesTab({
     setEditKbVectorDimension(kb.settings?.vector_dimension || 768);
     setEditKbChunkSize(kb.settings?.chunk_size || 1000);
     setEditKbChunkOverlap(kb.settings?.chunk_overlap || 200);
+    setEditKbLlmProfileId(kb.settings?.llm_profile_id ? String(kb.settings.llm_profile_id) : '');
     setShowEditKbModal(true);
   };
 
@@ -916,6 +954,12 @@ export default function KnowledgeBasesTab({
 
     setSavingKb(true);
     setError(null);
+
+    const selectedProfile = llmProfiles.find((p) => String(p.id) === String(editKbLlmProfileId));
+    const profSettings = selectedProfile?.settings || {};
+    const effectiveChunkSize = profSettings.chunk_size || editKbChunkSize || 1000;
+    const effectiveChunkOverlap = profSettings.chunk_overlap || editKbChunkOverlap || 200;
+
     try {
       const updatedKb = await api.updateKnowledgeBase(selectedKb.id, {
         name: editKbName,
@@ -924,8 +968,9 @@ export default function KnowledgeBasesTab({
           ...(selectedKb.settings || {}),
           purpose: editKbPurpose || undefined,
           tags: editKbTags.length > 0 ? editKbTags : undefined,
-          chunk_size: Number(editKbChunkSize),
-          chunk_overlap: Number(editKbChunkOverlap),
+          chunk_size: Number(effectiveChunkSize),
+          chunk_overlap: Number(effectiveChunkOverlap),
+          llm_profile_id: editKbLlmProfileId || undefined,
         },
       });
       setKbList((prev) => prev.map((kb) => (kb.id === updatedKb.id ? updatedKb : kb)));
@@ -1194,6 +1239,15 @@ export default function KnowledgeBasesTab({
                             <div className="pt-0.5">
                               <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold inline-flex items-center gap-1">
                                 🏷️ {domainSchemasMap[kb.domain_id].name} ({domainSchemasMap[kb.domain_id].scope})
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Linked LLM Profile Badge */}
+                          {kb.settings?.llm_profile_id && llmProfilesMap[kb.settings.llm_profile_id] && (
+                            <div className="pt-0.5">
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1">
+                                🤖 {llmProfilesMap[kb.settings.llm_profile_id].name}
                               </span>
                             </div>
                           )}
@@ -1983,45 +2037,55 @@ export default function KnowledgeBasesTab({
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">Embedding Model</label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-gray-655">
+                    LLM Profile (Doc Extraction & Reasoning)
+                  </label>
+                  {targetCustomerProfiles.length > 1 && (
+                    <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-bold">
+                      {targetCustomerProfiles.length} profiles
+                    </span>
+                  )}
+                </div>
                 <select
-                  value={newKbEmbeddingModel}
-                  onChange={(e) => setNewKbEmbeddingModel(e.target.value)}
+                  value={newKbLlmProfileId}
+                  onChange={(e) => setNewKbLlmProfileId(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
                 >
-                  {EMBEDDING_MODELS.map((model) => (
-                    <option key={model.value} value={model.value}>
-                      {model.name}
+                  <option value="">Default (Tenant Active Profile)</option>
+                  {targetCustomerProfiles.map((prof) => (
+                    <option key={prof.id} value={String(prof.id)}>
+                      {prof.name || prof.profile_name || `Profile #${prof.id}`}
+                      {prof.provider || prof.provider_name ? ` (${prof.provider || prof.provider_name})` : ''}
+                      {prof.is_default ? ' ★ Default' : ''}
                     </option>
                   ))}
                 </select>
+                {targetCustomerProfiles.length > 1 && (
+                  <p className="text-[10px] text-gray-500 leading-tight">
+                    Select which LLM profile to use for processing documents uploaded to this Knowledge Base.
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-655">
-                    Chunk Size (Tokens)
-                  </label>
-                  <input
-                    type="number"
-                    min="100"
-                    max="4000"
-                    value={newKbChunkSize}
-                    onChange={(e) => setNewKbChunkSize(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                  />
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                  <span>Profile Chunking Configuration (RO)</span>
+                  <span className="text-[9px] text-slate-400 font-normal">🔒 Profile Managed</span>
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-655">Chunk Overlap</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="1000"
-                    value={newKbChunkOverlap}
-                    onChange={(e) => setNewKbChunkOverlap(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                  />
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-400 font-medium block text-[10px]">Chunk Size</span>
+                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
+                      {targetCustomerProfiles.find((p) => String(p.id) === String(newKbLlmProfileId))?.settings?.chunk_size || 1000} tokens
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 font-medium block text-[10px]">Chunk Overlap</span>
+                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
+                      {targetCustomerProfiles.find((p) => String(p.id) === String(newKbLlmProfileId))?.settings?.chunk_overlap || 200} tokens
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -2371,6 +2435,26 @@ export default function KnowledgeBasesTab({
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-655">
+                  LLM Profile (Document Extraction)
+                </label>
+                <select
+                  value={editKbLlmProfileId}
+                  onChange={(e) => setEditKbLlmProfileId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="">Default (Tenant Active Profile)</option>
+                  {targetCustomerProfiles.map((prof) => (
+                    <option key={prof.id} value={String(prof.id)}>
+                      {prof.name || prof.profile_name || `Profile #${prof.id}`}
+                      {prof.provider || prof.provider_name ? ` (${prof.provider || prof.provider_name})` : ''}
+                      {prof.is_default ? ' ★ Default' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
                 <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Vector Store Configuration
@@ -2398,29 +2482,24 @@ export default function KnowledgeBasesTab({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-655">Chunk Size</label>
-                  <input
-                    type="number"
-                    min="100"
-                    max="4000"
-                    value={editKbChunkSize}
-                    onChange={(e) => setEditKbChunkSize(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                  />
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                  <span>Chunking Settings (RO)</span>
+                  <span className="text-[9px] text-slate-400 font-normal">🔒 Profile Managed</span>
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-655">Chunk Overlap</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="1000"
-                    value={editKbChunkOverlap}
-                    onChange={(e) => setEditKbChunkOverlap(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                  />
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-400 font-medium block text-[10px]">Chunk Size</span>
+                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
+                      {selectedKb.settings?.chunk_size || 1000} tokens
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 font-medium block text-[10px]">Chunk Overlap</span>
+                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
+                      {selectedKb.settings?.chunk_overlap || 200} tokens
+                    </span>
+                  </div>
                 </div>
               </div>
 

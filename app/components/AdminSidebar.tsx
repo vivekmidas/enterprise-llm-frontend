@@ -13,6 +13,7 @@ import {
   BarChart3,
   ChevronDown,
   BookOpen,
+  Scale,
 } from 'lucide-react';
 
 
@@ -34,6 +35,7 @@ const navSections: NavSection[] = [
     title: 'Navigation',
     items: [
       { label: 'Dashboard', href: '/admin', icon: <Home className="w-4 h-4" /> },
+      { label: 'Legal Research', href: '/legal-research', icon: <Scale className="w-4 h-4" /> },
       { label: 'Metrics', href: '/admin?tab=metrics', icon: <BarChart3 className="w-4 h-4" /> },
     ],
   },

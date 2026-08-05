@@ -107,6 +107,12 @@ export default function Header() {
                 )} */}
               </div>
               <Link
+                href="/legal-research"
+                className="text-sm font-bold text-indigo-600 hover:text-indigo-700 px-3 py-2 rounded-lg hover:bg-indigo-50 transition-all duration-200"
+              >
+                Legal Research
+              </Link>
+              <Link
                 href="/admin"
                 className="text-sm font-bold text-primary hover:text-violet-700 px-3 py-2 rounded-lg hover:bg-violet-50 transition-all duration-200"
               >

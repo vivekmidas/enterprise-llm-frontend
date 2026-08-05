@@ -610,7 +610,73 @@ export const api = {
   },
   /* END BLOCK */
 
-  createKnowledgeBase: async (payload: { name: string; description?: string; settings?: any }) => {
+  /* BLOCK: Domain Schemas API */
+  getDomainSchemas: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/domains`, {
+      headers: getHeaders(),
+      method: 'GET',
+    });
+    if (!res.ok) throw new Error('Failed to fetch domain schemas');
+    return res.json();
+  },
+
+  getDomainSchema: async (id: string) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/domains/${id}`, {
+      headers: getHeaders(),
+      method: 'GET',
+    });
+    if (!res.ok) throw new Error('Failed to fetch domain schema');
+    return res.json();
+  },
+
+  createDomainSchema: async (payload: {
+    name: string;
+    domain_key: string;
+    description?: string;
+    scope?: string;
+    fields?: Array<{ key: string; label: string; description?: string; type?: string; weight: number; importance: string; required?: boolean }>;
+    system_prompt?: string;
+    user_prompt?: string;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/domains`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to create domain schema');
+    return res.json();
+  },
+
+  updateDomainSchema: async (
+    id: string,
+    payload: {
+      name?: string;
+      description?: string;
+      fields?: Array<{ key: string; label: string; description?: string; type?: string; weight: number; importance: string; required?: boolean }>;
+      system_prompt?: string;
+      user_prompt?: string;
+    },
+  ) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/domains/${id}`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to update domain schema');
+    return res.json();
+  },
+
+  deleteDomainSchema: async (id: string) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/domains/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to delete domain schema');
+    return res.json();
+  },
+  /* END BLOCK */
+
+  createKnowledgeBase: async (payload: { name: string; description?: string; domain_id?: string; settings?: any }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -631,7 +697,7 @@ export const api = {
 
   updateKnowledgeBase: async (
     id: number | string,
-    payload: { name?: string; description?: string; status?: string; settings?: any },
+    payload: { name?: string; description?: string; domain_id?: string; status?: string; settings?: any },
   ) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${id}`, {
       method: 'PUT',
@@ -653,6 +719,15 @@ export const api = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error('Failed to update document');
+    return res.json();
+  },
+
+  reprocessDocument: async (kbId: number | string, docId: number | string) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}/reprocess`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to queue document for reprocessing');
     return res.json();
   },
 
@@ -712,7 +787,7 @@ export const api = {
 
   retrieveKnowledge: async (payload: {
     query: string;
-    knowledge_base_ids: number[];
+    knowledge_base_ids: string[];
     top_k?: number;
     min_score?: number;
     enable_reranking?: boolean;
@@ -923,4 +998,61 @@ export const api = {
     }
     return res.json();
   },
+
+  getConfiguredLLMProfiles: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/configured-profiles`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  searchLegalCases: async (payload: { query: string; court_code?: string; judge?: string; statute?: string; disposition?: string; limit?: number }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/search`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Legal search failed');
+    return res.json();
+  },
+
+  getSavedQueries: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/saved-queries`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!res.ok) return { private_queries: [], public_queries: [] };
+    return res.json();
+  },
+
+  saveQuery: async (payload: { title: string; query_text?: string; filters_json?: any; is_public: boolean }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/saved-queries`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to save query');
+    return res.json();
+  },
+
+  getLegalAuditLogs: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/audit-logs`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  getCaseDetail: async (cnr: string) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/case/${cnr}`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to fetch case detail');
+    return res.json();
+  },
 };
+
