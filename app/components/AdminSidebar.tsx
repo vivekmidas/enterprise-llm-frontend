@@ -14,9 +14,10 @@ import {
   ChevronDown,
   BookOpen,
   Scale,
+  Users as UsersIcon,
+  ShieldCheck,
+  Building2,
 } from 'lucide-react';
-
-
 
 interface NavItem {
   label: string;
@@ -53,11 +54,24 @@ const navSections: NavSection[] = [
         href: '/workflow-builder',
         icon: <Workflow className="w-4 h-4" />,
       },
+      {
+        label: 'Users',
+        href: '/admin?tab=users',
+        icon: <UsersIcon className="w-4 h-4" />,
+      },
+      {
+        label: 'Manage Roles',
+        href: '/admin?tab=roles',
+        icon: <ShieldCheck className="w-4 h-4" />,
+      },
     ],
   },
   {
     title: 'Admin',
-    items: [{ label: 'Settings', href: '#settings', icon: <Settings className="w-4 h-4" /> }],
+    items: [
+      { label: 'System Customers', href: '/admin?tab=customers', icon: <Building2 className="w-4 h-4" /> },
+      { label: 'Settings', href: '/admin?tab=settings', icon: <Settings className="w-4 h-4" /> },
+    ],
   },
 ];
 

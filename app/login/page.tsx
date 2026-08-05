@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Cpu, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { getDefaultRedirectForPermissions } from '@/lib/config/route_permissions';
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 
@@ -39,11 +40,11 @@ export default function LoginPage() {
       // max-age is set to 7 days (60s * 60m * 24h * 7d)
       document.cookie = `token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 
-      if (data.role === 'admin' || data.role === 'system_admin') {
-        router.push('/admin');
-      } else {
-        router.push('/workflow-builder');
-      }
+      // Fetch user profile & permissions for dynamic routing
+      const currentUser = await api.getCurrentUser().catch(() => null);
+      const userPermissions = currentUser?.permissions || data.permissions || [];
+      const targetRoute = getDefaultRedirectForPermissions(userPermissions, data.role);
+      router.push(targetRoute);
     } catch (err: any) {
       const isInvalidCreds =
         err?.message === 'Invalid credentials' ||

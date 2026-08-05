@@ -320,6 +320,23 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(user),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create user');
+    }
+    return res.json();
+  },
+
+  updateUserRole: async (userId: string, data: { name?: string; role?: string; role_id?: string }) => {
+    const res = await fetch(`${BACKEND_URL}/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update user role');
+    }
     return res.json();
   },
 
@@ -1052,6 +1069,86 @@ export const api = {
       headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch case detail');
+    return res.json();
+  },
+
+  /** Generic API request wrapper */
+  request: async (path: string, options: RequestInit = {}) => {
+    const url = path.startsWith('/') ? `${BACKEND_URL}${path}` : `${BACKEND_URL}/${path}`;
+    const headers = getHeaders(options.headers as any || { 'Content-Type': 'application/json' });
+    const res = await fetch(url, { ...options, headers });
+    if (!res.ok) {
+      let msg = 'API request failed';
+      try {
+        const data = await res.json();
+        msg = data.detail || msg;
+      } catch {
+        msg = res.statusText || msg;
+      }
+      throw new Error(msg);
+    }
+    if (res.status === 204) return null;
+    return res.json();
+  },
+
+  /** Roles & Permissions API */
+  getRoles: async (customerId?: string) => {
+    const url = customerId ? `${BACKEND_URL}/roles?customer_id=${customerId}` : `${BACKEND_URL}/roles`;
+    const res = await fetch(url, { method: 'GET', headers: getHeaders() });
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  getPermissionsRegistry: async () => {
+    const res = await fetch(`${BACKEND_URL}/roles/permissions`, { method: 'GET', headers: getHeaders() });
+    if (!res.ok) return { permissions: [], grouped_by_module: {} };
+    return res.json();
+  },
+
+  createRole: async (data: { role_name: string; role_type?: string; description?: string; permission_ids?: string[] }, customerId?: string) => {
+    const url = customerId ? `${BACKEND_URL}/roles?customer_id=${customerId}` : `${BACKEND_URL}/roles`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create role');
+    }
+    return res.json();
+  },
+
+  updateRole: async (roleId: string, data: { role_name?: string; description?: string; permission_ids?: string[] }) => {
+    const res = await fetch(`${BACKEND_URL}/roles/${roleId}`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update role');
+    }
+    return res.json();
+  },
+
+  deleteRole: async (roleId: string) => {
+    const res = await fetch(`${BACKEND_URL}/roles/${roleId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to delete role');
+    }
+    return true;
+  },
+
+  getRoutePermissions: async () => {
+    const res = await fetch(`${BACKEND_URL}/roles/route-permissions`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) return [];
     return res.json();
   },
 };

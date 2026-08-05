@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Edit2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { IconMap } from '@/lib/icons';
 
@@ -18,15 +19,27 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
-  const [newUserRole, setNewUserRole] = useState<'admin' | 'user'>('user');
+  const [newUserRole, setNewUserRole] = useState<string>('tenant_user');
+
+  // Edit User Role Modal States
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [editUserRole, setEditUserRole] = useState<string>('tenant_user');
+  const [updating, setUpdating] = useState(false);
+
+  const [rolesList, setRolesList] = useState<any[]>([]);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const usrs = await api.getUsers().catch(() => []);
+      const [usrs, rls] = await Promise.all([
+        api.getUsers().catch(() => []),
+        api.getRoles().catch(() => [])
+      ]);
       setUsers(usrs || []);
+      setRolesList(rls || []);
     } catch (err) {
-      console.error('Failed to fetch users', err);
+      console.error('Failed to fetch users or roles', err);
     } finally {
       setLoading(false);
     }
@@ -55,14 +68,36 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
     }
   };
 
+  const handleOpenEditUserModal = (user: any) => {
+    setEditingUser(user);
+    setEditUserRole(user.role || 'tenant_user');
+    setShowEditUserModal(true);
+  };
+
+  const handleSaveUserRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setUpdating(true);
+    try {
+      await api.updateUserRole(editingUser.id, {
+        role: editUserRole,
+      });
+      setShowEditUserModal(false);
+      fetchUsers();
+    } catch (err: any) {
+      alert('Failed to update user role: ' + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleDeleteUser = async (targetUser: any) => {
     if (String(targetUser.id) === String(userId)) {
       alert('You cannot delete your own account.');
       return;
     }
-    if (
-      !confirm(`Are you sure you want to delete ${targetUser.email_id || targetUser.username}?`)
-    ) {
+
+    if (!confirm(`Are you sure you want to delete user "${targetUser.username}"?`)) {
       return;
     }
 
@@ -98,7 +133,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
               <tr>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Username</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Email</th>
-                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Role</th>
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">RBAC Role</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">
                   Actions
@@ -112,25 +147,32 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                   <td className="px-4 py-3 text-sm text-gray-600">{u.email_id}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`px-2 py-1 rounded text-xs font-bold uppercase ${
-                        u.role === 'admin' || u.role === 'system_admin'
-                          ? 'bg-purple-50 text-purple-700'
-                          : 'bg-blue-50 text-blue-700'
-                      }`}
+                      className={`px-2.5 py-1 rounded text-xs font-bold ${u.role === 'admin' || u.role === 'system_admin' || u.role === 'tenant_admin'
+                          ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                          : 'bg-blue-50 text-blue-700 border border-blue-200'
+                        }`}
                     >
                       {u.role}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`text-sm font-medium ${
-                        u.status === 'active' ? 'text-green-600' : 'text-red-600'
-                      }`}
+                      className={`text-sm font-medium ${u.status === 'active' ? 'text-green-600' : 'text-red-600'
+                        }`}
                     >
                       {u.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditUserModal(u)}
+                      title="Edit User Role"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-indigo-200 text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => handleDeleteUser(u)}
@@ -167,7 +209,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
 
       {/* Add User Modal */}
       {showAddUserModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
           <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
             <h3 className="text-xl font-bold text-black mb-4">Add Company User</h3>
             <form onSubmit={handleAddUser} className="space-y-4">
@@ -180,7 +222,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                   required
                   value={newUserName}
                   onChange={(e) => setNewUserName(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-indigo-500 focus:outline-none"
                   placeholder="e.g. Jane Smith"
                 />
               </div>
@@ -193,7 +235,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                   required
                   value={newUserEmail}
                   onChange={(e) => setNewUserEmail(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-indigo-500 focus:outline-none"
                   placeholder="e.g. jane@acme.com"
                 />
               </div>
@@ -206,19 +248,33 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                   required
                   value={newUserPassword}
                   onChange={(e) => setNewUserPassword(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-indigo-500 focus:outline-none"
                   placeholder="••••••••"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Role</label>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1 font-mono">
+                  Assigned RBAC Role Profile
+                </label>
                 <select
                   value={newUserRole}
-                  onChange={(e) => setNewUserRole(e.target.value as 'admin' | 'user')}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none"
+                  onChange={(e) => setNewUserRole(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-indigo-500 focus:outline-none"
                 >
-                  <option value="user">User (can build workflows)</option>
-                  <option value="admin">Admin (can manage users + config nodes)</option>
+                  {rolesList.length > 0 ? (
+                    rolesList.map((r) => (
+                      <option key={r.id} value={r.role_type}>
+                        {r.role_name} ({r.role_type}) — {r.permissions?.length || 0} permissions
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="tenant_user">Standard User (tenant_user)</option>
+                      <option value="para_legal">Paralegal (para_legal)</option>
+                      <option value="legal_analyst">Legal Analyst (legal_analyst)</option>
+                      <option value="tenant_admin">Tenant Admin (tenant_admin)</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div className="flex justify-end gap-3 pt-4">
@@ -231,9 +287,67 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 text-sm font-bold rounded-lg shadow-md transition-all cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="px-6 py-2 text-sm font-bold rounded-lg shadow-md transition-all cursor-pointer bg-indigo-600 text-white hover:bg-indigo-700"
                 >
                   Add User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Role Modal */}
+      {showEditUserModal && editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-gray-100">
+            <h3 className="text-lg font-bold text-black mb-1">Edit User Role</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Update RBAC role profile for <span className="font-semibold text-gray-800">{editingUser.email_id}</span>
+            </p>
+
+            <form onSubmit={handleSaveUserRole} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1 font-mono">
+                  Assigned RBAC Role Profile
+                </label>
+                <select
+                  value={editUserRole}
+                  onChange={(e) => setEditUserRole(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 p-2.5 text-sm text-black focus:border-indigo-500 focus:outline-none"
+                >
+                  {rolesList.length > 0 ? (
+                    rolesList.map((r) => (
+                      <option key={r.id} value={r.role_type}>
+                        {r.role_name} ({r.role_type}) — {r.permissions?.length || 0} permissions
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="tenant_user">Standard User (tenant_user)</option>
+                      <option value="para_legal">Paralegal (para_legal)</option>
+                      <option value="legal_analyst">Legal Analyst (legal_analyst)</option>
+                      <option value="tenant_admin">Tenant Admin (tenant_admin)</option>
+                      <option value="system_admin">System Admin (system_admin)</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditUserModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="px-5 py-2 text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {updating ? 'Saving...' : 'Update Role'}
                 </button>
               </div>
             </form>

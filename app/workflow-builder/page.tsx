@@ -17,6 +17,11 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { api } from '@/lib/api';
+import {
+  getRequiredPermissionForPath,
+  hasPermissionScope,
+  getDefaultRedirectForPermissions,
+} from '@/lib/config/route_permissions';
 import AgentSidebar from '../components/AgentSidebar';
 import PropertiesPanel from '../components/PropertiesPanel';
 import { normalizeAgent } from '../components/component-categoriees';
@@ -78,6 +83,16 @@ function AgentBuilderContent() {
           setUserId(userData.id);
           setUserRole(userData.role || '');
           setUserEmail(userData.email || '');
+
+          const perms = userData.permissions || [];
+          const requiredPerm = getRequiredPermissionForPath('/workflow-builder') || 'workflow:view';
+          const hasAccess = hasPermissionScope(perms, requiredPerm);
+
+          if (!hasAccess) {
+            const fallback = getDefaultRedirectForPermissions(perms, userData.role);
+            window.location.href = fallback;
+            return;
+          }
         })
         .catch((err) => {
           console.error('Failed to fetch user in workflow builder:', err);

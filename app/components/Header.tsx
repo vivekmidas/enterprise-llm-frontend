@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { Workflow, LogOut, User, Github } from 'lucide-react';
 import { api } from '@/lib/api'; // Assuming api.logout() clears the cookie
+import { hasPermissionScope, loadRoutePermissionsFromDB } from '@/lib/config/route_permissions';
 
 // Helper to get a cookie value by name
 const getCookie = (name: string) => {
@@ -26,8 +27,10 @@ export default function Header() {
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null); // New state for user role
   const [userId, setUserId] = useState<string | null>(null); // New state for user ID
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
 
   useEffect(() => {
+    loadRoutePermissionsFromDB().catch(console.error);
     const checkAuth = async () => {
       const token = getCookie('token'); // Read token from cookie
       setIsAuthenticated(!!token);
@@ -37,17 +40,20 @@ export default function Header() {
           setUserName(userData.name);
           setUserRole(userData.role);
           setUserId(userData.id);
+          setUserPermissions(userData.permissions || []);
         } catch (err) {
           console.error('Failed to fetch user in Header:', err);
           setUserName(null);
           setUserRole(null);
           setUserId(null);
+          setUserPermissions([]);
           setIsAuthenticated(false);
         }
       } else {
         setUserName(null);
         setUserRole(null);
         setUserId(null);
+        setUserPermissions([]);
       }
     };
 
@@ -106,18 +112,44 @@ export default function Header() {
                   <span className="text-xs font-medium text-gray-500 ml-2">ID: {userId}</span>
                 )} */}
               </div>
-              <Link
-                href="/legal-research"
-                className="text-sm font-bold text-indigo-600 hover:text-indigo-700 px-3 py-2 rounded-lg hover:bg-indigo-50 transition-all duration-200"
-              >
-                Legal Research
-              </Link>
-              <Link
-                href="/admin"
-                className="text-sm font-bold text-primary hover:text-violet-700 px-3 py-2 rounded-lg hover:bg-violet-50 transition-all duration-200"
-              >
-                Console
-              </Link>
+              {(hasPermissionScope(userPermissions, 'legal:research:query') || userRole === 'admin' || userRole === 'system_admin') && (
+                <Link
+                  href="/legal-research"
+                  className="text-sm font-bold text-indigo-600 hover:text-indigo-700 px-3 py-2 rounded-lg hover:bg-indigo-50 transition-all duration-200"
+                >
+                  Legal Research
+                </Link>
+              )}
+              {(hasPermissionScope(userPermissions, 'workflow:view') || userRole === 'admin' || userRole === 'system_admin') && (
+                <Link
+                  href="/workflow-builder"
+                  className="text-sm font-bold text-fuchsia-600 hover:text-fuchsia-700 px-3 py-2 rounded-lg hover:bg-fuchsia-50 transition-all duration-200"
+                >
+                  Workflows
+                </Link>
+              )}
+              {(hasPermissionScope(userPermissions, 'tenant:admin:*') || hasPermissionScope(userPermissions, 'admin:users:read') || userRole === 'admin' || userRole === 'system_admin') && (
+                <>
+                  <Link
+                    href="/admin?tab=users"
+                    className="text-sm font-semibold text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
+                  >
+                    Users
+                  </Link>
+                  <Link
+                    href="/admin?tab=roles"
+                    className="text-sm font-semibold text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
+                  >
+                    Manage Roles
+                  </Link>
+                  <Link
+                    href="/admin"
+                    className="text-sm font-bold text-primary hover:text-violet-700 px-3 py-2 rounded-lg hover:bg-violet-50 transition-all duration-200"
+                  >
+                    Console
+                  </Link>
+                </>
+              )}
               {/* <Link
                 href="/demo-flows"
                 className="text-sm font-bold text-fuchsia-600 hover:text-fuchsia-700 px-3 py-2 rounded-lg hover:bg-fuchsia-50 transition-all duration-200"

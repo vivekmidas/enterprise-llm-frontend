@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState, useRef, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Alert from '@mui/material/Alert';
 import { api } from '@/lib/api';
+import {
+  getRequiredPermissionForPath,
+  hasPermissionScope,
+  getDefaultRedirectForPermissions,
+} from '@/lib/config/route_permissions';
 import { IconMap } from '@/lib/icons';
 import { Shield, Lock, Check, ChevronDown } from 'lucide-react';
 
@@ -20,12 +25,14 @@ import CompanySettingsTab from './company-settings/page';
 import PlaygroundTab from './playground/page';
 import ProfilesTab from './profiles/page';
 import ProviderPresetsTab from './provider-presets/page';
+import RolesTab from './roles/page';
 
 
 type ActiveTabType =
   | 'nodes'
   | 'workflows'
   | 'users'
+  | 'roles'
   | 'oauth'
   | 'logs'
   | 'customers'
@@ -41,19 +48,19 @@ const ALL_TABS: { id: ActiveTabType; label: string; roles: string[] }[] = [
   { id: 'nodes', label: 'Nodes ', roles: ['admin', 'system_admin'] },
   { id: 'workflows', label: 'Workflows', roles: ['user', 'admin', 'system_admin'] },
   { id: 'users', label: 'Users', roles: ['admin', 'system_admin'] },
+  { id: 'roles', label: 'Roles & Permissions', roles: ['admin', 'system_admin'] },
   { id: 'oauth', label: 'OAuth Providers', roles: ['admin', 'system_admin'] },
   { id: 'logs', label: 'System Logs', roles: ['admin', 'system_admin'] },
   { id: 'metrics', label: 'Metrics', roles: ['admin', 'system_admin'] },
   { id: 'knowledge', label: 'Knowledge Bases', roles: ['admin', 'system_admin'] },
   { id: 'profiles', label: 'LLM Profiles', roles: ['admin', 'system_admin'] },
-  // BLOCK COMMENT: SYSTEM ADMIN RESTRICTION FOR PROVIDER PRESETS TAB
   { id: 'provider-presets', label: 'Provider Presets', roles: ['admin', 'system_admin'] },
-  // { id: 'settings', label: 'LLM Settings', roles: ['admin', 'system_admin'] },
   { id: 'playground', label: 'Retrieval Playground', roles: ['admin', 'system_admin'] },
 ];
 
 export default function AdminPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTabType>('nodes');
@@ -141,8 +148,16 @@ export default function AdminPage() {
     async function initializeUser() {
       try {
         const userData = await api.getCurrentUser();
-        if (userData.role !== 'admin' && userData.role !== 'system_admin') {
-          router.push('/workflow-builder');
+        const perms = userData.permissions || [];
+        const requiredPerm = getRequiredPermissionForPath('/admin') || 'tenant:admin:*';
+        const canAccessAdmin =
+          hasPermissionScope(perms, requiredPerm) ||
+          userData.role === 'admin' ||
+          userData.role === 'system_admin';
+
+        if (!canAccessAdmin) {
+          const fallback = getDefaultRedirectForPermissions(perms, userData.role);
+          router.push(fallback);
           return;
         }
         setUserRole(userData.role);
@@ -167,32 +182,30 @@ export default function AdminPage() {
     initializeUser();
   }, [isAuthenticated, router]);
 
-  // Load initial tab from URL search parameters on mount
+  // Sync active tab from URL search parameters dynamically
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get('tab');
-      if (
-        tab &&
-        [
-          'nodes',
-          'workflows',
-          'users',
-          'oauth',
-          'logs',
-          'customers',
-          'metrics',
-          'knowledge',
-          'settings',
-          'playground',
-          'profiles',
-          'provider-presets',
-        ].includes(tab)
-      ) {
-        setActiveTab(tab as ActiveTabType);
-      }
+    const tab = searchParams?.get('tab');
+    if (
+      tab &&
+      [
+        'nodes',
+        'workflows',
+        'users',
+        'roles',
+        'oauth',
+        'logs',
+        'customers',
+        'metrics',
+        'knowledge',
+        'settings',
+        'playground',
+        'profiles',
+        'provider-presets',
+      ].includes(tab)
+    ) {
+      setActiveTab(tab as ActiveTabType);
     }
-  }, []);
+  }, [searchParams]);
 
   const handleTabChange = (tab: ActiveTabType) => {
     setActiveTab(tab);
@@ -362,11 +375,10 @@ export default function AdminPage() {
                       if (tab.id === 'playground') setPlaygroundKbId(null);
                       handleTabChange(tab.id);
                     }}
-                    className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 rounded-t-md ${
-                      activeTab === tab.id
+                    className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 rounded-t-md ${activeTab === tab.id
                         ? 'bg-white text-primary border-b-2 border-ring'
                         : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent'
-                    }`}
+                      }`}
                   >
                     {tab.label}
                   </button>
@@ -384,9 +396,8 @@ export default function AdminPage() {
                   >
                     <span>+{hiddenTabs.length} More</span>
                     <ChevronDown
-                      className={`h-4 w-4 transition-transform duration-200 ${
-                        isMenuOpen ? 'rotate-180 text-foreground' : 'text-muted-foreground'
-                      }`}
+                      className={`h-4 w-4 transition-transform duration-200 ${isMenuOpen ? 'rotate-180 text-foreground' : 'text-muted-foreground'
+                        }`}
                     />
                   </button>
 
@@ -417,11 +428,10 @@ export default function AdminPage() {
                                 checkTabVisibility();
                               }, 50);
                             }}
-                            className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors cursor-pointer ${
-                              activeTab === tab.id
+                            className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors cursor-pointer ${activeTab === tab.id
                                 ? 'bg-accent text-foreground font-bold'
                                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                            }`}
+                              }`}
                           >
                             <span>{tab.label}</span>
                             {activeTab === tab.id && (
@@ -446,6 +456,9 @@ export default function AdminPage() {
           {activeTab === 'workflows' && <WorkflowsTab userRole={userRole} />}
           {activeTab === 'users' && (userRole === 'admin' || userRole === 'system_admin') && (
             <UsersTab userId={userId} loginEmail={userEmail || ''} />
+          )}
+          {activeTab === 'roles' && (userRole === 'admin' || userRole === 'system_admin') && (
+            <RolesTab />
           )}
           {activeTab === 'oauth' && (userRole === 'admin' || userRole === 'system_admin') && (
             <OAuthTab />
