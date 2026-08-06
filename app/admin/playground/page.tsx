@@ -181,7 +181,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
     async function loadData() {
       try {
         const [kbs, profiles, settings, presets] = await Promise.all([
-          api.getKnowledgeBases(),
+          api.getKnowledgeBases().catch(() => []),
           api.getLlmProfiles().catch(() => []),
           api.getCompanySettings().catch(() => null),
           api.getProviderPresets().catch(() => []),

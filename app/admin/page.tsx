@@ -43,7 +43,7 @@ type ActiveTabType =
   | 'provider-presets'
   | 'playground';
 
-const ALL_TABS: { id: ActiveTabType; label: string; roles: string[] }[] = [
+const ALL_TABS: { id: ActiveTabType; label: string; roles: string[]; permissions?: string[] }[] = [
   { id: 'customers', label: 'Customers', roles: ['system_admin'] },
   { id: 'nodes', label: 'Nodes ', roles: ['admin', 'system_admin'] },
   { id: 'workflows', label: 'Workflows', roles: ['user', 'admin', 'system_admin'] },
@@ -52,7 +52,12 @@ const ALL_TABS: { id: ActiveTabType; label: string; roles: string[] }[] = [
   { id: 'oauth', label: 'OAuth Providers', roles: ['admin', 'system_admin'] },
   { id: 'logs', label: 'System Logs', roles: ['admin', 'system_admin'] },
   { id: 'metrics', label: 'Metrics', roles: ['admin', 'system_admin'] },
-  { id: 'knowledge', label: 'Knowledge Bases', roles: ['admin', 'system_admin'] },
+  {
+    id: 'knowledge',
+    label: 'Knowledge Bases',
+    roles: ['admin', 'system_admin'],
+    permissions: ['legal:document:upload', 'kb:document:ingest', 'kb:base:view', 'legal:*', 'kb:*'],
+  },
   { id: 'profiles', label: 'LLM Profiles', roles: ['admin', 'system_admin'] },
   { id: 'provider-presets', label: 'Provider Presets', roles: ['admin', 'system_admin'] },
   { id: 'playground', label: 'Retrieval Playground', roles: ['admin', 'system_admin'] },
@@ -73,6 +78,7 @@ export default function AdminPage() {
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -97,11 +103,7 @@ export default function AdminPage() {
       if (!el) return;
       const rect = el.getBoundingClientRect();
 
-      // Check if element is cut off left or right (with 4px margin of error)
-      const isVisible =
-        rect.left >= containerRect.left - 4 && rect.right <= containerRect.right + 4;
-
-      if (!isVisible) {
+      if (rect.right > containerRect.right - 4 || rect.left < containerRect.left + 4) {
         newHidden.add(tab.id);
       }
     });
@@ -110,31 +112,11 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    const container = navContainerRef.current;
-    if (!container) return;
-
-    // Small delay to allow initial layout render
-    const timer = setTimeout(checkTabVisibility, 50);
-
-    const handleScroll = () => checkTabVisibility();
-    const handleResize = () => checkTabVisibility();
-
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleResize);
-
-    let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(() => checkTabVisibility());
-      resizeObserver.observe(container);
-    }
-
-    return () => {
-      clearTimeout(timer);
-      container.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
-      if (resizeObserver) resizeObserver.disconnect();
-    };
-  }, [userRole, isMounted, checkTabVisibility]);
+    if (loading || !isAuthenticated) return;
+    checkTabVisibility();
+    window.addEventListener('resize', checkTabVisibility);
+    return () => window.removeEventListener('resize', checkTabVisibility);
+  }, [loading, isAuthenticated, checkTabVisibility]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -149,9 +131,15 @@ export default function AdminPage() {
       try {
         const userData = await api.getCurrentUser();
         const perms = userData.permissions || [];
+        setUserPermissions(perms);
         const requiredPerm = getRequiredPermissionForPath('/admin') || 'tenant:admin:*';
         const canAccessAdmin =
           hasPermissionScope(perms, requiredPerm) ||
+          hasPermissionScope(perms, 'legal:document:upload') ||
+          hasPermissionScope(perms, 'kb:document:ingest') ||
+          hasPermissionScope(perms, 'kb:base:view') ||
+          hasPermissionScope(perms, 'legal:*') ||
+          hasPermissionScope(perms, 'kb:*') ||
           userData.role === 'admin' ||
           userData.role === 'system_admin';
 
@@ -355,7 +343,13 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-50 p-8 font-sans">
       <div className="mx-auto w-full space-y-8">
         {(() => {
-          const availableTabs = ALL_TABS.filter((t) => !userRole || t.roles.includes(userRole));
+          const availableTabs = ALL_TABS.filter((t) => {
+            if (userRole === 'admin' || userRole === 'system_admin') return true;
+            const reqPerm = getRequiredPermissionForPath(`/admin/${t.id}`);
+            if (reqPerm && hasPermissionScope(userPermissions, reqPerm)) return true;
+            if (t.permissions && t.permissions.some((p) => hasPermissionScope(userPermissions, p))) return true;
+            return false;
+          });
           const hiddenTabs = availableTabs.filter((t) => hiddenTabIds.has(t.id));
 
           return (
@@ -470,9 +464,9 @@ export default function AdminPage() {
             <MetricsTab userRole={userRole} />
           )}
           {/* BLOCK: Pass userRole and customerId to KnowledgeBasesTab */}
-          {activeTab === 'knowledge' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'knowledge' && (
             <KnowledgeBasesTab
-              userRole={userRole}
+              userRole={userRole || undefined}
               customerId={customerId ? Number(customerId) : null}
               onSwitchToPlayground={(kbId: string) => {
                 setPlaygroundKbId(kbId);
@@ -494,7 +488,7 @@ export default function AdminPage() {
               customerId={customerId ? Number(customerId) : null}
             />
           )}
-          {activeTab === 'playground' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'playground' && (
             <PlaygroundTab initialKbId={playgroundKbId} />
           )}
         </div>

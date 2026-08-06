@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -75,12 +75,35 @@ const navSections: NavSection[] = [
   },
 ];
 
+import { api } from '@/lib/api';
+import { getRequiredPermissionForPath, hasPermissionScope } from '@/lib/config/route_permissions';
+
 export function AdminSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string>('Navigation');
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentTab = searchParams.get('tab');
+
+  useEffect(() => {
+    api.getCurrentUser().then((u) => {
+      setUserRole(u.role);
+      setUserPermissions(u.permissions || []);
+    }).catch(console.error);
+  }, []);
+
+  const isItemVisible = (item: NavItem) => {
+    if (userRole === 'admin' || userRole === 'system_admin') return true;
+    const path = item.href.startsWith('/admin?tab=')
+      ? `/admin/${item.href.split('tab=')[1]}`
+      : item.href;
+    const reqPerm = getRequiredPermissionForPath(path);
+    if (!reqPerm) return true;
+    return hasPermissionScope(userPermissions, reqPerm);
+  };
 
   const isActive = (href: string) => {
     if (href.startsWith('/admin?tab=')) {
@@ -140,7 +163,7 @@ export function AdminSidebar() {
 
               {!isCollapsed || expandedSection === section.title ? (
                 <div className="space-y-1">
-                  {section.items.map((item) => (
+                  {section.items.filter(isItemVisible).map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}

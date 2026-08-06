@@ -185,6 +185,7 @@ export default function CustomersTab() {
   const [editCustomerStatus, setEditCustomerStatus] = useState('active');
   const [editCustomerPluginsEnabled, setEditCustomerPluginsEnabled] = useState(false);
   const [editCustomerStoragePath, setEditCustomerStoragePath] = useState('');
+  const [editCustomerAllowedDomains, setEditCustomerAllowedDomains] = useState<string[]>([]);
 
   const [customerNodes, setCustomerNodes] = useState<any[]>([]);
   const [customerNodesLoading, setCustomerNodesLoading] = useState(false);
@@ -203,6 +204,7 @@ export default function CustomersTab() {
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
   const [newCustomerContactPerson, setNewCustomerContactPerson] = useState('');
+  const [newCustomerAllowedDomains, setNewCustomerAllowedDomains] = useState<string[]>(['legal']);
 
   // Add Customer User Modal
   const [showAddCustomerUserModal, setShowAddCustomerUserModal] = useState(false);
@@ -349,6 +351,7 @@ export default function CustomersTab() {
         status: editCustomerStatus,
         custom_plugins_enabled: editCustomerPluginsEnabled,
         plugin_storage_path: editCustomerPluginsEnabled ? editCustomerStoragePath : null,
+        allowed_domains: editCustomerAllowedDomains,
       });
       setSelectedCustomer(updated);
       setIsEditingCustomer(false);
@@ -371,6 +374,7 @@ export default function CustomersTab() {
         email: newCustomerEmail || null,
         address: newCustomerAddress || null,
         contact_person: newCustomerContactPerson || null,
+        allowed_domains: newCustomerAllowedDomains,
       });
       setShowAddCustomerModal(false);
       setNewCustomerName('');
@@ -380,6 +384,7 @@ export default function CustomersTab() {
       setNewCustomerContactPerson('');
       setNewCustomerPluginsEnabled(false);
       setNewCustomerStoragePath('');
+      setNewCustomerAllowedDomains(['legal']);
       fetchInitialData();
     } catch (err: any) {
       alert('Failed to create customer: ' + err.message);
@@ -654,6 +659,7 @@ export default function CustomersTab() {
                   setEditCustomerStatus(selectedCustomer.status || 'active');
                   setEditCustomerPluginsEnabled(selectedCustomer.custom_plugins_enabled || false);
                   setEditCustomerStoragePath(selectedCustomer.plugin_storage_path || '');
+                  setEditCustomerAllowedDomains(selectedCustomer.allowed_domains || []);
                   setIsEditingCustomer(true);
                 }}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm cursor-pointer"
@@ -824,6 +830,46 @@ export default function CustomersTab() {
                       />
                     </div>
                   )}
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-gray-500 mb-2">
+                      Allowed Domains
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { key: 'legal', label: 'Legal' },
+                        { key: 'finance', label: 'Finance' },
+                        { key: 'healthcare', label: 'Healthcare' },
+                        { key: 'hr', label: 'HR' },
+                        { key: 'general', label: 'General' },
+                      ].map((d) => {
+                        const isSelected = editCustomerAllowedDomains.includes(d.key);
+                        return (
+                          <button
+                            key={d.key}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setEditCustomerAllowedDomains(
+                                  editCustomerAllowedDomains.filter((x) => x !== d.key),
+                                );
+                              } else {
+                                setEditCustomerAllowedDomains([...editCustomerAllowedDomains, d.key]);
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                            }`}
+                          >
+                            {d.label} {isSelected ? '✓' : '+'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="flex gap-2 pt-2">
                     <button
                       type="submit"
@@ -883,6 +929,25 @@ export default function CustomersTab() {
                     </div>
                   </div>
                   <div className="space-y-4">
+                    <div>
+                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
+                        Allowed Domains
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {selectedCustomer.allowed_domains && selectedCustomer.allowed_domains.length > 0 ? (
+                          selectedCustomer.allowed_domains.map((dom: string) => (
+                            <span
+                              key={dom}
+                              className="px-2 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase"
+                            >
+                              {dom}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">None assigned</span>
+                        )}
+                      </div>
+                    </div>
                     <div>
                       <span className="block text-[10px] text-gray-400 uppercase font-bold">
                         Address
@@ -1210,6 +1275,9 @@ export default function CustomersTab() {
                     Domain Name
                   </th>
                   <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
+                    Allowed Domains
+                  </th>
+                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
                     Custom Plugins
                   </th>
                   <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
@@ -1237,6 +1305,22 @@ export default function CustomersTab() {
                       {c.name}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{c.domain}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      <div className="flex flex-wrap gap-1">
+                        {c.allowed_domains && c.allowed_domains.length > 0 ? (
+                          c.allowed_domains.map((dom: string) => (
+                            <span
+                              key={dom}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase"
+                            >
+                              {dom}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">None</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-sm" onClick={(e) => e.stopPropagation()}>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
@@ -1417,8 +1501,47 @@ export default function CustomersTab() {
                   placeholder="123 Corporate Way, City, State"
                 />
               </div>
-              <div className="border border-gray-100 rounded-lg p-3 bg-gray-50">
-                <div className="flex items-center gap-2">
+              <div className="border border-gray-100 rounded-lg p-3 bg-gray-50 space-y-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                    Allowed Knowledge Domains
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { key: 'legal', label: 'Legal' },
+                      { key: 'finance', label: 'Finance' },
+                      { key: 'healthcare', label: 'Healthcare' },
+                      { key: 'hr', label: 'HR' },
+                      { key: 'general', label: 'General' },
+                    ].map((d) => {
+                      const isSelected = newCustomerAllowedDomains.includes(d.key);
+                      return (
+                        <button
+                          key={d.key}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setNewCustomerAllowedDomains(
+                                newCustomerAllowedDomains.filter((x) => x !== d.key),
+                              );
+                            } else {
+                              setNewCustomerAllowedDomains([...newCustomerAllowedDomains, d.key]);
+                            }
+                          }}
+                          className={`px-3 py-1 rounded text-xs font-bold transition-all border cursor-pointer ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          {d.label} {isSelected ? '✓' : '+'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
                   <input
                     type="checkbox"
                     id="newCustomerPluginsEnabled"

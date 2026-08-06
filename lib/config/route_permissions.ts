@@ -11,8 +11,28 @@ export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
   { pattern: "/workflow-builder/*/edit", permission: "workflow:edit" },
   { pattern: "/workflow-builder", permission: "workflow:view" },
   { pattern: "/workflow-builder/**", permission: "workflow:view" },
+  { pattern: "/admin/knowledge", permission: "legal:document:upload" },
+  { pattern: "/admin/knowledge/**", permission: "legal:document:upload" },
+  { pattern: "/admin/users", permission: "admin:users:read" },
   { pattern: "/admin/users/**", permission: "admin:users:read" },
+  { pattern: "/admin/roles", permission: "admin:tenant:configure" },
   { pattern: "/admin/roles/**", permission: "admin:tenant:configure" },
+  { pattern: "/admin/nodes", permission: "node:view" },
+  { pattern: "/admin/nodes/**", permission: "node:view" },
+  { pattern: "/admin/oauth", permission: "admin:tenant:configure" },
+  { pattern: "/admin/oauth/**", permission: "admin:tenant:configure" },
+  { pattern: "/admin/logs", permission: "admin:tenant:configure" },
+  { pattern: "/admin/logs/**", permission: "admin:tenant:configure" },
+  { pattern: "/admin/metrics", permission: "admin:tenant:configure" },
+  { pattern: "/admin/metrics/**", permission: "admin:tenant:configure" },
+  { pattern: "/admin/profiles", permission: "admin:tenant:configure" },
+  { pattern: "/admin/profiles/**", permission: "admin:tenant:configure" },
+  { pattern: "/admin/provider-presets", permission: "admin:tenant:configure" },
+  { pattern: "/admin/provider-presets/**", permission: "admin:tenant:configure" },
+  { pattern: "/admin/playground", permission: "kb:base:view" },
+  { pattern: "/admin/playground/**", permission: "kb:base:view" },
+  { pattern: "/admin/customers", permission: "system:admin:*" },
+  { pattern: "/admin/customers/**", permission: "system:admin:*" },
   { pattern: "/admin", permission: "tenant:admin:*" },
   { pattern: "/admin/**", permission: "tenant:admin:*" },
   { pattern: "/legal-research", permission: "legal:research:query" },
@@ -92,6 +112,15 @@ export function getDefaultRedirectForPermissions(userPermissions: string[], user
   }
   if (userRole === "admin" || hasPermissionScope(perms, "tenant:admin:*")) {
     return "/admin";
+  }
+  if (
+    hasPermissionScope(perms, "legal:document:upload") ||
+    hasPermissionScope(perms, "kb:document:ingest") ||
+    hasPermissionScope(perms, "kb:base:view") ||
+    hasPermissionScope(perms, "legal:*") ||
+    hasPermissionScope(perms, "kb:*")
+  ) {
+    return "/admin?tab=knowledge";
   }
   if (hasPermissionScope(perms, "workflow:view") || hasPermissionScope(perms, "workflow:create")) {
     return "/workflow-builder";

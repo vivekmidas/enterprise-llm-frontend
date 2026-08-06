@@ -112,7 +112,7 @@ export default function Header() {
                   <span className="text-xs font-medium text-gray-500 ml-2">ID: {userId}</span>
                 )} */}
               </div>
-              {(hasPermissionScope(userPermissions, 'legal:research:query') || userRole === 'admin' || userRole === 'system_admin') && (
+              {/* {(hasPermissionScope(userPermissions, 'legal:research:query') || userRole === 'admin' || userRole === 'system_admin') && (
                 <Link
                   href="/legal-research"
                   className="text-sm font-bold text-indigo-600 hover:text-indigo-700 px-3 py-2 rounded-lg hover:bg-indigo-50 transition-all duration-200"
@@ -127,8 +127,22 @@ export default function Header() {
                 >
                   Workflows
                 </Link>
-              )}
-              {(hasPermissionScope(userPermissions, 'tenant:admin:*') || hasPermissionScope(userPermissions, 'admin:users:read') || userRole === 'admin' || userRole === 'system_admin') && (
+              )} */}
+              {/* {(hasPermissionScope(userPermissions, 'legal:document:upload') ||
+                hasPermissionScope(userPermissions, 'kb:document:ingest') ||
+                hasPermissionScope(userPermissions, 'kb:base:view') ||
+                hasPermissionScope(userPermissions, 'legal:*') ||
+                hasPermissionScope(userPermissions, 'kb:*') ||
+                userRole === 'admin' ||
+                userRole === 'system_admin') && (
+                  <Link
+                    href="/admin?tab=knowledge"
+                    className="text-sm font-semibold text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
+                  >
+                    Manage Documents
+                  </Link>
+                )} */}
+              {/* {(hasPermissionScope(userPermissions, 'tenant:admin:*') || hasPermissionScope(userPermissions, 'admin:users:read') || userRole === 'admin' || userRole === 'system_admin') && (
                 <>
                   <Link
                     href="/admin?tab=users"
@@ -149,7 +163,7 @@ export default function Header() {
                     Console
                   </Link>
                 </>
-              )}
+              )} */}
               {/* <Link
                 href="/demo-flows"
                 className="text-sm font-bold text-fuchsia-600 hover:text-fuchsia-700 px-3 py-2 rounded-lg hover:bg-fuchsia-50 transition-all duration-200"

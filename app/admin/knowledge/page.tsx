@@ -733,15 +733,18 @@ export default function KnowledgeBasesTab({
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
-    if (autoRefresh && selectedKb) {
+    const hasProcessingDocs = docList.some((d) =>
+      ['processing', 'pending', 'chunking', 'embedding', 'queued'].includes(d.status?.toLowerCase())
+    );
+    if ((autoRefresh || hasProcessingDocs) && selectedKb) {
       interval = setInterval(() => {
         fetchDocs(selectedKb.id);
-      }, 5000);
+      }, 2000);
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefresh, selectedKb]);
+  }, [autoRefresh, selectedKb, docList]);
 
   const handleCreateKB = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1417,11 +1420,11 @@ export default function KnowledgeBasesTab({
                     <div className="space-y-3">
                       {docList.map((doc) => {
                         const status = doc.status?.toLowerCase();
-                        const isProcessing = ['processing', 'pending', 'chunking', 'embedding'].includes(
+                        const isProcessing = ['processing', 'pending', 'chunking', 'embedding', 'queued'].includes(
                           status,
                         );
                         const isError = ['error', 'failed'].includes(status);
-                        const isSuccess = status === 'completed' || status === 'active';
+                        const isSuccess = ['ready', 'completed', 'active', 'indexed'].includes(status);
                         const docTags = Array.isArray(doc.metadata_json?.tags)
                           ? doc.metadata_json.tags
                           : [];
@@ -1469,16 +1472,39 @@ export default function KnowledgeBasesTab({
                                   </span>
                                 </div>
                                 <span
-                                  className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${isSuccess
-                                      ? 'bg-green-50 text-green-700'
+                                  className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${isSuccess
+                                      ? 'bg-green-100 text-green-800 border border-green-200'
                                       : isProcessing
-                                        ? 'bg-amber-50 text-amber-705 animate-pulse'
-                                        : 'bg-red-50 text-red-750'
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                                        : 'bg-red-100 text-red-800 border border-red-200'
                                     }`}
                                 >
-                                  {doc.status || 'Unknown'}
+                                  {isProcessing ? 'PROCESSING' : isSuccess ? (doc.status === 'ready' ? 'READY' : doc.status.toUpperCase()) : (doc.status || 'UNKNOWN').toUpperCase()}
                                 </span>
                               </div>
+
+                              {/* Live Processing Progress Bar & DB Message */}
+                              {isProcessing && (
+                                <div className="w-full bg-amber-50/80 border border-amber-200 rounded-lg p-2.5 space-y-1.5 my-1.5">
+                                  <div className="flex items-center justify-between text-xs font-semibold text-amber-900">
+                                    <span className="flex items-center gap-1.5 font-mono">
+                                      <RefreshCw className="w-3 h-3 animate-spin text-amber-600 shrink-0" />
+                                      {doc.job_message || 'Processing document...'}
+                                    </span>
+                                    <span className="font-bold font-mono">
+                                      {doc.job_progress !== undefined && doc.job_progress !== null
+                                        ? `${doc.job_progress}%`
+                                        : '10%'}
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-amber-200/60 rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                      className="bg-amber-600 h-1.5 rounded-full transition-all duration-300"
+                                      style={{ width: `${doc.job_progress ?? 10}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
 
                               {/* Metadata Details Row */}
                               <div className="flex items-center gap-3 text-xs text-gray-450 font-medium flex-wrap">
