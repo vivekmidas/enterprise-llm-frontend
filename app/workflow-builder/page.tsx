@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getDemoFlowById } from '@/lib/demo-flows';
 import {
@@ -1007,7 +1007,9 @@ function AgentBuilderContent() {
 export default function AgentBuilder() {
   return (
     <ReactFlowProvider>
-      <AgentBuilderContent />
+      <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white">Loading workflow builder...</div>}>
+        <AgentBuilderContent />
+      </Suspense>
     </ReactFlowProvider>
   );
 }

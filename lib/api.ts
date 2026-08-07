@@ -391,7 +391,7 @@ export const api = {
     return res.json();
   },
 
-  updateCustomer: async (id: number, customer: any) => {
+  updateCustomer: async (id: string, customer: any) => {
     const res = await fetch(`${BACKEND_URL}/admin/customers/${id}`, {
       method: 'PUT',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -400,7 +400,7 @@ export const api = {
     return res.json();
   },
 
-  deleteCustomer: async (id: number) => {
+  deleteCustomer: async (id: string) => {
     const res = await fetch(`${BACKEND_URL}/admin/customers/${id}`, {
       method: 'DELETE',
       headers: getHeaders({
@@ -410,7 +410,7 @@ export const api = {
     return res.ok;
   },
 
-  createCustomerUser: async (customerId: number, user: any) => {
+  createCustomerUser: async (customerId: string, user: any) => {
     const res = await fetch(`${BACKEND_URL}/admin/customers/${customerId}/users`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -419,7 +419,7 @@ export const api = {
     return res.json();
   },
 
-  getCustomerNodesAdmin: async (customerId: number) => {
+  getCustomerNodesAdmin: async (customerId: string) => {
     const res = await fetch(`${BACKEND_URL}/admin/customers/${customerId}/nodes`, {
       headers: getHeaders(),
       method: 'GET',
@@ -427,7 +427,7 @@ export const api = {
     return res.json();
   },
 
-  configureCustomerNodesAdmin: async (customerId: number, nodes: any[]) => {
+  configureCustomerNodesAdmin: async (customerId: string, nodes: any[]) => {
     const res = await fetch(`${BACKEND_URL}/admin/customers/${customerId}/nodes`, {
       method: 'PUT',
       headers: getHeaders({ 'Content-Type': 'application/json' }),

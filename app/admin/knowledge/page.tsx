@@ -746,6 +746,92 @@ export default function KnowledgeBasesTab({
     };
   }, [autoRefresh, selectedKb, docList]);
 
+  const getProfileEmbeddingSettings = (profile: any) => {
+    if (!profile) {
+      return {
+        provider: 'ollama',
+        model: 'nomic-embed-text',
+        dimension: 768,
+        chunk_size: 1000,
+        chunk_overlap: 200,
+      };
+    }
+    const s = profile.settings || {};
+    const emb = s.embedding || {};
+
+    const provider =
+      emb.provider ||
+      s.embedding_provider ||
+      s.provider ||
+      profile.provider ||
+      'ollama';
+
+    const model =
+      emb.model ||
+      s.embedding_model ||
+      s.model_name ||
+      profile.model ||
+      profile.embedding_model ||
+      'nomic-embed-text';
+
+    const dimension =
+      emb.dimension ||
+      s.vector_dimension ||
+      s.dimension ||
+      profile.dimension ||
+      profile.vector_dimension ||
+      768;
+
+    const chunkSize =
+      s.chunk_size ||
+      profile.chunk_size ||
+      1000;
+
+    const chunkOverlap =
+      s.chunk_overlap ||
+      profile.chunk_overlap ||
+      200;
+
+    return {
+      provider,
+      model,
+      dimension: Number(dimension),
+      chunk_size: Number(chunkSize),
+      chunk_overlap: Number(chunkOverlap),
+    };
+  };
+
+  const activeCreateProfile = useMemo(() => {
+    if (newKbLlmProfileId) {
+      return targetCustomerProfiles.find((p) => String(p.id) === String(newKbLlmProfileId));
+    }
+    return targetCustomerProfiles.find((p) => p.is_default) || targetCustomerProfiles[0] || null;
+  }, [newKbLlmProfileId, targetCustomerProfiles]);
+
+  const activeCreateEmbeddingSettings = useMemo(() => {
+    return getProfileEmbeddingSettings(activeCreateProfile);
+  }, [activeCreateProfile]);
+
+  const activeEditProfile = useMemo(() => {
+    if (editKbLlmProfileId) {
+      return targetCustomerProfiles.find((p) => String(p.id) === String(editKbLlmProfileId));
+    }
+    return targetCustomerProfiles.find((p) => p.is_default) || targetCustomerProfiles[0] || null;
+  }, [editKbLlmProfileId, targetCustomerProfiles]);
+
+  const activeEditEmbeddingSettings = useMemo(() => {
+    if (activeEditProfile) {
+      return getProfileEmbeddingSettings(activeEditProfile);
+    }
+    return {
+      provider: selectedKb?.settings?.embedding_provider || 'ollama',
+      model: editKbEmbeddingModel || selectedKb?.settings?.embedding_model || 'nomic-embed-text',
+      dimension: editKbVectorDimension || selectedKb?.settings?.vector_dimension || 768,
+      chunk_size: editKbChunkSize || selectedKb?.settings?.chunk_size || 1000,
+      chunk_overlap: editKbChunkOverlap || selectedKb?.settings?.chunk_overlap || 200,
+    };
+  }, [activeEditProfile, selectedKb, editKbEmbeddingModel, editKbVectorDimension, editKbChunkSize, editKbChunkOverlap]);
+
   const handleCreateKB = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKbName.trim()) return;
@@ -758,21 +844,20 @@ export default function KnowledgeBasesTab({
         .map((t) => t.trim())
         .filter(Boolean);
 
-      const selectedProfile = targetCustomerProfiles.find((p) => String(p.id) === String(newKbLlmProfileId));
-      const profSettings = selectedProfile?.settings || {};
-      const embModel = profSettings.embedding_model || profSettings.embedding?.model;
-      const vecDim = profSettings.vector_dimension || profSettings.embedding?.dimension;
-      const chunkSize = profSettings.chunk_size || newKbChunkSize || 1000;
-      const chunkOverlap = profSettings.chunk_overlap || newKbChunkOverlap || 200;
+      const targetProf = newKbLlmProfileId
+        ? targetCustomerProfiles.find((p) => String(p.id) === String(newKbLlmProfileId))
+        : targetCustomerProfiles.find((p) => p.is_default) || targetCustomerProfiles[0];
+      const resolved = getProfileEmbeddingSettings(targetProf);
 
       const settingsPayload: any = {
         tags: tagsList,
-        chunk_size: Number(chunkSize),
-        chunk_overlap: Number(chunkOverlap),
+        chunk_size: Number(resolved.chunk_size),
+        chunk_overlap: Number(resolved.chunk_overlap),
         llm_profile_id: newKbLlmProfileId || undefined,
+        embedding_model: resolved.model,
+        embedding_provider: resolved.provider,
+        vector_dimension: Number(resolved.dimension),
       };
-      if (embModel) settingsPayload.embedding_model = embModel;
-      if (vecDim) settingsPayload.vector_dimension = Number(vecDim);
 
       if (isSystemAdmin && createKbTargetCustomer) {
         settingsPayload.customer_id = Number(createKbTargetCustomer);
@@ -958,10 +1043,10 @@ export default function KnowledgeBasesTab({
     setSavingKb(true);
     setError(null);
 
-    const selectedProfile = llmProfiles.find((p) => String(p.id) === String(editKbLlmProfileId));
-    const profSettings = selectedProfile?.settings || {};
-    const effectiveChunkSize = profSettings.chunk_size || editKbChunkSize || 1000;
-    const effectiveChunkOverlap = profSettings.chunk_overlap || editKbChunkOverlap || 200;
+    const targetProf = editKbLlmProfileId
+      ? targetCustomerProfiles.find((p) => String(p.id) === String(editKbLlmProfileId))
+      : targetCustomerProfiles.find((p) => p.is_default) || targetCustomerProfiles[0];
+    const resolved = getProfileEmbeddingSettings(targetProf);
 
     try {
       const updatedKb = await api.updateKnowledgeBase(selectedKb.id, {
@@ -971,9 +1056,12 @@ export default function KnowledgeBasesTab({
           ...(selectedKb.settings || {}),
           purpose: editKbPurpose || undefined,
           tags: editKbTags.length > 0 ? editKbTags : undefined,
-          chunk_size: Number(effectiveChunkSize),
-          chunk_overlap: Number(effectiveChunkOverlap),
+          chunk_size: Number(resolved.chunk_size),
+          chunk_overlap: Number(resolved.chunk_overlap),
           llm_profile_id: editKbLlmProfileId || undefined,
+          embedding_model: resolved.model,
+          embedding_provider: resolved.provider,
+          vector_dimension: Number(resolved.dimension),
         },
       });
       setKbList((prev) => prev.map((kb) => (kb.id === updatedKb.id ? updatedKb : kb)));

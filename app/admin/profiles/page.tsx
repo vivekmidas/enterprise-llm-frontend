@@ -308,6 +308,7 @@ const EmbeddingEditor = ({
           { label: 'vLLM', value: 'vllm' },
           { label: 'Grok / xAI', value: 'grok' },
           { label: 'Anthropic', value: 'anthropic' },
+          { label: 'Google Gemini', value: 'gemini' },
         ];
 
   const handleProviderChange = (newProvider: string) => {
@@ -439,6 +440,7 @@ const SearchEditor = ({
           { label: 'vLLM', value: 'vllm' },
           { label: 'Grok / xAI', value: 'grok' },
           { label: 'Anthropic', value: 'anthropic' },
+          { label: 'Google Gemini', value: 'gemini' },
         ];
 
   const handleProviderChange = (newProvider: string) => {
@@ -560,6 +562,7 @@ const RerankEditor = ({
           { label: 'vLLM', value: 'vllm' },
           { label: 'Grok / xAI', value: 'grok' },
           { label: 'Anthropic', value: 'anthropic' },
+          { label: 'Google Gemini', value: 'gemini' },
         ];
 
   const handleProviderChange = (newProvider: string) => {
@@ -672,6 +675,7 @@ const GenerationEditor = ({
           { label: 'vLLM', value: 'vllm' },
           { label: 'Grok / xAI', value: 'grok' },
           { label: 'Anthropic', value: 'anthropic' },
+          { label: 'Google Gemini', value: 'gemini' },
         ];
 
   const handleProviderChange = (newProvider: string) => {

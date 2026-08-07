@@ -63,7 +63,7 @@ const ALL_TABS: { id: ActiveTabType; label: string; roles: string[]; permissions
   { id: 'playground', label: 'Retrieval Playground', roles: ['admin', 'system_admin'] },
 ];
 
-export default function AdminPage() {
+function AdminDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -370,8 +370,8 @@ export default function AdminPage() {
                       handleTabChange(tab.id);
                     }}
                     className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 rounded-t-md ${activeTab === tab.id
-                        ? 'bg-white text-primary border-b-2 border-ring'
-                        : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent'
+                      ? 'bg-white text-primary border-b-2 border-ring'
+                      : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent'
                       }`}
                   >
                     {tab.label}
@@ -423,8 +423,8 @@ export default function AdminPage() {
                               }, 50);
                             }}
                             className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors cursor-pointer ${activeTab === tab.id
-                                ? 'bg-accent text-foreground font-bold'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              ? 'bg-accent text-foreground font-bold'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                               }`}
                           >
                             <span>{tab.label}</span>
@@ -485,7 +485,7 @@ export default function AdminPage() {
           {activeTab === 'settings' && (userRole === 'admin' || userRole === 'system_admin') && (
             <CompanySettingsTab
               userRole={userRole}
-              customerId={customerId ? Number(customerId) : null}
+              customerId={customerId || undefined}
             />
           )}
           {activeTab === 'playground' && (
@@ -494,5 +494,13 @@ export default function AdminPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white">Loading admin page...</div>}>
+      <AdminDashboardContent />
+    </Suspense>
   );
 }

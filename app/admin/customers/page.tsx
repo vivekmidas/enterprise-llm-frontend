@@ -208,7 +208,7 @@ export default function CustomersTab() {
 
   // Add Customer User Modal
   const [showAddCustomerUserModal, setShowAddCustomerUserModal] = useState(false);
-  const [selectedCustomerIdForUser, setSelectedCustomerIdForUser] = useState<number | null>(null);
+  const [selectedCustomerIdForUser, setSelectedCustomerIdForUser] = useState<string | null>(null);
   const [customerUserEmail, setCustomerUserEmail] = useState('');
   const [customerUserPassword, setCustomerUserPassword] = useState('');
   const [customerUserName, setCustomerUserName] = useState('');
@@ -275,20 +275,24 @@ export default function CustomersTab() {
     }
   };
 
-  const loadCustomerNodes = async (cid: number) => {
+  const loadCustomerNodes = async (cid: string) => {
     setCustomerNodesLoading(true);
     try {
       const nodes = await api.getCustomerNodesAdmin(cid);
-      setCustomerNodes(nodes || []);
+      // ==============================================================================
+      // ARRAY SAFEGUARD FOR CUSTOMER NODES
+      // ==============================================================================
+      setCustomerNodes(Array.isArray(nodes) ? nodes : (nodes?.nodes || nodes?.data || []));
     } catch (err: any) {
       alert('Failed to load customer nodes: ' + err.message);
+      setCustomerNodes([]);
     } finally {
       setCustomerNodesLoading(false);
     }
   };
 
   const saveCustomerNodesConfig = async () => {
-    if (!selectedCustomer) return;
+    if (!selectedCustomer || !Array.isArray(customerNodes)) return;
     try {
       const parsedNodes = customerNodes.map((node) => {
         let props = node.properties;
@@ -316,7 +320,7 @@ export default function CustomersTab() {
     }
   };
 
-  const loadCustomerTraces = async (cid: number) => {
+  const loadCustomerTraces = async (cid: string) => {
     setCustomerTracesLoading(true);
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     try {
@@ -411,7 +415,7 @@ export default function CustomersTab() {
     }
   };
 
-  const handleDeleteCustomer = async (id: number) => {
+  const handleDeleteCustomer = async (id: string) => {
     if (
       !confirm(
         'Are you sure you want to delete this customer? This will also delete all of their users.',
@@ -701,11 +705,10 @@ export default function CustomersTab() {
                     loadCustomerTraces(selectedCustomer.id);
                   }
                 }}
-                className={`pb-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
-                  customerDetailTab === tab.id
-                    ? 'border-bg-primary text-bg-primary'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+                className={`pb-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${customerDetailTab === tab.id
+                  ? 'border-bg-primary text-bg-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 {tab.label}
               </button>
@@ -857,11 +860,10 @@ export default function CustomersTab() {
                                 setEditCustomerAllowedDomains([...editCustomerAllowedDomains, d.key]);
                               }
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
-                              isSelected
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                            }`}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${isSelected
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                              }`}
                           >
                             {d.label} {isSelected ? '✓' : '+'}
                           </button>
@@ -918,11 +920,10 @@ export default function CustomersTab() {
                         Status
                       </span>
                       <span
-                        className={`px-2 py-0.5 rounded text-xs font-bold uppercase inline-block mt-1 ${
-                          selectedCustomer.status === 'active'
-                            ? 'bg-green-50 text-green-700'
-                            : 'bg-red-50 text-red-700'
-                        }`}
+                        className={`px-2 py-0.5 rounded text-xs font-bold uppercase inline-block mt-1 ${selectedCustomer.status === 'active'
+                          ? 'bg-green-50 text-green-700'
+                          : 'bg-red-50 text-red-700'
+                          }`}
                       >
                         {selectedCustomer.status}
                       </span>
@@ -1027,11 +1028,10 @@ export default function CustomersTab() {
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                              u.status === 'active'
-                                ? 'bg-green-50 text-green-700'
-                                : 'bg-red-50 text-red-700'
-                            }`}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.status === 'active'
+                              ? 'bg-green-50 text-green-700'
+                              : 'bg-red-50 text-red-700'
+                              }`}
                           >
                             {u.status}
                           </span>
@@ -1076,7 +1076,7 @@ export default function CustomersTab() {
                   onClick={saveCustomerNodesConfig}
                   className="bg-primary px-4 py-2 text-xs font-bold text-white rounded-lg hover:bg-blue-700 flex items-center gap-1 shadow-sm cursor-pointer"
                 >
-                Save Config
+                  Save Config
                 </button>
               </div>
               {customerNodesLoading ? (
@@ -1085,56 +1085,65 @@ export default function CustomersTab() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4 pt-2">
-                  {customerNodes.map((n, idx) => (
-                    <div
-                      key={idx}
-                      className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/50"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h5 className="text-sm font-semibold text-black">
-                            {n.label || n.node_name}
-                          </h5>
-                          <span className="text-[10px] text-gray-400 font-mono">
-                            Type: {n.node_name}
-                          </span>
+                  {/* ==============================================================================
+                  // ARRAY SAFEGUARD FOR CUSTOMER NODES RENDERING
+                  // ============================================================================== */}
+                  {Array.isArray(customerNodes) && customerNodes.length > 0 ? (
+                    customerNodes.map((n, idx) => (
+                      <div
+                        key={idx}
+                        className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/50"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h5 className="text-sm font-semibold text-black">
+                              {n.label || n.node_name}
+                            </h5>
+                            <span className="text-[10px] text-gray-400 font-mono">
+                              Type: {n.node_name}
+                            </span>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={n.is_enabled}
+                              onChange={(e) => {
+                                const updated = [...(Array.isArray(customerNodes) ? customerNodes : [])];
+                                updated[idx] = { ...updated[idx], is_enabled: e.target.checked };
+                                setCustomerNodes(updated);
+                              }}
+                              className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                          </label>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={n.is_enabled}
+                        <div>
+                          <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
+                            Custom Overrides (JSON)
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={
+                              typeof n.properties === 'string'
+                                ? n.properties
+                                : JSON.stringify(n.properties || {})
+                            }
                             onChange={(e) => {
-                              const updated = [...customerNodes];
-                              updated[idx] = { ...updated[idx], is_enabled: e.target.checked };
+                              const updated = [...(Array.isArray(customerNodes) ? customerNodes : [])];
+                              updated[idx] = { ...updated[idx], properties: e.target.value };
                               setCustomerNodes(updated);
                             }}
-                            className="sr-only peer"
+                            placeholder="{}"
+                            className="w-full text-xs font-mono rounded-lg border border-gray-200 p-2 text-black focus:border-bg-primary focus:outline-none bg-white"
                           />
-                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1">
-                          Custom Overrides (JSON)
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={
-                            typeof n.properties === 'string'
-                              ? n.properties
-                              : JSON.stringify(n.properties || {})
-                          }
-                          onChange={(e) => {
-                            const updated = [...customerNodes];
-                            updated[idx] = { ...updated[idx], properties: e.target.value };
-                            setCustomerNodes(updated);
-                          }}
-                          placeholder="{}"
-                          className="w-full text-xs font-mono rounded-lg border border-gray-200 p-2 text-black focus:border-bg-primary focus:outline-none bg-white"
-                        />
-                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-2 py-8 text-center text-sm text-gray-500">
+                      No nodes available for this customer.
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
@@ -1221,11 +1230,10 @@ export default function CustomersTab() {
                             </td>
                             <td className="px-4 py-3">
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                  m.status === 'success' || m.status === 'completed'
-                                    ? 'bg-green-50 text-green-700'
-                                    : 'bg-red-50 text-red-700'
-                                }`}
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${m.status === 'success' || m.status === 'completed'
+                                  ? 'bg-green-50 text-green-700'
+                                  : 'bg-red-50 text-red-700'
+                                  }`}
                               >
                                 {m.status}
                               </span>
@@ -1351,11 +1359,10 @@ export default function CustomersTab() {
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <span
-                        className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                          c.status === 'active'
-                            ? 'bg-green-50 text-green-700'
-                            : 'bg-red-50 text-red-700'
-                        }`}
+                        className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${c.status === 'active'
+                          ? 'bg-green-50 text-green-700'
+                          : 'bg-red-50 text-red-700'
+                          }`}
                       >
                         {c.status}
                       </span>
@@ -1528,11 +1535,10 @@ export default function CustomersTab() {
                               setNewCustomerAllowedDomains([...newCustomerAllowedDomains, d.key]);
                             }
                           }}
-                          className={`px-3 py-1 rounded text-xs font-bold transition-all border cursor-pointer ${
-                            isSelected
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
-                          }`}
+                          className={`px-3 py-1 rounded text-xs font-bold transition-all border cursor-pointer ${isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
+                            }`}
                         >
                           {d.label} {isSelected ? '✓' : '+'}
                         </button>
@@ -1830,23 +1836,23 @@ export default function CustomersTab() {
                       {/* Bulk Controls */}
                       {Object.keys(selectedNodesForBulk).filter((k) => selectedNodesForBulk[k])
                         .length > 0 && (
-                        <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-lg p-0.5 animate-fade-in">
-                          <button
-                            type="button"
-                            onClick={() => handleBulkToggle(true)}
-                            className="px-2 py-1 text-[10px] font-bold text-blue-700 hover:bg-white rounded transition-all cursor-pointer"
-                          >
-                            Enable
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleBulkToggle(false)}
-                            className="px-2 py-1 text-[10px] font-bold text-red-750 hover:bg-white rounded transition-all cursor-pointer"
-                          >
-                            Disable
-                          </button>
-                        </div>
-                      )}
+                          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-lg p-0.5 animate-fade-in">
+                            <button
+                              type="button"
+                              onClick={() => handleBulkToggle(true)}
+                              className="px-2 py-1 text-[10px] font-bold text-blue-700 hover:bg-white rounded transition-all cursor-pointer"
+                            >
+                              Enable
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleBulkToggle(false)}
+                              className="px-2 py-1 text-[10px] font-bold text-red-750 hover:bg-white rounded transition-all cursor-pointer"
+                            >
+                              Disable
+                            </button>
+                          </div>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -1891,22 +1897,20 @@ export default function CustomersTab() {
                         <button
                           type="button"
                           onClick={() => setNodeViewMode('grid')}
-                          className={`p-1 rounded cursor-pointer ${
-                            nodeViewMode === 'grid'
-                              ? 'bg-white shadow-xs text-bg-primary'
-                              : 'text-gray-400 hover:text-gray-655'
-                          }`}
+                          className={`p-1 rounded cursor-pointer ${nodeViewMode === 'grid'
+                            ? 'bg-white shadow-xs text-bg-primary'
+                            : 'text-gray-400 hover:text-gray-655'
+                            }`}
                         >
                           <IconMap.workflow className="h-3.5 w-3.5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => setNodeViewMode('list')}
-                          className={`p-1 rounded cursor-pointer ${
-                            nodeViewMode === 'list'
-                              ? 'bg-white shadow-xs text-bg-primary'
-                              : 'text-gray-400 hover:text-gray-655'
-                          }`}
+                          className={`p-1 rounded cursor-pointer ${nodeViewMode === 'list'
+                            ? 'bg-white shadow-xs text-bg-primary'
+                            : 'text-gray-400 hover:text-gray-655'
+                            }`}
                         >
                           <IconMap.list className="h-3.5 w-3.5" />
                         </button>
@@ -1931,9 +1935,8 @@ export default function CustomersTab() {
                             return (
                               <div
                                 key={node.name}
-                                className={`border rounded-xl p-4 bg-white flex flex-col justify-between shadow-xs transition-all relative ${
-                                  isChecked ? 'border-blue-200' : 'border-gray-200 opacity-75'
-                                }`}
+                                className={`border rounded-xl p-4 bg-white flex flex-col justify-between shadow-xs transition-all relative ${isChecked ? 'border-blue-200' : 'border-gray-200 opacity-75'
+                                  }`}
                               >
                                 <div className="flex items-start justify-between gap-4">
                                   <div className="flex gap-3">
@@ -1986,11 +1989,10 @@ export default function CustomersTab() {
                                 <div className="border-t mt-4 pt-3 flex justify-between items-center gap-2">
                                   <div className="flex items-center gap-2">
                                     <span
-                                      className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border ${
-                                        isChecked
-                                          ? 'bg-green-50 text-green-700 border-green-100'
-                                          : 'bg-red-50 text-red-700 border-red-100'
-                                      }`}
+                                      className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border ${isChecked
+                                        ? 'bg-green-50 text-green-700 border-green-100'
+                                        : 'bg-red-50 text-red-700 border-red-100'
+                                        }`}
                                     >
                                       {isChecked ? 'Allowed' : 'Disallowed'}
                                     </span>

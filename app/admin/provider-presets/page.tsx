@@ -201,7 +201,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
   };
 
   const handleSeedPresets = async () => {
-    if (!confirm('Re-seed standard default presets for Ollama, vLLM, OpenAI, Grok, Azure, Anthropic?')) return;
+    if (!confirm('Re-seed standard default presets for Ollama, vLLM, OpenAI, Grok, Azure, Anthropic, Gemini?')) return;
     setSeeding(true);
     try {
       const res = await api.seedProviderPresets();
@@ -231,7 +231,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
             <h1 className="text-xl font-bold text-gray-900">Provider Presets & Sample Configs</h1>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            System Admin repository of standard LLM, Embedding, and Search model presets (Ollama, vLLM, OpenAI, Grok, etc.).
+            System Admin repository of standard LLM, Embedding, and Search model presets (Ollama, vLLM, OpenAI, Grok, Gemini, etc.).
             Node & Profile properties will pre-fill from these presets without breaking existing workflows when updated.
           </p>
         </div>
@@ -303,7 +303,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
           <Server className="h-10 w-10 text-gray-300 mx-auto mb-3" />
           <h3 className="text-sm font-semibold text-gray-700">No Provider Presets Found</h3>
           <p className="text-xs text-gray-400 mt-1 max-w-md mx-auto">
-            Click "Seed Standard Defaults" to automatically populate Ollama, vLLM, OpenAI, Grok, Azure, and Anthropic standard configs.
+            Click "Seed Standard Defaults" to automatically populate Ollama, vLLM, OpenAI, Grok, Azure, Anthropic, and Gemini standard configs.
           </p>
         </div>
       ) : (
