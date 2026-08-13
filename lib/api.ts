@@ -1312,6 +1312,37 @@ export const api = {
     document.body.removeChild(a);
     return filename;
   },
+
+  getSqlBackupsHistory: async (): Promise<Array<{ filename: string; filepath: string; size_bytes: number; created_at: number }>> => {
+    const res = await fetch(`${BACKEND_URL}/api/admin/backup/history`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to fetch SQL backup history');
+    }
+    return res.json();
+  },
+
+  downloadSqlBackupFile: async (filename: string) => {
+    const res = await fetch(`${BACKEND_URL}/api/admin/backup/download/${encodeURIComponent(filename)}`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to download SQL backup file');
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    return filename;
+  },
 };
 
 

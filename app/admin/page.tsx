@@ -17,7 +17,7 @@ import {
 } from '@/lib/config/route_permissions';
 
 import { IconMap } from '@/lib/icons';
-import { Shield, Lock, Check, ChevronDown, Database, Download } from 'lucide-react';
+import { Shield, Lock, Check, ChevronDown } from 'lucide-react';
 
 // Subpage components
 import CustomersTab from './customers/page';
@@ -35,6 +35,7 @@ import ProviderPresetsTab from './provider-presets/page';
 import RolesTab from './roles/page';
 // BLOCK COMMENT: IMPORT PERMISSIONS TAB FOR SYSTEM ADMIN
 import PermissionsTab from './permissions/page';
+import BackupTab from './backup/page';
 
 export interface AdminTabItem {
   id: string;
@@ -46,7 +47,7 @@ function buildDynamicAdminTabs(routes: RoutePermissionRule[]): AdminTabItem[] {
   const tabsMap = new Map<string, AdminTabItem>();
 
   // Baseline tab order
-  const defaultTabOrder = ['nodes', 'workflows', 'users', 'roles', 'permissions', 'customers', 'knowledge', 'oauth', 'logs', 'metrics', 'profiles', 'provider-presets', 'playground', 'settings'];
+  const defaultTabOrder = ['nodes', 'workflows', 'users', 'roles', 'permissions', 'customers', 'knowledge', 'oauth', 'logs', 'metrics', 'backup', 'profiles', 'provider-presets', 'playground', 'settings'];
 
 
   routes.forEach((rule) => {
@@ -110,27 +111,7 @@ function AdminDashboardContent() {
     text: string;
   } | null>(null);
 
-  // BLOCK COMMENT: REQUIREMENT 3 SQL BACKUP EXPORTER STATE & HANDLER
-  const [exportingBackup, setExportingBackup] = useState(false);
 
-  const handleExportBackup = async () => {
-    setExportingBackup(true);
-    setAlertMessage(null);
-    try {
-      const filename = await api.exportSqlBackup();
-      setAlertMessage({
-        type: 'success',
-        text: `Successfully exported SQL data backup: ${filename}`
-      });
-    } catch (err: any) {
-      setAlertMessage({
-        type: 'error',
-        text: err?.message || 'Failed to generate SQL data backup'
-      });
-    } finally {
-      setExportingBackup(false);
-    }
-  };
 
 
   const navContainerRef = useRef<HTMLDivElement | null>(null);
@@ -386,18 +367,6 @@ function AdminDashboardContent() {
             <h1 className="text-xl font-bold text-gray-900">Admin Control Center</h1>
             <p className="text-xs text-gray-500 font-medium">Manage system RBAC, customer tenants, nodes, and system backups</p>
           </div>
-          {userRole === 'system_admin' && (
-            <button
-              onClick={handleExportBackup}
-              disabled={exportingBackup}
-              className="flex items-center gap-2 bg-gray-900 hover:bg-black text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow disabled:opacity-50 cursor-pointer"
-              title="Export complete database backup as ekb_data_dd_mm_yyyy_sss.sql"
-            >
-              <Database className="w-4 h-4 text-blue-400" />
-              <span>{exportingBackup ? 'Generating Backup...' : 'Export System SQL Backup'}</span>
-              <Download className="w-3.5 h-3.5 opacity-80" />
-            </button>
-          )}
         </div>
 
         {(() => {
@@ -518,6 +487,9 @@ function AdminDashboardContent() {
           )}
           {activeTab === 'metrics' && (userRole === 'admin' || userRole === 'system_admin') && (
             <MetricsTab userRole={userRole} />
+          )}
+          {activeTab === 'backup' && (userRole === 'admin' || userRole === 'system_admin') && (
+            <BackupTab />
           )}
           {/* BLOCK: Pass userRole and customerId to KnowledgeBasesTab */}
           {activeTab === 'knowledge' && (
