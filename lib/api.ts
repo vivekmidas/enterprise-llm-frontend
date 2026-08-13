@@ -1025,8 +1025,20 @@ export const api = {
     return res.json();
   },
 
-  searchLegalCases: async (payload: { query: string; court_code?: string; judge?: string; statute?: string; disposition?: string; limit?: number }) => {
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/search`, {
+  searchLegalCases: async (payload: {
+    query: string;
+    court_code?: string;
+    courts?: string[];
+    judge?: string;
+    statute?: string;
+    statutes?: string[];
+    disposition?: string;
+    outcome_tags?: string[];
+    year_min?: number;
+    year_max?: number;
+    limit?: number;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/api/legal/search`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
@@ -1034,6 +1046,16 @@ export const api = {
     if (!res.ok) throw new Error('Legal search failed');
     return res.json();
   },
+
+  getLegalFilterOptions: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/filter-options`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  },
+
 
   getSavedQueries: async () => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/saved-queries`, {
@@ -1069,6 +1091,44 @@ export const api = {
       headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch case detail');
+    return res.json();
+  },
+
+  getCaseWorkspaces: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/cases`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  createCaseWorkspace: async (data: { case_number?: string; title: string; category?: string; court?: string; client_name?: string; opposing_party?: string }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/cases`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create case workspace');
+    return res.json();
+  },
+
+  linkPrecedentToCase: async (caseId: string, payload: any) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/cases/${caseId}/precedents`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to link precedent to case workspace');
+    return res.json();
+  },
+
+  getCasePrecedents: async (caseId: string) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/cases/${caseId}/precedents`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!res.ok) return [];
     return res.json();
   },
 
@@ -1152,7 +1212,7 @@ export const api = {
     return res.json();
   },
 
-  createPermission: async (data: { id: string; module: string; label: string; description?: string }) => {
+  createPermission: async (data: { id: string; module: string; submodule?: string; label: string; description?: string }) => {
     const res = await fetch(`${BACKEND_URL}/roles/permissions`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -1167,7 +1227,8 @@ export const api = {
 
   createModulePermissions: async (data: {
     module_name: string;
-    permissions: Array<{ id: string; label: string; description?: string }>;
+    submodule_name?: string;
+    permissions: Array<{ id: string; submodule?: string; label: string; description?: string }>;
   }) => {
     const res = await fetch(`${BACKEND_URL}/roles/modules`, {
       method: 'POST',
@@ -1180,5 +1241,77 @@ export const api = {
     }
     return res.json();
   },
+
+  createRoutePermissionBinding: async (data: { pattern: string; permission_id: string; module?: string; submodule?: string; label?: string; description?: string }) => {
+    const res = await fetch(`${BACKEND_URL}/roles/route-permissions`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create route permission binding');
+    }
+    return res.json();
+  },
+
+  updateRoutePermissionBinding: async (id: string, data: { pattern: string; permission_id: string; module?: string; submodule?: string; label?: string; description?: string }) => {
+    const res = await fetch(`${BACKEND_URL}/roles/route-permissions/${id}`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update route permission binding');
+    }
+    return res.json();
+  },
+
+  deleteRoutePermissionBinding: async (id: string) => {
+    const res = await fetch(`${BACKEND_URL}/roles/route-permissions/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to delete route permission binding');
+    }
+    return true;
+  },
+
+  // BLOCK COMMENT: REQUIREMENT 3 SYSTEM SQL BACKUP DUMP EXPORTER METHOD
+  exportSqlBackup: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/admin/backup/export?download=true`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to generate SQL data backup');
+    }
+    
+    // Extract filename from header or generate default matching ekb_data_dd_mm_yyyy_sss.sql format
+    const contentDisposition = res.headers.get('Content-Disposition');
+    let filename = 'ekb_data_dump.sql';
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?([^";]+)"?/);
+      if (match && match[1]) {
+        filename = match[1];
+      }
+    }
+    
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    return filename;
+  },
 };
+
 

@@ -1,7 +1,19 @@
+/*
+===============================================================================
+BLOCK COMMENT: USER MANAGEMENT TAB WITH TENANT FILTERING
+Module: frontend/app/admin/users/page.tsx
+Description:
+    User Management tab with tenant/customer filter ("All" default).
+    - Lists all users across tenants.
+    - Tenant filter dropdown populated dynamically from the Customer table.
+    - Filter by username, email, role, and tenant.
+===============================================================================
+*/
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Edit2 } from 'lucide-react';
+import { Edit2, Search, Building2, UserPlus, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { IconMap } from '@/lib/icons';
 
@@ -12,7 +24,13 @@ interface UsersTabProps {
 
 export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
   const [users, setUsers] = useState<any[]>([]);
+  const [rolesList, setRolesList] = useState<any[]>([]);
+  const [customersList, setCustomersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Search & Filter State (Default: 'all')
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTenantFilter, setSelectedTenantFilter] = useState<string>('all');
 
   // Add User Form States
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -20,6 +38,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<string>('tenant_user');
+  const [newUserCustomerId, setNewUserCustomerId] = useState<string>('');
 
   // Edit User Role Modal States
   const [showEditUserModal, setShowEditUserModal] = useState(false);
@@ -27,19 +46,22 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
   const [editUserRole, setEditUserRole] = useState<string>('tenant_user');
   const [updating, setUpdating] = useState(false);
 
-  const [rolesList, setRolesList] = useState<any[]>([]);
-
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const [usrs, rls] = await Promise.all([
+      const [usrs, rls, custs] = await Promise.all([
         api.getUsers().catch(() => []),
-        api.getRoles().catch(() => [])
+        api.getRoles().catch(() => []),
+        api.getCustomers().catch(() => []),
       ]);
       setUsers(usrs || []);
       setRolesList(rls || []);
+      setCustomersList(custs || []);
+      if (custs && custs.length > 0 && !newUserCustomerId) {
+        setNewUserCustomerId(String(custs[0].id));
+      }
     } catch (err) {
-      console.error('Failed to fetch users or roles', err);
+      console.error('Failed to fetch users, roles, or customers', err);
     } finally {
       setLoading(false);
     }
@@ -57,6 +79,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
         email: newUserEmail,
         password: newUserPassword,
         role: newUserRole,
+        customer_id: newUserCustomerId ? Number(newUserCustomerId) : undefined,
       });
       setShowAddUserModal(false);
       setNewUserName('');
@@ -109,8 +132,24 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
     }
   };
 
+  // Filtered Users List
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
+      !searchQuery.trim() ||
+      (u.username && u.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (u.email_id && u.email_id.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (u.role && u.role.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesTenant =
+      selectedTenantFilter === 'all' ||
+      String(u.customer_id) === String(selectedTenantFilter);
+
+    return matchesSearch && matchesTenant;
+  });
+
   return (
     <section className="space-y-4">
+      {/* HEADER BAR */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <IconMap.users className="h-5 w-5 text-gray-400" />
@@ -124,15 +163,57 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
         </button>
       </div>
 
+      {/* FILTER & TENANT SELECTION BAR */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs">
+        <div className="relative flex-1 w-full">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search users by name, username, or email..."
+            className="w-full text-xs bg-gray-50 border border-gray-300 rounded-lg pl-9 pr-4 py-2 text-black focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+
+        {/* TENANT FILTER (DEFAULT: ALL) */}
+        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+          <span className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+            <Building2 className="w-3.5 h-3.5 text-gray-400" /> Tenant:
+          </span>
+          <select
+            value={selectedTenantFilter}
+            onChange={(e) => setSelectedTenantFilter(e.target.value)}
+            className="text-xs bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-gray-800 font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer w-full sm:w-56"
+          >
+            <option value="all">All Tenants ({users.length} Users)</option>
+            {customersList.map((c) => {
+              const userCount = users.filter((u) => String(u.customer_id) === String(c.id)).length;
+              return (
+                <option key={c.id} value={String(c.id)}>
+                  {c.name} ({userCount})
+                </option>
+              );
+            })}
+          </select>
+        </div>
+      </div>
+
+      {/* USERS TABLE */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-400 text-sm">Loading users...</div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="p-8 text-center text-gray-400 text-sm italic">
+            No users found matching current filter.
+          </div>
         ) : (
           <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Username</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Email</th>
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Tenant / Customer</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">RBAC Role</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">
@@ -141,56 +222,70 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {users?.map((u, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-black font-medium">{u.username}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{u.email_id}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2.5 py-1 rounded text-xs font-bold ${u.role === 'admin' || u.role === 'system_admin' || u.role === 'tenant_admin'
-                          ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                          : 'bg-blue-50 text-blue-700 border border-blue-200'
+              {filteredUsers.map((u, i) => {
+                const tenantObj = customersList.find((c) => String(c.id) === String(u.customer_id));
+                return (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-black font-medium">{u.username}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{u.email_id}</td>
+                    <td className="px-4 py-3">
+                      {tenantObj ? (
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200">
+                          {tenantObj.name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400 font-mono italic">System-wide</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2.5 py-1 rounded text-xs font-bold ${
+                          u.role === 'admin' || u.role === 'system_admin' || u.role === 'tenant_admin'
+                            ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                            : 'bg-blue-50 text-blue-700 border border-blue-200'
                         }`}
-                    >
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`text-sm font-medium ${u.status === 'active' ? 'text-green-600' : 'text-red-600'
+                      >
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`text-sm font-medium ${
+                          u.status === 'active' ? 'text-green-600' : 'text-red-600'
                         }`}
-                    >
-                      {u.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditUserModal(u)}
-                      title="Edit User Role"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-indigo-200 text-indigo-600 hover:bg-indigo-50 cursor-pointer"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
+                      >
+                        {u.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditUserModal(u)}
+                        title="Edit User Role"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-indigo-200 text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteUser(u)}
-                      disabled={String(u.id) === String(userId) || u.role === 'system_admin'}
-                      title={
-                        String(u.id) === String(userId)
-                          ? 'You cannot delete your own account'
-                          : u.role === 'system_admin'
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUser(u)}
+                        disabled={String(u.id) === String(userId) || u.role === 'system_admin'}
+                        title={
+                          String(u.id) === String(userId)
+                            ? 'You cannot delete your own account'
+                            : u.role === 'system_admin'
                             ? 'System admin users cannot be deleted'
                             : 'Delete user'
-                      }
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-100 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-100 disabled:text-gray-300 disabled:hover:bg-white cursor-pointer"
-                    >
-                      <IconMap.trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                        }
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-100 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-100 disabled:text-gray-300 disabled:hover:bg-white cursor-pointer"
+                      >
+                        <IconMap.trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -211,7 +306,7 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
       {showAddUserModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
           <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
-            <h3 className="text-xl font-bold text-black mb-4">Add Company User</h3>
+            <h3 className="text-xl font-bold text-black mb-4">Add User</h3>
             <form onSubmit={handleAddUser} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
@@ -252,6 +347,26 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                   placeholder="••••••••"
                 />
               </div>
+
+              {/* Customer / Tenant Assignment */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1 font-mono">
+                  Customer Tenant Organization
+                </label>
+                <select
+                  value={newUserCustomerId}
+                  onChange={(e) => setNewUserCustomerId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="">None (System Wide)</option>
+                  {customersList.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      {c.name} (ID: {c.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-500 mb-1 font-mono">
                   Assigned RBAC Role Profile

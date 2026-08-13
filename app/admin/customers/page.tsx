@@ -163,6 +163,45 @@ const SourceValueSelector = ({
   );
 };
 
+const DOMAIN_ROLES_MAP: Record<string, { role_type: string; role_name: string; description?: string }[]> = {
+  legal: [
+    { role_type: 'para_legal', role_name: 'Paralegal (para_legal)', description: 'Legal search & case bookmarking' },
+    { role_type: 'legal_analyst', role_name: 'Legal Analyst (legal_analyst)', description: 'Full legal research & ingestion' },
+  ],
+  finance: [
+    { role_type: 'finance_analyst', role_name: 'Finance Analyst (finance_analyst)', description: 'Financial analytics & reporting' },
+    { role_type: 'auditor', role_name: 'Financial Auditor (auditor)', description: 'Compliance & audit log review' },
+  ],
+  healthcare: [
+    { role_type: 'health_analyst', role_name: 'Healthcare Analyst (health_analyst)', description: 'Medical records & health data' },
+    { role_type: 'medical_reviewer', role_name: 'Medical Reviewer (medical_reviewer)', description: 'Clinical review & compliance' },
+  ],
+  hr: [
+    { role_type: 'hr_specialist', role_name: 'HR Specialist (hr_specialist)', description: 'Employee records & onboarding' },
+  ],
+};
+
+const BASE_TENANT_ROLES = [
+  { role_type: 'tenant_user', role_name: 'Standard User (tenant_user)', description: 'Default user access' },
+  { role_type: 'tenant_admin', role_name: 'Tenant Admin (tenant_admin)', description: 'Full tenant administration' },
+];
+
+const getRelevantRolesForDomains = (allowedDomains: string[] = []) => {
+  const rolesMap = new Map<string, { role_type: string; role_name: string; description?: string }>();
+  
+  BASE_TENANT_ROLES.forEach((r) => rolesMap.set(r.role_type, r));
+
+  const domains = allowedDomains && allowedDomains.length > 0 ? allowedDomains : ['legal'];
+  domains.forEach((dom) => {
+    const key = dom.toLowerCase();
+    if (DOMAIN_ROLES_MAP[key]) {
+      DOMAIN_ROLES_MAP[key].forEach((r) => rolesMap.set(r.role_type, r));
+    }
+  });
+
+  return Array.from(rolesMap.values());
+};
+
 export default function CustomersTab() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -212,6 +251,7 @@ export default function CustomersTab() {
   const [customerUserEmail, setCustomerUserEmail] = useState('');
   const [customerUserPassword, setCustomerUserPassword] = useState('');
   const [customerUserName, setCustomerUserName] = useState('');
+  const [customerUserRole, setCustomerUserRole] = useState<string>('tenant_user');
 
   // Customer Node Scope (Bulk assignment)
   const [selectedCustomerForNodes, setSelectedCustomerForNodes] = useState<any | null>(null);
@@ -403,15 +443,16 @@ export default function CustomersTab() {
         name: customerUserName,
         email: customerUserEmail,
         password: customerUserPassword,
-        role: 'admin',
+        role: customerUserRole,
       });
       setShowAddCustomerUserModal(false);
       setCustomerUserName('');
       setCustomerUserEmail('');
       setCustomerUserPassword('');
+      setCustomerUserRole('tenant_user');
       fetchInitialData();
     } catch (err: any) {
-      alert('Failed to add admin user: ' + err.message);
+      alert('Failed to add user: ' + err.message);
     }
   };
 
@@ -993,11 +1034,14 @@ export default function CustomersTab() {
                 <button
                   onClick={() => {
                     setSelectedCustomerIdForUser(selectedCustomer.id);
+                    const targetCust = selectedCustomer;
+                    const roles = getRelevantRolesForDomains(targetCust?.allowed_domains);
+                    setCustomerUserRole(roles[0]?.role_type || 'tenant_user');
                     setShowAddCustomerUserModal(true);
                   }}
                   className="bg-primary px-3 py-1.5 text-xs font-bold text-white rounded-lg hover:bg-blue-700 shadow-sm cursor-pointer"
                 >
-                  + Add Tenant User
+                  + Add User
                 </button>
               </div>
               <table className="w-full text-left">
@@ -1374,11 +1418,13 @@ export default function CustomersTab() {
                       <button
                         onClick={() => {
                           setSelectedCustomerIdForUser(c.id);
+                          const roles = getRelevantRolesForDomains(c?.allowed_domains);
+                          setCustomerUserRole(roles[0]?.role_type || 'tenant_user');
                           setShowAddCustomerUserModal(true);
                         }}
                         className="text-bg-primary hover:text-blue-800 font-semibold cursor-pointer"
                       >
-                        Add Admin User
+                        Add User
                       </button>
                       <button
                         onClick={() => handleManageCustomerNodes(c)}
@@ -1601,11 +1647,11 @@ export default function CustomersTab() {
       {showAddCustomerUserModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
-            <h3 className="text-xl font-bold text-black mb-4">Onboard Customer Admin User</h3>
+            <h3 className="text-xl font-bold text-black mb-4">Add User</h3>
             <form onSubmit={handleAddCustomerUser} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-                  Admin Name
+                  User Name
                 </label>
                 <input
                   type="text"
@@ -1618,7 +1664,7 @@ export default function CustomersTab() {
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-                  Admin Email
+                  User Email
                 </label>
                 <input
                   type="email"
@@ -1626,7 +1672,7 @@ export default function CustomersTab() {
                   value={customerUserEmail}
                   onChange={(e) => setCustomerUserEmail(e.target.value)}
                   className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
-                  placeholder="e.g. admin@acme.com"
+                  placeholder="e.g. user@acme.com"
                 />
               </div>
               <div>
@@ -1642,6 +1688,32 @@ export default function CustomersTab() {
                   placeholder="••••••••"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Assigned Role
+                </label>
+                <select
+                  value={customerUserRole}
+                  onChange={(e) => setCustomerUserRole(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
+                >
+                  {getRelevantRolesForDomains(
+                    (customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) || selectedCustomer)?.allowed_domains
+                  ).map((r) => (
+                    <option key={r.role_type} value={r.role_type}>
+                      {r.role_name}
+                    </option>
+                  ))}
+                </select>
+                {((customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) || selectedCustomer)?.allowed_domains) && (
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Roles available for allowed domain(s):{' '}
+                    <span className="font-semibold text-gray-600 uppercase">
+                      {(customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) || selectedCustomer).allowed_domains.join(', ')}
+                    </span>
+                  </p>
+                )}
+              </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
@@ -1654,7 +1726,7 @@ export default function CustomersTab() {
                   type="submit"
                   className="bg-primary px-6 py-2 text-sm font-bold text-white rounded-lg shadow-md hover:bg-blue-700 transition-all cursor-pointer"
                 >
-                  Onboard Admin
+                  Add User
                 </button>
               </div>
             </form>

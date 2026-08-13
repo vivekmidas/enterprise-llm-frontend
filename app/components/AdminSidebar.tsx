@@ -31,72 +31,97 @@ interface NavSection {
   items: NavItem[];
 }
 
-const navSections: NavSection[] = [
-  {
-    title: 'Navigation',
-    items: [
-      { label: 'Dashboard', href: '/admin', icon: <Home className="w-4 h-4" /> },
-      { label: 'Legal Research', href: '/legal-research', icon: <Scale className="w-4 h-4" /> },
-      { label: 'Metrics', href: '/admin?tab=metrics', icon: <BarChart3 className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Management',
-    items: [
-      { label: 'Node Registry', href: '/admin', icon: <Database className="w-4 h-4" /> },
-      {
-        label: 'Knowledge Bases',
-        href: '/admin?tab=knowledge',
-        icon: <BookOpen className="w-4 h-4" />,
-      },
-      {
-        label: 'Workflows',
-        href: '/workflow-builder',
-        icon: <Workflow className="w-4 h-4" />,
-      },
-      {
-        label: 'Users',
-        href: '/admin?tab=users',
-        icon: <UsersIcon className="w-4 h-4" />,
-      },
-      {
-        label: 'Manage Roles',
-        href: '/admin?tab=roles',
-        icon: <ShieldCheck className="w-4 h-4" />,
-      },
-    ],
-  },
-  {
-    title: 'Admin',
-    items: [
-      { label: 'System Customers', href: '/admin?tab=customers', icon: <Building2 className="w-4 h-4" /> },
-      { label: 'Settings', href: '/admin?tab=settings', icon: <Settings className="w-4 h-4" /> },
-    ],
-  },
-];
+// BLOCK COMMENT: DYNAMIC PERMISSION-DRIVEN SIDEBAR NAVIGATION
+// Component: frontend/app/components/AdminSidebar.tsx
+// Description: Dynamically constructs navigation sections from DB route permissions (api.getRoutePermissions).
 
 import { api } from '@/lib/api';
-import { getRequiredPermissionForPath, hasPermissionScope } from '@/lib/config/route_permissions';
+import {
+  getRequiredPermissionForPath,
+  hasPermissionScope,
+  loadRoutePermissionsFromDB,
+  RoutePermissionRule
+} from '@/lib/config/route_permissions';
+
+function buildDynamicNavSections(routes: RoutePermissionRule[]): NavSection[] {
+  const sections: Record<string, NavItem[]> = {
+    'Navigation': [
+      { label: 'Dashboard', href: '/admin', icon: <Home className="w-4 h-4" /> },
+    ],
+    'Management': [],
+    'Admin': [],
+  };
+
+  const getIconForRoute = (pattern: string) => {
+    if (pattern.includes('legal')) return <Scale className="w-4 h-4" />;
+    if (pattern.includes('workflow')) return <Workflow className="w-4 h-4" />;
+    if (pattern.includes('users')) return <UsersIcon className="w-4 h-4" />;
+    if (pattern.includes('roles')) return <ShieldCheck className="w-4 h-4" />;
+    if (pattern.includes('customers')) return <Building2 className="w-4 h-4" />;
+    if (pattern.includes('knowledge')) return <BookOpen className="w-4 h-4" />;
+    if (pattern.includes('nodes') || pattern.includes('playground')) return <Database className="w-4 h-4" />;
+    if (pattern.includes('metrics')) return <BarChart3 className="w-4 h-4" />;
+    return <Settings className="w-4 h-4" />;
+  };
+
+  const registeredHrefs = new Set<string>(['/admin']);
+
+  routes.forEach((rule) => {
+    if (!rule.pattern || rule.pattern.includes('*')) return;
+    const href = rule.pattern;
+    if (registeredHrefs.has(href)) return;
+    registeredHrefs.add(href);
+
+    const formattedLabel = rule.label || (rule.submodule ? rule.submodule.replace(/_/g, ' ') : rule.pattern.split('/').pop() || rule.pattern);
+    const capitalizedLabel = formattedLabel.charAt(0).toUpperCase() + formattedLabel.slice(1);
+
+    const groupKey = rule.module === 'legal' || rule.module === 'workflow' ? 'Navigation' :
+                     (rule.module === 'admin' ? 'Management' : (rule.module ? rule.module.toUpperCase() + ' Module' : 'Admin'));
+
+    if (!sections[groupKey]) {
+      sections[groupKey] = [];
+    }
+
+    sections[groupKey].push({
+      label: capitalizedLabel,
+      href,
+      icon: getIconForRoute(href),
+    });
+  });
+
+  return Object.entries(sections)
+    .filter(([_, items]) => items.length > 0)
+    .map(([title, items]) => ({ title, items }));
+}
 
 export function AdminSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string>('Navigation');
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [navSections, setNavSections] = useState<NavSection[]>([]);
 
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentTab = searchParams.get('tab');
 
   useEffect(() => {
-    api.getCurrentUser().then((u) => {
-      setUserRole(u.role);
-      setUserPermissions(u.permissions || []);
-    }).catch(console.error);
+    async function initNavigation() {
+      try {
+        const routes = await loadRoutePermissionsFromDB();
+        setNavSections(buildDynamicNavSections(routes));
+
+        const user = await api.getCurrentUser();
+        setUserRole(user.role);
+        setUserPermissions(user.permissions || []);
+      } catch (err) {
+        console.error('Failed to initialize dynamic sidebar navigation:', err);
+      }
+    }
+    initNavigation();
   }, []);
 
   const isItemVisible = (item: NavItem) => {
-    if (userRole === 'admin' || userRole === 'system_admin') return true;
     const path = item.href.startsWith('/admin?tab=')
       ? `/admin/${item.href.split('tab=')[1]}`
       : item.href;

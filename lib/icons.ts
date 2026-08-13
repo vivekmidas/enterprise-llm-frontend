@@ -95,9 +95,13 @@ export const IconMap: Record<string, any> = {
   power: Power,
   refreshCw: RefreshCw,
   search: BookOpen,
-  flaskround: FlaskRound,
-  list: List,
   heart: Heart,
   cloud: Cloud,
+  // BLOCK COMMENT: SYSTEM ADMIN MODULE ICONS
+  permissions: Lock,
+  backup: Database,
+  domains: Globe,
+  key: Lock,
 };
 export default IconMap;
+

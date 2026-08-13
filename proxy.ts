@@ -54,8 +54,8 @@ export function proxy(request: NextRequest) {
   // Case 3: URL Route-Permission Authorization Guard
   const requiredPermission = getRequiredPermissionForPath(pathname);
   if (requiredPermission) {
-    const isSuperOrTenantAdmin = userRole === 'admin' || userRole === 'system_admin';
-    const isAuthorized = isSuperOrTenantAdmin || hasPermissionScope(userPermissions, requiredPermission);
+    const isSystemSuperAdmin = userRole === 'system_admin' || hasPermissionScope(userPermissions, 'system:admin:*');
+    const isAuthorized = isSystemSuperAdmin || hasPermissionScope(userPermissions, requiredPermission);
 
     if (!isAuthorized) {
       const fallbackRoute = getDefaultRedirectForPermissions(userPermissions, userRole);

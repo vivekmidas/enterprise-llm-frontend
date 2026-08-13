@@ -14,13 +14,24 @@ import {
   Building,
 } from 'lucide-react';
 
+// BLOCK COMMENT: 3-TIER ROLES & ROUTE PERMISSION BINDING PORTAL
+// Component: frontend/app/admin/roles/page.tsx
+// Description: Manages 3-tier Module -> Submodule -> Permission roles and System Admin Route Permission Bindings.
+
 export default function RolesTab() {
   const [roles, setRoles] = useState<any[]>([]);
-  const [permissionsGrouped, setPermissionsGrouped] = useState<Record<string, any[]>>({});
+  const [permissionsGrouped, setPermissionsGrouped] = useState<Record<string, any>>({});
+  // BLOCK COMMENT: FLAT PERMISSIONS LIST & MODAL FILTER STATES (DEFAULT LIST VIEW)
+  const [permissionsFlatList, setPermissionsFlatList] = useState<any[]>([]);
+  const [modalModuleFilter, setModalModuleFilter] = useState<string>('all');
+  const [modalSubmoduleFilter, setModalSubmoduleFilter] = useState<string>('all');
+  const [modalViewMode, setModalViewMode] = useState<'list' | 'grouped'>('list');
+
+  const [routePermissions, setRoutePermissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Modal State
+  // Modal State for Roles
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [editingRole, setEditingRole] = useState<any | null>(null);
   const [roleName, setRoleName] = useState('');
@@ -31,21 +42,118 @@ export default function RolesTab() {
 
   // Module & Permission Builder Modal States
   const [showModuleModal, setShowModuleModal] = useState(false);
-  const [moduleName, setModuleName] = useState('HealthCare');
+  const [moduleName, setModuleName] = useState('legal');
+  const [submoduleName, setSubmoduleName] = useState('case_management');
   const [permissionRows, setPermissionRows] = useState<
-    Array<{ id: string; label: string; description: string }>
+    Array<{ id: string; submodule: string; label: string; description: string }>
   >([
-    { id: 'health:admin:*', label: 'Healthcare Admin Full Access', description: 'Full access to healthcare domain' },
-    { id: 'health:patient:view', label: 'View Patient Records', description: 'View HIPAA patient medical records' },
-    { id: 'health:claims:process', label: 'Process Insurance Claims', description: 'Verify and process insurance claims' },
+    { id: 'legal:case_management:view', submodule: 'case_management', label: 'View Legal Cases', description: 'View court judgments and briefs' },
+    { id: 'legal:case_management:upload', submodule: 'case_management', label: 'Upload Case Files', description: 'Upload case briefs and court filings' },
   ]);
   const [savingModule, setSavingModule] = useState(false);
 
+  // Route Permission Binding Portal Modal States
+  const [showRouteBindingModal, setShowRouteBindingModal] = useState(false);
+  const [editingRouteBinding, setEditingRouteBinding] = useState<any | null>(null);
+  const [routePattern, setRoutePattern] = useState('');
+  const [boundPermissionId, setBoundPermissionId] = useState('');
+  const [routeModule, setRouteModule] = useState('');
+  const [routeSubmodule, setRouteSubmodule] = useState('');
+  const [routeLabel, setRouteLabel] = useState('');
+  const [savingRouteBinding, setSavingRouteBinding] = useState(false);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [rolesData, permsData, routesData] = await Promise.all([
+        api.request('/roles').catch(() => []),
+        api.request('/roles/permissions').catch(() => ({ grouped_by_module_and_submodule: {}, permissions: [] })),
+        api.getRoutePermissions().catch(() => []),
+      ]);
+      setRoles(rolesData || []);
+      setPermissionsGrouped(permsData.grouped_by_module_and_submodule || permsData.grouped_by_module || {});
+      setPermissionsFlatList(permsData.permissions || []);
+      setRoutePermissions(routesData || []);
+    } catch (err) {
+      console.error('Failed to load roles and route permissions', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleOpenRouteBindingModal = (binding?: any) => {
+    if (binding) {
+      setEditingRouteBinding(binding);
+      setRoutePattern(binding.pattern || '');
+      setBoundPermissionId(binding.permission || binding.permission_id || '');
+      setRouteModule(binding.module || '');
+      setRouteSubmodule(binding.submodule || '');
+      setRouteLabel(binding.label || '');
+    } else {
+      setEditingRouteBinding(null);
+      setRoutePattern('/admin/provider-presets');
+      setBoundPermissionId('admin:provider_presets:view');
+      setRouteModule('admin');
+      setRouteSubmodule('provider_presets');
+      setRouteLabel('Provider Presets');
+    }
+    setShowRouteBindingModal(true);
+  };
+
+  const handleSaveRouteBinding = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!routePattern.trim() || !boundPermissionId.trim()) {
+      alert('Route pattern and bound permission ID are required');
+      return;
+    }
+    setSavingRouteBinding(true);
+    try {
+      const payload = {
+        pattern: routePattern.trim(),
+        permission_id: boundPermissionId.trim().toLowerCase(),
+        module: routeModule.trim() || undefined,
+        submodule: routeSubmodule.trim() || undefined,
+        label: routeLabel.trim() || undefined,
+      };
+      if (editingRouteBinding && editingRouteBinding.id && !editingRouteBinding.id.startsWith('default_')) {
+        await api.updateRoutePermissionBinding(editingRouteBinding.id, payload);
+      } else {
+        await api.createRoutePermissionBinding(payload);
+      }
+      setShowRouteBindingModal(false);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save route permission binding');
+    } finally {
+      setSavingRouteBinding(false);
+    }
+  };
+
+  const handleDeleteRouteBinding = async (bindingId: string) => {
+    if (bindingId.startsWith('default_')) {
+      alert('Default baseline routes cannot be deleted.');
+      return;
+    }
+    if (!confirm('Are you sure you want to remove this route permission binding?')) return;
+    try {
+      await api.deleteRoutePermissionBinding(bindingId);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete route binding');
+    }
+  };
+
   const handleAddPermissionRow = () => {
     const modPrefix = moduleName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const subPrefix = submoduleName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'submodule';
     setPermissionRows((prev) => [
       ...prev,
-      { id: `${modPrefix}:resource:action`, label: 'New Permission Scope', description: '' },
+      { id: `${modPrefix}:${subPrefix}:new_action`, submodule: subPrefix, label: 'New Permission Scope', description: '' },
     ]);
   };
 
@@ -69,8 +177,10 @@ export default function RolesTab() {
     try {
       await api.createModulePermissions({
         module_name: moduleName.trim(),
+        submodule_name: submoduleName.trim() || undefined,
         permissions: permissionRows.map((r) => ({
           id: r.id.trim().toLowerCase(),
+          submodule: r.submodule ? r.submodule.trim().toLowerCase() : undefined,
           label: r.label.trim(),
           description: r.description.trim(),
         })),
@@ -86,55 +196,40 @@ export default function RolesTab() {
 
   const handlePresetModuleSelect = (presetName: string) => {
     if (presetName === 'HealthCare') {
-      setModuleName('HealthCare');
+      setModuleName('healthcare');
+      setSubmoduleName('patient_records');
       setPermissionRows([
-        { id: 'health:admin:*', label: 'Healthcare Admin Full Access', description: 'Full access to healthcare domain' },
-        { id: 'health:patient:view', label: 'View Patient Records', description: 'View HIPAA patient medical records' },
-        { id: 'health:claims:process', label: 'Process Insurance Claims', description: 'Verify and process insurance claims' },
+        { id: 'healthcare:patient_records:view', submodule: 'patient_records', label: 'View Patient Records', description: 'View HIPAA patient medical records' },
+        { id: 'healthcare:claims:process', submodule: 'claims', label: 'Process Insurance Claims', description: 'Verify and process insurance claims' },
       ]);
     } else if (presetName === 'Education') {
-      setModuleName('Education');
+      setModuleName('education');
+      setSubmoduleName('student_portal');
       setPermissionRows([
-        { id: 'edu:admin:*', label: 'Education Admin Full Access', description: 'Full access to education portal' },
-        { id: 'edu:student:view', label: 'View Student Records', description: 'Access student profiles and transcripts' },
-        { id: 'edu:course:manage', label: 'Manage Courses & Curriculum', description: 'Create and update course material' },
+        { id: 'education:student_portal:view', submodule: 'student_portal', label: 'View Student Records', description: 'Access student profiles and transcripts' },
+        { id: 'education:curriculum:manage', submodule: 'curriculum', label: 'Manage Courses & Curriculum', description: 'Create and update course material' },
       ]);
     } else if (presetName === 'Finance') {
-      setModuleName('Finance');
+      setModuleName('finance');
+      setSubmoduleName('accounting');
       setPermissionRows([
-        { id: 'fin:admin:*', label: 'Finance Admin Full Access', description: 'Full access to financial records' },
-        { id: 'fin:ledger:view', label: 'View General Ledger', description: 'Inspect audit ledger and journal entries' },
-        { id: 'fin:payout:approve', label: 'Approve Payouts', description: 'Authorize high-value financial transfers' },
+        { id: 'finance:accounting:view_ledger', submodule: 'accounting', label: 'View General Ledger', description: 'Inspect audit ledger and journal entries' },
+        { id: 'finance:payouts:approve', submodule: 'payouts', label: 'Approve Payouts', description: 'Authorize high-value financial transfers' },
       ]);
     }
   };
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [rolesData, permsData] = await Promise.all([
-        api.request('/roles').catch(() => []),
-        api.request('/roles/permissions').catch(() => ({ grouped_by_module: {}, permissions: [] }))
-      ]);
-      setRoles(rolesData || []);
-      setPermissionsGrouped(permsData.grouped_by_module || {});
-    } catch (err) {
-      console.error('Failed to load roles and permissions', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const handleOpenCreateModal = () => {
     setEditingRole(null);
     setRoleName('');
     setRoleDescription('');
-    setSelectedPermissions(['legal:research:query', 'kb:base:view', 'node:view']); // Default baseline
+    setSelectedPermissions(['legal:research:query', 'kb:base:view', 'admin:dashboard:view']); // Default baseline
     setErrorMessage(null);
+    // BLOCK COMMENT: RESET MODAL FILTERS & DEFAULT TO LIST VIEW
+    setModalModuleFilter('all');
+    setModalSubmoduleFilter('all');
+    setModalViewMode('list');
+    setSearchQuery('');
     setShowRoleModal(true);
   };
 
@@ -144,8 +239,14 @@ export default function RolesTab() {
     setRoleDescription(role.description || '');
     setSelectedPermissions(role.permissions || []);
     setErrorMessage(null);
+    // BLOCK COMMENT: RESET MODAL FILTERS & DEFAULT TO LIST VIEW
+    setModalModuleFilter('all');
+    setModalSubmoduleFilter('all');
+    setModalViewMode('list');
+    setSearchQuery('');
     setShowRoleModal(true);
   };
+
 
   const handleTogglePermission = (permId: string) => {
     setSelectedPermissions((prev) =>
@@ -215,31 +316,15 @@ export default function RolesTab() {
     }
   };
 
+  // BLOCK COMMENT: DYNAMIC MODULE NAME FORMATTER (ZERO HARDCODING, 100% DB DRIVEN)
   const formatModuleName = (mod: string) => {
-    const key = (mod || '').toLowerCase();
-    switch (key) {
-      case 'legal':
-        return 'Legal & Court Domain';
-      case 'knowledge':
-      case 'kb':
-        return 'Knowledge Base & Retrieval';
-      case 'workflows':
-      case 'workflow':
-        return 'Workflows & Execution';
-      case 'nodes':
-      case 'node':
-        return 'Agent Node Governance';
-      case 'tenant':
-      case 'admin':
-        return 'Administration & Security';
-      case 'healthcare':
-        return 'Healthcare & Clinical Domain';
-      case 'finance':
-        return 'Finance & Accounting Domain';
-      default:
-        return key.charAt(0).toUpperCase() + key.slice(1) + ' Domain';
-    }
+    if (!mod) return 'General';
+    return mod
+      .split(/[_-]/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
   };
+
 
   return (
     <section className="space-y-6">
@@ -253,29 +338,37 @@ export default function RolesTab() {
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
               Roles & Granular Permissions
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">
-                RBAC Active
+                3-Tier RBAC Active
               </span>
             </h2>
             <p className="text-sm text-gray-500">
-              Configure role profiles, register domain permission scopes (e.g. Healthcare, Finance), and manage access policies.
+              Configure 3-tier role profiles (`module:submodule:permission`), bind system routes to permission keys, and manage access policies.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleOpenRouteBindingModal()}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>+ Route Bindings Portal</span>
+          </button>
+
           <button
             onClick={() => setShowModuleModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-all shadow-sm cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            <span>+ Add Module & Permissions</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ Add Module & Scopes</span>
           </button>
 
           <button
             onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-all shadow-sm cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Create Custom Role</span>
           </button>
         </div>
@@ -360,43 +453,41 @@ export default function RolesTab() {
       {/* Role Builder Light Modal */}
       {showRoleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden">
+          {/* BLOCK COMMENT: MODAL CONTAINER EXPANDED TO 85% OF SCREEN WIDTH */}
+          <div className="bg-white border border-gray-200 rounded-2xl w-[85vw] max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gray-50/50">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">
+            {/* BLOCK COMMENT: COMPACT MODAL HEADER & INLINE METADATA ROW */}
+            <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between bg-gray-50/70">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-base font-extrabold text-gray-900">
                   {editingRole ? `Edit Role: ${editingRole.role_name}` : 'Create Custom Role'}
                 </h3>
-                <p className="text-xs text-gray-500">
-                  Select permission scopes to define access capabilities for this role profile.
-                </p>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono">
+                  {selectedPermissions.length} Scopes
+                </span>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold px-2.5 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono">
-                  {selectedPermissions.length} Scopes Selected
-                </span>
-                <button
-                  onClick={() => setShowRoleModal(false)}
-                  className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowRoleModal(false)}
+                className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
 
             {/* Modal Body Form */}
-            <form onSubmit={handleSaveRole} className="flex-1 overflow-y-auto p-6 space-y-6">
+            <form onSubmit={handleSaveRole} className="flex-1 overflow-y-auto p-5 space-y-4">
               {errorMessage && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
                   {errorMessage}
                 </div>
               )}
 
-              {/* Role Metadata */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+              {/* Role Metadata in a Single Inline Row */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-2xs items-center">
+                <div className="md:col-span-4">
+                  <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1">
                     Role Name *
                   </label>
                   <input
@@ -406,112 +497,323 @@ export default function RolesTab() {
                     value={roleName}
                     onChange={(e) => setRoleName(e.target.value)}
                     placeholder="e.g. Senior Legal Analyst"
-                    className="w-full rounded-lg border border-gray-200 p-2.5 text-sm text-black focus:border-indigo-500 focus:outline-none disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black focus:border-indigo-500 focus:outline-none disabled:bg-gray-50 disabled:text-gray-500 font-semibold"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                <div className="md:col-span-8">
+                  <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1">
                     Description
                   </label>
                   <input
                     type="text"
                     value={roleDescription}
                     onChange={(e) => setRoleDescription(e.target.value)}
-                    placeholder="e.g. Full legal research and document access"
-                    className="w-full rounded-lg border border-gray-200 p-2.5 text-sm text-black focus:border-indigo-500 focus:outline-none"
+                    placeholder="e.g. Full legal research and document access permissions"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>
 
-              {/* Permissions Checklist Matrix */}
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Permissions Checklist Matrix
-                  </h4>
-                  <div className="relative w-48">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Filter permissions..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-3 py-1 text-xs text-gray-800 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
+              {/* BLOCK COMMENT: 3-TIER PERMISSIONS SELECTOR WITH DEFAULT LIST VIEW & MODULE/SUBMODULE FILTERS */}
+              <div className="space-y-3 pt-2">
+                {/* FILTER TOOLBAR */}
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 space-y-2.5">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      {/* Module Filter ("all" default) */}
+                      <select
+                        value={modalModuleFilter}
+                        onChange={(e) => {
+                          setModalModuleFilter(e.target.value);
+                          setModalSubmoduleFilter('all');
+                        }}
+                        className="text-xs bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-gray-800 font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                        <option value="all">All Modules</option>
+                        {Array.from(new Set(permissionsFlatList.map((p) => p.module))).sort().map((m) => (
+                          <option key={m} value={m}>
+                            Module: {m}
+                          </option>
+                        ))}
+                      </select>
 
-                {Object.entries(permissionsGrouped).map(([moduleKey, modulePerms]) => {
-                  const filteredPerms = modulePerms.filter(
-                    (p) =>
-                      p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
-                  );
+                      {/* Submodule Filter ("all" default) */}
+                      <select
+                        value={modalSubmoduleFilter}
+                        onChange={(e) => setModalSubmoduleFilter(e.target.value)}
+                        className="text-xs bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-gray-800 font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                        <option value="all">All Submodules</option>
+                        {Array.from(
+                          new Set(
+                            permissionsFlatList
+                              .filter((p) => modalModuleFilter === 'all' || p.module === modalModuleFilter)
+                              .map((p) => p.submodule)
+                              .filter(Boolean)
+                          )
+                        )
+                          .sort()
+                          .map((sm) => (
+                            <option key={sm} value={sm}>
+                              Submodule: {sm}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
 
-                  if (filteredPerms.length === 0) return null;
+                    {/* Search & View Mode Switcher */}
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                      <div className="relative flex-1 sm:w-44">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search scopes..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full bg-white border border-gray-300 rounded-lg pl-8 pr-2.5 py-1 text-xs text-gray-800 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
 
-                  const allModuleSelected = filteredPerms.every((p) =>
-                    selectedPermissions.includes(p.id)
-                  );
-
-                  return (
-                    <div
-                      key={moduleKey}
-                      className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-indigo-700">
-                          {formatModuleName(moduleKey)}
-                        </span>
-
+                      {/* View Mode Toggle */}
+                      <div className="flex items-center rounded-lg border border-gray-300 bg-white p-0.5 text-xs">
                         <button
                           type="button"
-                          onClick={() => handleToggleModuleAll(filteredPerms)}
-                          className="text-[11px] text-gray-500 hover:text-indigo-600 font-semibold transition-colors cursor-pointer"
+                          onClick={() => setModalViewMode('list')}
+                          className={`px-2 py-1 rounded font-semibold transition cursor-pointer ${
+                            modalViewMode === 'list'
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
                         >
-                          {allModuleSelected ? 'Deselect All' : 'Select All'}
+                          List View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModalViewMode('grouped')}
+                          className={`px-2 py-1 rounded font-semibold transition cursor-pointer ${
+                            modalViewMode === 'grouped'
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          Grouped
                         </button>
                       </div>
+                    </div>
+                  </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                        {filteredPerms.map((p) => {
+                  {/* Batch Selection Quick Actions */}
+                  {(() => {
+                    const filtered = permissionsFlatList.filter((p) => {
+                      const matchesSearch =
+                        !searchQuery.trim() ||
+                        p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        (p.label && p.label.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                        (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
+                      const matchesMod = modalModuleFilter === 'all' || p.module === modalModuleFilter;
+                      const matchesSub = modalSubmoduleFilter === 'all' || p.submodule === modalSubmoduleFilter;
+                      return matchesSearch && matchesMod && matchesSub;
+                    });
+
+                    const allFilteredSelected = filtered.length > 0 && filtered.every((p) => selectedPermissions.includes(p.id));
+
+                    return (
+                      <div className="flex items-center justify-between pt-1 text-xs border-t border-gray-200">
+                        <span className="text-[11px] text-gray-500 font-medium">
+                          Showing <strong className="text-gray-800">{filtered.length}</strong> of {permissionsFlatList.length} permissions
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const ids = filtered.map((p) => p.id);
+                              if (allFilteredSelected) {
+                                setSelectedPermissions((prev) => prev.filter((id) => !ids.includes(id)));
+                              } else {
+                                setSelectedPermissions((prev) => Array.from(new Set([...prev, ...ids])));
+                              }
+                            }}
+                            className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
+                          >
+                            {allFilteredSelected ? 'Deselect All Filtered' : 'Select All Filtered'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* LIST VIEW (DEFAULT) - HORIZONTAL COLUMNS ON SAME ROW */}
+                {modalViewMode === 'list' && (
+                  <div className="rounded-xl border border-gray-200 bg-white max-h-96 overflow-y-auto shadow-xs">
+                    {/* Sticky Table Header */}
+                    <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider grid grid-cols-12 gap-3 items-center sticky top-0 z-10">
+                      <div className="col-span-4">Permission Scope ID</div>
+                      <div className="col-span-2">Module / Submodule</div>
+                      <div className="col-span-1">Layer</div>
+                      <div className="col-span-5">Label & Description</div>
+                    </div>
+
+                    <div className="divide-y divide-gray-100">
+                      {(() => {
+                        const filtered = permissionsFlatList.filter((p) => {
+                          const matchesSearch =
+                            !searchQuery.trim() ||
+                            p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            (p.label && p.label.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                            (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
+                          const matchesMod = modalModuleFilter === 'all' || p.module === modalModuleFilter;
+                          const matchesSub = modalSubmoduleFilter === 'all' || p.submodule === modalSubmoduleFilter;
+                          return matchesSearch && matchesMod && matchesSub;
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="p-8 text-center text-xs text-gray-400 italic">
+                              No permissions found matching the selected module/submodule filters.
+                            </div>
+                          );
+                        }
+
+                        return filtered.map((p) => {
                           const isChecked = selectedPermissions.includes(p.id);
                           return (
-                            <label
+                            <div
                               key={p.id}
-                              className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
-                                isChecked
-                                  ? 'bg-indigo-50/70 border-indigo-300 text-gray-900'
-                                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                              onClick={() => handleTogglePermission(p.id)}
+                              className={`grid grid-cols-12 gap-3 items-center px-4 py-2.5 text-xs transition cursor-pointer ${
+                                isChecked ? 'bg-indigo-50/60' : 'hover:bg-gray-50/80'
                               }`}
                             >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleTogglePermission(p.id)}
-                                className="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              />
-                              <div>
-                                <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                                  <span>{p.name}</span>
-                                  <span className="text-[10px] font-mono text-gray-500 px-1.5 py-0.2 bg-gray-100 rounded border border-gray-200">
-                                    {p.id}
-                                  </span>
-                                </div>
-                                <p className="text-[11px] text-gray-500 leading-snug mt-0.5">
-                                  {p.description}
-                                </p>
+                              {/* Col 1: Checkbox + Permission Key */}
+                              <div className="col-span-4 flex items-center gap-2.5 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {}}
+                                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer pointer-events-none shrink-0"
+                                />
+                                <code className="font-mono text-xs font-bold text-gray-900 truncate" title={p.id}>
+                                  {p.id}
+                                </code>
                               </div>
-                            </label>
+
+                              {/* Col 2: Module & Submodule Badges */}
+                              <div className="col-span-2 flex items-center gap-1.5 flex-wrap">
+                                <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200 text-[10px] font-bold">
+                                  {p.module}
+                                </span>
+                                {p.submodule && (
+                                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-mono">
+                                    {p.submodule}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Col 3: Target Layer */}
+                              <div className="col-span-1">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                                    p.target_layer === 'both'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : p.target_layer === 'frontend'
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : 'bg-purple-100 text-purple-800'
+                                  }`}
+                                >
+                                  {p.target_layer || 'both'}
+                                </span>
+                              </div>
+
+                              {/* Col 4: Label & Description on Same Horizontal Row */}
+                              <div className="col-span-5 flex items-center gap-2 min-w-0">
+                                <span className="font-bold text-gray-800 shrink-0 text-xs">{p.label}</span>
+                                {p.description && (
+                                  <span className="text-[11px] text-gray-400 truncate" title={p.description}>
+                                    — {p.description}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           );
-                        })}
-                      </div>
+                        });
+                      })()}
                     </div>
-                  );
-                })}
+                  </div>
+                )}
+
+                {/* GROUPED VIEW */}
+                {modalViewMode === 'grouped' && (
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                    {Object.entries(permissionsGrouped)
+
+                      .filter(([moduleKey]) => modalModuleFilter === 'all' || moduleKey === modalModuleFilter)
+                      .map(([moduleKey, submodulesObj]: [string, any]) => {
+                        const submodules: Record<string, any[]> = Array.isArray(submodulesObj)
+                          ? { general: submodulesObj }
+                          : (submodulesObj || {});
+
+                        return (
+                          <div key={moduleKey} className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-3">
+                            <div className="flex items-center justify-between border-b border-gray-200 pb-1.5">
+                              <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
+                                📦 {formatModuleName(moduleKey)}
+                              </span>
+                            </div>
+
+                            {Object.entries(submodules)
+                              .filter(([submodKey]) => modalSubmoduleFilter === 'all' || submodKey === modalSubmoduleFilter)
+                              .map(([submodKey, permsList]: [string, any]) => {
+                                const filteredPerms = (permsList as any[]).filter((p: any) =>
+                                  !searchQuery.trim() ||
+                                  p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                  (p.label && p.label.toLowerCase().includes(searchQuery.toLowerCase()))
+                                );
+
+                                if (filteredPerms.length === 0) return null;
+
+                                return (
+                                  <div key={submodKey} className="pl-1 space-y-1.5">
+                                    <span className="text-[10px] font-bold text-slate-600 uppercase">
+                                      🔹 {submodKey}
+                                    </span>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                                      {filteredPerms.map((p: any) => {
+                                        const isChecked = selectedPermissions.includes(p.id);
+                                        return (
+                                          <label
+                                            key={p.id}
+                                            className={`flex items-start gap-2 p-2 rounded-lg border text-xs cursor-pointer ${
+                                              isChecked
+                                                ? 'bg-indigo-50/70 border-indigo-300 text-gray-900'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                                            }`}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={isChecked}
+                                              onChange={() => handleTogglePermission(p.id)}
+                                              className="mt-0.5 rounded border-gray-300 text-indigo-600"
+                                            />
+                                            <div className="min-w-0">
+                                              <div className="font-bold text-gray-900">{p.label || p.name}</div>
+                                              <div className="text-[10px] font-mono text-indigo-600 truncate">{p.id}</div>
+                                            </div>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
+
 
               {/* Submit Footer */}
               <div className="pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
@@ -694,6 +996,182 @@ export default function RolesTab() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Route Permission Binding Portal Modal */}
+      {showRouteBindingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-4xl w-full p-6 space-y-5 animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 shrink-0">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-slate-800" />
+                  Route Permission Binding Portal
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  System Admin UI portal to dynamically map, bind, and update route URL patterns to 3-tier permission keys.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRouteBindingModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-6 overflow-y-auto pr-1 flex-1">
+              {/* Form to Create/Edit Binding */}
+              <form onSubmit={handleSaveRouteBinding} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  {editingRouteBinding ? 'Edit Route Permission Binding' : 'Add New Route Permission Binding'}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">
+                      URL Route Pattern (e.g. /admin/provider-presets) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="/admin/provider-presets"
+                      value={routePattern}
+                      onChange={(e) => setRoutePattern(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs font-mono rounded-lg border border-gray-300 focus:ring-2 focus:ring-slate-800 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">
+                      Required Permission Key (e.g. admin:provider_presets:view) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="admin:provider_presets:view"
+                      value={boundPermissionId}
+                      onChange={(e) => setBoundPermissionId(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs font-mono rounded-lg border border-gray-300 focus:ring-2 focus:ring-slate-800 bg-white text-indigo-700 font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">Module</label>
+                    <input
+                      type="text"
+                      placeholder="admin"
+                      value={routeModule}
+                      onChange={(e) => setRouteModule(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">Submodule</label>
+                    <input
+                      type="text"
+                      placeholder="provider_presets"
+                      value={routeSubmodule}
+                      onChange={(e) => setRouteSubmodule(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">Label</label>
+                    <input
+                      type="text"
+                      placeholder="Provider Presets Menu"
+                      value={routeLabel}
+                      onChange={(e) => setRouteLabel(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  {editingRouteBinding && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenRouteBindingModal()}
+                      className="px-3 py-1 text-xs text-gray-600 hover:text-gray-900 cursor-pointer"
+                    >
+                      Clear Edit
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={savingRouteBinding}
+                    className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm"
+                  >
+                    {savingRouteBinding ? 'Saving...' : editingRouteBinding ? 'Update Binding' : 'Bind Route Pattern'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Active Route Permission Registry Table */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Active Route Permission Registry ({routePermissions.length})
+                </h4>
+                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100 border-b border-gray-200 text-[10px] font-bold text-gray-600 uppercase tracking-wider">
+                        <th className="py-2.5 px-3">Route Pattern</th>
+                        <th className="py-2.5 px-3">Bound Permission Key</th>
+                        <th className="py-2.5 px-3">Module / Submodule</th>
+                        <th className="py-2.5 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-xs">
+                      {routePermissions.map((rp: any) => (
+                        <tr key={rp.id || rp.pattern} className="hover:bg-gray-50 transition-colors">
+                          <td className="py-2 px-3 font-mono text-gray-900 font-bold">{rp.pattern}</td>
+                          <td className="py-2 px-3 font-mono text-indigo-700 font-bold">{rp.permission || rp.permission_id}</td>
+                          <td className="py-2 px-3 text-gray-600">
+                            {rp.module || '—'} / <span className="font-mono">{rp.submodule || '—'}</span>
+                          </td>
+                          <td className="py-2 px-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenRouteBindingModal(rp)}
+                                className="p-1 text-slate-600 hover:text-slate-900 cursor-pointer"
+                                title="Edit Binding"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              {!String(rp.id).startsWith('default_') && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRouteBinding(rp.id)}
+                                  className="p-1 text-red-500 hover:text-red-700 cursor-pointer"
+                                  title="Delete Binding"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowRouteBindingModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 cursor-pointer"
+              >
+                Close Portal
+              </button>
+            </div>
           </div>
         </div>
       )}

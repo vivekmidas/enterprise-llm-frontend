@@ -15,3 +15,4 @@ export const COLOR_PALETTE = [
   { bg: 'rgba(236,72,153,0.12)', border: 'rgba(236,72,153,0.25)', text: '#ec4899' }, // Pink
   { bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.25)', text: '#16a34a' }, // Green
 ];
+

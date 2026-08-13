@@ -4,13 +4,20 @@ import React, { useEffect, useState, useRef, useCallback, Suspense } from 'react
 import { useRouter, useSearchParams } from 'next/navigation';
 import Alert from '@mui/material/Alert';
 import { api } from '@/lib/api';
+// BLOCK COMMENT: DYNAMIC PERMISSION-DRIVEN ADMIN DASHBOARD TABS
+// Component: frontend/app/admin/page.tsx
+// Description: Dynamically generates dashboard tabs from active DB route permissions (api.getRoutePermissions).
+
 import {
   getRequiredPermissionForPath,
   hasPermissionScope,
   getDefaultRedirectForPermissions,
+  loadRoutePermissionsFromDB,
+  RoutePermissionRule,
 } from '@/lib/config/route_permissions';
+
 import { IconMap } from '@/lib/icons';
-import { Shield, Lock, Check, ChevronDown } from 'lucide-react';
+import { Shield, Lock, Check, ChevronDown, Database, Download } from 'lucide-react';
 
 // Subpage components
 import CustomersTab from './customers/page';
@@ -26,52 +33,67 @@ import PlaygroundTab from './playground/page';
 import ProfilesTab from './profiles/page';
 import ProviderPresetsTab from './provider-presets/page';
 import RolesTab from './roles/page';
+// BLOCK COMMENT: IMPORT PERMISSIONS TAB FOR SYSTEM ADMIN
+import PermissionsTab from './permissions/page';
+
+export interface AdminTabItem {
+  id: string;
+  label: string;
+  permission: string;
+}
+
+function buildDynamicAdminTabs(routes: RoutePermissionRule[]): AdminTabItem[] {
+  const tabsMap = new Map<string, AdminTabItem>();
+
+  // Baseline tab order
+  const defaultTabOrder = ['nodes', 'workflows', 'users', 'roles', 'permissions', 'customers', 'knowledge', 'oauth', 'logs', 'metrics', 'profiles', 'provider-presets', 'playground', 'settings'];
 
 
-type ActiveTabType =
-  | 'nodes'
-  | 'workflows'
-  | 'users'
-  | 'roles'
-  | 'oauth'
-  | 'logs'
-  | 'customers'
-  | 'metrics'
-  | 'knowledge'
-  | 'settings'
-  | 'profiles'
-  | 'provider-presets'
-  | 'playground';
+  routes.forEach((rule) => {
+    if (!rule.pattern || rule.pattern.includes('*')) return;
 
-const ALL_TABS: { id: ActiveTabType; label: string; roles: string[]; permissions?: string[] }[] = [
-  { id: 'customers', label: 'Customers', roles: ['system_admin'] },
-  { id: 'nodes', label: 'Nodes ', roles: ['admin', 'system_admin'] },
-  { id: 'workflows', label: 'Workflows', roles: ['user', 'admin', 'system_admin'] },
-  { id: 'users', label: 'Users', roles: ['admin', 'system_admin'] },
-  { id: 'roles', label: 'Roles & Permissions', roles: ['admin', 'system_admin'] },
-  { id: 'oauth', label: 'OAuth Providers', roles: ['admin', 'system_admin'] },
-  { id: 'logs', label: 'System Logs', roles: ['admin', 'system_admin'] },
-  { id: 'metrics', label: 'Metrics', roles: ['admin', 'system_admin'] },
-  {
-    id: 'knowledge',
-    label: 'Knowledge Bases',
-    roles: ['admin', 'system_admin'],
-    permissions: ['legal:document:upload', 'kb:document:ingest', 'kb:base:view', 'legal:*', 'kb:*'],
-  },
-  { id: 'profiles', label: 'LLM Profiles', roles: ['admin', 'system_admin'] },
-  { id: 'provider-presets', label: 'Provider Presets', roles: ['admin', 'system_admin'] },
-  { id: 'playground', label: 'Retrieval Playground', roles: ['admin', 'system_admin'] },
-];
+    let tabId = '';
+    if (rule.pattern.startsWith('/admin?tab=')) {
+      tabId = rule.pattern.split('tab=')[1];
+    } else if (rule.pattern.startsWith('/admin/')) {
+      tabId = rule.pattern.replace('/admin/', '');
+    }
+
+    if (!tabId) return;
+
+    const formattedLabel = rule.label || (rule.submodule ? rule.submodule.replace(/_/g, ' ') : tabId.replace(/-/g, ' '));
+    const capitalizedLabel = formattedLabel.charAt(0).toUpperCase() + formattedLabel.slice(1);
+
+    if (!tabsMap.has(tabId)) {
+      tabsMap.set(tabId, {
+        id: tabId,
+        label: capitalizedLabel,
+        permission: rule.permission,
+      });
+    }
+  });
+
+  // Sort based on default order, remaining at the end
+  return Array.from(tabsMap.values()).sort((a, b) => {
+    const idxA = defaultTabOrder.indexOf(a.id);
+    const idxB = defaultTabOrder.indexOf(b.id);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.label.localeCompare(b.label);
+  });
+}
 
 function AdminDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<ActiveTabType>('nodes');
+  const [activeTab, setActiveTab] = useState<string>('nodes');
+  const [availableTabs, setAvailableTabs] = useState<AdminTabItem[]>([]);
   const [playgroundKbId, setPlaygroundKbId] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [hiddenTabIds, setHiddenTabIds] = useState<Set<ActiveTabType>>(new Set());
+  const [hiddenTabIds, setHiddenTabIds] = useState<Set<string>>(new Set());
   // Auth & Profile states
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
@@ -88,17 +110,40 @@ function AdminDashboardContent() {
     text: string;
   } | null>(null);
 
+  // BLOCK COMMENT: REQUIREMENT 3 SQL BACKUP EXPORTER STATE & HANDLER
+  const [exportingBackup, setExportingBackup] = useState(false);
+
+  const handleExportBackup = async () => {
+    setExportingBackup(true);
+    setAlertMessage(null);
+    try {
+      const filename = await api.exportSqlBackup();
+      setAlertMessage({
+        type: 'success',
+        text: `Successfully exported SQL data backup: ${filename}`
+      });
+    } catch (err: any) {
+      setAlertMessage({
+        type: 'error',
+        text: err?.message || 'Failed to generate SQL data backup'
+      });
+    } finally {
+      setExportingBackup(false);
+    }
+  };
+
+
   const navContainerRef = useRef<HTMLDivElement | null>(null);
-  const tabRefs = useRef<{ [key in ActiveTabType]?: HTMLButtonElement | null }>({});
+  const tabRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
   const checkTabVisibility = useCallback(() => {
     const container = navContainerRef.current;
     if (!container) return;
 
     const containerRect = container.getBoundingClientRect();
-    const newHidden = new Set<ActiveTabType>();
+    const newHidden = new Set<string>();
 
-    ALL_TABS.forEach((tab) => {
+    availableTabs.forEach((tab) => {
       const el = tabRefs.current[tab.id];
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -109,7 +154,7 @@ function AdminDashboardContent() {
     });
 
     setHiddenTabIds(newHidden);
-  }, []);
+  }, [availableTabs]);
 
   useEffect(() => {
     if (loading || !isAuthenticated) return;
@@ -129,17 +174,21 @@ function AdminDashboardContent() {
 
     async function initializeUser() {
       try {
+        const routes = await loadRoutePermissionsFromDB();
         const userData = await api.getCurrentUser();
         const perms = userData.permissions || [];
         setUserPermissions(perms);
-        const requiredPerm = getRequiredPermissionForPath('/admin') || 'tenant:admin:*';
+
+        // Dynamically build and filter allowed tabs
+        const allTabs = buildDynamicAdminTabs(routes);
+        const filteredTabs = allTabs.filter((t) => hasPermissionScope(perms, t.permission));
+        setAvailableTabs(filteredTabs);
+
         const canAccessAdmin =
-          hasPermissionScope(perms, requiredPerm) ||
-          hasPermissionScope(perms, 'legal:document:upload') ||
-          hasPermissionScope(perms, 'kb:document:ingest') ||
-          hasPermissionScope(perms, 'kb:base:view') ||
-          hasPermissionScope(perms, 'legal:*') ||
-          hasPermissionScope(perms, 'kb:*') ||
+          hasPermissionScope(perms, 'admin:dashboard:view') ||
+          hasPermissionScope(perms, 'admin:*:*') ||
+          hasPermissionScope(perms, '*:*:*') ||
+          filteredTabs.length > 0 ||
           userData.role === 'admin' ||
           userData.role === 'system_admin';
 
@@ -173,29 +222,12 @@ function AdminDashboardContent() {
   // Sync active tab from URL search parameters dynamically
   useEffect(() => {
     const tab = searchParams?.get('tab');
-    if (
-      tab &&
-      [
-        'nodes',
-        'workflows',
-        'users',
-        'roles',
-        'oauth',
-        'logs',
-        'customers',
-        'metrics',
-        'knowledge',
-        'settings',
-        'playground',
-        'profiles',
-        'provider-presets',
-      ].includes(tab)
-    ) {
-      setActiveTab(tab as ActiveTabType);
+    if (tab) {
+      setActiveTab(tab);
     }
   }, [searchParams]);
 
-  const handleTabChange = (tab: ActiveTabType) => {
+  const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -341,16 +373,35 @@ function AdminDashboardContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8 font-sans">
-      <div className="mx-auto w-full space-y-8">
+      <div className="mx-auto w-full space-y-6">
+        {/* BLOCK COMMENT: SYSTEM ADMIN BACKUP EXPORT HEADER BANNER */}
+        {alertMessage && (
+          <Alert severity={alertMessage.type} onClose={() => setAlertMessage(null)} className="shadow-sm">
+            {alertMessage.text}
+          </Alert>
+        )}
+
+        <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Admin Control Center</h1>
+            <p className="text-xs text-gray-500 font-medium">Manage system RBAC, customer tenants, nodes, and system backups</p>
+          </div>
+          {userRole === 'system_admin' && (
+            <button
+              onClick={handleExportBackup}
+              disabled={exportingBackup}
+              className="flex items-center gap-2 bg-gray-900 hover:bg-black text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow disabled:opacity-50 cursor-pointer"
+              title="Export complete database backup as ekb_data_dd_mm_yyyy_sss.sql"
+            >
+              <Database className="w-4 h-4 text-blue-400" />
+              <span>{exportingBackup ? 'Generating Backup...' : 'Export System SQL Backup'}</span>
+              <Download className="w-3.5 h-3.5 opacity-80" />
+            </button>
+          )}
+        </div>
+
         {(() => {
-          const availableTabs = ALL_TABS.filter((t) => {
-            if (userRole === 'admin' || userRole === 'system_admin') return true;
-            const reqPerm = getRequiredPermissionForPath(`/admin/${t.id}`);
-            if (reqPerm && hasPermissionScope(userPermissions, reqPerm)) return true;
-            if (t.permissions && t.permissions.some((p) => hasPermissionScope(userPermissions, p))) return true;
-            return false;
-          });
-          const hiddenTabs = availableTabs.filter((t) => hiddenTabIds.has(t.id));
+          const hiddenTabs = availableTabs.filter((t: AdminTabItem) => hiddenTabIds.has(t.id));
 
           return (
             <div className="sticky top-16 z-40 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-2 py-1">
@@ -370,8 +421,8 @@ function AdminDashboardContent() {
                       handleTabChange(tab.id);
                     }}
                     className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 rounded-t-md ${activeTab === tab.id
-                      ? 'bg-white text-primary border-b-2 border-ring'
-                      : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent'
+                      ? 'bg-white text-primary bg-primary/10 border-primary'
+                      : 'text-muted-foreground hover:text-foreground  border-transparent'
                       }`}
                   >
                     {tab.label}
@@ -454,9 +505,14 @@ function AdminDashboardContent() {
           {activeTab === 'roles' && (userRole === 'admin' || userRole === 'system_admin') && (
             <RolesTab />
           )}
+          {/* BLOCK COMMENT: RENDER PERMISSIONS TAB */}
+          {activeTab === 'permissions' && (userRole === 'admin' || userRole === 'system_admin') && (
+            <PermissionsTab />
+          )}
           {activeTab === 'oauth' && (userRole === 'admin' || userRole === 'system_admin') && (
             <OAuthTab />
           )}
+
           {activeTab === 'logs' && (userRole === 'admin' || userRole === 'system_admin') && (
             <LogsTab userRole={userRole} />
           )}

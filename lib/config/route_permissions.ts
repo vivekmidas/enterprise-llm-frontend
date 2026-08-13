@@ -1,43 +1,41 @@
+// BLOCK COMMENT: FRONTEND 3-TIER PERMISSION MATCHING ENGINE (xx:yy:zzz FORMAT)
+// File: frontend/lib/config/route_permissions.ts
+// Description: Evaluates exact permission keys, submodule wildcards (xx:yy:*), module wildcards (xx:*:*), and global super admin (*:*:*).
+
 import { api } from '@/lib/api';
 
 export interface RoutePermissionRule {
   pattern: string;
   permission: string;
+  module?: string;
+  submodule?: string;
+  label?: string;
 }
 
-// Default baseline route permissions (in-memory fallback before DB fetch completes)
+// Default baseline route permissions
 export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
-  { pattern: "/workflow-builder/new", permission: "workflow:create" },
-  { pattern: "/workflow-builder/*/edit", permission: "workflow:edit" },
-  { pattern: "/workflow-builder", permission: "workflow:view" },
-  { pattern: "/workflow-builder/**", permission: "workflow:view" },
-  { pattern: "/admin/knowledge", permission: "legal:document:upload" },
-  { pattern: "/admin/knowledge/**", permission: "legal:document:upload" },
-  { pattern: "/admin/users", permission: "admin:users:read" },
-  { pattern: "/admin/users/**", permission: "admin:users:read" },
-  { pattern: "/admin/roles", permission: "admin:tenant:configure" },
-  { pattern: "/admin/roles/**", permission: "admin:tenant:configure" },
-  { pattern: "/admin/nodes", permission: "node:view" },
-  { pattern: "/admin/nodes/**", permission: "node:view" },
-  { pattern: "/admin/oauth", permission: "admin:tenant:configure" },
-  { pattern: "/admin/oauth/**", permission: "admin:tenant:configure" },
-  { pattern: "/admin/logs", permission: "admin:tenant:configure" },
-  { pattern: "/admin/logs/**", permission: "admin:tenant:configure" },
-  { pattern: "/admin/metrics", permission: "admin:tenant:configure" },
-  { pattern: "/admin/metrics/**", permission: "admin:tenant:configure" },
-  { pattern: "/admin/profiles", permission: "admin:tenant:configure" },
-  { pattern: "/admin/profiles/**", permission: "admin:tenant:configure" },
-  { pattern: "/admin/provider-presets", permission: "admin:tenant:configure" },
-  { pattern: "/admin/provider-presets/**", permission: "admin:tenant:configure" },
-  { pattern: "/admin/playground", permission: "kb:base:view" },
-  { pattern: "/admin/playground/**", permission: "kb:base:view" },
-  { pattern: "/admin/customers", permission: "system:admin:*" },
-  { pattern: "/admin/customers/**", permission: "system:admin:*" },
-  { pattern: "/admin", permission: "tenant:admin:*" },
-  { pattern: "/admin/**", permission: "tenant:admin:*" },
-  { pattern: "/legal-research", permission: "legal:research:query" },
-  { pattern: "/legal-research/**", permission: "legal:research:query" },
+  { pattern: "/workflow-builder/new", permission: "workflow:builder:create" },
+  { pattern: "/workflow-builder/*/edit", permission: "workflow:builder:edit" },
+  { pattern: "/workflow-builder", permission: "workflow:builder:view" },
+  { pattern: "/workflow-builder/**", permission: "workflow:builder:view" },
+  { pattern: "/admin/users", permission: "admin:user_management:read" },
+  { pattern: "/admin/users/**", permission: "admin:user_management:read" },
+  { pattern: "/admin/roles", permission: "admin:role_management:view" },
+  { pattern: "/admin/roles/**", permission: "admin:role_management:view" },
+  { pattern: "/admin/provider-presets", permission: "admin:provider_presets:view" },
+  { pattern: "/admin/provider-presets/**", permission: "admin:provider_presets:view" },
+  { pattern: "/admin/playground", permission: "admin:playground:view" },
+  { pattern: "/admin/playground/**", permission: "admin:playground:view" },
+  { pattern: "/admin/customers", permission: "admin:customer_management:view" },
+  { pattern: "/admin/customers/**", permission: "admin:customer_management:view" },
+  { pattern: "/admin/nodes", permission: "admin:node_management:view" },
+  { pattern: "/admin/nodes/**", permission: "admin:node_management:view" },
+  { pattern: "/admin", permission: "admin:dashboard:view" },
+  { pattern: "/admin/**", permission: "admin:dashboard:view" },
+  { pattern: "/legal", permission: "legal:research:query" },
+  { pattern: "/legal/**", permission: "legal:research:query" },
 ];
+
 
 let activeRoutePatterns: RoutePermissionRule[] = [...DEFAULT_ROUTE_PATTERNS];
 
@@ -50,12 +48,19 @@ export async function loadRoutePermissionsFromDB(): Promise<RoutePermissionRule[
     if (Array.isArray(dbRoutes) && dbRoutes.length > 0) {
       activeRoutePatterns = dbRoutes.map((r: any) => ({
         pattern: r.pattern,
-        permission: r.permission,
+        permission: r.permission || r.permission_id,
+        module: r.module,
+        submodule: r.submodule,
+        label: r.label,
       }));
     }
   } catch (err) {
     console.error("Failed to load route permissions from DB, using defaults:", err);
   }
+  return activeRoutePatterns;
+}
+
+export function getActiveRoutePatterns(): RoutePermissionRule[] {
   return activeRoutePatterns;
 }
 
@@ -84,21 +89,27 @@ export function getRequiredPermissionForPath(pathname: string): string | null {
 
 /**
  * Checks if a set of user permissions satisfies a required permission scope,
- * supporting wildcard permission patterns (e.g. 'tenant:admin:*' or '*:*:*').
+ * supporting 3-tier wildcard rules (*:*:*, xx:*:*, xx:yy:*).
  */
 export function hasPermissionScope(userPermissions: string[], requiredPermission: string): boolean {
   if (!userPermissions || !Array.isArray(userPermissions)) return false;
   if (userPermissions.includes("*:*:*")) return true;
   if (userPermissions.includes(requiredPermission)) return true;
 
-  for (const perm of userPermissions) {
-    if (perm.endsWith("*")) {
-      const prefix = perm.slice(0, -1);
-      if (requiredPermission.startsWith(prefix)) {
-        return true;
-      }
-    }
+  const parts = requiredPermission.split(":");
+  const module = parts[0] || "";
+  const submodule = parts[1] || "";
+
+  // Check Module wildcard xx:*:* or xx:*
+  if (userPermissions.includes(`${module}:*:*`) || userPermissions.includes(`${module}:*`)) {
+    return true;
   }
+
+  // Check Submodule wildcard xx:yy:*
+  if (submodule && userPermissions.includes(`${module}:${submodule}:*`)) {
+    return true;
+  }
+
   return false;
 }
 
@@ -107,26 +118,18 @@ export function hasPermissionScope(userPermissions: string[], requiredPermission
  */
 export function getDefaultRedirectForPermissions(userPermissions: string[], userRole?: string): string {
   const perms = userPermissions || [];
-  if (userRole === "system_admin" || hasPermissionScope(perms, "system:admin:*")) {
+  if (userRole === "system_admin" || hasPermissionScope(perms, "*:*:*") || hasPermissionScope(perms, "admin:*:*")) {
     return "/admin";
   }
-  if (userRole === "admin" || hasPermissionScope(perms, "tenant:admin:*")) {
-    return "/admin";
+  if (hasPermissionScope(perms, "legal:research:query") || hasPermissionScope(perms, "legal:*:*")) {
+    return "/legal";
   }
-  if (
-    hasPermissionScope(perms, "legal:document:upload") ||
-    hasPermissionScope(perms, "kb:document:ingest") ||
-    hasPermissionScope(perms, "kb:base:view") ||
-    hasPermissionScope(perms, "legal:*") ||
-    hasPermissionScope(perms, "kb:*")
-  ) {
-    return "/admin?tab=knowledge";
-  }
-  if (hasPermissionScope(perms, "workflow:view") || hasPermissionScope(perms, "workflow:create")) {
+  if (hasPermissionScope(perms, "workflow:builder:view") || hasPermissionScope(perms, "workflow:*:*")) {
     return "/workflow-builder";
   }
-  if (hasPermissionScope(perms, "legal:research:query")) {
-    return "/legal-research";
+  if (hasPermissionScope(perms, "kb:base:view") || hasPermissionScope(perms, "kb:*:*")) {
+    return "/legal";
   }
-  return "/legal-research";
+  return "/legal";
 }
+
