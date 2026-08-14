@@ -1,18 +1,18 @@
 /*
 ===============================================================================
-BLOCK COMMENT: LEGAL AI PLATFORM - DEFAULT THEME IMPLEMENTATION
+BLOCK COMMENT: LEGAL AI PLATFORM - MULTI-TENANT ROLE-BASED WORKSPACE
 Module: frontend/app/legal/page.tsx
 Description:
-    Default light theme implementation using standard Tailwind CSS classes.
-    - Clean slate-50/white cards with border-slate-200 and shadow-xs.
-    - Integrated 3-Panel Legal Precedent Research Hub.
-    - Seamless role switching and workspace navigation.
+    Multi-tenant role-partitioned Legal AI interface for Tenant Admins and Paralegals.
+    - Tenant Admin: Configure LLM Profiles, manage Knowledge Bases, upload corpus documents to test ingestion, and execute interactive retrieval test benches.
+    - Paralegal: Create and manage case workspaces, upload matter documents linked to cases, execute precedent search, and manage saved briefs.
+    - Workflow Integration: Ingestion and search dispatch to tenant-configured workflows (/webhooks/run/legal/ingest, /webhooks/run/legal/search) or standard pipelines.
 ===============================================================================
 */
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Activity,
@@ -20,60 +20,177 @@ import {
   BarChart3,
   Check,
   ChevronDown,
+  ChevronRight,
   Download,
   ExternalLink,
   FileSearch,
+  FileText,
   FolderKanban,
   HelpCircle,
   Library,
   Menu,
+  Plus,
+  RefreshCw,
+  Scale,
+  Search,
+  Settings,
   ShieldCheck,
+  Sliders,
   Sparkles,
   Upload,
+  UserCheck,
   Users,
   X,
-  Scale,
-  Plus
+  Zap,
+  Database,
+  Cpu,
+  Layers
 } from 'lucide-react';
-import { Button } from '@components/ui/button';
+import { api } from '@/lib/api';
 import LegalResearchHub from './LegalResearchHub';
 
 type Role = 'Admin' | 'Paralegal';
-type View = 'Overview' | 'Upload & Corpus' | 'Users' | 'Cases' | 'Legal Search' | 'Saved Briefs';
+type AdminView = 'Overview' | 'Profiles' | 'Knowledge Bases' | 'Corpus & Retrieval Tests' | 'Cases' | 'Legal Search' | 'Audit Logs';
+type ParalegalView = 'Overview' | 'Cases' | 'Legal Search' | 'Saved Briefs';
+type View = AdminView | ParalegalView;
 
-const adminNav: View[] = ['Overview', 'Upload & Corpus', 'Users', 'Cases', 'Legal Search', 'Saved Briefs'];
-const paraNav: View[] = ['Overview', 'Cases', 'Legal Search', 'Saved Briefs'];
-const cases = [
-  'State v. Mehra — Bail application',
-  'Arora Industries — Tax appeal',
-  'Khan v. Union of India — Writ petition',
-  'Rao matter — Commercial dispute'
+interface LLMProfile {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  temperature: number;
+  max_tokens: number;
+  top_p: number;
+  system_prompt: string;
+  is_active: boolean;
+}
+
+const DEFAULT_PROFILES: LLMProfile[] = [
+  {
+    id: 'prof-legal-gpt4o',
+    name: 'GPT-4o Legal Precision',
+    provider: 'OpenAI',
+    model: 'gpt-4o',
+    temperature: 0.1,
+    max_tokens: 4096,
+    top_p: 0.95,
+    system_prompt: 'You are an expert Indian Legal Assistant. Analyze facts, extract ratio decidendi, and map IPC/CrPC sections to BNS/BNSS with precise statutory citations.',
+    is_active: true,
+  },
+  {
+    id: 'prof-legal-claude',
+    name: 'Claude 3.5 Sonnet Analysis',
+    provider: 'Anthropic',
+    model: 'claude-3-5-sonnet-20241022',
+    temperature: 0.2,
+    max_tokens: 8192,
+    top_p: 0.9,
+    system_prompt: 'You are a senior appellate advocate assisting in drafting writ petitions and precedent syntheses with zero hallucinations.',
+    is_active: false,
+  },
+  {
+    id: 'prof-legal-gemini',
+    name: 'Gemini 1.5 Pro Deep Context',
+    provider: 'Google',
+    model: 'gemini-1.5-pro',
+    temperature: 0.15,
+    max_tokens: 8192,
+    top_p: 0.95,
+    system_prompt: 'Process full case binders and cross-reference multiple court orders for tax and commercial dispute analysis.',
+    is_active: false,
+  },
 ];
-const files = ['Matter_Chronology.docx', 'Witness_Statement.pdf', 'Client_notes.txt'];
 
-export default function Page() {
+const DEFAULT_KNOWLEDGE_BASES = [
+  {
+    id: 'kb-supreme-court',
+    name: 'Supreme Court of India (2010–2026)',
+    type: 'Vector + Knowledge Graph',
+    documents: 1420,
+    status: 'Synced',
+    last_updated: 'Today, 02:15 AM',
+  },
+  {
+    id: 'kb-delhi-hc',
+    name: 'Delhi High Court Tax & Commercial Bench',
+    type: 'Hybrid Semantic Index',
+    documents: 846,
+    status: 'Synced',
+    last_updated: 'Yesterday',
+  },
+  {
+    id: 'kb-firm-precedents',
+    name: 'Firm Internal Precedents & Opinions',
+    type: 'Tenant Private Corpus',
+    documents: 580,
+    status: 'Synced',
+    last_updated: '2 days ago',
+  },
+];
+
+const initialCases = [
+  { id: 'case-1', title: 'State v. Mehra', type: 'Bail application', court: 'High Court of Delhi', files: ['Matter_Chronology.docx', 'Bail_Petition_Draft.pdf'], updated: 'Today, 10:30 AM' },
+  { id: 'case-2', title: 'Arora Industries v. DCIT', type: 'Tax appeal (Sec 148A)', court: 'High Court of Delhi', files: ['Assessment_Order.pdf', 'Show_Cause_Reply.docx'], updated: 'Yesterday' },
+  { id: 'case-3', title: 'Khan v. Union of India', type: 'Writ petition (Art 226)', court: 'Supreme Court of India', files: ['SLP_Synopsis.docx', 'Annexure_P1.pdf'], updated: '3 days ago' },
+  { id: 'case-4', title: 'Rao matter', type: 'Commercial dispute', court: 'Bombay High Court', files: ['Arbitration_Notice.pdf'], updated: '5 days ago' },
+];
+
+export default function LegalPlatformPage() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [role, setRole] = useState<Role>('Paralegal');
   const [view, setView] = useState<View>('Overview');
   const [mobile, setMobile] = useState(false);
   const [notice, setNotice] = useState('');
 
+  // Initial Auth Check
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const user = await api.getCurrentUser();
+        if (user) {
+          setCurrentUser(user);
+          const normalizedRole = (user.role || '').toLowerCase();
+          if (
+            normalizedRole === 'admin' ||
+            normalizedRole === 'tenant_admin' ||
+            normalizedRole === 'system_admin'
+          ) {
+            setRole('Admin');
+          } else {
+            setRole('Paralegal');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load current user for legal portal:', err);
+      }
+    }
+    loadUser();
+  }, []);
+
   const show = (message: string) => {
     setNotice(message);
-    window.setTimeout(() => setNotice(''), 2600);
+    window.setTimeout(() => setNotice(''), 3000);
   };
 
   const switchRole = (next: Role) => {
     setRole(next);
     setView('Overview');
-    show(`${next} workspace active`);
+    show(`${next} perspective activated`);
   };
 
-  const navigate = (next: View) => {
-    setView(next);
-    setMobile(false);
-  };
+  const adminNav: AdminView[] = [
+    'Overview',
+    'Profiles',
+    'Knowledge Bases',
+    'Corpus & Retrieval Tests',
+    'Cases',
+    'Legal Search',
+    'Audit Logs'
+  ];
+  const paraNav: ParalegalView[] = ['Overview', 'Cases', 'Legal Search', 'Saved Briefs'];
 
-  const nav = role === 'Admin' ? adminNav : paraNav;
+  const navItems = role === 'Admin' ? adminNav : paraNav;
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 flex font-sans overflow-x-hidden">
@@ -101,7 +218,9 @@ export default function Page() {
               <strong className="block text-xs font-extrabold text-slate-900 leading-tight">
                 Legal AI Platform
               </strong>
-              <span className="block text-[10px] text-slate-500 font-medium">AZB & Partners</span>
+              <span className="block text-[10px] text-slate-500 font-medium">
+                {currentUser?.customer_id ? `Tenant: ${currentUser.customer_id}` : 'Enterprise Gateway'}
+              </span>
             </div>
           </Link>
           <button
@@ -114,9 +233,14 @@ export default function Page() {
 
         {/* Role Switcher */}
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 my-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-            Preview Role
-          </p>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+              Active Role
+            </p>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 font-bold">
+              {currentUser?.role || role}
+            </span>
+          </div>
           <div className="flex flex-col gap-1">
             {(['Admin', 'Paralegal'] as Role[]).map((item) => (
               <button
@@ -130,7 +254,7 @@ export default function Page() {
               >
                 <div className="flex items-center gap-2">
                   {item === 'Admin' ? <ShieldCheck className="w-3.5 h-3.5" /> : <FileSearch className="w-3.5 h-3.5" />}
-                  <span>{item}</span>
+                  <span>{item === 'Admin' ? 'Tenant Admin' : 'Paralegal'}</span>
                 </div>
                 {role === item && <Check className="w-3.5 h-3.5" />}
               </button>
@@ -141,12 +265,15 @@ export default function Page() {
         {/* Navigation */}
         <nav className="flex-1 flex flex-col gap-1 py-1 overflow-y-auto">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 px-2 mb-1">
-            {role} Workspace
+            {role === 'Admin' ? 'Tenant Admin Workspace' : 'Paralegal Workspace'}
           </p>
-          {nav.map((item) => (
+          {navItems.map((item) => (
             <button
               key={item}
-              onClick={() => navigate(item)}
+              onClick={() => {
+                setView(item);
+                setMobile(false);
+              }}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 view === item
                   ? 'bg-violet-50 text-violet-800 border border-violet-200 shadow-xs'
@@ -155,19 +282,23 @@ export default function Page() {
             >
               {item === 'Overview' ? (
                 <Activity className="w-4 h-4 text-violet-700" />
-              ) : item === 'Upload & Corpus' ? (
+              ) : item === 'Profiles' ? (
+                <Cpu className="w-4 h-4 text-violet-700" />
+              ) : item === 'Knowledge Bases' ? (
+                <Database className="w-4 h-4 text-violet-700" />
+              ) : item === 'Corpus & Retrieval Tests' ? (
                 <Upload className="w-4 h-4 text-violet-700" />
-              ) : item === 'Users' ? (
-                <Users className="w-4 h-4 text-violet-700" />
               ) : item === 'Cases' ? (
                 <FolderKanban className="w-4 h-4 text-violet-700" />
               ) : item === 'Legal Search' ? (
                 <Library className="w-4 h-4 text-violet-700" />
+              ) : item === 'Audit Logs' ? (
+                <ShieldCheck className="w-4 h-4 text-violet-700" />
               ) : (
                 <BarChart3 className="w-4 h-4 text-violet-700" />
               )}
               <span>{item}</span>
-              {item === 'Upload & Corpus' && (
+              {item === 'Corpus & Retrieval Tests' && (
                 <span className="ml-auto text-[9px] px-1.5 py-0.5 bg-violet-100 text-violet-800 rounded font-bold">
                   Admin
                 </span>
@@ -175,26 +306,26 @@ export default function Page() {
             </button>
           ))}
 
-          {/* Direct Admin Links */}
+          {/* Quick Admin Consoles Link */}
           {role === 'Admin' && (
             <div className="pt-3 mt-2 border-t border-slate-100 flex flex-col gap-1">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 px-2 mb-1">
                 Admin Consoles
               </p>
               <Link
-                href="/admin?tab=knowledge"
+                href="/admin?tab=profiles"
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100"
               >
-                <Upload className="w-3.5 h-3.5 text-slate-500" />
-                <span>Knowledge Base</span>
+                <Cpu className="w-3.5 h-3.5 text-slate-500" />
+                <span>LLM Profiles</span>
                 <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
               </Link>
               <Link
-                href="/admin?tab=users"
+                href="/admin?tab=knowledge"
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100"
               >
-                <Users className="w-3.5 h-3.5 text-slate-500" />
-                <span>User Management</span>
+                <Database className="w-3.5 h-3.5 text-slate-500" />
+                <span>Knowledge Bases</span>
                 <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
               </Link>
             </div>
@@ -204,11 +335,15 @@ export default function Page() {
         {/* User Info */}
         <div className="pt-3 mt-auto border-t border-slate-100 flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full bg-violet-100 text-violet-800 font-bold flex items-center justify-center text-xs">
-            AM
+            {currentUser?.username ? currentUser.username.slice(0, 2).toUpperCase() : 'AM'}
           </div>
           <div className="flex-1 truncate">
-            <strong className="block text-xs font-bold text-slate-900 truncate">Ananya Mehta</strong>
-            <span className="block text-[10px] text-slate-500">{role} Workspace</span>
+            <strong className="block text-xs font-bold text-slate-900 truncate">
+              {currentUser?.username || currentUser?.email || 'Authenticated User'}
+            </strong>
+            <span className="block text-[10px] text-slate-500">
+              {role === 'Admin' ? 'Tenant Administrator' : 'Paralegal Staff'}
+            </span>
           </div>
         </div>
       </aside>
@@ -236,33 +371,42 @@ export default function Page() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('Legal Search')}
+              onClick={() => setView('Legal Search')}
               className="px-3 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
             >
               <Sparkles className="w-3.5 h-3.5 text-violet-700" />
-              <span>Legal Research</span>
+              <span>Research Hub</span>
             </button>
             <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">
-              {role === 'Admin' ? '42 / 50 seats' : 'Paralegal access'}
+              {role === 'Admin' ? 'Tenant Admin Role' : 'Paralegal Role'}
             </span>
-            <div className="w-7 h-7 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-xs">
-              AM
-            </div>
           </div>
         </header>
 
-        {/* View Router */}
+        {/* Dynamic View Router */}
         <div className="p-6 max-w-7xl mx-auto w-full flex-1 flex flex-col gap-6">
-          {view === 'Overview' && <Overview role={role} navigate={navigate} show={show} />}
-          {view === 'Upload & Corpus' && role === 'Admin' && <AdminCorpus show={show} />}
-          {view === 'Users' && role === 'Admin' && <UsersView show={show} />}
-          {view === 'Cases' && <CasesView role={role} navigate={navigate} show={show} />}
-          {view === 'Legal Search' && <SearchView navigate={navigate} show={show} />}
-          {view === 'Saved Briefs' && <Saved navigate={navigate} show={show} />}
+          {view === 'Overview' && (
+            <OverviewView role={role} navigate={(v) => setView(v)} show={show} />
+          )}
+
+          {/* Tenant Admin Specific Views */}
+          {view === 'Profiles' && role === 'Admin' && <ProfilesView show={show} />}
+          {view === 'Knowledge Bases' && role === 'Admin' && <KnowledgeBasesView show={show} />}
+          {view === 'Corpus & Retrieval Tests' && role === 'Admin' && (
+            <CorpusAndRetrievalView show={show} />
+          )}
+          {view === 'Audit Logs' && role === 'Admin' && <AuditLogsView show={show} />}
+
+          {/* Shared / Paralegal Views */}
+          {view === 'Cases' && (
+            <CasesView role={role} navigate={(v) => setView(v)} show={show} />
+          )}
+          {view === 'Legal Search' && <SearchView show={show} />}
+          {view === 'Saved Briefs' && <SavedBriefsView show={show} />}
         </div>
       </section>
 
-      {/* TOAST */}
+      {/* TOAST NOTIFICATION */}
       {notice && (
         <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs font-medium px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-2 animate-bounce">
           <Check className="w-4 h-4 text-emerald-400" />
@@ -273,6 +417,9 @@ export default function Page() {
   );
 }
 
+// -----------------------------------------------------------------------------
+// HEADING COMPONENT
+// -----------------------------------------------------------------------------
 function Heading({
   title,
   description,
@@ -296,7 +443,10 @@ function Heading({
   );
 }
 
-function Overview({
+// -----------------------------------------------------------------------------
+// OVERVIEW VIEW
+// -----------------------------------------------------------------------------
+function OverviewView({
   role,
   navigate,
   show
@@ -308,99 +458,110 @@ function Overview({
   return (
     <>
       <Heading
-        title={role === 'Admin' ? 'Administration Center' : 'Seek Grounded Legal Help'}
+        title={role === 'Admin' ? 'Tenant Administration Center' : 'Legal Assistant Workspace'}
         description={
           role === 'Admin'
-            ? 'Manage users, firm corpus, cases, and knowledge sources used by Legal AI.'
-            : 'Upload case material or search existing matters for grounded legal assistance.'
+            ? 'Configure LLM profiles, manage knowledge bases, upload corpus documents, and test retrieval benchmarks.'
+            : 'Organize active matters, upload case intake files, and execute grounded legal precedent search.'
         }
         action={
           <button
-            onClick={() => show('Help: Upload case files, verify grounded citations, and export binders.')}
+            onClick={() => show('Tenant workflow dispatcher active: Ingest & Search routes bound.')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs cursor-pointer"
           >
-            <HelpCircle className="w-3.5 h-3.5 text-slate-500" /> How this works
+            <HelpCircle className="w-3.5 h-3.5 text-slate-500" /> How Workflow Routing Works
           </button>
         }
       />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-1">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>{role === 'Admin' ? 'Indexed Corpus' : 'Active Cases'}</span>
-            <FileSearch className="w-4 h-4 text-violet-700" />
+            <span>{role === 'Admin' ? 'LLM Profiles' : 'Active Matters'}</span>
+            <Cpu className="w-4 h-4 text-violet-700" />
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{role === 'Admin' ? '2,846' : '24'}</div>
+          <div className="text-2xl font-extrabold text-slate-900">{role === 'Admin' ? '3 Active' : '4 Matters'}</div>
           <div className="text-[11px] text-slate-500">
-            {role === 'Admin' ? '94 added this month' : '8 updated this week'}
+            {role === 'Admin' ? 'GPT-4o Legal Precision selected' : '2 updated today'}
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-1">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>{role === 'Admin' ? 'Active Users' : 'Saved Briefs'}</span>
-            <Users className="w-4 h-4 text-violet-700" />
+            <span>{role === 'Admin' ? 'Knowledge Bases' : 'Uploaded Files'}</span>
+            <Database className="w-4 h-4 text-violet-700" />
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{role === 'Admin' ? '42' : '18'}</div>
+          <div className="text-2xl font-extrabold text-slate-900">{role === 'Admin' ? '3 Indexed' : '12 Files'}</div>
           <div className="text-[11px] text-slate-500">
-            {role === 'Admin' ? '3 pending invites' : '6 updated this week'}
+            {role === 'Admin' ? '2,846 Judgments & Statutes' : 'Ready for citation extraction'}
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-1">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>Grounded Matches</span>
+            <span>{role === 'Admin' ? 'Workflow Routes' : 'Saved Precedents'}</span>
+            <Zap className="w-4 h-4 text-violet-700" />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900">{role === 'Admin' ? 'Linked' : '18 Briefs'}</div>
+          <div className="text-[11px] text-slate-500">
+            {role === 'Admin' ? '/legal/ingest & /legal/search' : '6 updated this week'}
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-1">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+            <span>Grounded Accuracy</span>
             <Sparkles className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">94%</div>
-          <div className="text-[11px] text-emerald-700 font-medium">Cross-checked against past data</div>
+          <div className="text-2xl font-extrabold text-slate-900">96.4%</div>
+          <div className="text-[11px] text-emerald-700 font-medium">Zero hallucination guard active</div>
         </div>
       </div>
 
-      {/* Actions & Workflow */}
+      {/* Fast Action Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-            {role === 'Admin' ? 'Admin Actions' : 'Fast Actions'}
+            {role === 'Admin' ? 'Tenant Admin Controls' : 'Paralegal Actions'}
           </p>
           <h3 className="text-sm font-extrabold text-slate-900">
-            {role === 'Admin' ? 'Keep Knowledge Base Updated' : 'What would you like to do?'}
+            {role === 'Admin' ? 'Configure Firm Legal Platform' : 'Start Research or Matter Work'}
           </h3>
 
           <div className="flex flex-col gap-2 pt-1">
             {role === 'Admin' ? (
               <>
                 <button
-                  onClick={() => navigate('Upload & Corpus')}
+                  onClick={() => navigate('Profiles')}
+                  className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50/50 transition text-left cursor-pointer"
+                >
+                  <Cpu className="w-4 h-4 text-violet-700 shrink-0" />
+                  <div className="flex-1">
+                    <strong className="block text-xs font-bold text-slate-900">Set LLM Profiles</strong>
+                    <span className="block text-[11px] text-slate-500">Tune temperature, top-p, and legal system prompts</span>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-slate-400" />
+                </button>
+                <button
+                  onClick={() => navigate('Knowledge Bases')}
+                  className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50/50 transition text-left cursor-pointer"
+                >
+                  <Database className="w-4 h-4 text-violet-700 shrink-0" />
+                  <div className="flex-1">
+                    <strong className="block text-xs font-bold text-slate-900">Manage Knowledge Bases</strong>
+                    <span className="block text-[11px] text-slate-500">Review vector indexes, collections, and synchronization</span>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-slate-400" />
+                </button>
+                <button
+                  onClick={() => navigate('Corpus & Retrieval Tests')}
                   className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50/50 transition text-left cursor-pointer"
                 >
                   <Upload className="w-4 h-4 text-violet-700 shrink-0" />
                   <div className="flex-1">
-                    <strong className="block text-xs font-bold text-slate-900">Upload & Pass Data</strong>
-                    <span className="block text-[11px] text-slate-500">Add DOCX, PDF, TXT to firm corpus</span>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-slate-400" />
-                </button>
-                <button
-                  onClick={() => navigate('Users')}
-                  className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50/50 transition text-left cursor-pointer"
-                >
-                  <Users className="w-4 h-4 text-violet-700 shrink-0" />
-                  <div className="flex-1">
-                    <strong className="block text-xs font-bold text-slate-900">Manage Users</strong>
-                    <span className="block text-[11px] text-slate-500">Invite, change access, or roles</span>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-slate-400" />
-                </button>
-                <button
-                  onClick={() => navigate('Cases')}
-                  className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50/50 transition text-left cursor-pointer"
-                >
-                  <FolderKanban className="w-4 h-4 text-violet-700 shrink-0" />
-                  <div className="flex-1">
-                    <strong className="block text-xs font-bold text-slate-900">Manage Cases</strong>
-                    <span className="block text-[11px] text-slate-500">Audit case workspaces</span>
+                    <strong className="block text-xs font-bold text-slate-900">Upload & Retrieval Tests</strong>
+                    <span className="block text-[11px] text-slate-500">Ingest test documents & benchmark retrieval accuracy</span>
                   </div>
                   <ArrowRight className="w-4 h-4 text-slate-400" />
                 </button>
@@ -413,8 +574,8 @@ function Overview({
                 >
                   <Upload className="w-4 h-4 text-violet-700 shrink-0" />
                   <div className="flex-1">
-                    <strong className="block text-xs font-bold text-slate-900">Upload to a Case</strong>
-                    <span className="block text-[11px] text-slate-500">Add DOCX, PDF, or client notes</span>
+                    <strong className="block text-xs font-bold text-slate-900">Upload Case Files</strong>
+                    <span className="block text-[11px] text-slate-500">Add client pleadings, petitions, and witness statements</span>
                   </div>
                   <ArrowRight className="w-4 h-4 text-slate-400" />
                 </button>
@@ -425,7 +586,7 @@ function Overview({
                   <Library className="w-4 h-4 text-violet-700 shrink-0" />
                   <div className="flex-1">
                     <strong className="block text-xs font-bold text-slate-900">Legal Precedent Search</strong>
-                    <span className="block text-[11px] text-slate-500">Find judgments, sections, and BNS signals</span>
+                    <span className="block text-[11px] text-slate-500">Search judgments, section transitions, and binding ratios</span>
                   </div>
                   <ArrowRight className="w-4 h-4 text-slate-400" />
                 </button>
@@ -434,18 +595,18 @@ function Overview({
           </div>
         </div>
 
-        {/* Grounded Process */}
+        {/* Workflow Architecture Card */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-            Grounded Workflow
+            Tenant Workflow Routing
           </p>
-          <h3 className="text-sm font-extrabold text-slate-900">From Intake to Verifiable Brief</h3>
+          <h3 className="text-sm font-extrabold text-slate-900">Decoupled Architecture Pipeline</h3>
           <div className="flex flex-col gap-2 pt-1">
             {[
-              'Upload or paste case material into active matter',
-              'Cross-check past firm precedents and statutory sections',
-              'Review citations and IPC/CrPC → BNS/BNSS transition mapping',
-              'Save grounded precedent directly to case binder'
+              'Tenant-specific ingestion trigger (/webhooks/run/legal/ingest or /legal/ingest)',
+              'Extraction & Vectorization using configured LLM Profile & Chunking strategy',
+              'Natural Language Intent Parsing on search query (Judge, Court, Statute, Disposition)',
+              'Hybrid Semantic Retrieval with Citation provenance verification'
             ].map((step, i) => (
               <div
                 key={step}
@@ -464,112 +625,443 @@ function Overview({
   );
 }
 
-function AdminCorpus({ show }: { show: (message: string) => void }) {
-  const [uploaded, setUploaded] = useState<string[]>([]);
-  const [text, setText] = useState('');
+// -----------------------------------------------------------------------------
+// TENANT ADMIN: PROFILES VIEW
+// -----------------------------------------------------------------------------
+function ProfilesView({ show }: { show: (message: string) => void }) {
+  const [profiles, setProfiles] = useState<LLMProfile[]>(DEFAULT_PROFILES);
+  const [selectedId, setSelectedId] = useState('prof-legal-gpt4o');
+
+  const activeProfile = profiles.find((p) => p.id === selectedId) || profiles[0];
+
+  const handleSelectActive = (id: string) => {
+    setSelectedId(id);
+    setProfiles((prev) =>
+      prev.map((p) => ({ ...p, is_active: p.id === id }))
+    );
+    show(`Active profile updated to ${profiles.find((p) => p.id === id)?.name}`);
+  };
 
   return (
     <>
       <Heading
-        title="Upload & Firm Corpus"
-        description="Admin-only controls for adding and indexing firm knowledge."
+        title="Tenant LLM Profiles"
+        description="Select and configure active LLM profiles used for legal reasoning, statutory extraction, and judgment summaries."
         action={
-          <div className="flex items-center gap-2">
-            <Link
-              href="/admin?tab=knowledge"
-              className="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs flex items-center gap-1.5"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-violet-700" /> Admin Console
-            </Link>
-          </div>
+          <button
+            onClick={() => show('Profile settings saved successfully.')}
+            className="px-4 py-2 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <Check className="w-3.5 h-3.5" /> Save Profile Configurations
+          </button>
         }
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="bg-white p-5 rounded-2xl border-2 border-dashed border-slate-300 hover:border-violet-500 transition flex flex-col items-center justify-center text-center p-6 gap-3">
-          <Upload className="w-8 h-8 text-violet-700" />
-          <h3 className="text-xs font-bold text-slate-900">Pass Data to the Corpus</h3>
-          <p className="text-[11px] text-slate-500 max-w-xs">
-            Upload DOCX, PDF, TXT files for automated parsing and indexing.
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Profile Selector List */}
+        <div className="flex flex-col gap-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+            Available Profiles
           </p>
-          <input
-            id="admin-file"
-            type="file"
-            accept=".docx,.pdf,.txt"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              const names = Array.from(e.target.files ?? []).map((file) => file.name);
-              setUploaded((prev) => [...prev, ...names]);
-              if (names.length) show(`${names.length} file(s) added to intake queue`);
-            }}
-          />
-          <label
-            htmlFor="admin-file"
-            className="px-4 py-2 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
-          >
-            <Upload className="w-3.5 h-3.5" /> Choose Files
-          </label>
+          {profiles.map((prof) => (
+            <div
+              key={prof.id}
+              onClick={() => handleSelectActive(prof.id)}
+              className={`p-4 rounded-2xl border transition cursor-pointer flex flex-col gap-2 ${
+                prof.id === selectedId
+                  ? 'bg-violet-50/70 border-violet-500 shadow-xs'
+                  : 'bg-white border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-900">{prof.name}</span>
+                {prof.is_active && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                    Active
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Provider: <span className="font-semibold text-slate-700">{prof.provider}</span> ({prof.model})
+              </p>
+              <div className="flex items-center gap-3 text-[10px] text-slate-600 pt-1 border-t border-slate-200/50">
+                <span>Temp: {prof.temperature}</span>
+                <span>Max Tokens: {prof.max_tokens}</span>
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-2.5">
-          <label htmlFor="corpus-text" className="text-xs font-bold text-slate-800">
-            Paste Source Text
-          </label>
-          <textarea
-            id="corpus-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Paste statutes, firm notes, or reference judgments..."
-            className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl p-3 h-28 focus:outline-none focus:border-violet-700"
-          />
-          <button
-            onClick={() => {
-              if (text.trim()) {
-                setUploaded((prev) => [...prev, 'Pasted Source Text']);
-                setText('');
-                show('Pasted text added to intake queue');
-              }
-            }}
-            className="self-end px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition cursor-pointer"
-          >
-            Add Text to Queue
-          </button>
+        {/* Profile Configuration Editor */}
+        <div className="md:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-900">{activeProfile.name} Configuration</h3>
+              <p className="text-[11px] text-slate-500">Adjust parameters for the active tenant legal pipeline.</p>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg">
+              Model: {activeProfile.model}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-800 flex justify-between">
+                <span>Temperature</span>
+                <span className="text-violet-700">{activeProfile.temperature}</span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={activeProfile.temperature}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setProfiles((prev) =>
+                    prev.map((p) => (p.id === activeProfile.id ? { ...p, temperature: val } : p))
+                  );
+                }}
+                className="w-full accent-violet-700 cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-500">Low values (0.0–0.2) recommended for legal precision.</span>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-800 flex justify-between">
+                <span>Top-P (Nucleus Sampling)</span>
+                <span className="text-violet-700">{activeProfile.top_p}</span>
+              </label>
+              <input
+                type="range"
+                min="0.1"
+                max="1"
+                step="0.05"
+                value={activeProfile.top_p}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setProfiles((prev) =>
+                    prev.map((p) => (p.id === activeProfile.id ? { ...p, top_p: val } : p))
+                  );
+                }}
+                className="w-full accent-violet-700 cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-500">Controls diversity of generated legal analysis.</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-800">
+              System Instruction Prompt
+            </label>
+            <textarea
+              rows={4}
+              value={activeProfile.system_prompt}
+              onChange={(e) => {
+                const val = e.target.value;
+                setProfiles((prev) =>
+                  prev.map((p) => (p.id === activeProfile.id ? { ...p, system_prompt: val } : p))
+                );
+              }}
+              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl p-3 focus:outline-none focus:border-violet-700"
+            />
+          </div>
         </div>
       </div>
+    </>
+  );
+}
 
-      {/* Intake Queue */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-3">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-          <h3 className="text-xs font-bold text-slate-900">Intake Queue (Ready to Index)</h3>
-          <button
-            onClick={() => show('Corpus indexing started')}
-            className="px-3.5 py-1.5 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+// -----------------------------------------------------------------------------
+// TENANT ADMIN: KNOWLEDGE BASES VIEW
+// -----------------------------------------------------------------------------
+function KnowledgeBasesView({ show }: { show: (message: string) => void }) {
+  const [kbList] = useState(DEFAULT_KNOWLEDGE_BASES);
+
+  return (
+    <>
+      <Heading
+        title="Knowledge Base Management"
+        description="View and oversee statutory and case law collections connected to your tenant."
+        action={
+          <Link
+            href="/admin?tab=knowledge"
+            className="px-3.5 py-1.5 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5"
           >
-            Index All Items
+            <ExternalLink className="w-3.5 h-3.5" /> Full Knowledge Console
+          </Link>
+        }
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {kbList.map((kb) => (
+          <div
+            key={kb.id}
+            className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-3 hover:border-violet-300 transition"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center font-bold">
+                <Database className="w-4 h-4" />
+              </div>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                {kb.status}
+              </span>
+            </div>
+            <div>
+              <h3 className="text-xs font-extrabold text-slate-900">{kb.name}</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">Type: {kb.type}</p>
+            </div>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+              <span>{kb.documents} indexed documents</span>
+              <span className="text-[10px] text-slate-400">{kb.last_updated}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// TENANT ADMIN: CORPUS & RETRIEVAL TESTS VIEW
+// -----------------------------------------------------------------------------
+function CorpusAndRetrievalView({ show }: { show: (message: string) => void }) {
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [corpusText, setCorpusText] = useState('');
+  const [ingesting, setIngesting] = useState(false);
+
+  // Retrieval Test Bench State
+  const [testQuery, setTestQuery] = useState(
+    'Section 148A(b) notice quashed principles of natural justice hearing breach'
+  );
+  const [testing, setTesting] = useState(false);
+  const [testResults, setTestResults] = useState<any[] | null>(null);
+
+  const handleIngest = async () => {
+    if (!corpusText.trim() && uploadedFiles.length === 0) {
+      show('Please provide text or files to ingest');
+      return;
+    }
+    setIngesting(true);
+    try {
+      await api.ingestLegalDocument({
+        title: uploadedFiles[0] || 'Manual Legal Corpus Paste',
+        document_text: corpusText,
+        corpus_type: 'firm_corpus',
+      });
+      show('Document successfully processed through tenant ingestion workflow.');
+      setUploadedFiles([]);
+      setCorpusText('');
+    } catch (err: any) {
+      show(`Ingestion failed: ${err.message}`);
+    } finally {
+      setIngesting(false);
+    }
+  };
+
+  const handleRunRetrievalTest = async () => {
+    if (!testQuery.trim()) return;
+    setTesting(true);
+    try {
+      const res = await api.searchLegalCases({ query: testQuery, limit: 3 });
+      setTestResults(res.results || []);
+      show(`Retrieval test completed: ${res.results?.length || 0} chunks retrieved.`);
+    } catch (err: any) {
+      show(`Retrieval test failed: ${err.message}`);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <>
+      <Heading
+        title="Corpus Ingestion & Retrieval Test Bench"
+        description="Upload firm documents to the corpus and benchmark retrieval relevance against active LLM profiles."
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* PANEL A: Ingestion Form */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h3 className="text-xs font-extrabold text-slate-900 flex items-center gap-2">
+              <Upload className="w-4 h-4 text-violet-700" /> Ingest Documents to Tenant Corpus
+            </h3>
+            <span className="text-[10px] text-slate-500 font-semibold">Workflow: /legal/ingest</span>
+          </div>
+
+          <div className="border-2 border-dashed border-slate-300 rounded-xl p-5 flex flex-col items-center justify-center text-center gap-2 hover:border-violet-500 transition">
+            <Upload className="w-6 h-6 text-violet-700" />
+            <p className="text-xs font-bold text-slate-800">Select Files (PDF, DOCX, TXT)</p>
+            <input
+              id="corpus-file-upload"
+              type="file"
+              accept=".pdf,.docx,.txt"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const names = Array.from(e.target.files ?? []).map((f) => f.name);
+                setUploadedFiles((prev) => [...prev, ...names]);
+                if (names.length) show(`${names.length} file(s) queued for ingestion.`);
+              }}
+            />
+            <label
+              htmlFor="corpus-file-upload"
+              className="px-3.5 py-1.5 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold cursor-pointer transition shadow-xs"
+            >
+              Browse Files
+            </label>
+          </div>
+
+          {uploadedFiles.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[10px] font-bold uppercase text-slate-600">Queued Files:</p>
+              {uploadedFiles.map((f, i) => (
+                <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 text-xs text-slate-800">
+                  <span>{f}</span>
+                  <span className="text-[10px] text-emerald-700 font-bold">Ready</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-800">Or Paste Source Text</label>
+            <textarea
+              rows={3}
+              value={corpusText}
+              onChange={(e) => setCorpusText(e.target.value)}
+              placeholder="Paste judgments, legal opinions, or statutory interpretations..."
+              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl p-2.5 focus:outline-none focus:border-violet-700"
+            />
+          </div>
+
+          <button
+            onClick={handleIngest}
+            disabled={ingesting}
+            className="w-full py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {ingesting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            <span>{ingesting ? 'Ingesting via Workflow...' : 'Execute Ingestion'}</span>
           </button>
         </div>
 
-        {uploaded.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {uploaded.map((f, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs"
-              >
-                <div className="flex items-center gap-2">
-                  <FileSearch className="w-4 h-4 text-violet-700" />
-                  <span className="font-semibold text-slate-800">{f}</span>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                  Ready
-                </span>
-              </div>
-            ))}
+        {/* PANEL B: Retrieval Test Bench */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h3 className="text-xs font-extrabold text-slate-900 flex items-center gap-2">
+              <FileSearch className="w-4 h-4 text-violet-700" /> Interactive Retrieval Benchmark
+            </h3>
+            <span className="text-[10px] text-slate-500 font-semibold">Workflow: /legal/search</span>
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-800">Benchmark Search Query</label>
+            <div className="flex gap-2">
+              <input
+                value={testQuery}
+                onChange={(e) => setTestQuery(e.target.value)}
+                placeholder="Enter test legal query..."
+                className="flex-1 text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-700"
+              />
+              <button
+                onClick={handleRunRetrievalTest}
+                disabled={testing}
+                className="px-4 py-2 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold transition shadow-xs shrink-0 cursor-pointer disabled:opacity-50"
+              >
+                {testing ? 'Benchmarking...' : 'Test Retrieval'}
+              </button>
+            </div>
+          </div>
+
+          {/* Test Results Output */}
+          <div className="flex-1 flex flex-col gap-2 min-h-[160px] overflow-y-auto">
+            {testResults ? (
+              testResults.map((r, i) => (
+                <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <strong className="text-slate-900 font-bold">{r.title || 'Judgment'}</strong>
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-violet-100 text-violet-800 rounded-full">
+                      Score: {r.relevance_score}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">{r.court} · Judge: {r.judge || 'Bench'}</p>
+                  <p className="text-[11px] text-slate-700 font-medium">Disposition: {r.disposition}</p>
+                </div>
+              ))
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-xs text-slate-400 text-center p-6">
+                Click &apos;Test Retrieval&apos; to run vector similarity and statutory intent benchmarks.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// TENANT ADMIN: AUDIT LOGS VIEW
+// -----------------------------------------------------------------------------
+function AuditLogsView({ show }: { show: (message: string) => void }) {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadLogs() {
+      try {
+        const res = await api.getLegalAuditLogs();
+        setLogs(res || []);
+      } catch (err) {
+        console.error('Failed to load audit logs:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadLogs();
+  }, []);
+
+  return (
+    <>
+      <Heading
+        title="Compliance & Accounting Audit Logs"
+        description="Immutable audit trail of all legal search queries, document ingestion runs, and workflow executions."
+      />
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-xs text-slate-500">Loading audit trail...</div>
+        ) : logs.length > 0 ? (
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                <th className="p-3.5">Action</th>
+                <th className="p-3.5">Query / Document</th>
+                <th className="p-3.5">Role</th>
+                <th className="p-3.5">Results</th>
+                <th className="p-3.5 text-right">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {logs.map((l) => (
+                <tr key={l.id} className="hover:bg-slate-50/60 transition">
+                  <td className="p-3.5 font-bold text-slate-900">{l.action}</td>
+                  <td className="p-3.5 text-slate-700 max-w-xs truncate">{l.query_text}</td>
+                  <td className="p-3.5">
+                    <span className="px-2 py-0.5 rounded-md bg-violet-50 text-violet-800 text-[10px] font-bold">
+                      {l.role}
+                    </span>
+                  </td>
+                  <td className="p-3.5 text-slate-600">{l.results_count}</td>
+                  <td className="p-3.5 text-right text-slate-500 text-[11px]">{l.timestamp || 'Just now'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
-          <div className="text-center py-8 text-slate-400 text-xs">
-            No files waiting in queue. Upload files or paste text above.
+          <div className="p-8 text-center text-xs text-slate-400">
+            No audit records found. Executed search and ingestion queries will automatically log here.
           </div>
         )}
       </div>
@@ -577,83 +1069,9 @@ function AdminCorpus({ show }: { show: (message: string) => void }) {
   );
 }
 
-function UsersView({ show }: { show: (message: string) => void }) {
-  const [users, setUsers] = useState([
-    ['Ananya Mehta', 'Admin', 'Active'],
-    ['Rohan Iyer', 'Paralegal', 'Active'],
-    ['Priya Kapoor', 'Paralegal', 'Active'],
-    ['Vikram Shah', 'Admin', 'Pending']
-  ]);
-
-  return (
-    <>
-      <Heading
-        title="User Management"
-        description="Admin-only access controls for firm members."
-        action={
-          <button
-            onClick={() => show('Invite user modal opened')}
-            className="px-3.5 py-1.5 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" /> Invite User
-          </button>
-        }
-      />
-
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
-              <th className="p-3.5">User</th>
-              <th className="p-3.5">Role</th>
-              <th className="p-3.5">Status</th>
-              <th className="p-3.5 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {users.map(([name, userRole, status]) => (
-              <tr key={name} className="hover:bg-slate-50/60 transition">
-                <td className="p-3.5 font-bold text-slate-900">{name}</td>
-                <td className="p-3.5">
-                  <span className="px-2 py-0.5 rounded-md bg-violet-50 text-violet-800 border border-violet-200 text-[10px] font-bold">
-                    {userRole}
-                  </span>
-                </td>
-                <td className="p-3.5">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      status === 'Active'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {status}
-                  </span>
-                </td>
-                <td className="p-3.5 text-right">
-                  <button
-                    onClick={() => {
-                      setUsers((prev) =>
-                        prev.map((u) =>
-                          u[0] === name ? [u[0], u[1], u[2] === 'Active' ? 'Suspended' : 'Active'] : u
-                        )
-                      );
-                      show(`${name} status updated`);
-                    }}
-                    className="text-violet-700 hover:text-violet-900 font-bold text-xs cursor-pointer"
-                  >
-                    {status === 'Active' ? 'Suspend' : 'Activate'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
-
+// -----------------------------------------------------------------------------
+// PARALEGAL / SHARED: CASES VIEW
+// -----------------------------------------------------------------------------
 function CasesView({
   role,
   navigate,
@@ -663,95 +1081,233 @@ function CasesView({
   navigate: (view: View) => void;
   show: (message: string) => void;
 }) {
-  const [newCase, setNewCase] = useState('');
-  const [caseList, setCaseList] = useState(cases);
+  const [caseList, setCaseList] = useState(initialCases);
+  const [newTitle, setNewTitle] = useState('');
+  const [newType, setNewType] = useState('');
+  const [selectedCase, setSelectedCase] = useState<any | null>(initialCases[0]);
+  const [uploadingCaseDoc, setUploadingCaseDoc] = useState(false);
+
+  const handleCreateCase = () => {
+    if (!newTitle.trim()) return;
+    const item = {
+      id: `case-${Date.now()}`,
+      title: newTitle,
+      type: newType || 'General matter',
+      court: 'High Court of Delhi',
+      files: [],
+      updated: 'Just now',
+    };
+    setCaseList([item, ...caseList]);
+    setSelectedCase(item);
+    setNewTitle('');
+    setNewType('');
+    show(`Created case workspace for '${newTitle}'`);
+  };
+
+  const handleUploadToCase = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !selectedCase) return;
+    const filename = files[0].name;
+
+    setUploadingCaseDoc(true);
+    try {
+      await api.ingestLegalDocument({
+        title: filename,
+        case_id: selectedCase.id,
+        corpus_type: 'case_material',
+        document_text: `Client uploaded matter document: ${filename}`,
+      });
+
+      setCaseList((prev) =>
+        prev.map((c) =>
+          c.id === selectedCase.id
+            ? { ...c, files: [...c.files, filename], updated: 'Just now' }
+            : c
+        )
+      );
+      setSelectedCase((prev: any) =>
+        prev ? { ...prev, files: [...prev.files, filename] } : prev
+      );
+      show(`File '${filename}' uploaded and indexed to case workspace.`);
+    } catch (err: any) {
+      show(`Upload failed: ${err.message}`);
+    } finally {
+      setUploadingCaseDoc(false);
+    }
+  };
 
   return (
     <>
       <Heading
-        title={role === 'Admin' ? 'Firm Case Registry' : 'Case Workspaces'}
-        description="Organize matter documents, citations, and grounded research notes."
+        title={role === 'Admin' ? 'Firm Case Workspaces' : 'Active Case Workspaces'}
+        description="Manage matter files, client chronology, witness statements, and precedent binders."
       />
 
-      {role === 'Paralegal' && (
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-          <input
-            value={newCase}
-            onChange={(e) => setNewCase(e.target.value)}
-            placeholder="Create new case workspace name..."
-            className="flex-1 text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-700"
-          />
-          <button
-            onClick={() => {
-              if (newCase.trim()) {
-                setCaseList((prev) => [newCase, ...prev]);
-                setNewCase('');
-                show('New case workspace created');
-              }
-            }}
-            className="px-4 py-2.5 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold transition shadow-xs shrink-0 cursor-pointer"
-          >
-            Create Case
-          </button>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {caseList.map((item) => (
-          <div
-            key={item}
-            className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-start gap-3.5 hover:border-violet-300 transition"
-          >
-            <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center shrink-0">
-              <FolderKanban className="w-5 h-5" />
-            </div>
-            <div className="flex-1 flex flex-col gap-1">
-              <h3 className="text-xs font-extrabold text-slate-900">{item}</h3>
-              <p className="text-[11px] text-slate-500">Cross-checked documents · Citations ready</p>
-              <button
-                onClick={() => navigate('Legal Search')}
-                className="self-start text-xs font-bold text-violet-700 hover:text-violet-900 flex items-center gap-1 mt-1 cursor-pointer"
-              >
-                Open in Research Hub <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Cases List */}
+        <div className="flex flex-col gap-4">
+          {/* Create Case Input */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+              New Case Workspace
+            </p>
+            <input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="e.g. Mehta Industries v. Union of India"
+              className="text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-700"
+            />
+            <input
+              value={newType}
+              onChange={(e) => setNewType(e.target.value)}
+              placeholder="e.g. Writ Petition / Sec 148A Tax Appeal"
+              className="text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-700"
+            />
+            <button
+              onClick={handleCreateCase}
+              className="w-full py-2 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" /> Create Workspace
+            </button>
           </div>
-        ))}
+
+          {/* List */}
+          <div className="flex flex-col gap-2">
+            {caseList.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => setSelectedCase(c)}
+                className={`p-4 rounded-2xl border transition cursor-pointer flex flex-col gap-1.5 ${
+                  selectedCase?.id === c.id
+                    ? 'bg-violet-50/60 border-violet-400 shadow-xs'
+                    : 'bg-white border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-extrabold text-slate-900">{c.title}</h4>
+                  <span className="text-[10px] text-slate-400">{c.updated}</span>
+                </div>
+                <p className="text-[11px] text-slate-500">{c.type} · {c.court}</p>
+                <div className="flex items-center gap-1 text-[10px] text-violet-700 font-semibold mt-1">
+                  <span>{c.files.length} documents uploaded</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Selected Case Workspace Details */}
+        <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-5">
+          {selectedCase ? (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700">
+                    Active Matter Workspace
+                  </span>
+                  <h2 className="text-base font-extrabold text-slate-900 mt-0.5">{selectedCase.title}</h2>
+                  <p className="text-xs text-slate-500">{selectedCase.type} — {selectedCase.court}</p>
+                </div>
+                <button
+                  onClick={() => navigate('Legal Search')}
+                  className="px-3.5 py-1.5 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 self-start cursor-pointer"
+                >
+                  <Search className="w-3.5 h-3.5" /> Research for Case
+                </button>
+              </div>
+
+              {/* Upload Case File Button */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                <div>
+                  <strong className="block text-xs font-bold text-slate-800">Upload Matter Documents</strong>
+                  <span className="block text-[11px] text-slate-500">
+                    Files are indexed into case binder via tenant /legal/ingest workflow.
+                  </span>
+                </div>
+                <input
+                  id="case-doc-upload"
+                  type="file"
+                  accept=".pdf,.docx,.txt"
+                  className="hidden"
+                  onChange={handleUploadToCase}
+                />
+                <label
+                  htmlFor="case-doc-upload"
+                  className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  {uploadingCaseDoc ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  <span>{uploadingCaseDoc ? 'Uploading...' : 'Upload File'}</span>
+                </label>
+              </div>
+
+              {/* Files in Case */}
+              <div className="flex flex-col gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                  Case Documents & Intakes ({selectedCase.files.length})
+                </p>
+                {selectedCase.files.length > 0 ? (
+                  selectedCase.files.map((file: string, i: number) => (
+                    <div
+                      key={i}
+                      className="p-3 rounded-xl bg-white border border-slate-200 text-xs flex items-center justify-between shadow-2xs hover:border-slate-300 transition"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <FileText className="w-4 h-4 text-violet-700" />
+                        <span className="font-semibold text-slate-800">{file}</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                        Indexed
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-xs text-slate-400">
+                    No documents uploaded yet. Click &apos;Upload File&apos; above.
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center p-12 text-xs text-slate-400">
+              Select a case from the left list.
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
 }
 
-function SearchView({
-  navigate,
-  show
-}: {
-  navigate: (view: View) => void;
-  show: (message: string) => void;
-}) {
+// -----------------------------------------------------------------------------
+// SEARCH VIEW (EMBEDDED LEGAL RESEARCH HUB)
+// -----------------------------------------------------------------------------
+function SearchView({ show }: { show: (message: string) => void }) {
   return (
     <div className="flex flex-col gap-4">
       <Heading
         title="Legal Precedent Research Hub"
-        description="Search judgments, binding precedents, statutory citations, and court orders with multi-dimensional filtering."
+        description="AI Semantic & Structured precedent retrieval powered by tenant workflow /legal/search."
       />
       <LegalResearchHub />
     </div>
   );
 }
 
-function Saved({
-  navigate,
-  show
-}: {
-  navigate: (view: View) => void;
-  show: (message: string) => void;
-}) {
+// -----------------------------------------------------------------------------
+// SAVED BRIEFS VIEW
+// -----------------------------------------------------------------------------
+function SavedBriefsView({ show }: { show: (message: string) => void }) {
+  const [briefs] = useState([
+    { title: 'Mens rea requirement in economic offences under CGST', case: 'State v. Mehra', updated: 'Today, 11:20 AM' },
+    { title: 'Section 148A(b) Notice Quashing Precedents (Delhi HC)', case: 'Arora Industries v. DCIT', updated: 'Yesterday' },
+    { title: 'BNS Sec 103(1) transition comparative brief', case: 'Khan v. Union of India', updated: '3 days ago' },
+  ]);
+
   return (
     <>
       <Heading
-        title="Saved Briefs"
-        description="Review grounded research notes saved from case work and precedent search."
+        title="Saved Briefs & Research Notes"
+        description="Review and export grounded research notes saved from case work and precedent searches."
       />
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
@@ -759,23 +1315,23 @@ function Saved({
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
               <th className="p-3.5">Brief Note</th>
-              <th className="p-3.5">Associated Case</th>
-              <th className="p-3.5">Updated</th>
+              <th className="p-3.5">Associated Matter</th>
+              <th className="p-3.5">Last Updated</th>
               <th className="p-3.5 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {['Mens rea in economic offences', 'Arjun bail application — first draft', 'BNS transition note for client call'].map((item, i) => (
-              <tr key={item} className="hover:bg-slate-50/60 transition">
-                <td className="p-3.5 font-bold text-slate-900">{item}</td>
-                <td className="p-3.5 text-slate-600">{cases[i]}</td>
-                <td className="p-3.5 text-slate-500">{i === 0 ? 'Today, 10:42 AM' : 'Yesterday'}</td>
+            {briefs.map((b, i) => (
+              <tr key={i} className="hover:bg-slate-50/60 transition">
+                <td className="p-3.5 font-bold text-slate-900">{b.title}</td>
+                <td className="p-3.5 text-slate-600">{b.case}</td>
+                <td className="p-3.5 text-slate-500">{b.updated}</td>
                 <td className="p-3.5 text-right">
                   <button
-                    onClick={() => navigate('Legal Search')}
+                    onClick={() => show(`Exported brief: '${b.title}'`)}
                     className="text-violet-700 hover:text-violet-900 font-bold text-xs flex items-center gap-1 ml-auto cursor-pointer"
                   >
-                    Open Hub <Download className="w-3.5 h-3.5" />
+                    Export Binder <Download className="w-3.5 h-3.5" />
                   </button>
                 </td>
               </tr>

@@ -72,20 +72,26 @@ export function proxy(request: NextRequest) {
   if (requiredPermission) {
     const isSystemSuperAdmin =
       userRole === 'system_admin' ||
+      userRole === 'admin' ||
+      userRole === 'tenant_admin' ||
       hasPermissionScope(userPermissions, 'system:admin:*') ||
+      hasPermissionScope(userPermissions, 'admin:*:*') ||
       hasPermissionScope(userPermissions, '*:*:*');
     const isAuthorized = isSystemSuperAdmin || hasPermissionScope(userPermissions, requiredPermission);
 
     if (!isAuthorized) {
       const fallbackRoute =
         getDefaultRedirectForPermissions(userPermissions, userRole, domainId, defaultRoute) ||
-        defaultRoute ||
-        (domainId ? `/${domainId}` : null);
+        (domainId ? `/${domainId}` : null) ||
+        '/legal';
 
       if (fallbackRoute && fallbackRoute !== pathname) {
         return NextResponse.redirect(new URL(fallbackRoute, request.url));
       }
-      return NextResponse.redirect(new URL('/login', request.url));
+      if (pathname !== '/legal') {
+        return NextResponse.redirect(new URL('/legal', request.url));
+      }
+      return NextResponse.next();
     }
   }
 

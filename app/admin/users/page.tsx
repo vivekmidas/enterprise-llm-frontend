@@ -397,22 +397,25 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                 <select
                   value={newUserRoleId}
                   onChange={(e) => setNewUserRoleId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-indigo-500 focus:outline-none font-semibold"
                 >
-                  {rolesList.length > 0 ? (
-                    rolesList.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.role_name} ({r.role_type}) — {r.permissions?.length || 0} permissions
-                      </option>
-                    ))
-                  ) : (
-                    <>
+                  {(() => {
+                    const filteredRoles = rolesList.filter(
+                      (r) =>
+                        r.is_system_preset ||
+                        !r.customer_id ||
+                        String(r.customer_id) === String(newUserCustomerId)
+                    );
+                    return filteredRoles.length > 0 ? (
+                      filteredRoles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.role_name} ({r.role_type}) {r.customer_id ? '— [Tenant Custom]' : '— [System]'}
+                        </option>
+                      ))
+                    ) : (
                       <option value="tenant_user">Standard User (tenant_user)</option>
-                      <option value="para_legal">Paralegal (para_legal)</option>
-                      <option value="legal_analyst">Legal Analyst (legal_analyst)</option>
-                      <option value="tenant_admin">Tenant Admin (tenant_admin)</option>
-                    </>
-                  )}
+                    );
+                  })()}
                 </select>
               </div>
               <div className="flex justify-end gap-3 pt-4">
@@ -471,23 +474,25 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                 <select
                   value={editUserRoleId}
                   onChange={(e) => setEditUserRoleId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2.5 text-sm text-black focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-200 p-2.5 text-sm text-black focus:border-indigo-500 focus:outline-none font-semibold"
                 >
-                  {rolesList.length > 0 ? (
-                    rolesList.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.role_name} ({r.role_type}) — {r.permissions?.length || 0} permissions
-                      </option>
-                    ))
-                  ) : (
-                    <>
+                  {(() => {
+                    const filteredRoles = rolesList.filter(
+                      (r) =>
+                        r.is_system_preset ||
+                        !r.customer_id ||
+                        (editUserCustomerId !== 'system' && String(r.customer_id) === String(editUserCustomerId))
+                    );
+                    return filteredRoles.length > 0 ? (
+                      filteredRoles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.role_name} ({r.role_type}) {r.customer_id ? '— [Tenant Custom]' : '— [System]'}
+                        </option>
+                      ))
+                    ) : (
                       <option value="tenant_user">Standard User (tenant_user)</option>
-                      <option value="para_legal">Paralegal (para_legal)</option>
-                      <option value="legal_analyst">Legal Analyst (legal_analyst)</option>
-                      <option value="tenant_admin">Tenant Admin (tenant_admin)</option>
-                      <option value="system_admin">System Admin (system_admin)</option>
-                    </>
-                  )}
+                    );
+                  })()}
                 </select>
               </div>
 

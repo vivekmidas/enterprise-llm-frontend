@@ -1134,6 +1134,40 @@ export const api = {
     return res.json();
   },
 
+  ingestLegalDocument: async (payload: {
+    title?: string;
+    case_id?: string;
+    document_text?: string;
+    corpus_type?: string;
+    metadata?: any;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/ingest`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Document ingestion failed');
+    return res.json();
+  },
+
+  triggerWebhookWorkflow: async (webhookPath: string, payload: any) => {
+    const cleanPath = webhookPath.startsWith('/') ? webhookPath.slice(1) : webhookPath;
+    const res = await fetch(`${BACKEND_URL}/webhooks/run/${cleanPath}`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      let detail = 'Webhook workflow execution failed';
+      try {
+        const data = await res.json();
+        detail = data.detail || detail;
+      } catch {}
+      throw new Error(detail);
+    }
+    return res.json();
+  },
+
   getCasePrecedents: async (caseId: string) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/cases/${caseId}/precedents`, {
       method: 'GET',
@@ -1215,8 +1249,57 @@ export const api = {
     return true;
   },
 
-  getRoutePermissions: async () => {
-    const res = await fetch(`${BACKEND_URL}/roles/route-permissions`, {
+  // BLOCK COMMENT: CANONICAL MODULE SOT API CLIENT METHODS
+  getModules: async (customerId?: string) => {
+    const url = customerId
+      ? `${BACKEND_URL}/roles/modules?customer_id=${encodeURIComponent(customerId)}`
+      : `${BACKEND_URL}/roles/modules`;
+    const res = await fetch(url, { headers: getHeaders() });
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  createCustomModule: async (data: {
+    id: string;
+    customer_id?: string;
+    module: string;
+    submodule?: string;
+    label: string;
+    description?: string;
+    route_patterns: string[];
+    icon?: string;
+    display_order?: number;
+    actions?: Array<{ action: string; is_route_guard?: boolean; label: string; description?: string }>;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/roles/modules/custom`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create custom module');
+    }
+    return res.json();
+  },
+
+  deleteCustomModule: async (moduleId: string) => {
+    const res = await fetch(`${BACKEND_URL}/roles/modules/${encodeURIComponent(moduleId)}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to delete module');
+    }
+    return true;
+  },
+
+  getRoutePermissions: async (customerId?: string) => {
+    const url = customerId
+      ? `${BACKEND_URL}/roles/route-permissions?customer_id=${encodeURIComponent(customerId)}`
+      : `${BACKEND_URL}/roles/route-permissions`;
+    const res = await fetch(url, {
       headers: getHeaders(),
     });
     if (!res.ok) return [];
@@ -1289,6 +1372,19 @@ export const api = {
       throw new Error(err.detail || 'Failed to delete route permission binding');
     }
     return true;
+  },
+
+  // BLOCK COMMENT: SYNC / RESEED DEFAULT ROUTE PERMISSIONS API METHOD
+  syncDefaultRoutePermissions: async () => {
+    const res = await fetch(`${BACKEND_URL}/roles/route-permissions/sync-defaults`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to sync default route permissions');
+    }
+    return res.json();
   },
 
   // BLOCK COMMENT: REQUIREMENT 3 SYSTEM SQL BACKUP DUMP EXPORTER METHOD

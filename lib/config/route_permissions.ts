@@ -14,31 +14,92 @@ export interface RoutePermissionRule {
 
 // Default baseline route permissions
 export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
-  { pattern: "/workflow-builder/new", permission: "workflow:builder:create" },
-  { pattern: "/workflow-builder/*/edit", permission: "workflow:builder:edit" },
-  { pattern: "/workflow-builder", permission: "workflow:builder:view" },
-  { pattern: "/workflow-builder/**", permission: "workflow:builder:view" },
-  { pattern: "/admin/users", permission: "admin:user_management:read" },
-  { pattern: "/admin/users/**", permission: "admin:user_management:read" },
-  { pattern: "/admin/roles", permission: "admin:role_management:view" },
-  { pattern: "/admin/roles/**", permission: "admin:role_management:view" },
-  { pattern: "/admin/provider-presets", permission: "admin:provider_presets:view" },
-  { pattern: "/admin/provider-presets/**", permission: "admin:provider_presets:view" },
-  { pattern: "/admin/playground", permission: "admin:playground:view" },
-  { pattern: "/admin/playground/**", permission: "admin:playground:view" },
-  { pattern: "/admin/customers", permission: "admin:customer_management:view" },
-  { pattern: "/admin/customers/**", permission: "admin:customer_management:view" },
-  { pattern: "/admin/nodes", permission: "admin:node_management:view" },
-  { pattern: "/admin/permissions", permission: "admin:permissions:view" },
-  { pattern: "/admin/permissions/**", permission: "admin:permissions:view" },
-  { pattern: "/admin/backup", permission: "admin:backup:manage" },
-  { pattern: "/admin/backup/**", permission: "admin:backup:manage" },
-  { pattern: "/admin/domains", permission: "admin:domains:manage" },
-  { pattern: "/admin/domains/**", permission: "admin:domains:manage" },
-  { pattern: "/admin", permission: "admin:dashboard:view" },
-  { pattern: "/admin/**", permission: "admin:dashboard:view" },
-  { pattern: "/legal", permission: "legal:research:query" },
-  { pattern: "/legal/**", permission: "legal:research:query" },
+  // Workflow Builder & Demo Flows
+  { pattern: "/workflow-builder/new", permission: "workflow:builder:create", module: "workflows", submodule: "builder", label: "Create Workflow Canvas" },
+  { pattern: "/workflow-builder/*/edit", permission: "workflow:builder:edit", module: "workflows", submodule: "builder", label: "Edit Workflow Canvas" },
+  { pattern: "/workflow-builder", permission: "workflow:builder:view", module: "workflows", submodule: "builder", label: "Workflow Builder" },
+  { pattern: "/workflow-builder/**", permission: "workflow:builder:view", module: "workflows", submodule: "builder", label: "Workflow Builder Sub-routes" },
+  { pattern: "/demo-flows", permission: "workflow:builder:view", module: "workflows", submodule: "builder", label: "Demo Flows" },
+  { pattern: "/demo-flows/**", permission: "workflow:builder:view", module: "workflows", submodule: "builder", label: "Demo Flows Sub-routes" },
+
+  // Users & Roles
+  { pattern: "/admin/users", permission: "admin:user_management:read", module: "admin", submodule: "user_management", label: "Users" },
+  { pattern: "/admin/users/**", permission: "admin:user_management:read", module: "admin", submodule: "user_management", label: "Users Sub-routes" },
+  { pattern: "/admin/roles", permission: "admin:role_management:view", module: "admin", submodule: "role_management", label: "Roles" },
+  { pattern: "/admin/roles/**", permission: "admin:role_management:view", module: "admin", submodule: "role_management", label: "Roles Sub-routes" },
+
+  // Presets & Playground
+  { pattern: "/admin/provider-presets", permission: "admin:provider_presets:view", module: "admin", submodule: "provider_presets", label: "Provider Presets" },
+  { pattern: "/admin/provider-presets/**", permission: "admin:provider_presets:view", module: "admin", submodule: "provider_presets", label: "Provider Presets Sub-routes" },
+  { pattern: "/admin/playground", permission: "admin:playground:view", module: "admin", submodule: "playground", label: "Retrieval Playground" },
+  { pattern: "/admin/playground/**", permission: "admin:playground:view", module: "admin", submodule: "playground", label: "Retrieval Playground Sub-routes" },
+
+  // Customers / Tenants
+  { pattern: "/admin/customers", permission: "admin:customer_management:view", module: "admin", submodule: "customer_management", label: "Customers" },
+  { pattern: "/admin/customers/**", permission: "admin:customer_management:view", module: "admin", submodule: "customer_management", label: "Customers Sub-routes" },
+
+  // Nodes Catalog
+  { pattern: "/admin/nodes", permission: "admin:node_management:view", module: "admin", submodule: "node_management", label: "Nodes" },
+  { pattern: "/admin/nodes/**", permission: "admin:node_management:view", module: "admin", submodule: "node_management", label: "Nodes Sub-routes" },
+
+  // Permissions Registry
+  { pattern: "/admin/permissions", permission: "admin:permissions:view", module: "admin", submodule: "permissions", label: "Permissions Registry" },
+  { pattern: "/admin/permissions/**", permission: "admin:permissions:view", module: "admin", submodule: "permissions", label: "Permissions Registry Sub-routes" },
+
+  // Backup & Domains
+  { pattern: "/admin/backup", permission: "admin:backup:manage", module: "admin", submodule: "backup", label: "SQL Backup Exporter" },
+  { pattern: "/admin/backup/**", permission: "admin:backup:manage", module: "admin", submodule: "backup", label: "SQL Backup Exporter Sub-routes" },
+  { pattern: "/admin/domains", permission: "admin:domains:manage", module: "admin", submodule: "domains", label: "Domain Registry" },
+  { pattern: "/admin/domains/**", permission: "admin:domains:manage", module: "admin", submodule: "domains", label: "Domain Registry Sub-routes" },
+
+  // LLM Profiles
+  { pattern: "/admin/profiles", permission: "admin:profiles:view", module: "admin", submodule: "profiles", label: "LLM Profiles" },
+  { pattern: "/admin/profiles/**", permission: "admin:profiles:view", module: "admin", submodule: "profiles", label: "LLM Profiles Sub-routes" },
+
+  // Knowledge Bases
+  { pattern: "/admin/knowledge", permission: "admin:knowledge:view", module: "admin", submodule: "knowledge", label: "Knowledge Bases" },
+  { pattern: "/admin/knowledge/**", permission: "admin:knowledge:view", module: "admin", submodule: "knowledge", label: "Knowledge Bases Sub-routes" },
+  { pattern: "/knowledge", permission: "kb:base:view", module: "knowledge", submodule: "base", label: "Knowledge Portal" },
+  { pattern: "/knowledge/**", permission: "kb:base:view", module: "knowledge", submodule: "base", label: "Knowledge Portal Sub-routes" },
+
+  // Logs
+  { pattern: "/admin/logs", permission: "admin:logs:view", module: "admin", submodule: "logs", label: "Audit Logs" },
+  { pattern: "/admin/logs/**", permission: "admin:logs:view", module: "admin", submodule: "logs", label: "Audit Logs Sub-routes" },
+  { pattern: "/logs", permission: "admin:logs:view", module: "admin", submodule: "logs", label: "System Logs" },
+  { pattern: "/logs/**", permission: "admin:logs:view", module: "admin", submodule: "logs", label: "System Logs Sub-routes" },
+
+  // OAuth
+  { pattern: "/admin/oauth", permission: "admin:oauth:view", module: "admin", submodule: "oauth", label: "OAuth Integrations" },
+  { pattern: "/admin/oauth/**", permission: "admin:oauth:view", module: "admin", submodule: "oauth", label: "OAuth Integrations Sub-routes" },
+  { pattern: "/oauth", permission: "admin:oauth:view", module: "admin", submodule: "oauth", label: "OAuth Portal" },
+  { pattern: "/oauth/**", permission: "admin:oauth:view", module: "admin", submodule: "oauth", label: "OAuth Portal Sub-routes" },
+
+  // Workflows & Triggers
+  { pattern: "/admin/workflows", permission: "admin:workflows:view", module: "admin", submodule: "workflows", label: "Workflows" },
+  { pattern: "/admin/workflows/**", permission: "admin:workflows:view", module: "admin", submodule: "workflows", label: "Workflows Sub-routes" },
+  { pattern: "/admin/triggers", permission: "admin:triggers:view", module: "admin", submodule: "triggers", label: "Triggers" },
+  { pattern: "/admin/triggers/**", permission: "admin:triggers:view", module: "admin", submodule: "triggers", label: "Triggers Sub-routes" },
+
+  // Metrics
+  { pattern: "/admin/metrics", permission: "admin:metrics:view", module: "admin", submodule: "metrics", label: "Metrics & Telemetry" },
+  { pattern: "/admin/metrics/**", permission: "admin:metrics:view", module: "admin", submodule: "metrics", label: "Metrics Sub-routes" },
+  { pattern: "/metrics", permission: "admin:metrics:view", module: "admin", submodule: "metrics", label: "Metrics Portal" },
+  { pattern: "/metrics/**", permission: "admin:metrics:view", module: "admin", submodule: "metrics", label: "Metrics Portal Sub-routes" },
+
+  // Company Settings
+  { pattern: "/admin/company-settings", permission: "admin:tenant_settings:configure", module: "admin", submodule: "tenant_settings", label: "Company Settings" },
+  { pattern: "/admin/company-settings/**", permission: "admin:tenant_settings:configure", module: "admin", submodule: "tenant_settings", label: "Company Settings Sub-routes" },
+
+  // Admin & System
+  { pattern: "/admin", permission: "admin:dashboard:view", module: "admin", submodule: "dashboard", label: "Admin Dashboard" },
+  { pattern: "/system", permission: "admin:dashboard:view", module: "admin", submodule: "dashboard", label: "System Overview" },
+  { pattern: "/system/**", permission: "admin:dashboard:view", module: "admin", submodule: "dashboard", label: "System Sub-routes" },
+
+  // Legal
+  { pattern: "/legal", permission: "legal:research:query", module: "legal", submodule: "research", label: "Legal AI Platform" },
+  { pattern: "/legal/**", permission: "legal:research:query", module: "legal", submodule: "research", label: "Legal AI Sub-routes" },
+  { pattern: "/legal-research", permission: "legal:research:query", module: "legal", submodule: "research", label: "Legal Research" },
+  { pattern: "/legal-research/**", permission: "legal:research:query", module: "legal", submodule: "research", label: "Legal Research Sub-routes" },
 ];
 
 

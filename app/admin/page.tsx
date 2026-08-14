@@ -172,11 +172,19 @@ function AdminDashboardContent() {
           hasPermissionScope(perms, '*:*:*') ||
           filteredTabs.length > 0 ||
           userData.role === 'admin' ||
-          userData.role === 'system_admin';
+          userData.role === 'system_admin' ||
+          userData.role === 'tenant_admin' ||
+          userData.role_type === 'admin' ||
+          userData.role_type === 'system_admin' ||
+          userData.role_type === 'tenant_admin';
 
         if (!canAccessAdmin) {
           const fallback = getDefaultRedirectForPermissions(perms, userData.role) || '/legal';
-          router.push(fallback);
+          if (fallback !== '/admin') {
+            router.push(fallback);
+          } else {
+            router.push('/legal');
+          }
           return;
         }
         setUserRole(userData.role);
@@ -199,7 +207,7 @@ function AdminDashboardContent() {
     }
 
     initializeUser();
-  }, [isAuthenticated, router]);
+  }, []);
 
   // Sync active tab from URL search parameters dynamically
   useEffect(() => {
