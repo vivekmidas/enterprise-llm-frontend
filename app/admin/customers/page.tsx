@@ -337,7 +337,7 @@ export default function CustomersTab() {
       // ==============================================================================
       // ARRAY SAFEGUARD FOR CUSTOMER NODES
       // ==============================================================================
-      setCustomerNodes(Array.isArray(nodes) ? nodes : (nodes?.nodes || nodes?.data || []));
+      setCustomerNodes( nodes?.configs || []);
     } catch (err: any) {
       alert('Failed to load customer nodes: ' + err.message);
       setCustomerNodes([]);
