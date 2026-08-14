@@ -35,16 +35,25 @@ export default function LoginPage() {
       const data = await api.login({ email, password });
       localStorage.setItem('token', data.token);
 
-      // Set a cookie so the middleware can access the token
+      // Set a cookie so the proxy/middleware can access the token
       // path=/ ensures the cookie is available for all routes
       // max-age is set to 7 days (60s * 60m * 24h * 7d)
       document.cookie = `token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 
-      // Fetch user profile & permissions for dynamic routing
+      // Fetch user profile & permissions for dynamic domain routing
       const currentUser = await api.getCurrentUser().catch(() => null);
       const userPermissions = currentUser?.permissions || data.permissions || [];
-      const targetRoute = getDefaultRedirectForPermissions(userPermissions, data.role);
-      router.push(targetRoute);
+      const userRole = currentUser?.role || data.role;
+      const domainId = currentUser?.domain_id || data.domain_id;
+      const defaultRoute = data.default_route || currentUser?.default_route;
+
+      const targetRoute =
+        defaultRoute ||
+        getDefaultRedirectForPermissions(userPermissions, userRole, domainId) ||
+        (domainId ? `/${domainId}` : '/legal');
+
+      // Full navigation guarantees cookie synchronization with proxy
+      window.location.href = targetRoute;
     } catch (err: any) {
       const isInvalidCreds =
         err?.message === 'Invalid credentials' ||

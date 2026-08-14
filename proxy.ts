@@ -42,24 +42,50 @@ export function proxy(request: NextRequest) {
 
   // Extract JWT claims at Edge runtime
   const payload = parseJwtPayload(token);
+  if (!payload) {
+    if (!isPublicPath) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    return NextResponse.next();
+  }
+
   const userPermissions: string[] = payload?.permissions || [];
   const userRole: string = payload?.role || '';
+  const domainId: string | undefined = payload?.domain_id;
+  const defaultRoute: string | undefined = payload?.default_route;
 
   // Case 2: Authenticated User Accessing Auth Pages (/login, /signup)
   if (isPublicPath && pathname !== '/') {
-    const defaultLandingPage = getDefaultRedirectForPermissions(userPermissions, userRole);
-    return NextResponse.redirect(new URL(defaultLandingPage, request.url));
+    const defaultLandingPage =
+      getDefaultRedirectForPermissions(userPermissions, userRole, domainId, defaultRoute) ||
+      defaultRoute ||
+      (domainId ? `/${domainId}` : null);
+
+    if (defaultLandingPage && defaultLandingPage !== pathname) {
+      return NextResponse.redirect(new URL(defaultLandingPage, request.url));
+    }
+    return NextResponse.next();
   }
 
   // Case 3: URL Route-Permission Authorization Guard
   const requiredPermission = getRequiredPermissionForPath(pathname);
   if (requiredPermission) {
-    const isSystemSuperAdmin = userRole === 'system_admin' || hasPermissionScope(userPermissions, 'system:admin:*');
+    const isSystemSuperAdmin =
+      userRole === 'system_admin' ||
+      hasPermissionScope(userPermissions, 'system:admin:*') ||
+      hasPermissionScope(userPermissions, '*:*:*');
     const isAuthorized = isSystemSuperAdmin || hasPermissionScope(userPermissions, requiredPermission);
 
     if (!isAuthorized) {
-      const fallbackRoute = getDefaultRedirectForPermissions(userPermissions, userRole);
-      return NextResponse.redirect(new URL(fallbackRoute, request.url));
+      const fallbackRoute =
+        getDefaultRedirectForPermissions(userPermissions, userRole, domainId, defaultRoute) ||
+        defaultRoute ||
+        (domainId ? `/${domainId}` : null);
+
+      if (fallbackRoute && fallbackRoute !== pathname) {
+        return NextResponse.redirect(new URL(fallbackRoute, request.url));
+      }
+      return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 

@@ -18,8 +18,15 @@ import {
 // Component: frontend/app/admin/roles/page.tsx
 // Description: Manages 3-tier Module -> Submodule -> Permission roles and System Admin Route Permission Bindings.
 
-export default function RolesTab() {
+interface RolesTabProps {
+  userRole?: string | null;
+  customerId?: string | null;
+}
+
+export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
+  const isSystemAdmin = userRole === 'system_admin';
   const [roles, setRoles] = useState<any[]>([]);
+  const [customersList, setCustomersList] = useState<any[]>([]);
   const [permissionsGrouped, setPermissionsGrouped] = useState<Record<string, any>>({});
   // BLOCK COMMENT: FLAT PERMISSIONS LIST & MODAL FILTER STATES (DEFAULT LIST VIEW)
   const [permissionsFlatList, setPermissionsFlatList] = useState<any[]>([]);
@@ -30,12 +37,14 @@ export default function RolesTab() {
   const [routePermissions, setRoutePermissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTenantScope, setSelectedTenantScope] = useState<string>('all');
 
   // Modal State for Roles
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [editingRole, setEditingRole] = useState<any | null>(null);
   const [roleName, setRoleName] = useState('');
   const [roleDescription, setRoleDescription] = useState('');
+  const [roleCustomerId, setRoleCustomerId] = useState<string>('system');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -65,12 +74,14 @@ export default function RolesTab() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [rolesData, permsData, routesData] = await Promise.all([
+      const [rolesData, permsData, routesData, custsData] = await Promise.all([
         api.request('/roles').catch(() => []),
         api.request('/roles/permissions').catch(() => ({ grouped_by_module_and_submodule: {}, permissions: [] })),
         api.getRoutePermissions().catch(() => []),
+        api.getCustomers().catch(() => []),
       ]);
       setRoles(rolesData || []);
+      setCustomersList(custsData || []);
       setPermissionsGrouped(permsData.grouped_by_module_and_submodule || permsData.grouped_by_module || {});
       setPermissionsFlatList(permsData.permissions || []);
       setRoutePermissions(routesData || []);
@@ -223,6 +234,7 @@ export default function RolesTab() {
     setEditingRole(null);
     setRoleName('');
     setRoleDescription('');
+    setRoleCustomerId(isSystemAdmin ? 'system' : (customerId || 'system'));
     setSelectedPermissions(['legal:research:query', 'kb:base:view', 'admin:dashboard:view']); // Default baseline
     setErrorMessage(null);
     // BLOCK COMMENT: RESET MODAL FILTERS & DEFAULT TO LIST VIEW
@@ -237,6 +249,7 @@ export default function RolesTab() {
     setEditingRole(role);
     setRoleName(role.role_name);
     setRoleDescription(role.description || '');
+    setRoleCustomerId(role.customer_id ? String(role.customer_id) : 'system');
     setSelectedPermissions(role.permissions || []);
     setErrorMessage(null);
     // BLOCK COMMENT: RESET MODAL FILTERS & DEFAULT TO LIST VIEW
@@ -275,12 +288,14 @@ export default function RolesTab() {
     setSaving(true);
     setErrorMessage(null);
     try {
+      const selectedCid = roleCustomerId === 'system' ? null : roleCustomerId;
       if (editingRole) {
         await api.request(`/roles/${editingRole.id}`, {
           method: 'PUT',
           body: JSON.stringify({
             role_name: roleName,
             description: roleDescription,
+            customer_id: selectedCid,
             permission_ids: selectedPermissions,
           }),
         });
@@ -291,6 +306,7 @@ export default function RolesTab() {
             role_name: roleName,
             role_type: 'custom',
             description: roleDescription,
+            customer_id: selectedCid,
             permission_ids: selectedPermissions,
           }),
         });
@@ -326,6 +342,24 @@ export default function RolesTab() {
   };
 
 
+  // BLOCK COMMENT: FILTER ROLES BY TENANT SCOPE AND SEARCH QUERY
+  const filteredRoles = roles.filter((role) => {
+    if (selectedTenantScope === 'system') {
+      if (!role.is_system_preset && role.customer_id) return false;
+    } else if (selectedTenantScope !== 'all') {
+      if (String(role.customer_id) !== selectedTenantScope) return false;
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchName = (role.role_name || '').toLowerCase().includes(q);
+      const matchType = (role.role_type || '').toLowerCase().includes(q);
+      const matchDesc = (role.description || '').toLowerCase().includes(q);
+      if (!matchName && !matchType && !matchDesc) return false;
+    }
+    return true;
+  });
+
   return (
     <section className="space-y-6">
       {/* Light Header Section */}
@@ -353,7 +387,7 @@ export default function RolesTab() {
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
           >
             <Lock className="w-3.5 h-3.5" />
-            <span>+ Route Bindings Portal</span>
+            <span>Route Bindings Portal</span>
           </button>
 
           <button
@@ -361,7 +395,7 @@ export default function RolesTab() {
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>+ Add Module & Scopes</span>
+            <span>Add Module & Scopes</span>
           </button>
 
           <button
@@ -374,14 +408,51 @@ export default function RolesTab() {
         </div>
       </div>
 
+      {/* BLOCK COMMENT: SEARCH & TENANT SCOPE FILTER TOOLBAR */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search roles by name, type, or description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:border-indigo-500 text-black placeholder-gray-400"
+          />
+        </div>
+
+        {isSystemAdmin && (
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="text-xs font-bold uppercase text-gray-500 font-mono shrink-0">Tenant Scope:</span>
+            <select
+              value={selectedTenantScope}
+              onChange={(e) => setSelectedTenantScope(e.target.value)}
+              className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white font-semibold text-black focus:outline-none focus:border-indigo-500 cursor-pointer w-full sm:w-64"
+            >
+              <option value="all">All Roles (System + All Tenants)</option>
+              <option value="system">System Presets & System-wide Only</option>
+              {customersList.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  Tenant: {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
       {/* Roles Cards Grid */}
       {loading ? (
         <div className="p-12 text-center text-gray-500 text-sm bg-white rounded-xl border border-gray-200 shadow-sm">
           Loading RBAC Roles...
         </div>
+      ) : filteredRoles.length === 0 ? (
+        <div className="p-12 text-center text-gray-500 text-sm bg-white rounded-xl border border-gray-200 shadow-sm">
+          No roles found matching the current filters.
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {roles.map((role) => (
+          {filteredRoles.map((role) => (
             <div
               key={role.id}
               className="bg-white border border-gray-200 hover:border-indigo-300 rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
@@ -397,9 +468,13 @@ export default function RolesTab() {
                     <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
                       <Lock className="w-3 h-3" /> System Preset
                     </span>
+                  ) : role.customer_id ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                      <Building className="w-3 h-3" /> {customersList.find((c) => String(c.id) === String(role.customer_id))?.name || `Tenant ${role.customer_id}`}
+                    </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <UserCheck className="w-3 h-3" /> Custom Role
+                      <UserCheck className="w-3 h-3" /> System-wide Custom
                     </span>
                   )}
                 </div>
@@ -501,7 +576,7 @@ export default function RolesTab() {
                   />
                 </div>
 
-                <div className="md:col-span-8">
+                <div className="md:col-span-5">
                   <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1">
                     Description
                   </label>
@@ -512,6 +587,33 @@ export default function RolesTab() {
                     placeholder="e.g. Full legal research and document access permissions"
                     className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black focus:border-indigo-500 focus:outline-none"
                   />
+                </div>
+
+                <div className="md:col-span-3">
+                  <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1">
+                    Scope / Tenant
+                  </label>
+                  {isSystemAdmin ? (
+                    <select
+                      disabled={editingRole?.is_system_preset}
+                      value={roleCustomerId}
+                      onChange={(e) => setRoleCustomerId(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-black font-semibold bg-white focus:border-indigo-500 focus:outline-none disabled:bg-gray-50 disabled:text-gray-500 cursor-pointer"
+                    >
+                      <option value="system">System-wide (All Tenants)</option>
+                      {customersList.map((c) => (
+                        <option key={c.id} value={String(c.id)}>
+                          Tenant: {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="px-2.5 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-700 font-semibold truncate">
+                      {customersList.find((c) => String(c.id) === String(customerId))?.name
+                        ? `Tenant: ${customersList.find((c) => String(c.id) === String(customerId))?.name}`
+                        : 'Current Tenant Account'}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -580,22 +682,20 @@ export default function RolesTab() {
                         <button
                           type="button"
                           onClick={() => setModalViewMode('list')}
-                          className={`px-2 py-1 rounded font-semibold transition cursor-pointer ${
-                            modalViewMode === 'list'
+                          className={`px-2 py-1 rounded font-semibold transition cursor-pointer ${modalViewMode === 'list'
                               ? 'bg-indigo-600 text-white shadow-xs'
                               : 'text-gray-600 hover:text-gray-900'
-                          }`}
+                            }`}
                         >
                           List View
                         </button>
                         <button
                           type="button"
                           onClick={() => setModalViewMode('grouped')}
-                          className={`px-2 py-1 rounded font-semibold transition cursor-pointer ${
-                            modalViewMode === 'grouped'
+                          className={`px-2 py-1 rounded font-semibold transition cursor-pointer ${modalViewMode === 'grouped'
                               ? 'bg-indigo-600 text-white shadow-xs'
                               : 'text-gray-600 hover:text-gray-900'
-                          }`}
+                            }`}
                         >
                           Grouped
                         </button>
@@ -682,16 +782,15 @@ export default function RolesTab() {
                             <div
                               key={p.id}
                               onClick={() => handleTogglePermission(p.id)}
-                              className={`grid grid-cols-12 gap-3 items-center px-4 py-2.5 text-xs transition cursor-pointer ${
-                                isChecked ? 'bg-indigo-50/60' : 'hover:bg-gray-50/80'
-                              }`}
+                              className={`grid grid-cols-12 gap-3 items-center px-4 py-2.5 text-xs transition cursor-pointer ${isChecked ? 'bg-indigo-50/60' : 'hover:bg-gray-50/80'
+                                }`}
                             >
                               {/* Col 1: Checkbox + Permission Key */}
                               <div className="col-span-4 flex items-center gap-2.5 min-w-0">
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
-                                  onChange={() => {}}
+                                  onChange={() => { }}
                                   className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer pointer-events-none shrink-0"
                                 />
                                 <code className="font-mono text-xs font-bold text-gray-900 truncate" title={p.id}>
@@ -714,13 +813,12 @@ export default function RolesTab() {
                               {/* Col 3: Target Layer */}
                               <div className="col-span-1">
                                 <span
-                                  className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                                    p.target_layer === 'both'
+                                  className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${p.target_layer === 'both'
                                       ? 'bg-emerald-100 text-emerald-800'
                                       : p.target_layer === 'frontend'
-                                      ? 'bg-blue-100 text-blue-800'
-                                      : 'bg-purple-100 text-purple-800'
-                                  }`}
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : 'bg-purple-100 text-purple-800'
+                                    }`}
                                 >
                                   {p.target_layer || 'both'}
                                 </span>
@@ -784,11 +882,10 @@ export default function RolesTab() {
                                         return (
                                           <label
                                             key={p.id}
-                                            className={`flex items-start gap-2 p-2 rounded-lg border text-xs cursor-pointer ${
-                                              isChecked
+                                            className={`flex items-start gap-2 p-2 rounded-lg border text-xs cursor-pointer ${isChecked
                                                 ? 'bg-indigo-50/70 border-indigo-300 text-gray-900'
                                                 : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                                            }`}
+                                              }`}
                                           >
                                             <input
                                               type="checkbox"

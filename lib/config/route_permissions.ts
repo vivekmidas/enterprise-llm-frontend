@@ -114,22 +114,50 @@ export function hasPermissionScope(userPermissions: string[], requiredPermission
 }
 
 /**
- * Dynamically resolves the best default destination route based on a user's permissions.
+ * Dynamically resolves the best default destination route based on a user's permissions and domain.
+ * Returns null if user has no matching authorized route permissions.
  */
-export function getDefaultRedirectForPermissions(userPermissions: string[], userRole?: string): string {
+export function getDefaultRedirectForPermissions(
+  userPermissions: string[],
+  userRole?: string,
+  domainId?: string,
+  defaultRoute?: string
+): string | null {
   const perms = userPermissions || [];
-  if (userRole === "system_admin" || hasPermissionScope(perms, "*:*:*") || hasPermissionScope(perms, "admin:*:*")) {
+  const normalizedRole = (userRole || "").toLowerCase();
+
+  // Admin & Tenant Admin roles route directly to /admin
+  if (
+    normalizedRole === "system_admin" ||
+    normalizedRole === "admin" ||
+    normalizedRole === "tenant_admin" ||
+    hasPermissionScope(perms, "*:*:*") ||
+    hasPermissionScope(perms, "admin:*:*") ||
+    hasPermissionScope(perms, "admin:dashboard:view") ||
+    perms.some((p) => p.startsWith("admin:"))
+  ) {
     return "/admin";
   }
-  if (hasPermissionScope(perms, "legal:research:query") || hasPermissionScope(perms, "legal:*:*")) {
+
+  if (defaultRoute) return defaultRoute;
+
+  if (
+    hasPermissionScope(perms, "legal:research:query") ||
+    hasPermissionScope(perms, "legal:*:*") ||
+    hasPermissionScope(perms, "kb:base:view") ||
+    hasPermissionScope(perms, "kb:*:*")
+  ) {
     return "/legal";
   }
-  if (hasPermissionScope(perms, "workflow:builder:view") || hasPermissionScope(perms, "workflow:*:*")) {
+  if (
+    hasPermissionScope(perms, "workflow:builder:view") ||
+    hasPermissionScope(perms, "workflow:*:*")
+  ) {
     return "/workflow-builder";
   }
-  if (hasPermissionScope(perms, "kb:base:view") || hasPermissionScope(perms, "kb:*:*")) {
-    return "/legal";
+  if (domainId) {
+    return `/${domainId}`;
   }
-  return "/legal";
+  return null;
 }
 

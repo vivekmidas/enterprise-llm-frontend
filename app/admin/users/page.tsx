@@ -37,13 +37,14 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
-  const [newUserRole, setNewUserRole] = useState<string>('tenant_user');
+  const [newUserRoleId, setNewUserRoleId] = useState<string>('');
   const [newUserCustomerId, setNewUserCustomerId] = useState<string>('');
 
   // Edit User Role Modal States
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<any | null>(null);
-  const [editUserRole, setEditUserRole] = useState<string>('tenant_user');
+  const [editUserRoleId, setEditUserRoleId] = useState<string>('');
+  const [editUserCustomerId, setEditUserCustomerId] = useState<string>('system');
   const [updating, setUpdating] = useState(false);
 
   const fetchUsers = async () => {
@@ -57,6 +58,9 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
       setUsers(usrs || []);
       setRolesList(rls || []);
       setCustomersList(custs || []);
+      if (rls && rls.length > 0 && !newUserRoleId) {
+        setNewUserRoleId(String(rls[0].id));
+      }
       if (custs && custs.length > 0 && !newUserCustomerId) {
         setNewUserCustomerId(String(custs[0].id));
       }
@@ -74,11 +78,13 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const selectedRole = rolesList.find((r) => String(r.id) === String(newUserRoleId));
       await api.createUser({
         name: newUserName,
         email: newUserEmail,
         password: newUserPassword,
-        role: newUserRole,
+        role: selectedRole ? selectedRole.role_type : (newUserRoleId || 'tenant_user'),
+        role_id: selectedRole ? selectedRole.id : (newUserRoleId || undefined),
         customer_id: newUserCustomerId ? Number(newUserCustomerId) : undefined,
       });
       setShowAddUserModal(false);
@@ -93,7 +99,11 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
 
   const handleOpenEditUserModal = (user: any) => {
     setEditingUser(user);
-    setEditUserRole(user.role || 'tenant_user');
+    const matchedRole = rolesList.find(
+      (r) => String(r.id) === String(user.role_id) || r.role_type === user.role || r.role_name === user.role
+    );
+    setEditUserRoleId(matchedRole ? String(matchedRole.id) : (user.role_id || user.role || 'tenant_user'));
+    setEditUserCustomerId(user.customer_id ? String(user.customer_id) : 'system');
     setShowEditUserModal(true);
   };
 
@@ -102,8 +112,11 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
     if (!editingUser) return;
     setUpdating(true);
     try {
+      const selectedRole = rolesList.find((r) => String(r.id) === String(editUserRoleId));
       await api.updateUserRole(editingUser.id, {
-        role: editUserRole,
+        role: selectedRole ? selectedRole.role_type : editUserRoleId,
+        role_id: selectedRole ? selectedRole.id : editUserRoleId,
+        customer_id: editUserCustomerId === 'system' ? null : editUserCustomerId,
       });
       setShowEditUserModal(false);
       fetchUsers();
@@ -238,15 +251,25 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`px-2.5 py-1 rounded text-xs font-bold ${
-                          u.role === 'admin' || u.role === 'system_admin' || u.role === 'tenant_admin'
-                            ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                            : 'bg-blue-50 text-blue-700 border border-blue-200'
-                        }`}
-                      >
-                        {u.role}
-                      </span>
+                      {(() => {
+                        const roleObj = rolesList.find(
+                          (r) => String(r.id) === String(u.role_id) || r.role_type === u.role || r.role_name === u.role
+                        );
+                        const isSuperOrAdmin =
+                          u.role === 'admin' || u.role === 'system_admin' || u.role === 'tenant_admin' ||
+                          (roleObj && (roleObj.role_type === 'system_admin' || roleObj.role_type === 'tenant_admin'));
+                        return (
+                          <span
+                            className={`px-2.5 py-1 rounded text-xs font-bold ${
+                              isSuperOrAdmin
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}
+                          >
+                            {roleObj ? roleObj.role_name : u.role}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -372,13 +395,13 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
                   Assigned RBAC Role Profile
                 </label>
                 <select
-                  value={newUserRole}
-                  onChange={(e) => setNewUserRole(e.target.value)}
+                  value={newUserRoleId}
+                  onChange={(e) => setNewUserRoleId(e.target.value)}
                   className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-indigo-500 focus:outline-none"
                 >
                   {rolesList.length > 0 ? (
                     rolesList.map((r) => (
-                      <option key={r.id} value={r.role_type}>
+                      <option key={r.id} value={r.id}>
                         {r.role_name} ({r.role_type}) — {r.permissions?.length || 0} permissions
                       </option>
                     ))
@@ -422,18 +445,37 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
             </p>
 
             <form onSubmit={handleSaveUserRole} className="space-y-4">
+              {/* BLOCK COMMENT: ASSIGNED CUSTOMER / TENANT SELECTOR */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1 font-mono">
+                  Assigned Customer / Tenant
+                </label>
+                <select
+                  value={editUserCustomerId}
+                  onChange={(e) => setEditUserCustomerId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 p-2.5 text-sm text-black focus:border-indigo-500 focus:outline-none bg-white cursor-pointer"
+                >
+                  <option value="system">System-wide (No Tenant)</option>
+                  {customersList.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      Tenant: {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-500 mb-1 font-mono">
                   Assigned RBAC Role Profile
                 </label>
                 <select
-                  value={editUserRole}
-                  onChange={(e) => setEditUserRole(e.target.value)}
+                  value={editUserRoleId}
+                  onChange={(e) => setEditUserRoleId(e.target.value)}
                   className="w-full rounded-lg border border-gray-200 p-2.5 text-sm text-black focus:border-indigo-500 focus:outline-none"
                 >
                   {rolesList.length > 0 ? (
                     rolesList.map((r) => (
-                      <option key={r.id} value={r.role_type}>
+                      <option key={r.id} value={r.id}>
                         {r.role_name} ({r.role_type}) — {r.permissions?.length || 0} permissions
                       </option>
                     ))

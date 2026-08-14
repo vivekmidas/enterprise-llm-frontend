@@ -327,7 +327,7 @@ export const api = {
     return res.json();
   },
 
-  updateUserRole: async (userId: string, data: { name?: string; role?: string; role_id?: string }) => {
+  updateUserRole: async (userId: string, data: { name?: string; role?: string; role_id?: string; customer_id?: string | number | null }) => {
     const res = await fetch(`${BACKEND_URL}/admin/users/${userId}`, {
       method: 'PUT',
       headers: getHeaders({ 'Content-Type': 'application/json' }),

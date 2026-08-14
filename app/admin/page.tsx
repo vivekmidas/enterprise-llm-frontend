@@ -174,7 +174,7 @@ function AdminDashboardContent() {
           userData.role === 'system_admin';
 
         if (!canAccessAdmin) {
-          const fallback = getDefaultRedirectForPermissions(perms, userData.role);
+          const fallback = getDefaultRedirectForPermissions(perms, userData.role) || '/legal';
           router.push(fallback);
           return;
         }
@@ -472,7 +472,7 @@ function AdminDashboardContent() {
             <UsersTab userId={userId} loginEmail={userEmail || ''} />
           )}
           {activeTab === 'roles' && (userRole === 'admin' || userRole === 'system_admin') && (
-            <RolesTab />
+            <RolesTab userRole={userRole} customerId={customerId ? String(customerId) : null} />
           )}
           {/* BLOCK COMMENT: RENDER PERMISSIONS TAB */}
           {activeTab === 'permissions' && (userRole === 'admin' || userRole === 'system_admin') && (

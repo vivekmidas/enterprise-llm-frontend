@@ -89,7 +89,7 @@ function AgentBuilderContent() {
           const hasAccess = hasPermissionScope(perms, requiredPerm);
 
           if (!hasAccess) {
-            const fallback = getDefaultRedirectForPermissions(perms, userData.role);
+            const fallback = getDefaultRedirectForPermissions(perms, userData.role) || '/legal';
             window.location.href = fallback;
             return;
           }
