@@ -112,12 +112,12 @@ export default function Header() {
                   <span className="text-xs font-medium text-gray-500 ml-2">ID: {userId}</span>
                 )} */}
               </div>
-              <Link
+              {/* <Link
                 href="/legal"
                 className="text-sm font-bold text-slate-700 hover:text-indigo-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
               >
                 Legal Platform
-              </Link>
+              </Link> */}
 
               {(hasPermissionScope(userPermissions, 'workflow:view') || userRole === 'admin' || userRole === 'system_admin') && (
                 <Link
