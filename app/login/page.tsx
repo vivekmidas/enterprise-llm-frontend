@@ -50,7 +50,7 @@ export default function LoginPage() {
       const targetRoute =
         defaultRoute ||
         getDefaultRedirectForPermissions(userPermissions, userRole, domainId) ||
-        (domainId ? `/${domainId}` : '/legal');
+        (domainId ? `/${domainId}` : '/');
 
       // Full navigation guarantees cookie synchronization with proxy
       window.location.href = targetRoute;

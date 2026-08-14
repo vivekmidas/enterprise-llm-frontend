@@ -651,6 +651,11 @@ export const api = {
     domain_key: string;
     description?: string;
     scope?: string;
+    default_path?: string;
+    icon?: string;
+    theme_color?: string;
+    status?: string;
+    config?: any;
     fields?: Array<{ key: string; label: string; description?: string; type?: string; weight: number; importance: string; required?: boolean }>;
     system_prompt?: string;
     user_prompt?: string;
@@ -668,7 +673,13 @@ export const api = {
     id: string,
     payload: {
       name?: string;
+      domain_key?: string;
       description?: string;
+      default_path?: string;
+      icon?: string;
+      theme_color?: string;
+      status?: string;
+      config?: any;
       fields?: Array<{ key: string; label: string; description?: string; type?: string; weight: number; importance: string; required?: boolean }>;
       system_prompt?: string;
       user_prompt?: string;

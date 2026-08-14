@@ -186,14 +186,15 @@ const BASE_TENANT_ROLES = [
   { role_type: 'tenant_admin', role_name: 'Tenant Admin (tenant_admin)', description: 'Full tenant administration' },
 ];
 
-const getRelevantRolesForDomains = (allowedDomains: string[] = []) => {
+const getRelevantRolesForDomains = (allowedDomains: string[] = [], domainSchemas: any[] = []) => {
   const rolesMap = new Map<string, { role_type: string; role_name: string; description?: string }>();
   
   BASE_TENANT_ROLES.forEach((r) => rolesMap.set(r.role_type, r));
 
-  const domains = allowedDomains && allowedDomains.length > 0 ? allowedDomains : ['legal'];
+  const domains = allowedDomains && allowedDomains.length > 0 ? allowedDomains : [];
   domains.forEach((dom) => {
-    const key = dom.toLowerCase();
+    const schema = domainSchemas.find((s: any) => s.id === dom || s.domain_key === dom);
+    const key = (schema ? schema.domain_key : dom).toLowerCase();
     if (DOMAIN_ROLES_MAP[key]) {
       DOMAIN_ROLES_MAP[key].forEach((r) => rolesMap.set(r.role_type, r));
     }
@@ -207,6 +208,8 @@ export default function CustomersTab() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
+  /* BLOCK COMMENT: DYNAMIC DOMAIN SCHEMAS STATE FROM REGISTRY */
+  const [domainSchemas, setDomainSchemas] = useState<any[]>([]);
 
   // Selected Customer detail states
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
@@ -243,7 +246,7 @@ export default function CustomersTab() {
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
   const [newCustomerContactPerson, setNewCustomerContactPerson] = useState('');
-  const [newCustomerAllowedDomains, setNewCustomerAllowedDomains] = useState<string[]>(['legal']);
+  const [newCustomerAllowedDomains, setNewCustomerAllowedDomains] = useState<string[]>([]);
 
   // Add Customer User Modal
   const [showAddCustomerUserModal, setShowAddCustomerUserModal] = useState(false);
@@ -268,6 +271,12 @@ export default function CustomersTab() {
   const [nodeSearchQuery, setNodeSearchQuery] = useState('');
   const [nodeViewMode, setNodeViewMode] = useState<'grid' | 'list'>('grid');
 
+  /* BLOCK COMMENT: DOMAIN LABEL RESOLVER FROM DOMAIN_SCHEMAS */
+  const getDomainLabel = (domId: string) => {
+    const schema = domainSchemas.find((s: any) => s.id === domId || s.domain_key === domId);
+    return schema ? (schema.name || schema.domain_key) : domId;
+  };
+
   const fetchInitialData = async () => {
     setLoading(true);
     try {
@@ -277,6 +286,12 @@ export default function CustomersTab() {
       setUsers(usrs || []);
       const nodesRes = (await api.getNodes().catch(() => ({ agents: [] }))) as any;
       setAgents(nodesRes.nodes || nodesRes.agents || []);
+      /* BLOCK COMMENT: FETCH REGISTERED DOMAIN SCHEMAS */
+      const domSchemas = await api.getDomainSchemas().catch(() => []);
+      setDomainSchemas(domSchemas || []);
+      if (domSchemas && domSchemas.length > 0) {
+        setNewCustomerAllowedDomains((prev) => (prev.length === 0 ? [domSchemas[0].id] : prev));
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -428,7 +443,8 @@ export default function CustomersTab() {
       setNewCustomerContactPerson('');
       setNewCustomerPluginsEnabled(false);
       setNewCustomerStoragePath('');
-      setNewCustomerAllowedDomains(['legal']);
+      const defaultDomainId = domainSchemas.length > 0 ? [domainSchemas[0].id] : [];
+      setNewCustomerAllowedDomains(defaultDomainId);
       fetchInitialData();
     } catch (err: any) {
       alert('Failed to create customer: ' + err.message);
@@ -880,25 +896,27 @@ export default function CustomersTab() {
                       Allowed Domains
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {[
-                        { key: 'legal', label: 'Legal' },
-                        { key: 'finance', label: 'Finance' },
-                        { key: 'healthcare', label: 'Healthcare' },
-                        { key: 'hr', label: 'HR' },
-                        { key: 'general', label: 'General' },
-                      ].map((d) => {
-                        const isSelected = editCustomerAllowedDomains.includes(d.key);
+                      {/* BLOCK COMMENT: DYNAMICALLY POPULATED DOMAINS FROM DOMAIN_SCHEMAS USING DOMAIN_ID */}
+                      {domainSchemas.map((d: any) => {
+                        const isSelected =
+                          editCustomerAllowedDomains.includes(d.id) ||
+                          editCustomerAllowedDomains.includes(d.domain_key);
                         return (
                           <button
-                            key={d.key}
+                            key={d.id}
                             type="button"
                             onClick={() => {
                               if (isSelected) {
                                 setEditCustomerAllowedDomains(
-                                  editCustomerAllowedDomains.filter((x) => x !== d.key),
+                                  editCustomerAllowedDomains.filter(
+                                    (x) => x !== d.id && x !== d.domain_key,
+                                  ),
                                 );
                               } else {
-                                setEditCustomerAllowedDomains([...editCustomerAllowedDomains, d.key]);
+                                setEditCustomerAllowedDomains([
+                                  ...editCustomerAllowedDomains.filter((x) => x !== d.domain_key),
+                                  d.id,
+                                ]);
                               }
                             }}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${isSelected
@@ -906,7 +924,7 @@ export default function CustomersTab() {
                               : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                               }`}
                           >
-                            {d.label} {isSelected ? '✓' : '+'}
+                            {d.name || d.domain_key} {isSelected ? '✓' : '+'}
                           </button>
                         );
                       })}
@@ -982,7 +1000,7 @@ export default function CustomersTab() {
                               key={dom}
                               className="px-2 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase"
                             >
-                              {dom}
+                              {getDomainLabel(dom)}
                             </span>
                           ))
                         ) : (
@@ -1035,7 +1053,7 @@ export default function CustomersTab() {
                   onClick={() => {
                     setSelectedCustomerIdForUser(selectedCustomer.id);
                     const targetCust = selectedCustomer;
-                    const roles = getRelevantRolesForDomains(targetCust?.allowed_domains);
+                    const roles = getRelevantRolesForDomains(targetCust?.allowed_domains, domainSchemas);
                     setCustomerUserRole(roles[0]?.role_type || 'tenant_user');
                     setShowAddCustomerUserModal(true);
                   }}
@@ -1365,7 +1383,7 @@ export default function CustomersTab() {
                               key={dom}
                               className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase"
                             >
-                              {dom}
+                              {getDomainLabel(dom)}
                             </span>
                           ))
                         ) : (
@@ -1418,7 +1436,7 @@ export default function CustomersTab() {
                       <button
                         onClick={() => {
                           setSelectedCustomerIdForUser(c.id);
-                          const roles = getRelevantRolesForDomains(c?.allowed_domains);
+                          const roles = getRelevantRolesForDomains(c?.allowed_domains, domainSchemas);
                           setCustomerUserRole(roles[0]?.role_type || 'tenant_user');
                           setShowAddCustomerUserModal(true);
                         }}
@@ -1560,25 +1578,20 @@ export default function CustomersTab() {
                     Allowed Knowledge Domains
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      { key: 'legal', label: 'Legal' },
-                      { key: 'finance', label: 'Finance' },
-                      { key: 'healthcare', label: 'Healthcare' },
-                      { key: 'hr', label: 'HR' },
-                      { key: 'general', label: 'General' },
-                    ].map((d) => {
-                      const isSelected = newCustomerAllowedDomains.includes(d.key);
+                    {/* BLOCK COMMENT: DYNAMICALLY POPULATED DOMAINS FROM DOMAIN_SCHEMAS USING DOMAIN_ID */}
+                    {domainSchemas.map((d: any) => {
+                      const isSelected = newCustomerAllowedDomains.includes(d.id);
                       return (
                         <button
-                          key={d.key}
+                          key={d.id}
                           type="button"
                           onClick={() => {
                             if (isSelected) {
                               setNewCustomerAllowedDomains(
-                                newCustomerAllowedDomains.filter((x) => x !== d.key),
+                                newCustomerAllowedDomains.filter((x) => x !== d.id),
                               );
                             } else {
-                              setNewCustomerAllowedDomains([...newCustomerAllowedDomains, d.key]);
+                              setNewCustomerAllowedDomains([...newCustomerAllowedDomains, d.id]);
                             }
                           }}
                           className={`px-3 py-1 rounded text-xs font-bold transition-all border cursor-pointer ${isSelected
@@ -1586,7 +1599,7 @@ export default function CustomersTab() {
                             : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                             }`}
                         >
-                          {d.label} {isSelected ? '✓' : '+'}
+                          {d.name || d.domain_key} {isSelected ? '✓' : '+'}
                         </button>
                       );
                     })}
@@ -1698,7 +1711,8 @@ export default function CustomersTab() {
                   className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                 >
                   {getRelevantRolesForDomains(
-                    (customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) || selectedCustomer)?.allowed_domains
+                    (customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) || selectedCustomer)?.allowed_domains,
+                    domainSchemas
                   ).map((r) => (
                     <option key={r.role_type} value={r.role_type}>
                       {r.role_name}
@@ -1709,7 +1723,9 @@ export default function CustomersTab() {
                   <p className="text-[11px] text-gray-400 mt-1">
                     Roles available for allowed domain(s):{' '}
                     <span className="font-semibold text-gray-600 uppercase">
-                      {(customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) || selectedCustomer).allowed_domains.join(', ')}
+                      {((customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) || selectedCustomer).allowed_domains || [])
+                        .map((dom: string) => getDomainLabel(dom))
+                        .join(', ')}
                     </span>
                   </p>
                 )}

@@ -36,6 +36,7 @@ import RolesTab from './roles/page';
 // BLOCK COMMENT: IMPORT PERMISSIONS TAB FOR SYSTEM ADMIN
 import PermissionsTab from './permissions/page';
 import BackupTab from './backup/page';
+import DomainsTab from './domains/page';
 
 export interface AdminTabItem {
   id: string;
@@ -47,7 +48,7 @@ function buildDynamicAdminTabs(routes: RoutePermissionRule[]): AdminTabItem[] {
   const tabsMap = new Map<string, AdminTabItem>();
 
   // Baseline tab order
-  const defaultTabOrder = ['nodes', 'workflows', 'users', 'roles', 'permissions', 'customers', 'knowledge', 'oauth', 'logs', 'metrics', 'backup', 'profiles', 'provider-presets', 'playground', 'settings'];
+  const defaultTabOrder = ['nodes', 'workflows', 'users', 'roles', 'permissions', 'domains', 'customers', 'knowledge', 'oauth', 'logs', 'metrics', 'backup', 'profiles', 'provider-presets', 'playground', 'settings'];
 
 
   routes.forEach((rule) => {
@@ -477,6 +478,9 @@ function AdminDashboardContent() {
           {/* BLOCK COMMENT: RENDER PERMISSIONS TAB */}
           {activeTab === 'permissions' && (userRole === 'admin' || userRole === 'system_admin') && (
             <PermissionsTab />
+          )}
+          {activeTab === 'domains' && (userRole === 'admin' || userRole === 'system_admin') && (
+            <DomainsTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
           {activeTab === 'oauth' && (userRole === 'admin' || userRole === 'system_admin') && (
             <OAuthTab />
