@@ -195,6 +195,14 @@ function AdminDashboardContent() {
             ? String(userData.customer_id)
             : null,
         );
+
+        const urlTab = searchParams?.get('tab');
+        if (urlTab) {
+          setActiveTab(urlTab);
+        } else if (filteredTabs.length > 0 && !filteredTabs.some(t => t.id === 'nodes')) {
+          setActiveTab(filteredTabs[0].id);
+        }
+
         setIsAuthenticated(true);
       } catch (err) {
         console.error('Failed to authenticate in Admin Console:', err);
@@ -207,14 +215,6 @@ function AdminDashboardContent() {
     }
 
     initializeUser();
-  }, []);
-
-  // Sync active tab from URL search parameters dynamically
-  useEffect(() => {
-    const tab = searchParams?.get('tab');
-    if (tab) {
-      setActiveTab(tab);
-    }
   }, [searchParams]);
 
   const handleTabChange = (tab: string) => {
@@ -238,146 +238,134 @@ function AdminDashboardContent() {
           name: '',
           lastname: '',
         });
-        setAlertMessage({ type: 'success', text: 'Registration successful! Please login.' });
+        setAlertMessage({
+          type: 'success',
+          text: 'Registration successful. Please sign in.',
+        });
         setIsRegistering(false);
       } else {
-        const data = await api.login({ email: loginEmail, password: loginPassword });
-        localStorage.setItem('token', data.token);
-        document.cookie = `token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-
-        if (data.role === 'admin' || data.role === 'system_admin') {
-          setUserRole(data.role);
-          setCustomerId(
-            data.customer_id !== null && data.customer_id !== undefined
-              ? String(data.customer_id)
-              : null,
-          );
-          setIsAuthenticated(true);
-        } else {
-          router.push('/workflow-builder');
-        }
+        await api.login({
+          email: loginEmail,
+          password: loginPassword,
+        });
+        window.location.reload();
       }
     } catch (err) {
-      setAlertMessage({ type: 'error', text: 'Authentication failed. Check your credentials.' });
+      setAlertMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Authentication failed',
+      });
     }
   };
 
-  if (!isMounted) {
-    return null;
+  if (!isMounted) return null;
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-gray-50 text-gray-700">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
+          <p className="text-xs font-bold uppercase tracking-wider">Loading enterprise gateway...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-100 px-4">
-        <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl border border-gray-200">
-          <div className="text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-              <Shield className="h-8 w-8 text-bg-primary" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+          <div className="text-center mb-8">
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mx-auto mb-3">
+              <Lock className="w-6 h-6" />
             </div>
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-              {isRegistering ? 'Create Account' : 'Admin Portal'}
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+              {isRegistering ? 'Create Admin Account' : 'Enterprise Admin Login'}
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              {isRegistering ? 'Join the gateway system' : 'Please sign in to manage the gateway'}
+            <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider font-semibold">
+              Gateway Management Console
             </p>
           </div>
+
           {alertMessage && (
-            <Alert severity={alertMessage.type} className="mb-4">
+            <Alert severity={alertMessage.type} className="mb-6 rounded-xl">
               {alertMessage.text}
             </Alert>
           )}
-          <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-            <div className="space-y-4 rounded-md shadow-sm">
-              {isRegistering && (
-                <div>
-                  <label className="text-xs font-bold text-gray-500 uppercase">Username</label>
-                  <input
-                    type="text"
-                    required
-                    className="relative block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-white"
-                    placeholder="jdoe"
-                    value={loginUsername}
-                    onChange={(e) => setLoginUsername(e.target.value)}
-                  />
-                </div>
-              )}
-              <div>
-                <label className="text-xs font-bold text-gray-500 uppercase">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  className="relative block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-white"
-                  placeholder="admin@gateway.com"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-500 uppercase">Password</label>
-                <input
-                  type="password"
-                  required
-                  className="relative block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-white"
-                  placeholder="••••••••"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                />
-              </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                Username
+              </label>
+              <input
+                type="text"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                placeholder="admin"
+                required
+              />
             </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                placeholder="admin@enterprise.com"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                Password
+              </label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
             <button
               type="submit"
-              className="group relative flex w-full justify-center rounded-lg border border-transparent bg-primary py-3 text-sm font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all shadow-lg cursor-pointer"
+              className="w-full py-2.5 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-wider shadow-md hover:bg-primary/90 transition-all cursor-pointer"
             >
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                <Lock className="h-5 w-5 text-blue-500 group-hover:text-blue-400" />
-              </span>
-              {isRegistering ? 'Register' : 'Access Console'}
+              {isRegistering ? 'Sign Up' : 'Sign In'}
             </button>
+
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => setIsRegistering(!isRegistering)}
+                className="text-xs text-primary hover:underline font-bold"
+              >
+                {isRegistering
+                  ? 'Already have an account? Sign In'
+                  : "Don't have an account? Sign Up"}
+              </button>
+            </div>
           </form>
-          <div className="text-center mt-4">
-            <button
-              onClick={() => {
-                setAlertMessage(null);
-                setIsRegistering(!isRegistering);
-              }}
-              className="text-sm text-bg-primary hover:underline cursor-pointer"
-            >
-              {isRegistering ? 'Already have an account? Login' : 'Need an account? Register'}
-            </button>
-          </div>
         </div>
       </div>
     );
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-2">
-          <IconMap.activity className="h-8 w-8 animate-spin text-bg-primary" />
-          <p className="text-sm font-medium text-gray-500">Loading system registry...</p>
-        </div>
-      </div>
-    );
-  }
+  const isAdmin = userRole === 'admin' || userRole === 'system_admin' || userRole === 'tenant_admin';
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 font-sans">
-      <div className="mx-auto w-full space-y-6">
-        {/* BLOCK COMMENT: SYSTEM ADMIN BACKUP EXPORT HEADER BANNER */}
-        {alertMessage && (
-          <Alert severity={alertMessage.type} onClose={() => setAlertMessage(null)} className="shadow-sm">
-            {alertMessage.text}
-          </Alert>
-        )}
-
-        <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Admin Control Center</h1>
-            <p className="text-xs text-gray-500 font-medium">Manage system RBAC, customer tenants, nodes, and system backups</p>
-          </div>
-        </div>
-
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      <div className="flex-1 w-full max-w mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {/* Dynamic Admin Navigation Bar */}
         {(() => {
           const hiddenTabs = availableTabs.filter((t: AdminTabItem) => hiddenTabIds.has(t.id));
 
@@ -398,7 +386,7 @@ function AdminDashboardContent() {
                       if (tab.id === 'playground') setPlaygroundKbId(null);
                       handleTabChange(tab.id);
                     }}
-                    className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 rounded-t-md ${activeTab === tab.id
+                    className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0  ${activeTab === tab.id
                       ? 'bg-white text-primary bg-primary/10 border-primary'
                       : 'text-muted-foreground hover:text-foreground  border-transparent'
                       }`}
@@ -473,34 +461,41 @@ function AdminDashboardContent() {
 
         <div className="pt-2">
           {activeTab === 'customers' && userRole === 'system_admin' && <CustomersTab />}
-          {activeTab === 'nodes' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'nodes' && isAdmin && (
             <NodesTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
-          {activeTab === 'workflows' && <WorkflowsTab userRole={userRole} />}
-          {activeTab === 'users' && (userRole === 'admin' || userRole === 'system_admin') && (
-            <UsersTab userId={userId} loginEmail={userEmail || ''} />
+          {activeTab === 'workflows' && (
+            <WorkflowsTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
-          {activeTab === 'roles' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'users' && isAdmin && (
+            <UsersTab
+              userId={userId}
+              loginEmail={userEmail || ''}
+              customerId={customerId ? Number(customerId) : null}
+              userRole={userRole}
+            />
+          )}
+          {activeTab === 'roles' && isAdmin && (
             <RolesTab userRole={userRole} customerId={customerId ? String(customerId) : null} />
           )}
           {/* BLOCK COMMENT: RENDER PERMISSIONS TAB */}
-          {activeTab === 'permissions' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'permissions' && isAdmin && (
             <PermissionsTab />
           )}
-          {activeTab === 'domains' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'domains' && isAdmin && (
             <DomainsTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
-          {activeTab === 'oauth' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'oauth' && isAdmin && (
             <OAuthTab />
           )}
 
-          {activeTab === 'logs' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'logs' && isAdmin && (
             <LogsTab userRole={userRole} />
           )}
-          {activeTab === 'metrics' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'metrics' && isAdmin && (
             <MetricsTab userRole={userRole} />
           )}
-          {activeTab === 'backup' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'backup' && isAdmin && (
             <BackupTab />
           )}
           {/* BLOCK: Pass userRole and customerId to KnowledgeBasesTab */}
@@ -515,14 +510,13 @@ function AdminDashboardContent() {
             />
           )}
           {/* END BLOCK */}
-          {activeTab === 'profiles' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'profiles' && isAdmin && (
             <ProfilesTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
-          {activeTab === 'provider-presets' &&
-            (userRole === 'admin' || userRole === 'system_admin') && (
-              <ProviderPresetsTab userRole={userRole} />
-            )}
-          {activeTab === 'settings' && (userRole === 'admin' || userRole === 'system_admin') && (
+          {activeTab === 'provider-presets' && isAdmin && (
+            <ProviderPresetsTab userRole={userRole} />
+          )}
+          {activeTab === 'settings' && isAdmin && (
             <CompanySettingsTab
               userRole={userRole}
               customerId={customerId || undefined}

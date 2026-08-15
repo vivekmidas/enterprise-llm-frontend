@@ -551,7 +551,7 @@ function AgentBuilderContent() {
   const onGet = useCallback(async () => {
     try {
       const data = await api.getSavedAgents();
-      const workflows = Array.isArray(data) ? data : data.workflows || [];
+      const workflows = Array.isArray(data) ? data : ((data as any)?.workflows || []);
       const latestWorkflow =
         workflows.find((workflow: { id: string }) => workflow.id === agentId) || workflows[0];
 

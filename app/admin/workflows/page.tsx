@@ -7,9 +7,10 @@ import { Workflow, List, LayoutGrid } from 'lucide-react';
 
 interface WorkflowsTabProps {
   userRole: string | null;
+  customerId?: string | number | null;
 }
 
-export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
+export default function WorkflowsTab({ userRole, customerId }: WorkflowsTabProps) {
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [workflowViewMode, setWorkflowViewMode] = useState<'list' | 'card'>('list');
@@ -17,7 +18,8 @@ export default function WorkflowsTab({ userRole }: WorkflowsTabProps) {
   const fetchWorkflows = async () => {
     setLoading(true);
     try {
-      const workflowsRes = await api.getSavedAgents();
+      const targetCid = customerId !== undefined && customerId !== null ? customerId : undefined;
+      const workflowsRes = await api.getSavedAgents(targetCid);
       setWorkflows(workflowsRes || []);
     } catch (err) {
       console.error('Failed to fetch workflows', err);

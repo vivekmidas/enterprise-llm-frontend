@@ -20,17 +20,21 @@ import { IconMap } from '@/lib/icons';
 interface UsersTabProps {
   userId: string | null;
   loginEmail: string;
+  customerId?: string | number | null;
+  userRole?: string | null;
 }
 
-export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
+export default function UsersTab({ userId, loginEmail, customerId, userRole }: UsersTabProps) {
   const [users, setUsers] = useState<any[]>([]);
   const [rolesList, setRolesList] = useState<any[]>([]);
   const [customersList, setCustomersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Search & Filter State (Default: 'all')
+  // Search & Filter State (Default: customerId if given, else 'all')
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTenantFilter, setSelectedTenantFilter] = useState<string>('all');
+  const [selectedTenantFilter, setSelectedTenantFilter] = useState<string>(
+    customerId !== undefined && customerId !== null ? String(customerId) : 'all'
+  );
 
   // Add User Form States
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -38,34 +42,52 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRoleId, setNewUserRoleId] = useState<string>('');
-  const [newUserCustomerId, setNewUserCustomerId] = useState<string>('');
+  const [newUserCustomerId, setNewUserCustomerId] = useState<string>(
+    customerId !== undefined && customerId !== null ? String(customerId) : ''
+  );
 
   // Edit User Role Modal States
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [editUserRoleId, setEditUserRoleId] = useState<string>('');
-  const [editUserCustomerId, setEditUserCustomerId] = useState<string>('system');
+  const [editUserCustomerId, setEditUserCustomerId] = useState<string>(
+    customerId !== undefined && customerId !== null ? String(customerId) : 'system'
+  );
   const [updating, setUpdating] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
+      const targetCid =
+        customerId !== undefined && customerId !== null
+          ? customerId
+          : selectedTenantFilter !== 'all'
+          ? selectedTenantFilter
+          : undefined;
+
       const [usrs, rls, custs] = await Promise.all([
-        api.getUsers().catch(() => []),
-        api.getRoles().catch(() => []),
+        api.getUsers(targetCid).catch(() => []),
+        api.getRoles(targetCid ? String(targetCid) : undefined).catch(() => []),
         api.getCustomers().catch(() => []),
       ]);
-      setUsers(usrs || []);
-      setRolesList(rls || []);
-      setCustomersList(custs || []);
-      if (rls && rls.length > 0 && !newUserRoleId) {
-        setNewUserRoleId(String(rls[0].id));
+      const safeUsers = Array.isArray(usrs) ? usrs : [];
+      const safeRoles = Array.isArray(rls) ? rls : [];
+      const safeCusts = Array.isArray(custs) ? custs : [];
+
+      setUsers(safeUsers);
+      setRolesList(safeRoles);
+      setCustomersList(safeCusts);
+      if (safeRoles.length > 0 && !newUserRoleId) {
+        setNewUserRoleId(String(safeRoles[0].id));
       }
-      if (custs && custs.length > 0 && !newUserCustomerId) {
-        setNewUserCustomerId(String(custs[0].id));
+      if (safeCusts.length > 0 && !newUserCustomerId) {
+        setNewUserCustomerId(customerId ? String(customerId) : String(safeCusts[0].id));
       }
     } catch (err) {
       console.error('Failed to fetch users, roles, or customers', err);
+      setUsers([]);
+      setRolesList([]);
+      setCustomersList([]);
     } finally {
       setLoading(false);
     }
@@ -146,12 +168,15 @@ export default function UsersTab({ userId, loginEmail }: UsersTabProps) {
   };
 
   // Filtered Users List
-  const filteredUsers = users.filter((u) => {
+  const userList = Array.isArray(users) ? users : [];
+  const filteredUsers = userList.filter((u) => {
+    if (!u) return false;
     const matchesSearch =
       !searchQuery.trim() ||
-      (u.username && u.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (u.email_id && u.email_id.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (u.role && u.role.toLowerCase().includes(searchQuery.toLowerCase()));
+      (u.username && String(u.username).toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (u.email_id && String(u.email_id).toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (u.name && String(u.name).toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (u.role && String(u.role).toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesTenant =
       selectedTenantFilter === 'all' ||

@@ -174,12 +174,18 @@ export const api = {
   },
 
   /** Lists all saved workflows stored in the database */
-  getSavedAgents: async () => {
-    const res = await fetch(`${BACKEND_URL}/workflows`, {
+  getSavedAgents: async (customerId?: string | number) => {
+    const url = new URL(`${BACKEND_URL}/workflows`);
+    if (customerId !== undefined && customerId !== null && String(customerId) !== 'all') {
+      url.searchParams.append('customer_id', String(customerId));
+    }
+    const res = await fetch(url.toString(), {
       headers: getHeaders(),
       method: 'GET',
     });
-    return res.json();
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   },
 
   getAgentsByUser: async (userId: string) => {
@@ -306,12 +312,21 @@ export const api = {
   },
 
   /** User Management */
-  getUsers: async () => {
-    const res = await fetch(`${BACKEND_URL}/admin/users`, {
+  getUsers: async (customerId?: string | number) => {
+    const url = new URL(`${BACKEND_URL}/admin/users`);
+    if (customerId !== undefined && customerId !== null && String(customerId) !== 'all') {
+      url.searchParams.append('customer_id', String(customerId));
+    }
+    const res = await fetch(url.toString(), {
       headers: getHeaders(),
       method: 'GET',
     });
-    return res.json();
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to fetch users');
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   },
 
   createUser: async (user: any) => {
@@ -1036,6 +1051,8 @@ export const api = {
     return res.json();
   },
 
+  // BLOCK COMMENT: LEGAL RESEARCH SEARCH API ENDPOINT
+  // Routes to /api/knowledge/legal/search mounted under knowledge router
   searchLegalCases: async (payload: {
     query: string;
     court_code?: string;
@@ -1049,7 +1066,7 @@ export const api = {
     year_max?: number;
     limit?: number;
   }) => {
-    const res = await fetch(`${BACKEND_URL}/api/legal/search`, {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/search`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
@@ -1102,35 +1119,6 @@ export const api = {
       headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch case detail');
-    return res.json();
-  },
-
-  getCaseWorkspaces: async () => {
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/cases`, {
-      method: 'GET',
-      headers: getHeaders(),
-    });
-    if (!res.ok) return [];
-    return res.json();
-  },
-
-  createCaseWorkspace: async (data: { case_number?: string; title: string; category?: string; court?: string; client_name?: string; opposing_party?: string }) => {
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/cases`, {
-      method: 'POST',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to create case workspace');
-    return res.json();
-  },
-
-  linkPrecedentToCase: async (caseId: string, payload: any) => {
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/cases/${caseId}/precedents`, {
-      method: 'POST',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error('Failed to link precedent to case workspace');
     return res.json();
   },
 

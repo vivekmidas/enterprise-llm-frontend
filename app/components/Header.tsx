@@ -119,36 +119,13 @@ export default function Header() {
                 Legal Platform
               </Link> */}
 
-              {(hasPermissionScope(userPermissions, 'workflow:view') || userRole === 'admin' || userRole === 'system_admin') && (
-                <Link
-                  href="/workflow-builder"
-                  className="text-sm font-bold text-fuchsia-600 hover:text-fuchsia-700 px-3 py-2 rounded-lg hover:bg-fuchsia-50 transition-all duration-200"
-                >
-                  Workflows
-                </Link>
-              )}
-              {(hasPermissionScope(userPermissions, 'tenant:admin:*') || hasPermissionScope(userPermissions, 'admin:users:read') || userRole === 'admin' || userRole === 'system_admin') && (
-                <>
-                  <Link
-                    href="/admin?tab=users"
-                    className="text-sm font-semibold text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
-                  >
-                    Users
-                  </Link>
-                  <Link
-                    href="/admin?tab=roles"
-                    className="text-sm font-semibold text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
-                  >
-                    Manage Roles
-                  </Link>
-                  <Link
-                    href="/admin"
-                    className="text-sm font-bold text-primary hover:text-violet-700 px-3 py-2 rounded-lg hover:bg-violet-50 transition-all duration-200"
-                  >
-                    Console
-                  </Link>
-                </>
-              )}
+              {/*
+              ===============================================================================
+              BLOCK COMMENT: CLEAN TOP NAVIGATION HEADER
+              Removed duplicate links (Workflows, Users, Manage Roles, Console).
+              Header displays active user profile badge and Logout action.
+              ===============================================================================
+              */}
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-red-600 px-3 py-2 rounded-lg hover:bg-red-50 transition-all duration-200"
