@@ -30,7 +30,8 @@ import {
   Layers,
   Route,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  CornerDownRight
 } from 'lucide-react';
 
 interface RolesTabProps {
@@ -42,6 +43,8 @@ interface ModuleAction {
   id: string;
   action: string;
   is_route_guard: boolean;
+  api_path?: string;
+  http_methods?: string[];
   label: string;
   description?: string;
 }
@@ -75,6 +78,7 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
   const [roleDescription, setRoleDescription] = useState('');
   const [roleCustomerId, setRoleCustomerId] = useState<string>('system');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [selectedMethodsByPerm, setSelectedMethodsByPerm] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [matrixSearch, setMatrixSearch] = useState('');
@@ -107,6 +111,7 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
     setRoleDescription('');
     setRoleCustomerId(isSystemAdmin ? 'system' : (customerId || 'system'));
     setSelectedPermissions([]);
+    setSelectedMethodsByPerm({});
     setErrorMessage(null);
     setMatrixSearch('');
     setShowRoleModal(true);
@@ -118,27 +123,79 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
     setRoleDescription(role.description || '');
     setRoleCustomerId(role.customer_id ? String(role.customer_id) : 'system');
     setSelectedPermissions(role.permissions || []);
+    setSelectedMethodsByPerm(role.methods_by_permission || {});
     setErrorMessage(null);
     setMatrixSearch('');
     setShowRoleModal(true);
   };
 
-  // Toggle individual permission action
-  const handleToggleAction = (actionPermId: string, isViewGuard: boolean, modActions: ModuleAction[]) => {
+  // Toggle all methods for an action
+  const handleToggleAction = (act: ModuleAction, modActions: ModuleAction[]) => {
+    const actionPermId = act.id;
+    const availableMethods = act.http_methods && act.http_methods.length > 0 ? act.http_methods : ['GET'];
+
     setSelectedPermissions((prev) => {
       const isCurrentlySelected = prev.includes(actionPermId);
       if (isCurrentlySelected) {
-        // Unselecting
+        setSelectedMethodsByPerm((prevMap) => {
+          const copy = { ...prevMap };
+          delete copy[actionPermId];
+          return copy;
+        });
         return prev.filter((id) => id !== actionPermId);
       } else {
-        // Selecting
-        // If selecting a non-view write action, auto-select the module's view guard permission
         const viewAction = modActions.find((a) => a.is_route_guard || a.action === 'view');
+        setSelectedMethodsByPerm((prevMap) => ({
+          ...prevMap,
+          [actionPermId]: [...availableMethods],
+        }));
         if (viewAction && viewAction.id !== actionPermId && !prev.includes(viewAction.id)) {
           return [...prev, actionPermId, viewAction.id];
         }
         return [...prev, actionPermId];
       }
+    });
+  };
+
+  // Toggle specific individual HTTP method for an action
+  const handleToggleSpecificMethod = (
+    act: ModuleAction,
+    method: string,
+    modActions: ModuleAction[]
+  ) => {
+    const actionPermId = act.id;
+    const availableMethods = act.http_methods && act.http_methods.length > 0 ? act.http_methods : [method];
+
+    setSelectedPermissions((prev) => {
+      const isCurrentlySelected = prev.includes(actionPermId);
+      const viewAction = modActions.find((a) => a.is_route_guard || a.action === 'view');
+      const next = isCurrentlySelected ? [...prev] : [...prev, actionPermId];
+      if (viewAction && viewAction.id !== actionPermId && !next.includes(viewAction.id)) {
+        next.push(viewAction.id);
+      }
+      return next;
+    });
+
+    setSelectedMethodsByPerm((prevMap) => {
+      const currentMethods =
+        prevMap[actionPermId] !== undefined ? prevMap[actionPermId] : [...availableMethods];
+      const hasMeth = currentMethods.includes(method);
+      const updatedMethods = hasMeth
+        ? currentMethods.filter((m) => m !== method)
+        : [...currentMethods, method];
+
+      if (updatedMethods.length === 0) {
+        // If all methods unselected, unselect permission
+        setSelectedPermissions((p) => p.filter((id) => id !== actionPermId));
+        const copy = { ...prevMap };
+        delete copy[actionPermId];
+        return copy;
+      }
+
+      return {
+        ...prevMap,
+        [actionPermId]: updatedMethods,
+      };
     });
   };
 
@@ -149,8 +206,20 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
 
     if (allSelected) {
       setSelectedPermissions((prev) => prev.filter((id) => !actionIds.includes(id)));
+      setSelectedMethodsByPerm((prevMap) => {
+        const copy = { ...prevMap };
+        actionIds.forEach((id) => delete copy[id]);
+        return copy;
+      });
     } else {
       setSelectedPermissions((prev) => Array.from(new Set([...prev, ...actionIds])));
+      setSelectedMethodsByPerm((prevMap) => {
+        const copy = { ...prevMap };
+        mod.actions.forEach((a) => {
+          copy[a.id] = a.http_methods && a.http_methods.length > 0 ? [...a.http_methods] : ['GET'];
+        });
+        return copy;
+      });
     }
   };
 
@@ -160,8 +229,16 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
     const allSelected = allIds.length > 0 && allIds.every((id) => selectedPermissions.includes(id));
     if (allSelected) {
       setSelectedPermissions([]);
+      setSelectedMethodsByPerm({});
     } else {
       setSelectedPermissions(allIds);
+      const methodsMap: Record<string, string[]> = {};
+      modulesList.forEach((m) => {
+        m.actions.forEach((a) => {
+          methodsMap[a.id] = a.http_methods && a.http_methods.length > 0 ? [...a.http_methods] : ['GET'];
+        });
+      });
+      setSelectedMethodsByPerm(methodsMap);
     }
   };
 
@@ -184,6 +261,7 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
             description: roleDescription.trim(),
             customer_id: selectedCid,
             permission_ids: selectedPermissions,
+            methods_by_permission: selectedMethodsByPerm,
           }),
         });
       } else {
@@ -195,6 +273,7 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
             description: roleDescription.trim(),
             customer_id: selectedCid,
             permission_ids: selectedPermissions,
+            methods_by_permission: selectedMethodsByPerm,
           }),
         });
       }
@@ -544,165 +623,164 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
                   </div>
                 </div>
 
-                {/* MATRIX TABLE */}
-                <div className="rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px] tracking-wider">
-                        <th className="p-3 w-1/3">Module & Route Pattern</th>
-                        <th className="p-3 text-center w-24">View / Access</th>
-                        <th className="p-3 text-center w-24">Create</th>
-                        <th className="p-3 text-center w-24">Edit</th>
-                        <th className="p-3 text-center w-24">Delete</th>
-                        <th className="p-3">Additional Capabilities</th>
-                        <th className="p-3 text-center w-20">Row All</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {filteredMatrixModules.map((m) => {
-                        const viewAct = m.actions.find((a) => a.action === 'view' || a.is_route_guard);
-                        const createAct = m.actions.find((a) => a.action === 'create' || a.action === 'add');
-                        const editAct = m.actions.find((a) => a.action === 'edit' || a.action === 'update');
-                        const deleteAct = m.actions.find((a) => a.action === 'delete' || a.action === 'remove');
-                        const otherActs = m.actions.filter(
-                          (a) =>
-                            a.id !== viewAct?.id &&
-                            a.id !== createAct?.id &&
-                            a.id !== editAct?.id &&
-                            a.id !== deleteAct?.id
-                        );
+                {/* SIMPLIFIED SINGLE-TIER ACTION & SUBPATH MATRIX */}
+                <div className="space-y-3">
+                  {filteredMatrixModules.map((m) => {
+                    const allModSelected =
+                      m.actions.length > 0 && m.actions.every((a) => selectedPermissions.includes(a.id));
 
-                        const allModSelected = m.actions.every((a) => selectedPermissions.includes(a.id));
+                    return (
+                      <div
+                        key={m.id}
+                        className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs"
+                      >
+                        {/* Module Group Bar */}
+                        <div className="flex items-center justify-between px-3.5 py-2 bg-slate-50 border-b border-slate-200">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-slate-900 text-xs">{m.label}</span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold">
+                              {m.module}
+                              {m.submodule ? `/${m.submodule}` : ''}
+                            </span>
+                            {m.route_patterns && m.route_patterns.length > 0 && (
+                              <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
+                                ({m.route_patterns.join(', ')})
+                              </span>
+                            )}
+                          </div>
 
-                        return (
-                          <tr key={m.id} className="hover:bg-slate-50/70 transition">
-                            {/* Module & Route Patterns */}
-                            <td className="p-3 align-middle">
-                              <div className="flex flex-col">
-                                <span className="font-extrabold text-slate-900 text-xs">{m.label}</span>
-                                <div className="flex items-center gap-1 mt-0.5">
-                                  {m.route_patterns && m.route_patterns.length > 0 ? (
-                                    m.route_patterns.map((pat) => (
-                                      <code
-                                        key={pat}
-                                        className="font-mono text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200"
-                                      >
-                                        {pat}
-                                      </code>
-                                    ))
-                                  ) : (
-                                    <span className="text-[10px] text-slate-400 italic">No direct route</span>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleModuleRow(m)}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded border transition cursor-pointer ${
+                              allModSelected
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            {allModSelected ? 'Deselect Module' : 'Select All in Module'}
+                          </button>
+                        </div>
 
-                            {/* View / Route Access Checkbox */}
-                            <td className="p-3 text-center align-middle">
-                              {viewAct ? (
-                                <input
-                                  type="checkbox"
-                                  checked={selectedPermissions.includes(viewAct.id)}
-                                  onChange={() => handleToggleAction(viewAct.id, true, m.actions)}
-                                  className="w-4 h-4 rounded text-indigo-700 focus:ring-indigo-700 cursor-pointer accent-indigo-700"
-                                  title={`View: ${viewAct.id}`}
-                                />
-                              ) : (
-                                <span className="text-slate-300">-</span>
-                              )}
-                            </td>
+                        {/* Uniform Single-Tier Action Rows */}
+                        <div className="divide-y divide-slate-100">
+                          {m.actions && m.actions.length > 0 ? (
+                            m.actions.map((act) => {
+                              const isPermSelected = selectedPermissions.includes(act.id);
+                              const availableMethods =
+                                act.http_methods && act.http_methods.length > 0
+                                  ? act.http_methods
+                                  : ['GET'];
+                              const currentActiveMethods = isPermSelected
+                                ? selectedMethodsByPerm[act.id] !== undefined
+                                  ? selectedMethodsByPerm[act.id]
+                                  : availableMethods
+                                : [];
 
-                            {/* Create Checkbox */}
-                            <td className="p-3 text-center align-middle">
-                              {createAct ? (
-                                <input
-                                  type="checkbox"
-                                  checked={selectedPermissions.includes(createAct.id)}
-                                  onChange={() => handleToggleAction(createAct.id, false, m.actions)}
-                                  className="w-4 h-4 rounded text-indigo-700 focus:ring-indigo-700 cursor-pointer accent-indigo-700"
-                                  title={`Create: ${createAct.id}`}
-                                />
-                              ) : (
-                                <span className="text-slate-300">-</span>
-                              )}
-                            </td>
+                              const effectivePath =
+                                act.api_path || (m.route_patterns && m.route_patterns[0]) || '-';
 
-                            {/* Edit Checkbox */}
-                            <td className="p-3 text-center align-middle">
-                              {editAct ? (
-                                <input
-                                  type="checkbox"
-                                  checked={selectedPermissions.includes(editAct.id)}
-                                  onChange={() => handleToggleAction(editAct.id, false, m.actions)}
-                                  className="w-4 h-4 rounded text-indigo-700 focus:ring-indigo-700 cursor-pointer accent-indigo-700"
-                                  title={`Edit: ${editAct.id}`}
-                                />
-                              ) : (
-                                <span className="text-slate-300">-</span>
-                              )}
-                            </td>
+                              return (
+                                <div
+                                  key={act.id}
+                                  onClick={() => handleToggleAction(act, m.actions)}
+                                  className={`flex items-center justify-between p-2.5 px-3.5 hover:bg-slate-50/80 transition cursor-pointer ${
+                                    isPermSelected ? 'bg-indigo-50/20' : ''
+                                  }`}
+                                >
+                                  {/* Action Label & Key */}
+                                  <div className="flex items-center gap-2.5 w-1/3 min-w-[200px]">
+                                    <input
+                                      type="checkbox"
+                                      checked={isPermSelected}
+                                      onChange={() => {}} // Handled by container onClick
+                                      className="w-4 h-4 rounded text-indigo-700 accent-indigo-700 cursor-pointer shrink-0"
+                                    />
+                                    <div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span
+                                          className={`text-xs font-bold ${
+                                            isPermSelected ? 'text-indigo-950 font-extrabold' : 'text-slate-900'
+                                          }`}
+                                        >
+                                          {act.label}
+                                        </span>
+                                        <span className="text-[10px] text-slate-500 font-mono">
+                                          ({act.action})
+                                        </span>
+                                      </div>
+                                      {act.is_route_guard && (
+                                        <span className="text-[9px] text-emerald-700 font-semibold flex items-center gap-0.5 mt-0.5">
+                                          <Eye className="w-2.5 h-2.5" /> UI Route Access Guard
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
 
-                            {/* Delete Checkbox */}
-                            <td className="p-3 text-center align-middle">
-                              {deleteAct ? (
-                                <input
-                                  type="checkbox"
-                                  checked={selectedPermissions.includes(deleteAct.id)}
-                                  onChange={() => handleToggleAction(deleteAct.id, false, m.actions)}
-                                  className="w-4 h-4 rounded text-indigo-700 focus:ring-indigo-700 cursor-pointer accent-indigo-700"
-                                  title={`Delete: ${deleteAct.id}`}
-                                />
-                              ) : (
-                                <span className="text-slate-300">-</span>
-                              )}
-                            </td>
+                                  {/* API Path / Route Pattern */}
+                                  <div className="flex-1 px-3">
+                                    <code className="text-[10px] font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 inline-block max-w-full truncate">
+                                      {effectivePath}
+                                    </code>
+                                  </div>
 
-                            {/* Additional / Custom Actions */}
-                            <td className="p-3 align-middle">
-                              <div className="flex flex-wrap gap-1.5">
-                                {otherActs.map((act) => {
-                                  const isSel = selectedPermissions.includes(act.id);
-                                  return (
-                                    <button
-                                      type="button"
-                                      key={act.id}
-                                      onClick={() => handleToggleAction(act.id, false, m.actions)}
-                                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                        isSel
-                                          ? 'bg-indigo-50 text-indigo-900 border-indigo-300'
-                                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                  {/* Allowed HTTP Methods (Clickable Granular Toggles) */}
+                                  <div className="w-48 flex items-center gap-1.5 shrink-0">
+                                    {availableMethods.map((meth) => {
+                                      const isMethodActive = currentActiveMethods.includes(meth);
+                                      const mClass = !isMethodActive
+                                        ? 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
+                                        : meth === 'GET'
+                                        ? 'bg-sky-50 text-sky-900 border-sky-300 shadow-xs'
+                                        : meth === 'POST'
+                                        ? 'bg-emerald-50 text-emerald-900 border-emerald-300 shadow-xs'
+                                        : meth === 'PUT'
+                                        ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-xs'
+                                        : 'bg-rose-50 text-rose-900 border-rose-300 shadow-xs';
+
+                                      return (
+                                        <button
+                                          type="button"
+                                          key={meth}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleToggleSpecificMethod(act, meth, m.actions);
+                                          }}
+                                          className={`px-2 py-0.5 rounded text-[10px] font-extrabold border transition cursor-pointer ${mClass}`}
+                                          title={`Click to toggle ${meth} for this role`}
+                                        >
+                                          {meth}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {/* Access Status Badge */}
+                                  <div className="w-28 text-right shrink-0">
+                                    <span
+                                      className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                        isPermSelected && currentActiveMethods.length > 0
+                                          ? 'bg-emerald-50 text-emerald-900 border-emerald-300 shadow-xs'
+                                          : 'bg-slate-100 text-slate-400 border-slate-200'
                                       }`}
-                                      title={act.id}
                                     >
-                                      {act.action}
-                                    </button>
-                                  );
-                                })}
-                                {otherActs.length === 0 && (
-                                  <span className="text-[10px] text-slate-400 italic">None</span>
-                                )}
-                              </div>
-                            </td>
-
-                            {/* Row All Toggle */}
-                            <td className="p-3 text-center align-middle">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleModuleRow(m)}
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded border transition cursor-pointer ${
-                                  allModSelected
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                }`}
-                              >
-                                {allModSelected ? 'Deselect' : 'All'}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                      {isPermSelected && currentActiveMethods.length > 0
+                                        ? currentActiveMethods.length === availableMethods.length
+                                          ? 'Allowed'
+                                          : currentActiveMethods.join(',')
+                                        : 'Disabled'}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="p-3 text-slate-400 text-xs italic">No actions registered</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

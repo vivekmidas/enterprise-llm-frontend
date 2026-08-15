@@ -43,6 +43,8 @@ interface ModuleAction {
   id?: string;
   action: string;
   is_route_guard: boolean;
+  api_path?: string;
+  http_methods?: string[];
   label: string;
   description?: string;
 }
@@ -65,6 +67,8 @@ interface CustomerOption {
   name: string;
 }
 
+const HTTP_VERBS = ['GET', 'POST', 'PUT', 'DELETE'] as const;
+
 export default function PermissionsTab() {
   const [modules, setModules] = useState<ModuleItem[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
@@ -83,10 +87,10 @@ export default function PermissionsTab() {
   const [newModRoutes, setNewModRoutes] = useState('');
   const [newModTenant, setNewModTenant] = useState<string>('system');
   const [newModActions, setNewModActions] = useState<ModuleAction[]>([
-    { action: 'view', is_route_guard: true, label: 'View / Access' },
-    { action: 'create', is_route_guard: false, label: 'Create New' },
-    { action: 'edit', is_route_guard: false, label: 'Edit / Update' },
-    { action: 'delete', is_route_guard: false, label: 'Delete / Remove' }
+    { action: 'view', is_route_guard: true, label: 'View / Access', api_path: '', http_methods: ['GET'] },
+    { action: 'create', is_route_guard: false, label: 'Create New', api_path: '', http_methods: ['POST'] },
+    { action: 'edit', is_route_guard: false, label: 'Edit / Update', api_path: '', http_methods: ['PUT'] },
+    { action: 'delete', is_route_guard: false, label: 'Delete / Remove', api_path: '', http_methods: ['DELETE'] }
   ]);
   const [saving, setSaving] = useState(false);
 
@@ -126,6 +130,23 @@ export default function PermissionsTab() {
     fetchInitialData();
   }, [selectedTenant]);
 
+  const toggleActionMethod = (
+    setter: React.Dispatch<React.SetStateAction<ModuleAction[]>>,
+    idx: number,
+    verb: string
+  ) => {
+    setter((prev) =>
+      prev.map((act, i) => {
+        if (i !== idx) return act;
+        const curMethods = act.http_methods || [];
+        const updated = curMethods.includes(verb)
+          ? curMethods.filter((m) => m !== verb)
+          : [...curMethods, verb];
+        return { ...act, http_methods: updated };
+      })
+    );
+  };
+
   const handleOpenAddModal = () => {
     setNewModId('');
     setNewModGroup('admin');
@@ -135,10 +156,10 @@ export default function PermissionsTab() {
     setNewModRoutes('');
     setNewModTenant(selectedTenant === 'all' ? 'system' : selectedTenant);
     setNewModActions([
-      { action: 'view', is_route_guard: true, label: 'View / Access' },
-      { action: 'create', is_route_guard: false, label: 'Create New' },
-      { action: 'edit', is_route_guard: false, label: 'Edit / Update' },
-      { action: 'delete', is_route_guard: false, label: 'Delete / Remove' }
+      { action: 'view', is_route_guard: true, label: 'View / Access', api_path: '', http_methods: ['GET'] },
+      { action: 'create', is_route_guard: false, label: 'Create New', api_path: '', http_methods: ['POST'] },
+      { action: 'edit', is_route_guard: false, label: 'Edit / Update', api_path: '', http_methods: ['PUT'] },
+      { action: 'delete', is_route_guard: false, label: 'Delete / Remove', api_path: '', http_methods: ['DELETE'] }
     ]);
     setShowAddModal(true);
   };
@@ -146,7 +167,7 @@ export default function PermissionsTab() {
   const handleAddActionToNewMod = () => {
     setNewModActions((prev) => [
       ...prev,
-      { action: 'manage', is_route_guard: false, label: 'Manage / Configure' }
+      { action: 'manage', is_route_guard: false, label: 'Manage / Configure', api_path: '', http_methods: ['GET', 'POST', 'PUT', 'DELETE'] }
     ]);
   };
 
@@ -175,6 +196,8 @@ export default function PermissionsTab() {
         actions: newModActions.map((a) => ({
           action: a.action.trim().toLowerCase(),
           is_route_guard: a.is_route_guard,
+          api_path: a.api_path ? a.api_path.trim() : undefined,
+          http_methods: a.http_methods && a.http_methods.length > 0 ? a.http_methods : undefined,
           label: a.label.trim(),
           description: a.description
         }))
@@ -196,16 +219,22 @@ export default function PermissionsTab() {
     setEditModLabel(m.label);
     setEditModRoutes(m.route_patterns ? m.route_patterns.join(', ') : '');
     setEditModDescription(m.description || '');
-    setEditModActions(m.actions ? [...m.actions] : [
-      { action: 'view', is_route_guard: true, label: `View ${m.label}` }
-    ]);
+    setEditModActions(
+      m.actions
+        ? m.actions.map((a) => ({
+            ...a,
+            api_path: a.api_path || '',
+            http_methods: a.http_methods || []
+          }))
+        : [{ action: 'view', is_route_guard: true, label: `View ${m.label}`, api_path: '', http_methods: ['GET'] }]
+    );
     setShowEditModal(true);
   };
 
   const handleAddActionToEditMod = () => {
     setEditModActions((prev) => [
       ...prev,
-      { action: 'manage', is_route_guard: false, label: `Manage ${editModLabel}` }
+      { action: 'manage', is_route_guard: false, label: `Manage ${editModLabel}`, api_path: '', http_methods: ['GET', 'POST', 'PUT', 'DELETE'] }
     ]);
   };
 
@@ -234,6 +263,8 @@ export default function PermissionsTab() {
         actions: editModActions.map((a) => ({
           action: a.action.trim().toLowerCase(),
           is_route_guard: a.is_route_guard,
+          api_path: a.api_path ? a.api_path.trim() : undefined,
+          http_methods: a.http_methods && a.http_methods.length > 0 ? a.http_methods : undefined,
           label: a.label.trim(),
           description: a.description
         }))
@@ -274,109 +305,128 @@ export default function PermissionsTab() {
     }
   };
 
-  // Distinct groups
-  const distinctGroups = Array.from(new Set(modules.map((m) => m.module))).sort();
-
-  // Filtered List
   const filteredModules = modules.filter((m) => {
+    const matchesGroup =
+      selectedModuleGroup === 'all' ||
+      m.module.toLowerCase() === selectedModuleGroup.toLowerCase();
+
+    const matchesTenant =
+      selectedTenant === 'all' ||
+      (selectedTenant === 'system' && !m.customer_id) ||
+      m.customer_id === selectedTenant;
+
     const matchesSearch =
+      !searchQuery.trim() ||
       m.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.module.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.submodule && m.submodule.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (m.route_patterns && m.route_patterns.some((r) => r.toLowerCase().includes(searchQuery.toLowerCase()))) ||
-      (m.actions && m.actions.some((a) => a.id?.toLowerCase().includes(searchQuery.toLowerCase())));
+      (m.actions &&
+        m.actions.some(
+          (a) =>
+            a.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            a.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (a.id && a.id.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (a.api_path && a.api_path.toLowerCase().includes(searchQuery.toLowerCase()))
+        ));
 
-    const matchesGroup = selectedModuleGroup === 'all' || m.module === selectedModuleGroup;
-
-    return matchesSearch && matchesGroup;
+    return matchesGroup && matchesTenant && matchesSearch;
   });
+
+  const moduleGroupOptions = Array.from(new Set(modules.map((m) => m.module)));
 
   return (
     <div className="space-y-6">
-      {/* HEADER & TENANT CONTROLS */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+      {/* HEADER CONTROLS */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-            <Route className="w-5 h-5 text-indigo-700" />
-            Modules, Routes & Capability Matrix (Frontend SOT)
+          <h2 className="text-xs font-extrabold text-slate-900 flex items-center gap-2">
+            <Route className="w-5 h-5 text-indigo-700" /> Canonical Module SOT & API Route Registry
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Configure application routes, URL guards (Green), and custom capability actions (Gray) directly from the UI without code changes.
+          <p className="text-xs text-slate-600 mt-1">
+            Dynamic UI-driven route & API verb matrix. Changes take effect across frontend proxy and backend gateway without code restarts.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Tenant Selector */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
-            <Building className="w-3.5 h-3.5 text-indigo-700" />
-            <select
-              value={selectedTenant}
-              onChange={(e) => setSelectedTenant(e.target.value)}
-              className="bg-transparent text-xs text-slate-900 font-bold focus:outline-none cursor-pointer"
-            >
-              <option value="all">Tenant Scope: Global Baseline (All)</option>
-              <option value="system">System Default Modules Only</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  Tenant: {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            onClick={fetchInitialData}
-            className="p-2 text-slate-600 hover:text-slate-900 border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer"
-            title="Refresh modules"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-700' : ''}`} />
-          </button>
-
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
           <button
             onClick={handleSyncDefaults}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl border border-slate-300 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-            title="Reseed defaults into DB"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer shrink-0"
+            title="Reset/sync global system default routes & permissions"
           >
-            <ArrowRightLeft className="w-4 h-4 text-indigo-600" /> Sync Defaults
+            <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+            <span>Sync Defaults</span>
           </button>
 
           <button
-            onClick={handleOpenAddModal}
-            className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+            onClick={() => {
+              setNewModId('');
+              setNewModGroup('admin');
+              setNewModSubgroup('');
+              setNewModLabel('');
+              setNewModDescription('');
+              setNewModRoutes('');
+              setNewModTenant('system');
+              setNewModActions([
+                { action: 'view', is_route_guard: true, label: 'View / Access', api_path: '', http_methods: ['GET'] },
+                { action: 'create', is_route_guard: false, label: 'Create New', api_path: '', http_methods: ['POST'] },
+                { action: 'edit', is_route_guard: false, label: 'Edit / Update', api_path: '', http_methods: ['PUT'] },
+                { action: 'delete', is_route_guard: false, label: 'Delete / Remove', api_path: '', http_methods: ['DELETE'] }
+              ]);
+              setShowAddModal(true);
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-700 hover:bg-indigo-800 rounded-xl shadow-xs transition cursor-pointer shrink-0"
           >
-            <Plus className="w-4 h-4" /> Add Custom Module
+            <Plus className="w-4 h-4" />
+            <span>Register Custom Module</span>
           </button>
         </div>
       </div>
 
       {/* FILTER & SEARCH BAR */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search modules, routes (e.g. /admin/knowledge, /legal), or capability keys..."
-            className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-2.5 text-slate-900 focus:outline-none focus:border-indigo-700"
+            placeholder="Search modules, routes (e.g. /admin/knowledge, /api/knowledge/bases), or capability keys..."
+            className="w-full bg-white border border-slate-200 rounded-xl pl-9.5 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-700"
           />
         </div>
 
-        {/* Module Group Filter */}
+        {/* Filter: Module Group */}
         <select
           value={selectedModuleGroup}
           onChange={(e) => setSelectedModuleGroup(e.target.value)}
-          className="text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 font-semibold focus:outline-none focus:border-indigo-700"
+          className="w-full sm:w-48 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold focus:outline-none focus:border-indigo-700"
         >
-          <option value="all">All Module Domains ({modules.length})</option>
-          {distinctGroups.map((g) => (
-            <option key={g} value={g}>
-              Domain: {g}
+          <option value="all">All Module Groups</option>
+          {moduleGroupOptions.map((grp) => (
+            <option key={grp} value={grp}>
+              Module: {grp}
+            </option>
+          ))}
+        </select>
+
+        {/* Filter: Tenant Scope */}
+        <select
+          value={selectedTenant}
+          onChange={(e) => setSelectedTenant(e.target.value)}
+          className="w-full sm:w-48 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold focus:outline-none focus:border-indigo-700"
+        >
+          <option value="all">All Tenant Scopes</option>
+          <option value="system">Global System Defaults</option>
+          {customers.map((c) => (
+            <option key={c.id} value={c.id}>
+              Tenant: {c.name}
             </option>
           ))}
         </select>
       </div>
 
-      {/* CANONICAL MATRIX TABLE */}
+      {/* MODULES & CAPABILITIES TABLE */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-500 text-xs">
@@ -392,11 +442,11 @@ export default function PermissionsTab() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
-                  <th className="p-3.5">Module & Scope</th>
-                  <th className="p-3.5">Route Path(s)</th>
-                  <th className="p-3.5">Granular Capability Actions</th>
-                  <th className="p-3.5">Tenant Scope</th>
-                  <th className="p-3.5 text-right">Actions</th>
+                  <th className="p-3.5 w-1/4">Module & Scope</th>
+                  <th className="p-3.5 w-1/5">UI Route Path(s)</th>
+                  <th className="p-3.5">Granular Capability Actions & Bound API Endpoints</th>
+                  <th className="p-3.5 w-28">Tenant Scope</th>
+                  <th className="p-3.5 text-right w-16">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -446,21 +496,48 @@ export default function PermissionsTab() {
 
                       {/* Granular Capability Actions */}
                       <td className="p-3.5 align-top">
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-col gap-2">
                           {m.actions && m.actions.length > 0 ? (
                             m.actions.map((act) => (
                               <div
                                 key={act.id || act.action}
-                                className={`px-2 py-1 rounded-md text-[10px] font-bold border flex items-center gap-1 ${
-                                  act.is_route_guard
-                                    ? 'bg-emerald-50 text-emerald-900 border-emerald-300 shadow-xs'
-                                    : 'bg-slate-100 text-slate-800 border-slate-200'
-                                }`}
-                                title={`${act.id || act.action}: ${act.description || act.label}`}
+                                className="flex flex-wrap items-center gap-2 p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px]"
                               >
-                                {act.is_route_guard && <Eye className="w-2.5 h-2.5 text-emerald-700" />}
-                                <span>{act.action.toUpperCase()}</span>
-                                {act.id && <span className="text-[9px] text-slate-500 font-mono">({act.id})</span>}
+                                <div className="flex items-center gap-1">
+                                  <span className={`px-2 py-0.5 rounded font-extrabold text-[10px] border ${
+                                    act.is_route_guard
+                                      ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                                      : 'bg-indigo-50 text-indigo-900 border-indigo-200'
+                                  }`}>
+                                    {act.action.toUpperCase()}
+                                  </span>
+                                  <span className="font-semibold text-slate-900">{act.label}</span>
+                                </div>
+
+                                {act.api_path && (
+                                  <div className="flex items-center gap-1.5 ml-auto">
+                                    <div className="flex items-center gap-0.5">
+                                      {(act.http_methods || ['GET']).map((meth) => {
+                                        const mClass =
+                                          meth === 'GET'
+                                            ? 'bg-sky-50 text-sky-900 border-sky-300'
+                                            : meth === 'POST'
+                                            ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                                            : meth === 'PUT'
+                                            ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                            : 'bg-rose-50 text-rose-900 border-rose-300';
+                                        return (
+                                          <span key={meth} className={`px-1 py-0.2 rounded text-[9px] font-extrabold border ${mClass}`}>
+                                            {meth}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                    <code className="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">
+                                      {act.api_path}
+                                    </code>
+                                  </div>
+                                )}
                               </div>
                             ))
                           ) : (
@@ -488,7 +565,7 @@ export default function PermissionsTab() {
                           <button
                             onClick={() => handleOpenEditModal(m)}
                             className="p-1.5 text-slate-500 hover:text-indigo-700 transition rounded-lg hover:bg-indigo-50 cursor-pointer"
-                            title="Edit routes, labels and capability actions"
+                            title="Edit routes, labels, API endpoints, and capability actions"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -515,10 +592,10 @@ export default function PermissionsTab() {
       {/* MODAL: ADD CUSTOM MODULE & ACTIONS BUILDER */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-slate-300 p-6 rounded-2xl w-full max-w-xl flex flex-col gap-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-300 p-6 rounded-2xl w-full max-w-5xl flex flex-col gap-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
-                <Route className="w-4 h-4 text-indigo-700" /> Define New Module, Routes & Capabilities
+                <Plus className="w-4 h-4 text-indigo-700" /> Register Custom Module, Routes & Capabilities
               </h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                 <X className="w-4 h-4" />
@@ -526,53 +603,41 @@ export default function PermissionsTab() {
             </div>
 
             <div className="flex flex-col gap-3 text-xs">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Target Tenant Scope</label>
-                <select
-                  value={newModTenant}
-                  onChange={(e) => setNewModTenant(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold cursor-pointer"
-                >
-                  <option value="system">Global System Baseline (All Tenants)</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      Tenant: {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Module Unique ID</label>
-                <input
-                  type="text"
-                  value={newModId}
-                  onChange={(e) => setNewModId(e.target.value)}
-                  placeholder="e.g. custom_billing_tool"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Domain / Module</label>
+                  <label className="font-bold text-slate-700 block mb-1">Module ID</label>
+                  <input
+                    type="text"
+                    value={newModId}
+                    onChange={(e) => setNewModId(e.target.value)}
+                    placeholder="e.g. billing_invoices"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Group Scope</label>
                   <input
                     type="text"
                     value={newModGroup}
                     onChange={(e) => setNewModGroup(e.target.value)}
-                    placeholder="e.g. billing or admin"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-semibold"
+                    placeholder="e.g. admin, billing, legal"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono"
                   />
                 </div>
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Submodule</label>
-                  <input
-                    type="text"
-                    value={newModSubgroup}
-                    onChange={(e) => setNewModSubgroup(e.target.value)}
-                    placeholder="e.g. invoices"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-semibold"
-                  />
+                  <label className="font-bold text-slate-700 block mb-1">Tenant Target</label>
+                  <select
+                    value={newModTenant}
+                    onChange={(e) => setNewModTenant(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold"
+                  >
+                    <option value="system">Global System (All Tenants)</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        Tenant: {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -613,8 +678,8 @@ export default function PermissionsTab() {
               <div className="border-t border-slate-200 pt-3">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <span className="font-extrabold text-slate-900 block">Granular Capability Actions</span>
-                    <span className="text-[10px] text-slate-500">Green = Route Access Guard, Gray = In-page buttons</span>
+                    <span className="font-extrabold text-slate-900 block">Capability Actions, API Paths & Route Guards</span>
+                    <span className="text-[10px] text-slate-500">Configure Action Key, Label, API Endpoint, HTTP Verbs, and Guard Checkbox in one tier</span>
                   </div>
                   <button
                     type="button"
@@ -625,7 +690,7 @@ export default function PermissionsTab() {
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                   {newModActions.map((act, idx) => (
                     <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
                       <input
@@ -636,7 +701,7 @@ export default function PermissionsTab() {
                           setNewModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, action: val } : a)));
                         }}
                         placeholder="action (e.g. view)"
-                        className="w-24 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs font-mono font-bold"
+                        className="w-24 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900"
                       />
                       <input
                         type="text"
@@ -645,10 +710,50 @@ export default function PermissionsTab() {
                           const val = e.target.value;
                           setNewModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, label: val } : a)));
                         }}
-                        placeholder="Label"
-                        className="flex-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs"
+                        placeholder="Capability Label"
+                        className="w-48 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-900"
                       />
-                      <label className="flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 cursor-pointer">
+                      <input
+                        type="text"
+                        value={act.api_path || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setNewModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, api_path: val } : a)));
+                        }}
+                        placeholder="/api/endpoint/path"
+                        className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-900"
+                      />
+                      <div className="flex items-center gap-1 shrink-0 bg-white p-1 rounded-lg border border-slate-200">
+                        {HTTP_VERBS.map((verb) => {
+                          const active = (act.http_methods || []).includes(verb);
+                          const activeClass =
+                            verb === 'GET'
+                              ? 'bg-sky-100 text-sky-900 border-sky-300 font-extrabold'
+                              : verb === 'POST'
+                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold'
+                              : verb === 'PUT'
+                              ? 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold'
+                              : 'bg-rose-100 text-rose-900 border-rose-300 font-extrabold';
+                          const inactiveClass = 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100';
+
+                          return (
+                            <button
+                              key={verb}
+                              type="button"
+                              onClick={() => toggleActionMethod(setNewModActions, idx, verb)}
+                              className={`px-1.5 py-0.5 rounded text-[10px] border transition cursor-pointer ${
+                                active ? activeClass : inactiveClass
+                              }`}
+                              title={`Toggle ${verb}`}
+                            >
+                              {verb}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <label className={`flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-lg border cursor-pointer shrink-0 ${
+                        act.is_route_guard ? 'bg-emerald-50 text-emerald-900 border-emerald-300' : 'bg-white text-slate-500 border-slate-200'
+                      }`}>
                         <input
                           type="checkbox"
                           checked={act.is_route_guard}
@@ -663,7 +768,8 @@ export default function PermissionsTab() {
                       <button
                         type="button"
                         onClick={() => handleRemoveActionFromNewMod(idx)}
-                        className="text-slate-400 hover:text-red-600 p-1 cursor-pointer"
+                        className="text-slate-400 hover:text-red-600 p-1.5 cursor-pointer shrink-0 rounded-lg hover:bg-red-50"
+                        title="Delete action"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -685,7 +791,7 @@ export default function PermissionsTab() {
                 disabled={saving || !newModId.trim() || !newModLabel.trim() || !newModRoutes.trim()}
                 className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white font-bold rounded-xl shadow-xs cursor-pointer"
               >
-                {saving ? 'Creating...' : 'Create Module'}
+                {saving ? 'Creating...' : 'Register Module'}
               </button>
             </div>
           </div>
@@ -695,7 +801,7 @@ export default function PermissionsTab() {
       {/* MODAL: EDIT MODULE ROUTES & ACTIONS */}
       {showEditModal && editingModule && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-slate-300 p-6 rounded-2xl w-full max-w-xl flex flex-col gap-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-300 p-6 rounded-2xl w-full max-w-5xl flex flex-col gap-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
                 <h3 className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
@@ -746,8 +852,8 @@ export default function PermissionsTab() {
               <div className="border-t border-slate-200 pt-3">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <span className="font-extrabold text-slate-900 block">Capability Actions & Route Guards</span>
-                    <span className="text-[10px] text-slate-500">Check "Guard" to mark action as the Green URL route guard</span>
+                    <span className="font-extrabold text-slate-900 block">Capability Actions, API Paths & Route Guards</span>
+                    <span className="text-[10px] text-slate-500">Configure Action Key, Label, API Endpoint, HTTP Verbs, and Guard Checkbox in one tier</span>
                   </div>
                   <button
                     type="button"
@@ -758,7 +864,7 @@ export default function PermissionsTab() {
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                   {editModActions.map((act, idx) => (
                     <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
                       <input
@@ -769,7 +875,7 @@ export default function PermissionsTab() {
                           setEditModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, action: val } : a)));
                         }}
                         placeholder="action"
-                        className="w-24 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs font-mono font-bold"
+                        className="w-24 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900"
                       />
                       <input
                         type="text"
@@ -779,9 +885,49 @@ export default function PermissionsTab() {
                           setEditModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, label: val } : a)));
                         }}
                         placeholder="Label"
-                        className="flex-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs"
+                        className="w-48 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-900"
                       />
-                      <label className="flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 cursor-pointer">
+                      <input
+                        type="text"
+                        value={act.api_path || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, api_path: val } : a)));
+                        }}
+                        placeholder="/api/endpoint/path"
+                        className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-900"
+                      />
+                      <div className="flex items-center gap-1 shrink-0 bg-white p-1 rounded-lg border border-slate-200">
+                        {HTTP_VERBS.map((verb) => {
+                          const active = (act.http_methods || []).includes(verb);
+                          const activeClass =
+                            verb === 'GET'
+                              ? 'bg-sky-100 text-sky-900 border-sky-300 font-extrabold'
+                              : verb === 'POST'
+                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold'
+                              : verb === 'PUT'
+                              ? 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold'
+                              : 'bg-rose-100 text-rose-900 border-rose-300 font-extrabold';
+                          const inactiveClass = 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100';
+
+                          return (
+                            <button
+                              key={verb}
+                              type="button"
+                              onClick={() => toggleActionMethod(setEditModActions, idx, verb)}
+                              className={`px-1.5 py-0.5 rounded text-[10px] border transition cursor-pointer ${
+                                active ? activeClass : inactiveClass
+                              }`}
+                              title={`Toggle ${verb}`}
+                            >
+                              {verb}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <label className={`flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-lg border cursor-pointer shrink-0 ${
+                        act.is_route_guard ? 'bg-emerald-50 text-emerald-900 border-emerald-300' : 'bg-white text-slate-500 border-slate-200'
+                      }`}>
                         <input
                           type="checkbox"
                           checked={act.is_route_guard}
@@ -796,7 +942,8 @@ export default function PermissionsTab() {
                       <button
                         type="button"
                         onClick={() => handleRemoveActionFromEditMod(idx)}
-                        className="text-slate-400 hover:text-red-600 p-1 cursor-pointer"
+                        className="text-slate-400 hover:text-red-600 p-1.5 cursor-pointer shrink-0 rounded-lg hover:bg-red-50"
+                        title="Delete action"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

@@ -1257,7 +1257,14 @@ export const api = {
     route_patterns: string[];
     icon?: string;
     display_order?: number;
-    actions?: Array<{ action: string; is_route_guard?: boolean; label: string; description?: string }>;
+    actions?: Array<{
+      action: string;
+      is_route_guard?: boolean;
+      api_path?: string;
+      http_methods?: string[];
+      label: string;
+      description?: string;
+    }>;
   }) => {
     const res = await fetch(`${BACKEND_URL}/roles/modules/custom`, {
       method: 'POST',
