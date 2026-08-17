@@ -763,7 +763,7 @@ function CasesTab({
               <input
                 id="case-doc-upload"
                 type="file"
-                accept=".pdf,.docx,.txt"
+                accept=".pdf,.docx,.txt,.md"
                 className="hidden"
                 onChange={handleUploadToCase}
               />

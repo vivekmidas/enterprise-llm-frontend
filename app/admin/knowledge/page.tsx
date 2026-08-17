@@ -914,7 +914,7 @@ export default function KnowledgeBasesTab({
 
   const handleAddFilesToQueue = (files: FileList | File[] | null) => {
     if (!files) return;
-    const allowed = ['.txt', '.pdf', '.doc', '.docx'];
+    const allowed = ['.txt', '.pdf', '.doc', '.docx', '.md'];
     const newItems: UploadItem[] = [];
     Array.from(files).forEach((f) => {
       if (f.size > 50 * 1024 * 1024) {
@@ -2285,14 +2285,14 @@ export default function KnowledgeBasesTab({
                     Drag & Drop or click to choose multiple documents
                   </span>
                   <span className="text-[10px] text-gray-400 mt-1">
-                    Supported: .txt, .pdf, .doc, .docx (Max 50MB per file)
+                    Supported: .txt, .pdf, .doc, .docx, .md (Max 50MB per file)
                   </span>
                   <input
                     type="file"
                     multiple
                     onChange={(e) => handleAddFilesToQueue(e.target.files)}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    accept=".txt,.pdf,.doc,.docx"
+                    accept=".txt,.pdf,.doc,.docx,.md"
                   />
                 </div>
               </div>
