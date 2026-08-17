@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { TagInput, getColor } from '@/lib/tag-utils';
+import { toSentenceCase } from '@/lib/utils';
 import {
   BookOpen,
   Plus,
@@ -25,7 +26,18 @@ import {
   Check,
   Bug,
   Lock,
-  Database
+  Database,
+  Eye,
+  Layers,
+  AlertCircle,
+  ExternalLink,
+  FileSpreadsheet,
+  Sparkles,
+  Columns,
+  Table,
+  Filter,
+  ChevronRight,
+  FileCode
 } from 'lucide-react';
 import { COLOR_PALETTE } from '@/lib/utils';
 
@@ -84,6 +96,10 @@ export default function KnowledgeBasesTab({
   const [newKbPurpose, setNewKbPurpose] = useState('');
   const [newKbTags, setNewKbTags] = useState('');
   const [newKbDomainId, setNewKbDomainId] = useState('');
+  const [newKbEnableDocling, setNewKbEnableDocling] = useState(true);
+  const [newKbEnableOpenDataLoader, setNewKbEnableOpenDataLoader] = useState(true);
+  const [newKbEnableDedup, setNewKbEnableDedup] = useState(false);
+  const [newKbExtractionPrompt, setNewKbExtractionPrompt] = useState('');
   const [domainSchemas, setDomainSchemas] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
 
@@ -115,6 +131,8 @@ export default function KnowledgeBasesTab({
   const [docDescription, setDocDescription] = useState('');
   const [docTags, setDocTags] = useState('');
   const [docType, setDocType] = useState('general');
+  const [docParserStrategy, setDocParserStrategy] = useState<'dual' | 'docling_only' | 'opendataloader_only'>('dual');
+  const [docEnableDedup, setDocEnableDedup] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
@@ -123,6 +141,57 @@ export default function KnowledgeBasesTab({
   const [docTypes, setDocTypes] = useState<string[]>([]);
   const [newDocType, setNewDocType] = useState('');
   const [savingDocTypes, setSavingDocTypes] = useState(false);
+
+  // ── Document 3 Views Inspector Modal State ───────────────────────────────
+  const [showViewsModal, setShowViewsModal] = useState(false);
+  const [inspectingDoc, setInspectingDoc] = useState<any | null>(null);
+  const [viewsData, setViewsData] = useState<any | null>(null);
+  const [loadingViews, setLoadingViews] = useState(false);
+  const [viewsError, setViewsError] = useState<string | null>(null);
+  const [activeViewTab, setActiveViewTab] = useState<'extracted' | 'normalized' | 'json'>('extracted');
+  const [editedNormalizedText, setEditedNormalizedText] = useState('');
+  const [savingViews, setSavingViews] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [selectedEntityFilter, setSelectedEntityFilter] = useState<string | null>(null);
+
+  const handleOpenViewsModal = async (doc: any) => {
+    if (!selectedKb) return;
+    setInspectingDoc(doc);
+    setShowViewsModal(true);
+    setLoadingViews(true);
+    setViewsError(null);
+    setSaveSuccess(false);
+    setSelectedEntityFilter(null);
+    try {
+      const data = await api.getDocumentViews(selectedKb.id, doc.id);
+      setViewsData(data);
+      setEditedNormalizedText(data.views?.normalized?.text || '');
+    } catch (err: any) {
+      console.error(err);
+      setViewsError('Failed to load document data views.');
+    } finally {
+      setLoadingViews(false);
+    }
+  };
+
+  const handleSaveNormalizedText = async () => {
+    if (!selectedKb || !inspectingDoc) return;
+    setSavingViews(true);
+    setViewsError(null);
+    try {
+      const updated = await api.updateDocumentViews(selectedKb.id, inspectingDoc.id, {
+        normalized_text: editedNormalizedText,
+      });
+      setViewsData(updated);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      console.error(err);
+      setViewsError('Failed to save updated normalized text.');
+    } finally {
+      setSavingViews(false);
+    }
+  };
 
   // Domain Schemas Modal state
   const [showDomainModal, setShowDomainModal] = useState(false);
@@ -251,14 +320,22 @@ export default function KnowledgeBasesTab({
     }
   };
 
-  // EKP Inspect Modal state
+  // EKP / Parser Inspect Drawer state
   const [ekpLoading, setEkpLoading] = useState(false);
   const [selectedEkpDoc, setSelectedEkpDoc] = useState<any>(null);
   const [showEkpInspectModal, setShowEkpInspectModal] = useState(false);
   const [ekpParagraphs, setEkpParagraphs] = useState<any[]>([]);
   const [ekpEntities, setEkpEntities] = useState<any[]>([]);
-  const [activeInspectTab, setActiveInspectTab] = useState<'paragraphs' | 'entities'>('paragraphs');
-  const [entityDisplayMode, setEntityDisplayMode] = useState<'cards' | 'json' | 'debug'>('cards');
+  const [ekpViewsData, setEkpViewsData] = useState<any>(null);
+  const [ekpSliderSection, setEkpSliderSection] = useState<'split' | 'docling' | 'opendataloader' | 'json'>('split');
+  const [doclingSubView, setDoclingSubView] = useState<'spans' | 'text' | 'tables'>('spans');
+  const [openDataLoaderSubView, setOpenDataLoaderSubView] = useState<'spans' | 'text' | 'audit'>('spans');
+  const [jsonSubView, setJsonSubView] = useState<'entities' | 'domain_summary' | 'structural_tree' | 'raw_json' | 'debug'>('entities');
+  const [doclingSearch, setDoclingSearch] = useState('');
+  const [openDataLoaderSearch, setOpenDataLoaderSearch] = useState('');
+  const [jsonSearch, setJsonSearch] = useState('');
+  const [copiedDoclingText, setCopiedDoclingText] = useState(false);
+  const [copiedOpenDataLoaderText, setCopiedOpenDataLoaderText] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
 
   // Entity Edit state
@@ -293,6 +370,9 @@ export default function KnowledgeBasesTab({
 
   // Reconstruct prettified structured JSON object from extracted entities
   const prettifiedEntitiesJson = useMemo(() => {
+    if (selectedEkpDoc?.metadata_json?.domain_info && (!ekpEntities || ekpEntities.length === 0)) {
+      return JSON.stringify(selectedEkpDoc.metadata_json.domain_info, null, 2);
+    }
     if (!ekpEntities || ekpEntities.length === 0) return '{}';
     const result: Record<string, any> = {};
 
@@ -349,22 +429,139 @@ export default function KnowledgeBasesTab({
     });
 
     return JSON.stringify(result, null, 2);
-  }, [ekpEntities]);
+  }, [ekpEntities, selectedEkpDoc]);
+
+  // Computed parser data for Docling
+  const doclingData = useMemo(() => {
+    const rawText =
+      ekpViewsData?.views?.extracted?.docling_raw_text ||
+      (ekpViewsData?.views?.extracted?.parser_name?.includes('docling') ? ekpViewsData?.views?.extracted?.raw_text : '') ||
+      selectedEkpDoc?.metadata_json?.views?.extracted?.docling_raw_text ||
+      '';
+
+    let spans: any[] =
+      ekpViewsData?.views?.extracted?.docling_spans ||
+      selectedEkpDoc?.metadata_json?.views?.extracted?.docling_spans ||
+      [];
+
+    if (!spans || spans.length === 0) {
+      const allExtractedSpans = ekpViewsData?.views?.extracted?.spans || selectedEkpDoc?.metadata_json?.views?.extracted?.spans;
+      if (allExtractedSpans && Array.isArray(allExtractedSpans) && allExtractedSpans.length > 0) {
+        spans = allExtractedSpans.filter((s: any) => !s.source_parser || s.source_parser.includes('docling') || s.source_parser === 'unknown');
+      } else if (ekpParagraphs && ekpParagraphs.length > 0) {
+        spans = ekpParagraphs.map((p) => ({
+          span_id: p.span_id || p.id,
+          page_number: p.page_number || 1,
+          paragraph_index: p.paragraph_number || 0,
+          text: p.text_content || '',
+          block_type: 'paragraph',
+          source_parser: 'docling',
+          bbox: p.bounding_box || null,
+        }));
+      }
+    }
+
+    const tables = ekpViewsData?.views?.extracted?.tables || selectedEkpDoc?.metadata_json?.views?.extracted?.tables || [];
+    const report = ekpViewsData?.comparison_report || selectedEkpDoc?.metadata_json?.comparison_report;
+
+    return {
+      rawText: rawText || spans.map((s: any) => s.text || s.text_content || '').join('\n\n'),
+      spans,
+      tables,
+      report,
+      isAvailable: spans.length > 0 || Boolean(rawText),
+    };
+  }, [ekpViewsData, selectedEkpDoc, ekpParagraphs]);
+
+  // Computed parser data for OpenDataLoaderPDFParser
+  const openDataLoaderData = useMemo(() => {
+    const rawText =
+      ekpViewsData?.views?.extracted?.opendataloader_raw_text ||
+      (ekpViewsData?.views?.extracted?.parser_name?.includes('opendataloader') ? ekpViewsData?.views?.extracted?.raw_text : '') ||
+      selectedEkpDoc?.metadata_json?.views?.extracted?.opendataloader_raw_text ||
+      '';
+
+    let spans: any[] =
+      ekpViewsData?.views?.extracted?.opendataloader_spans ||
+      selectedEkpDoc?.metadata_json?.views?.extracted?.opendataloader_spans ||
+      [];
+
+    if (!spans || spans.length === 0) {
+      const allExtractedSpans = ekpViewsData?.views?.extracted?.spans || selectedEkpDoc?.metadata_json?.views?.extracted?.spans;
+      if (allExtractedSpans && Array.isArray(allExtractedSpans) && allExtractedSpans.length > 0) {
+        spans = allExtractedSpans.filter((s: any) => s.source_parser && (s.source_parser.includes('opendataloader') || s.source_parser.includes('pymupdf') || s.source_parser.includes('recovered')));
+      }
+      if (spans.length === 0 && ekpParagraphs && ekpParagraphs.length > 0 && (ekpViewsData?.comparison_report?.secondary_parser?.includes('opendataloader') || selectedEkpDoc?.metadata_json?.comparison_report?.secondary_parser?.includes('opendataloader'))) {
+        spans = ekpParagraphs.map((p) => ({
+          span_id: p.span_id || p.id,
+          page_number: p.page_number || 1,
+          paragraph_index: p.paragraph_number || 0,
+          text: p.text_content || '',
+          block_type: 'paragraph',
+          source_parser: 'opendataloader_pdf',
+          bbox: p.bounding_box || null,
+        }));
+      }
+    }
+
+    const report = ekpViewsData?.comparison_report || selectedEkpDoc?.metadata_json?.comparison_report;
+
+    return {
+      rawText: rawText || (spans.length > 0 ? spans.map((s: any) => s.text || s.text_content || '').join('\n\n') : (report?.secondary_raw_sample || '')),
+      spans,
+      report,
+      isAvailable: spans.length > 0 || Boolean(rawText) || Boolean(report?.secondary_parser),
+    };
+  }, [ekpViewsData, selectedEkpDoc, ekpParagraphs]);
+
+  // Computed data for Extracted JSON
+  const jsonExtractedData = useMemo(() => {
+    const domainInfo = selectedEkpDoc?.metadata_json?.domain_info;
+    const jsonTree = ekpViewsData?.views?.json || selectedEkpDoc?.metadata_json?.views?.json;
+    const hasEntities = ekpEntities && ekpEntities.length > 0;
+    const hasDomainFields = Boolean(domainInfo && (Object.keys(domainInfo.extracted_fields || {}).length > 0 || Object.keys(domainInfo.extra_fields || {}).length > 0));
+    const hasJsonTree = Boolean(jsonTree && jsonTree.sections && jsonTree.sections.length > 0);
+    const isExtracted = hasEntities || hasDomainFields || hasJsonTree;
+
+    return {
+      isExtracted,
+      domainInfo,
+      jsonTree,
+      entities: ekpEntities || [],
+      extractedFields: domainInfo?.extracted_fields || {},
+      extraFields: domainInfo?.extra_fields || {},
+      debugInfo: domainInfo?.debug_info || {},
+      error: domainInfo?.error || null,
+    };
+  }, [selectedEkpDoc, ekpViewsData, ekpEntities]);
 
   const fetchEkpDocDetails = async (doc: any) => {
     setSelectedEkpDoc(doc);
     setEkpLoading(true);
     setShowEkpInspectModal(true);
+    setEkpSliderSection('split');
+    setDoclingSearch('');
+    setOpenDataLoaderSearch('');
+    setJsonSearch('');
     try {
-      const [pRes, eRes] = await Promise.all([
+      const kbId = doc.knowledge_base_id || selectedKb?.id;
+      const [pRes, eRes, vRes] = await Promise.all([
         fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/paragraphs`, { headers: getHeaders() }),
         fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/entities`, { headers: getHeaders() }),
+        kbId ? fetch(`${BACKEND_URL}/api/v3/knowledge/bases/${kbId}/documents/${doc.id}/views`, { headers: getHeaders() }) : Promise.resolve(null),
       ]);
       if (pRes.ok) {
         const pData = await pRes.json();
         setEkpParagraphs(pData || []);
       } else {
         setEkpParagraphs([]);
+      }
+
+      if (vRes && vRes.ok) {
+        const vData = await vRes.json();
+        setEkpViewsData(vData);
+      } else {
+        setEkpViewsData(doc.metadata_json?.views ? { views: doc.metadata_json.views, comparison_report: doc.metadata_json.comparison_report } : null);
       }
 
       let entities: any[] = [];
@@ -602,6 +799,10 @@ export default function KnowledgeBasesTab({
   const [editKbChunkSize, setEditKbChunkSize] = useState<number>(1000);
   const [editKbChunkOverlap, setEditKbChunkOverlap] = useState<number>(200);
   const [editKbLlmProfileId, setEditKbLlmProfileId] = useState<string>('');
+  const [editKbEnableDocling, setEditKbEnableDocling] = useState(true);
+  const [editKbEnableOpenDataLoader, setEditKbEnableOpenDataLoader] = useState(true);
+  const [editKbEnableDedup, setEditKbEnableDedup] = useState(false);
+  const [editKbExtractionPrompt, setEditKbExtractionPrompt] = useState('');
   const [savingKb, setSavingKb] = useState(false);
 
   // Doc Edit State
@@ -841,9 +1042,10 @@ export default function KnowledgeBasesTab({
     setCreating(true);
     setError(null);
     try {
+      const formattedName = toSentenceCase(newKbName.trim());
       const tagsList = newKbTags
         .split(',')
-        .map((t) => t.trim())
+        .map((t) => t.trim().toUpperCase())
         .filter(Boolean);
 
       const targetProf = newKbLlmProfileId
@@ -859,6 +1061,11 @@ export default function KnowledgeBasesTab({
         embedding_model: resolved.model,
         embedding_provider: resolved.provider,
         vector_dimension: Number(resolved.dimension),
+        enable_docling: newKbEnableDocling,
+        enable_opendataloader: newKbEnableOpenDataLoader,
+        enable_dedup: newKbEnableDedup,
+        parser_strategy: (newKbEnableDocling && newKbEnableOpenDataLoader) ? 'dual' : (newKbEnableDocling ? 'docling_only' : 'opendataloader_only'),
+        extraction_prompt: newKbExtractionPrompt.trim() || undefined,
       };
 
       if (isSystemAdmin && createKbTargetCustomer) {
@@ -866,7 +1073,7 @@ export default function KnowledgeBasesTab({
       }
 
       const newKb = await api.createKnowledgeBase({
-        name: newKbName,
+        name: formattedName,
         description: newKbPurpose,
         domain_id: newKbDomainId || undefined,
         settings: settingsPayload,
@@ -881,6 +1088,10 @@ export default function KnowledgeBasesTab({
       setNewKbLlmProfileId('');
       setNewKbChunkSize(1000);
       setNewKbChunkOverlap(200);
+      setNewKbEnableDocling(true);
+      setNewKbEnableOpenDataLoader(true);
+      setNewKbEnableDedup(false);
+      setNewKbExtractionPrompt('');
     } catch (err: any) {
       console.error(err);
       setError('Failed to create Knowledge Base.');
@@ -967,6 +1178,8 @@ export default function KnowledgeBasesTab({
           description: docDescription,
           tags: docTags,
           doc_type: docType,
+          parser_strategy: docParserStrategy,
+          enable_dedup: docEnableDedup,
         });
         setUploadQueue((prev) =>
           prev.map((it) =>
@@ -1026,15 +1239,27 @@ export default function KnowledgeBasesTab({
   // ── KB Edit Handlers ─────────────────────────────────────────────────────
 
   const openEditKbModal = (kb: any) => {
-    setEditKbName(kb.name);
+    setEditKbName(toSentenceCase(kb.name));
     setEditKbDesc(kb.description || '');
     setEditKbPurpose(kb.settings?.purpose || '');
-    setEditKbTags(Array.isArray(kb.settings?.tags) ? kb.settings.tags : []);
+    setEditKbTags(Array.isArray(kb.settings?.tags) ? kb.settings.tags.map((t: string) => (t || '').trim().toUpperCase()).filter(Boolean) : []);
     setEditKbEmbeddingModel(kb.settings?.embedding_model || 'nomic-embed-text');
     setEditKbVectorDimension(kb.settings?.vector_dimension || 768);
     setEditKbChunkSize(kb.settings?.chunk_size || 1000);
     setEditKbChunkOverlap(kb.settings?.chunk_overlap || 200);
     setEditKbLlmProfileId(kb.settings?.llm_profile_id ? String(kb.settings.llm_profile_id) : '');
+    setEditKbEnableDocling(
+      kb.settings?.enable_docling !== undefined
+        ? Boolean(kb.settings.enable_docling)
+        : kb.settings?.parser_strategy !== 'opendataloader_only'
+    );
+    setEditKbEnableOpenDataLoader(
+      kb.settings?.enable_opendataloader !== undefined
+        ? Boolean(kb.settings.enable_opendataloader)
+        : kb.settings?.parser_strategy !== 'docling_only'
+    );
+    setEditKbEnableDedup(Boolean(kb.settings?.enable_dedup));
+    setEditKbExtractionPrompt(kb.settings?.extraction_prompt || kb.settings?.system_prompt || '');
     setShowEditKbModal(true);
   };
 
@@ -1049,21 +1274,27 @@ export default function KnowledgeBasesTab({
       ? targetCustomerProfiles.find((p) => String(p.id) === String(editKbLlmProfileId))
       : targetCustomerProfiles.find((p) => p.is_default) || targetCustomerProfiles[0];
     const resolved = getProfileEmbeddingSettings(targetProf);
+    const upperTags = editKbTags.map((t) => (t || '').trim().toUpperCase()).filter(Boolean);
 
     try {
       const updatedKb = await api.updateKnowledgeBase(selectedKb.id, {
-        name: editKbName,
+        name: toSentenceCase(editKbName.trim()),
         description: editKbDesc || undefined,
         settings: {
           ...(selectedKb.settings || {}),
           purpose: editKbPurpose || undefined,
-          tags: editKbTags.length > 0 ? editKbTags : undefined,
+          tags: upperTags.length > 0 ? upperTags : undefined,
           chunk_size: Number(resolved.chunk_size),
           chunk_overlap: Number(resolved.chunk_overlap),
           llm_profile_id: editKbLlmProfileId || undefined,
           embedding_model: resolved.model,
           embedding_provider: resolved.provider,
           vector_dimension: Number(resolved.dimension),
+          enable_docling: editKbEnableDocling,
+          enable_opendataloader: editKbEnableOpenDataLoader,
+          enable_dedup: editKbEnableDedup,
+          parser_strategy: (editKbEnableDocling && editKbEnableOpenDataLoader) ? 'dual' : (editKbEnableDocling ? 'docling_only' : 'opendataloader_only'),
+          extraction_prompt: editKbExtractionPrompt.trim() || undefined,
         },
       });
       setKbList((prev) => prev.map((kb) => (kb.id === updatedKb.id ? updatedKb : kb)));
@@ -1083,7 +1314,7 @@ export default function KnowledgeBasesTab({
     setEditDoc(doc);
     setEditDocName(doc.name);
     setEditDocDesc(doc.metadata_json?.description || '');
-    setEditDocTags(Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags : []);
+    setEditDocTags(Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags.map((t: string) => (t || '').trim().toUpperCase()).filter(Boolean) : []);
     setEditDocType(doc.metadata_json?.type || doc.metadata_json?.doc_type || '');
     setShowEditDocModal(true);
   };
@@ -1706,6 +1937,14 @@ export default function KnowledgeBasesTab({
                                   </button>
                                 );
                               })()}
+                                <button
+                                  onClick={() => handleOpenViewsModal(doc)}
+                                  className="px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                                  title="Inspect 3 Data Views (Extracted, Normalized, JSON Tree)"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>3 Views</span>
+                                </button>
                               <button
                                 onClick={() => openEditDocModal(doc)}
                                 className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
@@ -2060,14 +2299,14 @@ export default function KnowledgeBasesTab({
       {/* CREATE KB MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-155">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
-              <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">
                 Create Knowledge Base
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
+                className="text-gray-400 hover:text-gray-600 font-bold text-xs p-1 rounded-md hover:bg-gray-200 transition-colors cursor-pointer"
               >
                 ✕
               </button>
@@ -2075,14 +2314,14 @@ export default function KnowledgeBasesTab({
             <form onSubmit={handleCreateKB} className="p-6 space-y-4">
               {/* BLOCK: Customer selector for system_admin */}
               {isSystemAdmin && (
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="block text-xs font-semibold text-gray-700">
                     Target Customer Tenant
                   </label>
                   <select
                     value={createKbTargetCustomer}
                     onChange={(e) => setCreateKbTargetCustomer(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
                   >
                     <option value="">Select Customer Tenant...</option>
                     {customers.map((c) => (
@@ -2095,142 +2334,227 @@ export default function KnowledgeBasesTab({
               )}
               {/* END BLOCK */}
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">
-                  Knowledge Base Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Employee Handbook"
-                  value={newKbName}
-                  onChange={(e) => setNewKbName(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">
-                  Purpose / Description
-                </label>
-                <textarea
-                  placeholder="Describe the domain contents..."
-                  value={newKbPurpose}
-                  onChange={(e) => setNewKbPurpose(e.target.value)}
-                  className="h-20 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-700">
-                  Linked Domain Schema (Optional)
-                </label>
-                <select
-                  value={newKbDomainId}
-                  onChange={(e) => setNewKbDomainId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
-                >
-                  <option value="">None (General KB)</option>
-                  {domainSchemas.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} ({d.domain_key} - {d.scope})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">
-                  Tags (comma separated)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. hr, policy, internal"
-                  value={newKbTags}
-                  onChange={(e) => setNewKbTags(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-gray-655">
-                    LLM Profile (Doc Extraction & Reasoning)
+              {/* ROW 1: NAME & LINKED DOMAIN SCHEMA */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Knowledge Base Name <span className="text-red-500">*</span>
                   </label>
-                  {targetCustomerProfiles.length > 1 && (
-                    <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-bold">
-                      {targetCustomerProfiles.length} profiles
-                    </span>
-                  )}
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Employee handbook"
+                    value={newKbName}
+                    onChange={(e) => setNewKbName(toSentenceCase(e.target.value))}
+                    onBlur={() => setNewKbName(toSentenceCase(newKbName))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                  />
                 </div>
-                <select
-                  value={newKbLlmProfileId}
-                  onChange={(e) => setNewKbLlmProfileId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
-                >
-                  <option value="">Default (Tenant Active Profile)</option>
-                  {targetCustomerProfiles.map((prof) => (
-                    <option key={prof.id} value={String(prof.id)}>
-                      {prof.name || prof.profile_name || `Profile #${prof.id}`}
-                      {prof.provider || prof.provider_name ? ` (${prof.provider || prof.provider_name})` : ''}
-                      {prof.is_default ? ' ★ Default' : ''}
-                    </option>
-                  ))}
-                </select>
-                {targetCustomerProfiles.length > 1 && (
-                  <p className="text-[10px] text-gray-500 leading-tight">
-                    Select which LLM profile to use for processing documents uploaded to this Knowledge Base.
-                  </p>
-                )}
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Linked Domain Schema (Optional)
+                  </label>
+                  <select
+                    value={newKbDomainId}
+                    onChange={(e) => setNewKbDomainId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
+                  >
+                    <option value="">None (General KB)</option>
+                    {domainSchemas.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} ({d.domain_key} - {d.scope})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-lg space-y-1.5">
-                <div className="text-[10px] font-bold text-blue-900 uppercase tracking-wider flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Database className="w-3 h-3 text-blue-600" />
-                    Qdrant Vector Index Specs
-                  </span>
-                  <span className="text-[9px] text-blue-600 font-semibold flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5" /> Immutable
-                  </span>
+              {/* ROW 2: PURPOSE & TAGS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Purpose / Description
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Describe the domain contents..."
+                    value={newKbPurpose}
+                    onChange={(e) => setNewKbPurpose(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 resize-none"
+                  />
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-gray-500 font-medium block text-[10px]">Embedding Model</span>
-                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-blue-100 block truncate font-mono text-[11px]" title={activeCreateEmbeddingSettings.model}>
-                      {activeCreateEmbeddingSettings.model}
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Tags (comma separated)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. HR, POLICY, INTERNAL"
+                    value={newKbTags}
+                    onChange={(e) => setNewKbTags(e.target.value.toUpperCase())}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 uppercase placeholder:normal-case font-medium"
+                  />
+                  <p className="text-[10px] text-gray-400 pt-0.5">
+                    Categorize documents and search filters across collections (auto-uppercased).
+                  </p>
+                </div>
+              </div>
+
+              {/* ROW 3: LLM PROFILE & QDRANT VECTOR INDEX SPECS SIDE-BY-SIDE */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-gray-700">
+                      LLM Profile (Doc Extraction & Reasoning)
+                    </label>
+                    {targetCustomerProfiles.length > 1 && (
+                      <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded font-bold">
+                        {targetCustomerProfiles.length} profiles
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    value={newKbLlmProfileId}
+                    onChange={(e) => setNewKbLlmProfileId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
+                  >
+                    <option value="">Default (Tenant Active Profile)</option>
+                    {targetCustomerProfiles.map((prof) => (
+                      <option key={prof.id} value={String(prof.id)}>
+                        {prof.name || prof.profile_name || `Profile #${prof.id}`}
+                        {prof.provider || prof.provider_name ? ` (${prof.provider || prof.provider_name})` : ''}
+                        {prof.is_default ? ' ★ Default' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      <Database className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Qdrant Vector Index Specs</span>
+                    </label>
+                    <span className="text-[10px] text-blue-600 font-semibold flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Immutable
                     </span>
                   </div>
-                  <div>
-                    <span className="text-gray-500 font-medium block text-[10px]">Vector Dimension</span>
-                    <span className="font-semibold text-blue-700 bg-white px-2 py-1 rounded border border-blue-100 block font-mono text-[11px]">
+                  <div className="flex items-center gap-2 p-1.5 px-2.5 rounded-lg border border-blue-150 bg-blue-50/70 h-[38px] overflow-hidden">
+                    <span
+                      className="px-2 py-0.5 bg-white border border-blue-200 rounded text-xs font-mono font-bold text-slate-800 truncate max-w-[190px]"
+                      title={activeCreateEmbeddingSettings.model}
+                    >
+                      {activeCreateEmbeddingSettings.model}
+                    </span>
+                    <span className="px-2 py-0.5 bg-blue-100/90 border border-blue-200 rounded text-xs font-mono font-semibold text-blue-800 shrink-0">
                       {activeCreateEmbeddingSettings.dimension} dims ({activeCreateEmbeddingSettings.provider})
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-                  <span>Profile Chunking Configuration (RO)</span>
-                  <span className="text-[9px] text-slate-400 font-normal">🔒 Profile Managed</span>
+              {/* ROW 4: PDF PARSER ENGINES & DEDUPLICATION CONFIGURATION */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-blue-600" />
+                    PDF Parser Engines & Deduplication
+                  </span>
+                  <span className="text-[10px] text-gray-500 font-medium">
+                    {newKbEnableDocling && newKbEnableOpenDataLoader ? 'Dual Sequential + Compare' : 'Single Parser Mode'}
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                    newKbEnableDocling ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={newKbEnableDocling}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        if (!checked && !newKbEnableOpenDataLoader) return;
+                        setNewKbEnableDocling(checked);
+                        if (checked && newKbEnableOpenDataLoader) {
+                          setNewKbEnableDedup(true);
+                        }
+                      }}
+                      className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer h-4 w-4"
+                    />
+                    <div className="flex-1">
+                      <strong className="block text-gray-900 text-xs font-semibold">1. IBM Docling</strong>
+                      <span className="text-[10px] text-gray-500">Primary structural parser</span>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                    newKbEnableOpenDataLoader ? 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={newKbEnableOpenDataLoader}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        if (!checked && !newKbEnableDocling) return;
+                        setNewKbEnableOpenDataLoader(checked);
+                        if (checked && newKbEnableDocling) {
+                          setNewKbEnableDedup(true);
+                        }
+                      }}
+                      className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
+                    />
+                    <div className="flex-1">
+                      <strong className="block text-gray-900 text-xs font-semibold">2. OpenDataLoader</strong>
+                      <span className="text-[10px] text-gray-500">Layout & PyMuPDF engine</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
                   <div>
-                    <span className="text-gray-400 font-medium block text-[10px]">Chunk Size</span>
-                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
-                      {activeCreateEmbeddingSettings.chunk_size || 1000} tokens
+                    <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      Enable Paragraph & Boilerplate Deduplication
+                      {newKbEnableDocling && newKbEnableOpenDataLoader && (
+                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-bold uppercase tracking-wider">
+                          Auto-Enabled for Dual
+                        </span>
+                      )}
                     </span>
+                    <span className="block text-[10px] text-gray-400">Filters duplicate boilerplate & cross-parser redundant blocks</span>
                   </div>
-                  <div>
-                    <span className="text-gray-400 font-medium block text-[10px]">Chunk Overlap</span>
-                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
-                      {activeCreateEmbeddingSettings.chunk_overlap || 200} tokens
-                    </span>
-                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newKbEnableDedup}
+                      onChange={(e) => setNewKbEnableDedup(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
                 </div>
               </div>
 
+              {/* ROW 5: METADATA EXTRACTION PROMPT */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Metadata Extraction Prompt <span className="text-[10px] text-gray-400 font-normal">(Optional Override)</span>
+                </label>
+                <textarea
+                  value={newKbExtractionPrompt}
+                  onChange={(e) => setNewKbExtractionPrompt(e.target.value)}
+                  placeholder="e.g. You are a precise entity extractor. Extract invoice number, total amount, vendor, and dates into JSON..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-900 bg-white font-mono placeholder:text-gray-400"
+                />
+                <p className="mt-1 text-[10px] text-gray-400">
+                  Used when Knowledge Base is linked to a Domain to customize or override JSON metadata extraction instructions.
+                </p>
+              </div>
+
+              {/* FOOTER ACTIONS */}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -2242,14 +2566,14 @@ export default function KnowledgeBasesTab({
                 <button
                   type="submit"
                   disabled={creating || !newKbName.trim()}
-                  className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
                 >
                   {creating ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <Plus className="w-3.5 h-3.5" />
                   )}
-                  Create Base
+                  Create Knowledge Base
                 </button>
               </div>
             </form>
@@ -2395,11 +2719,52 @@ export default function KnowledgeBasesTab({
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Q3, product"
+                    placeholder="e.g. Q3, PRODUCT, REPORT"
                     value={docTags}
-                    onChange={(e) => setDocTags(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+                    onChange={(e) => setDocTags(e.target.value.toUpperCase())}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500 uppercase placeholder:normal-case font-medium"
                   />
+                </div>
+              </div>
+
+              {/* PDF PARSER STRATEGY & DEDUPLICATION OPTIONS */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700 flex items-center justify-between">
+                    <span>PDF Parser Strategy</span>
+                    <span className="text-[10px] text-gray-400 font-normal">Choose parsing pipeline</span>
+                  </label>
+                  <select
+                    value={docParserStrategy}
+                    onChange={(e: any) => {
+                      const strat = e.target.value;
+                      setDocParserStrategy(strat);
+                      if (strat === 'dual') {
+                        setDocEnableDedup(true);
+                      }
+                    }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
+                  >
+                    <option value="dual">Dual Parser (Docling + OpenDataLoader Reconciliation - High Assurance)</option>
+                    <option value="docling_only">Docling Only (Fast Primary Structural Extraction)</option>
+                    <option value="opendataloader_only">OpenDataLoader Only (Fast Secondary Layout Parser - Recommended for Books & Textbooks)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/80">
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-700">Enable Paragraph & Boilerplate Deduplication</span>
+                    <span className="block text-[10px] text-gray-400">Filters duplicate boilerplate & repetitive exercise blocks (Useful for textbooks/literature)</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={docEnableDedup}
+                      onChange={(e) => setDocEnableDedup(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
                 </div>
               </div>
 
@@ -2532,124 +2897,217 @@ export default function KnowledgeBasesTab({
       {/* KB Edit Modal */}
       {showEditKbModal && selectedKb && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden animate-in fade-in zoom-in duration-150">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-255 flex items-center justify-between">
-              <h3 className="font-bold text-gray-850 text-sm uppercase tracking-wider">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">
                 KB Settings: {editKbName}
               </h3>
               <button
                 onClick={() => setShowEditKbModal(false)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-xs"
+                className="text-gray-400 hover:text-gray-600 font-bold text-xs p-1 rounded-md hover:bg-gray-200 transition-colors cursor-pointer"
               >
                 ✕
               </button>
             </div>
             <form onSubmit={handleSaveKb} className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">Name</label>
-                <input
-                  type="text"
-                  required
-                  value={editKbName}
-                  onChange={(e) => setEditKbName(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">Description</label>
-                <textarea
-                  value={editKbDesc}
-                  onChange={(e) => setEditKbDesc(e.target.value)}
-                  placeholder="Describe the contents..."
-                  className="h-20 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 resize-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">Purpose</label>
-                <input
-                  type="text"
-                  value={editKbPurpose}
-                  onChange={(e) => setEditKbPurpose(e.target.value)}
-                  placeholder="e.g. Customer support FAQs"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">
-                  LLM Profile (Document Extraction)
-                </label>
-                <select
-                  value={editKbLlmProfileId}
-                  onChange={(e) => setEditKbLlmProfileId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer"
-                >
-                  <option value="">Default (Tenant Active Profile)</option>
-                  {targetCustomerProfiles.map((prof) => (
-                    <option key={prof.id} value={String(prof.id)}>
-                      {prof.name || prof.profile_name || `Profile #${prof.id}`}
-                      {prof.provider || prof.provider_name ? ` (${prof.provider || prof.provider_name})` : ''}
-                      {prof.is_default ? ' ★ Default' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                  Vector Store Configuration
+              {/* ROW 1: NAME & PURPOSE */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700">Name <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    required
+                    value={editKbName}
+                    onChange={(e) => setEditKbName(toSentenceCase(e.target.value))}
+                    onBlur={() => setEditKbName(toSentenceCase(editKbName))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                  />
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-gray-400 font-medium block text-[10px]">
-                      Embedding Model
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700">Purpose</label>
+                  <input
+                    type="text"
+                    value={editKbPurpose}
+                    onChange={(e) => setEditKbPurpose(e.target.value)}
+                    placeholder="e.g. Customer support FAQs"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* ROW 2: DESCRIPTION & TAGS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700">Description</label>
+                  <textarea
+                    rows={2}
+                    value={editKbDesc}
+                    onChange={(e) => setEditKbDesc(e.target.value)}
+                    placeholder="Describe the contents..."
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 resize-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700">Tags</label>
+                  <TagInput tags={editKbTags} onChange={setEditKbTags} />
+                </div>
+              </div>
+
+              {/* ROW 3: LLM PROFILE & QDRANT VECTOR INDEX SPECS SIDE-BY-SIDE */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-gray-700">
+                      LLM Profile (Document Extraction)
+                    </label>
+                    {targetCustomerProfiles.length > 1 && (
+                      <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded font-bold">
+                        {targetCustomerProfiles.length} profiles
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    value={editKbLlmProfileId}
+                    onChange={(e) => setEditKbLlmProfileId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
+                  >
+                    <option value="">Default (Tenant Active Profile)</option>
+                    {targetCustomerProfiles.map((prof) => (
+                      <option key={prof.id} value={String(prof.id)}>
+                        {prof.name || prof.profile_name || `Profile #${prof.id}`}
+                        {prof.provider || prof.provider_name ? ` (${prof.provider || prof.provider_name})` : ''}
+                        {prof.is_default ? ' ★ Default' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      <Database className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Qdrant Vector Index Specs</span>
+                    </label>
+                    <span className="text-[10px] text-blue-600 font-semibold flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Immutable
                     </span>
+                  </div>
+                  <div className="flex items-center gap-2 p-1.5 px-2.5 rounded-lg border border-blue-150 bg-blue-50/70 h-[38px] overflow-hidden">
                     <span
-                      className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block truncate"
-                      title={editKbEmbeddingModel}
+                      className="px-2 py-0.5 bg-white border border-blue-200 rounded text-xs font-mono font-bold text-slate-800 truncate max-w-[190px]"
+                      title={activeEditEmbeddingSettings.model}
                     >
-                      🔒 {editKbEmbeddingModel}
+                      {activeEditEmbeddingSettings.model}
                     </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 font-medium block text-[10px]">
-                      Vector Dimension
-                    </span>
-                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
-                      {editKbVectorDimension}d
+                    <span className="px-2 py-0.5 bg-blue-100/90 border border-blue-200 rounded text-xs font-mono font-semibold text-blue-800 shrink-0">
+                      {activeEditEmbeddingSettings.dimension} dims ({activeEditEmbeddingSettings.provider})
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-                  <span>Chunking Settings (RO)</span>
-                  <span className="text-[9px] text-slate-400 font-normal">🔒 Profile Managed</span>
+              {/* ROW 4: PDF PARSER ENGINES & DEDUPLICATION CONFIGURATION */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-blue-600" />
+                    PDF Parser Engines & Deduplication
+                  </span>
+                  <span className="text-[10px] text-gray-500 font-medium">
+                    {editKbEnableDocling && editKbEnableOpenDataLoader ? 'Dual Sequential + Compare' : 'Single Parser Mode'}
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                    editKbEnableDocling ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={editKbEnableDocling}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        if (!checked && !editKbEnableOpenDataLoader) return;
+                        setEditKbEnableDocling(checked);
+                        if (checked && editKbEnableOpenDataLoader) {
+                          setEditKbEnableDedup(true);
+                        }
+                      }}
+                      className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer h-4 w-4"
+                    />
+                    <div className="flex-1">
+                      <strong className="block text-gray-900 text-xs font-semibold">1. IBM Docling</strong>
+                      <span className="text-[10px] text-gray-500">Primary structural parser</span>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                    editKbEnableOpenDataLoader ? 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={editKbEnableOpenDataLoader}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        if (!checked && !editKbEnableDocling) return;
+                        setEditKbEnableOpenDataLoader(checked);
+                        if (checked && editKbEnableDocling) {
+                          setEditKbEnableDedup(true);
+                        }
+                      }}
+                      className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
+                    />
+                    <div className="flex-1">
+                      <strong className="block text-gray-900 text-xs font-semibold">2. OpenDataLoader</strong>
+                      <span className="text-[10px] text-gray-500">Layout & PyMuPDF engine</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
                   <div>
-                    <span className="text-gray-400 font-medium block text-[10px]">Chunk Size</span>
-                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
-                      {selectedKb.settings?.chunk_size || 1000} tokens
+                    <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      Enable Paragraph & Boilerplate Deduplication
+                      {editKbEnableDocling && editKbEnableOpenDataLoader && (
+                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-bold uppercase tracking-wider">
+                          Auto-Enabled for Dual
+                        </span>
+                      )}
                     </span>
+                    <span className="block text-[10px] text-gray-400">Filters duplicate boilerplate & cross-parser redundant blocks</span>
                   </div>
-                  <div>
-                    <span className="text-gray-400 font-medium block text-[10px]">Chunk Overlap</span>
-                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
-                      {selectedKb.settings?.chunk_overlap || 200} tokens
-                    </span>
-                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editKbEnableDedup}
+                      onChange={(e) => setEditKbEnableDedup(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-655">Tags</label>
-                <TagInput tags={editKbTags} onChange={setEditKbTags} />
+              {/* METADATA EXTRACTION PROMPT */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Metadata Extraction Prompt <span className="text-[10px] text-gray-400 font-normal">(Optional Override)</span>
+                </label>
+                <textarea
+                  value={editKbExtractionPrompt}
+                  onChange={(e) => setEditKbExtractionPrompt(e.target.value)}
+                  placeholder="e.g. You are a precise entity extractor. Extract invoice number, total amount, vendor, and dates into JSON..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-900 bg-white font-mono placeholder:text-gray-400"
+                />
+                <p className="mt-1 text-[10px] text-gray-400">
+                  Used when Knowledge Base is linked to a Domain to customize or override JSON metadata extraction instructions.
+                </p>
               </div>
 
+              {/* FOOTER ACTIONS */}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -2661,14 +3119,10 @@ export default function KnowledgeBasesTab({
                 <button
                   type="submit"
                   disabled={savingKb || !editKbName.trim()}
-                  className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
                 >
-                  {savingKb ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Pencil className="w-3.5 h-3.5" />
-                  )}
-                  Save Changes
+                  {savingKb ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
+                  Save Settings
                 </button>
               </div>
             </form>
@@ -2767,31 +3221,42 @@ export default function KnowledgeBasesTab({
           </div>
         </div>
       )}
-      {/* EKP DOCUMENT INSPECT DRAWER */}
+      {/* ========================================================================= */}
+      {/* EXPANDED SLIDER WINDOW: 3 SECTIONS (Dockling, OpenDataLoader, Extracted JSON) */}
+      {/* ========================================================================= */}
       {showEkpInspectModal && selectedEkpDoc && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-end z-[120] animate-fade-in">
-          <div className="bg-white w-full max-w-5xl h-full shadow-2xl flex flex-col border-l border-gray-200 overflow-hidden animate-in slide-in-from-right duration-200">
+          <div className={`bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 overflow-hidden animate-in slide-in-from-right duration-200 ${
+            ekpSliderSection === 'split' ? 'w-full max-w-[95vw]' : 'w-full max-w-5xl'
+          }`}>
             {/* DRAWER HEADER */}
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500/20 text-purple-300 rounded-lg">
+            <div className="px-6 py-3.5 bg-slate-900 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-purple-500/20 text-purple-300 rounded-lg shrink-0">
                   <SlidersHorizontal className="w-5 h-5" />
                 </div>
-                <div>
-                  <h3 className="font-bold text-sm flex items-center gap-2">
-                    <span>{selectedEkpDoc.file_name || selectedEkpDoc.name || 'Document Details'}</span>
-                    <span className="text-[10px] font-mono bg-purple-900/80 text-purple-200 px-2 py-0.5 rounded uppercase">
-                      EKP V3 Active
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-sm text-white truncate max-w-md">
+                      {selectedEkpDoc.file_name || selectedEkpDoc.name || 'Document Details'}
+                    </h3>
+                    <span className="text-[10px] font-mono bg-purple-900/80 text-purple-200 px-2 py-0.5 rounded uppercase font-semibold border border-purple-700/50">
+                      Dual Extraction Engine
                     </span>
-                  </h3>
-                  <p className="text-[11px] text-slate-400 font-mono">ID: {selectedEkpDoc.id}</p>
+                    <span className="text-[10px] font-mono bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
+                      {selectedEkpDoc.status || 'ready'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-mono truncate">
+                    ID: {selectedEkpDoc.id} · Size: {formatBytes(selectedEkpDoc.file_size)} · Chunks: {selectedEkpDoc.chunk_count ?? 0}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 shrink-0">
                 {ekpLoading && (
                   <span className="text-xs text-purple-300 flex items-center gap-1.5 font-medium">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading Spans...
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading Extraction...
                   </span>
                 )}
                 <button
@@ -2800,358 +3265,1092 @@ export default function KnowledgeBasesTab({
                     setSelectedEkpDoc(null);
                     setEditingEntityId(null);
                   }}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Close Inspector"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* DRAWER MAIN CONTENT */}
-            <div className="flex-1 grid grid-cols-2 divide-x overflow-hidden divide-gray-200">
-              {/* LEFT VERTICAL SECTION: PARAGRAPH SPANS */}
-              <div className="flex flex-col h-full overflow-hidden p-4 space-y-3 bg-slate-50/50">
-                <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                  <h4 className="font-bold text-xs uppercase tracking-wider flex items-center gap-2 text-slate-800">
-                    <FileText className="w-4 h-4 text-emerald-600" />
-                    Original CDM Paragraph Spans ({ekpParagraphs.length})
-                  </h4>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    Source Document
-                  </span>
-                </div>
+            {/* TOP 3-SECTION NAVIGATION TABS BAR */}
+            <div className="px-6 border-b border-gray-200 bg-slate-50 flex items-center justify-between shrink-0 overflow-x-auto">
+              <div className="flex items-center gap-2 pt-2 pb-2">
+                <button
+                  onClick={() => setEkpSliderSection('split')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    ekpSliderSection === 'split'
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-200/70'
+                  }`}
+                  title="View all 3 extraction sections side-by-side"
+                >
+                  <Columns className="w-3.5 h-3.5" />
+                  <span>Split 3-Way View</span>
+                </button>
 
-                <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
-                  {ekpParagraphs.length === 0 ? (
-                    <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
-                      No original document paragraph spans loaded yet.
-                    </div>
-                  ) : (
-                    ekpParagraphs.map((p) => (
-                      <div
-                        key={p.span_id}
-                        className="p-3 rounded-lg border space-y-1.5 hover:bg-slate-50 transition-colors text-xs bg-white border-gray-200"
-                      >
-                        <div className="flex items-center justify-between text-[10px] font-semibold text-gray-500">
-                          <span className="font-mono text-emerald-700 font-bold">{p.span_id}</span>
-                          <span>
-                            Page {p.page_number} · Para {p.paragraph_number}
-                          </span>
-                        </div>
-                        <p className="leading-relaxed font-sans text-xs text-gray-800">
-                          {p.text_content}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
+                <div className="h-4 w-px bg-gray-300 mx-1" />
+
+                {/* TAB 1: DOCKLING */}
+                <button
+                  onClick={() => setEkpSliderSection('docling')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    ekpSliderSection === 'docling'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-gray-700 hover:bg-slate-200/70'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>1. Dockling</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    ekpSliderSection === 'docling' ? 'bg-emerald-700 text-white' : 'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {doclingData.spans.length} Spans
+                  </span>
+                </button>
+
+                {/* TAB 2: OPENDATALOADER PDF PARSER */}
+                <button
+                  onClick={() => setEkpSliderSection('opendataloader')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    ekpSliderSection === 'opendataloader'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-gray-700 hover:bg-slate-200/70'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>2. OpenDataLoaderPDFParser</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    ekpSliderSection === 'opendataloader' ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {openDataLoaderData.spans.length} Spans
+                  </span>
+                </button>
+
+                {/* TAB 3: JSON (IF EXTRACTED) */}
+                <button
+                  onClick={() => setEkpSliderSection('json')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    ekpSliderSection === 'json'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'text-gray-700 hover:bg-slate-200/70'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>3. JSON (if extracted)</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    jsonExtractedData.isExtracted
+                      ? ekpSliderSection === 'json'
+                        ? 'bg-purple-700 text-white'
+                        : 'bg-purple-100 text-purple-800'
+                      : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {jsonExtractedData.isExtracted
+                      ? `${jsonExtractedData.entities.length || Object.keys(jsonExtractedData.extractedFields).length} Fields`
+                      : 'Not Extracted'}
+                  </span>
+                </button>
               </div>
 
-              {/* RIGHT VERTICAL SECTION: EXTRACTED INFORMATION & ENTITIES */}
-              <div className="flex flex-col h-full overflow-hidden p-4 space-y-3 bg-white">
-                <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-                  <h4 className="font-bold text-xs uppercase tracking-wider flex items-center gap-2 text-slate-800">
-                    <SlidersHorizontal className="w-4 h-4 text-purple-600" />
-                    Extracted Information ({ekpEntities.length})
-                  </h4>
-                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                    <button
-                      onClick={() => setEntityDisplayMode('cards')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                        entityDisplayMode === 'cards'
-                          ? 'bg-white text-purple-700 shadow-2xs'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <LayoutGrid className="w-3 h-3" />
-                      <span>Cards</span>
-                    </button>
-                    <button
-                      onClick={() => setEntityDisplayMode('json')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                        entityDisplayMode === 'json'
-                          ? 'bg-white text-purple-700 shadow-2xs'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <Code2 className="w-3 h-3" />
-                      <span>Prettified JSON</span>
-                    </button>
-                    <button
-                      onClick={() => setEntityDisplayMode('debug')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                        entityDisplayMode === 'debug'
-                          ? 'bg-white text-purple-700 shadow-2xs'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <Bug className="w-3 h-3 text-amber-500" />
-                      <span>Debug & Prompts</span>
-                    </button>
-                  </div>
+              {/* OVERLAP RECONCILIATION SUMMARY */}
+              {ekpViewsData?.comparison_report && (
+                <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-600">
+                  <span className="text-slate-400">Cross-Validation:</span>
+                  <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-mono text-[11px] font-bold">
+                    {((ekpViewsData.comparison_report.jaccard_overlap_ratio || 0.95) * 100).toFixed(1)}% Match
+                  </span>
+                  {ekpViewsData.comparison_report.recovered_spans_count > 0 && (
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono text-[11px] font-bold">
+                      +{ekpViewsData.comparison_report.recovered_spans_count} Recovered
+                    </span>
+                  )}
                 </div>
+              )}
+            </div>
 
-                {entityDisplayMode === 'debug' ? (
-                  <div className="flex-1 flex flex-col min-h-0 bg-slate-950 rounded-xl border border-slate-800 p-4 shadow-inner overflow-y-auto space-y-4 text-xs font-mono">
-                    <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-indigo-400 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                          🏷️ Linked Domain Schema
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 text-[10px] font-bold">
-                          {selectedEkpDoc.metadata_json?.domain_info?.domain_name || 'No Domain Linked'}
-                        </span>
+            {/* DRAWER MAIN CONTENT */}
+            <div className="flex-1 overflow-hidden">
+              {ekpSliderSection === 'split' ? (
+                /* ========================================================================= */
+                /* 3-COLUMN SPLIT VIEW */
+                /* ========================================================================= */
+                <div className="h-full grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-200 overflow-hidden bg-slate-100/50">
+                  {/* COLUMN 1: DOCKLING */}
+                  <div className="flex flex-col h-full overflow-hidden bg-white">
+                    <div className="p-3 border-b border-gray-200 bg-emerald-50/50 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 rounded bg-emerald-600 text-white">
+                          <FileText className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-slate-900">1. Dockling</h4>
+                          <p className="text-[10px] text-emerald-800 font-medium">IBM Docling Parser Engine</p>
+                        </div>
                       </div>
-                      {selectedEkpDoc.metadata_json?.domain_info?.status_note && (
-                        <p className="text-amber-400 text-[11px] font-sans pt-1">
-                          ⚠️ {selectedEkpDoc.metadata_json.domain_info.status_note}
-                        </p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono">
+                          {doclingData.spans.length} Spans
+                        </span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(doclingData.rawText);
+                            setCopiedDoclingText(true);
+                            setTimeout(() => setCopiedDoclingText(false), 2000);
+                          }}
+                          className="p-1 rounded text-slate-400 hover:text-emerald-700 hover:bg-white transition-colors cursor-pointer"
+                          title="Copy Dockling Text"
+                        >
+                          {copiedDoclingText ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-2 border-b border-gray-100 bg-white flex items-center gap-2 shrink-0">
+                      <div className="relative flex-1">
+                        <Search className="w-3 h-3 text-gray-400 absolute left-2 top-2" />
+                        <input
+                          type="text"
+                          placeholder="Search dockling text..."
+                          value={doclingSearch}
+                          onChange={(e) => setDoclingSearch(e.target.value)}
+                          className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded-md bg-gray-50 focus:bg-white text-slate-900 focus:outline-hidden"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-gray-200 text-[10px] font-semibold shrink-0">
+                        <button
+                          onClick={() => setDoclingSubView('spans')}
+                          className={`px-2 py-0.5 rounded cursor-pointer ${
+                            doclingSubView === 'spans' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
+                          }`}
+                        >
+                          Spans
+                        </button>
+                        <button
+                          onClick={() => setDoclingSubView('text')}
+                          className={`px-2 py-0.5 rounded cursor-pointer ${
+                            doclingSubView === 'text' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
+                          }`}
+                        >
+                          Raw Text
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                      {doclingSubView === 'text' ? (
+                        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-slate-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
+                          {doclingData.rawText || 'No raw text stream recorded from Dockling.'}
+                        </div>
+                      ) : (
+                        doclingData.spans.filter((s: any) => {
+                          if (!doclingSearch) return true;
+                          const t = (s.text || s.text_content || '').toLowerCase();
+                          return t.includes(doclingSearch.toLowerCase());
+                        }).length === 0 ? (
+                          <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
+                            {doclingData.spans.length === 0
+                              ? 'Docling parser did not produce spans for this file (fallback or single-pass mode).'
+                              : 'No spans matched your search.'}
+                          </div>
+                        ) : (
+                          doclingData.spans
+                            .filter((s: any) => {
+                              if (!doclingSearch) return true;
+                              const t = (s.text || s.text_content || '').toLowerCase();
+                              return t.includes(doclingSearch.toLowerCase());
+                            })
+                            .map((s: any, idx: number) => (
+                              <div
+                                key={s.span_id || `ds_${idx}`}
+                                className="p-2.5 rounded-lg border border-gray-200 bg-white hover:border-emerald-300 transition-colors text-xs space-y-1 shadow-2xs"
+                              >
+                                <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium">
+                                  <span className="font-mono text-emerald-700 font-bold">
+                                    {s.span_id || `P${s.page_number || 1}-S${s.paragraph_index || idx}`}
+                                  </span>
+                                  <span>
+                                    Page {s.page_number || 1} {s.block_type && `· ${s.block_type}`}
+                                  </span>
+                                </div>
+                                <p className="text-gray-800 leading-relaxed font-sans text-xs">
+                                  {s.text || s.text_content}
+                                </p>
+                                {s.bbox && (
+                                  <span className="text-[9px] font-mono text-gray-400 block pt-0.5">
+                                    bbox: [{s.bbox.map((n: number) => n.toFixed(1)).join(', ')}]
+                                  </span>
+                                )}
+                              </div>
+                            ))
+                        )
                       )}
                     </div>
-
-                    {selectedEkpDoc.metadata_json?.domain_info?.error && (
-                      <div className="p-3 bg-red-950/80 border border-red-800 rounded-lg text-red-300 space-y-1">
-                        <span className="font-bold text-red-400 uppercase tracking-wider block">⚠️ Extraction Exception</span>
-                        <pre className="text-[11px] whitespace-pre-wrap">{selectedEkpDoc.metadata_json.domain_info.error}</pre>
-                      </div>
-                    )}
-
-                    <div className="space-y-1">
-                      <span className="text-purple-400 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1">
-                        📜 System Prompt Used:
-                      </span>
-                      <pre className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-slate-300 whitespace-pre-wrap text-[11px] leading-relaxed">
-                        {selectedEkpDoc.metadata_json?.domain_info?.debug_info?.system_prompt || 'No system prompt log stored for this document.'}
-                      </pre>
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-purple-400 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1">
-                        📄 User Prompt & Content Passed to LLM:
-                      </span>
-                      <pre className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-slate-300 whitespace-pre-wrap text-[11px] leading-relaxed">
-                        {selectedEkpDoc.metadata_json?.domain_info?.debug_info?.user_prompt || 'No user prompt log stored for this document.'}
-                      </pre>
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-emerald-400 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1">
-                        🤖 Raw LLM Completion Output:
-                      </span>
-                      <pre className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-emerald-300 whitespace-pre-wrap text-[11px] leading-relaxed">
-                        {selectedEkpDoc.metadata_json?.domain_info?.debug_info?.raw_response || 'No raw completion output log stored for this document.'}
-                      </pre>
-                    </div>
                   </div>
-                ) : entityDisplayMode === 'json' ? (
-                  <div className="flex-1 flex flex-col min-h-0 bg-slate-950 rounded-xl border border-slate-800 p-3 shadow-inner overflow-hidden">
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 shrink-0">
-                      <span className="text-[10px] font-mono text-purple-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <FileJson className="w-3.5 h-3.5 text-purple-400" />
-                        Prettified LLM JSON Output
-                      </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(prettifiedEntitiesJson);
-                          setCopiedJson(true);
-                          setTimeout(() => setCopiedJson(false), 2000);
-                        }}
-                        className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-purple-300 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded transition-colors cursor-pointer"
-                      >
-                        {copiedJson ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-400" />
-                            <span className="text-emerald-400">Copied!</span>
-                          </>
+
+                  {/* COLUMN 2: OPENDATALOADER PDF PARSER */}
+                  <div className="flex flex-col h-full overflow-hidden bg-white">
+                    <div className="p-3 border-b border-gray-200 bg-blue-50/50 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 rounded bg-blue-600 text-white">
+                          <Layers className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-slate-900">2. OpenDataLoaderPDFParser</h4>
+                          <p className="text-[10px] text-blue-800 font-medium">Layout & PyMuPDF Secondary Engine</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 font-mono">
+                          {openDataLoaderData.spans.length} Spans
+                        </span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(openDataLoaderData.rawText);
+                            setCopiedOpenDataLoaderText(true);
+                            setTimeout(() => setCopiedOpenDataLoaderText(false), 2000);
+                          }}
+                          className="p-1 rounded text-slate-400 hover:text-blue-700 hover:bg-white transition-colors cursor-pointer"
+                          title="Copy OpenDataLoader Text"
+                        >
+                          {copiedOpenDataLoaderText ? <Check className="w-3.5 h-3.5 text-blue-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-2 border-b border-gray-100 bg-white flex items-center gap-2 shrink-0">
+                      <div className="relative flex-1">
+                        <Search className="w-3 h-3 text-gray-400 absolute left-2 top-2" />
+                        <input
+                          type="text"
+                          placeholder="Search opendataloader text..."
+                          value={openDataLoaderSearch}
+                          onChange={(e) => setOpenDataLoaderSearch(e.target.value)}
+                          className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded-md bg-gray-50 focus:bg-white text-slate-900 focus:outline-hidden"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-gray-200 text-[10px] font-semibold shrink-0">
+                        <button
+                          onClick={() => setOpenDataLoaderSubView('spans')}
+                          className={`px-2 py-0.5 rounded cursor-pointer ${
+                            openDataLoaderSubView === 'spans' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-gray-500'
+                          }`}
+                        >
+                          Layout Spans
+                        </button>
+                        <button
+                          onClick={() => setOpenDataLoaderSubView('text')}
+                          className={`px-2 py-0.5 rounded cursor-pointer ${
+                            openDataLoaderSubView === 'text' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-gray-500'
+                          }`}
+                        >
+                          Raw Text
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                      {openDataLoaderSubView === 'text' ? (
+                        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-slate-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
+                          {openDataLoaderData.rawText || 'No raw text stream recorded from OpenDataLoaderPDFParser.'}
+                        </div>
+                      ) : (
+                        openDataLoaderData.spans.filter((s: any) => {
+                          if (!openDataLoaderSearch) return true;
+                          const t = (s.text || s.text_content || '').toLowerCase();
+                          return t.includes(openDataLoaderSearch.toLowerCase());
+                        }).length === 0 ? (
+                          <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
+                            {openDataLoaderData.spans.length === 0
+                              ? 'No secondary layout spans available for this document.'
+                              : 'No spans matched your search.'}
+                          </div>
                         ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            <span>Copy JSON</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <pre className="flex-1 overflow-auto text-[11px] font-mono text-emerald-400 leading-relaxed pr-2 select-text font-medium whitespace-pre-wrap">
-                      {prettifiedEntitiesJson}
-                    </pre>
-                  </div>
-                ) : (
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                    {ekpEntities.length === 0 ? (
-                      <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
-                        No extracted domain entities available for this document.
-                      </div>
-                    ) : (
-                      ekpEntities.map((ent) => {
-                        const isEditing = editingEntityId === ent.id;
-                        return (
-                          <div
-                            key={ent.id}
-                            className="p-3.5 rounded-xl border space-y-2 transition-all shadow-2xs bg-white border-gray-200"
-                          >
-                            {isEditing ? (
-                              <div className="space-y-3 p-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
-                                    Editing Entity
-                                  </span>
-                                  <button
-                                    onClick={() => setEditingEntityId(null)}
-                                    className="text-xs text-slate-400 hover:text-slate-600 font-bold"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">
-                                      Entity Type
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={editEntityForm.entity_type}
-                                      onChange={(e) =>
-                                        setEditEntityForm((prev) => ({ ...prev, entity_type: e.target.value }))
-                                      }
-                                      className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">
-                                      Entity Key
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={editEntityForm.entity_key}
-                                      onChange={(e) =>
-                                        setEditEntityForm((prev) => ({ ...prev, entity_key: e.target.value }))
-                                      }
-                                      className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase">
-                                    Extracted Value
-                                  </label>
-                                  <textarea
-                                    rows={2}
-                                    value={editEntityForm.value}
-                                    onChange={(e) =>
-                                      setEditEntityForm((prev) => ({ ...prev, value: e.target.value }))
-                                    }
-                                    className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5 resize-none"
-                                  />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">
-                                      Confidence (0.0 - 1.0)
-                                    </label>
-                                    <input
-                                      type="number"
-                                      step="0.05"
-                                      min="0"
-                                      max="1"
-                                      value={editEntityForm.confidence}
-                                      onChange={(e) =>
-                                        setEditEntityForm((prev) => ({
-                                          ...prev,
-                                          confidence: parseFloat(e.target.value),
-                                        }))
-                                      }
-                                      className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">
-                                      Basis
-                                    </label>
-                                    <select
-                                      value={editEntityForm.basis}
-                                      onChange={(e) =>
-                                        setEditEntityForm((prev) => ({ ...prev, basis: e.target.value }))
-                                      }
-                                      className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5 cursor-pointer"
-                                    >
-                                      <option value="FACT">FACT</option>
-                                      <option value="INFERENCE">INFERENCE</option>
-                                      <option value="UNKNOWN">UNKNOWN</option>
-                                    </select>
-                                  </div>
-                                </div>
-
-                                <button
-                                  onClick={() => handleSaveEntity(ent.id)}
-                                  disabled={savingEntity}
-                                  className="w-full py-1.5 rounded text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer transition-opacity bg-primary text-white"
+                          openDataLoaderData.spans
+                            .filter((s: any) => {
+                              if (!openDataLoaderSearch) return true;
+                              const t = (s.text || s.text_content || '').toLowerCase();
+                              return t.includes(openDataLoaderSearch.toLowerCase());
+                            })
+                            .map((s: any, idx: number) => {
+                              const isRecovered = s.source_parser?.includes('recovered');
+                              return (
+                                <div
+                                  key={s.span_id || `od_${idx}`}
+                                  className={`p-2.5 rounded-lg border transition-colors text-xs space-y-1 shadow-2xs ${
+                                    isRecovered
+                                      ? 'border-amber-300 bg-amber-50/50'
+                                      : 'border-gray-200 bg-white hover:border-blue-300'
+                                  }`}
                                 >
-                                  {savingEntity ? <RefreshCw className="w-3 h-3 animate-spin" /> : null}
-                                  Save Entity Changes
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold uppercase">
-                                      {ent.entity_type}
-                                    </span>
-                                    <span className="font-bold text-xs text-slate-900">
-                                      {formatEntityKey(ent.entity_key, ent.entity_type)}
-                                    </span>
-                                  </div>
-                                  <button
-                                    onClick={() => startEditEntity(ent)}
-                                    className="p-1 rounded text-slate-400 hover:text-emerald-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                                    title="Edit Entity"
-                                  >
-                                    <Pencil className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-
-                                <p className="text-xs text-slate-800 font-medium leading-relaxed bg-slate-50/70 p-2 rounded border border-slate-150">
-                                  {typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value)}
-                                </p>
-
-                                <div className="flex items-center justify-between text-[10px] font-medium text-slate-500 pt-0.5">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-mono text-blue-700 font-bold">
+                                        {s.span_id || `OD-P${s.page_number || 1}-${idx}`}
+                                      </span>
+                                      {isRecovered && (
+                                        <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-bold text-[9px] uppercase">
+                                          Recovered
+                                        </span>
+                                      )}
+                                    </div>
                                     <span>
-                                      Confidence: <strong>{(ent.confidence * 100).toFixed(0)}%</strong>
-                                    </span>
-                                    <span
-                                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${ent.basis === 'FACT'
-                                          ? 'bg-green-100 text-green-800'
-                                          : 'bg-amber-100 text-amber-800'
-                                        }`}
-                                    >
-                                      {ent.basis}
+                                      Page {s.page_number || 1} {s.block_type && `· ${s.block_type}`}
                                     </span>
                                   </div>
-                                  {ent.provenance_span_id && (
-                                    <span className="font-mono text-emerald-700 font-semibold text-[10px]">
-                                      Span: {ent.provenance_span_id}
+                                  <p className="text-gray-800 leading-relaxed font-sans text-xs">
+                                    {s.text || s.text_content}
+                                  </p>
+                                  {s.bbox && (
+                                    <span className="text-[9px] font-mono text-gray-400 block pt-0.5">
+                                      bbox: [{s.bbox.map((n: number) => n.toFixed(1)).join(', ')}]
                                     </span>
                                   )}
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
+                              );
+                            })
+                        )
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  {/* COLUMN 3: EXTRACTED JSON */}
+                  <div className="flex flex-col h-full overflow-hidden bg-white">
+                    <div className="p-3 border-b border-gray-200 bg-purple-50/50 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 rounded bg-purple-600 text-white">
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-slate-900">3. JSON (if extracted)</h4>
+                          <p className="text-[10px] text-purple-800 font-medium">Domain Schema Structured Knowledge</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border font-mono ${
+                          jsonExtractedData.isExtracted
+                            ? 'bg-purple-100 text-purple-800 border-purple-200'
+                            : 'bg-gray-100 text-gray-500 border-gray-200'
+                        }`}>
+                          {jsonExtractedData.isExtracted ? 'JSON Extracted' : 'Not Extracted'}
+                        </span>
+                        {jsonExtractedData.isExtracted && (
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(prettifiedEntitiesJson);
+                              setCopiedJson(true);
+                              setTimeout(() => setCopiedJson(false), 2000);
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-purple-700 hover:bg-white transition-colors cursor-pointer"
+                            title="Copy Extracted JSON"
+                          >
+                            {copiedJson ? <Check className="w-3.5 h-3.5 text-purple-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-2 border-b border-gray-100 bg-white flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-gray-200 text-[10px] font-semibold w-full">
+                        <button
+                          onClick={() => setJsonSubView('entities')}
+                          className={`flex-1 py-1 text-center rounded cursor-pointer ${
+                            jsonSubView === 'entities' ? 'bg-white text-purple-700 font-bold shadow-2xs' : 'text-gray-500'
+                          }`}
+                        >
+                          Entities ({jsonExtractedData.entities.length})
+                        </button>
+                        <button
+                          onClick={() => setJsonSubView('domain_summary')}
+                          className={`flex-1 py-1 text-center rounded cursor-pointer ${
+                            jsonSubView === 'domain_summary' ? 'bg-white text-purple-700 font-bold shadow-2xs' : 'text-gray-500'
+                          }`}
+                        >
+                          Fields Table
+                        </button>
+                        <button
+                          onClick={() => setJsonSubView('raw_json')}
+                          className={`flex-1 py-1 text-center rounded cursor-pointer ${
+                            jsonSubView === 'raw_json' ? 'bg-white text-purple-700 font-bold shadow-2xs' : 'text-gray-500'
+                          }`}
+                        >
+                          JSON Code
+                        </button>
+                        <button
+                          onClick={() => setJsonSubView('debug')}
+                          className={`flex-1 py-1 text-center rounded cursor-pointer ${
+                            jsonSubView === 'debug' ? 'bg-white text-purple-700 font-bold shadow-2xs' : 'text-gray-500'
+                          }`}
+                        >
+                          Debug
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                      {!jsonExtractedData.isExtracted ? (
+                        <div className="p-6 text-center border border-dashed border-purple-200 rounded-xl bg-purple-50/20 space-y-3 my-auto">
+                          <div className="w-10 h-10 mx-auto rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                            <FileJson className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h5 className="font-bold text-xs text-slate-800">No Structured JSON Extracted Yet</h5>
+                            <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto leading-relaxed">
+                              This document has dual text parsing (Dockling & OpenDataLoader), but domain JSON extraction has not been executed yet.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleReprocessDocument(selectedEkpDoc.id)}
+                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                            <span>Extract Domain JSON</span>
+                          </button>
+                        </div>
+                      ) : jsonSubView === 'raw_json' ? (
+                        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-emerald-400 font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
+                          {prettifiedEntitiesJson}
+                        </div>
+                      ) : jsonSubView === 'domain_summary' ? (
+                        <div className="space-y-3">
+                          {jsonExtractedData.domainInfo && (
+                            <div className="p-2.5 rounded-lg bg-indigo-50 border border-indigo-200 text-xs space-y-1">
+                              <span className="font-bold text-indigo-900 block">
+                                🏷️ Domain: {jsonExtractedData.domainInfo.domain_name} ({jsonExtractedData.domainInfo.domain_key})
+                              </span>
+                              {jsonExtractedData.domainInfo.status_note && (
+                                <p className="text-[11px] text-amber-700">⚠️ {jsonExtractedData.domainInfo.status_note}</p>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="border border-gray-200 rounded-lg overflow-hidden">
+                            <table className="min-w-full divide-y divide-gray-200 text-xs">
+                              <thead className="bg-slate-50">
+                                <tr>
+                                  <th className="px-3 py-2 text-left font-bold text-gray-600 text-[10px] uppercase">Field</th>
+                                  <th className="px-3 py-2 text-left font-bold text-gray-600 text-[10px] uppercase">Extracted Value</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200 bg-white">
+                                {Object.entries(jsonExtractedData.extractedFields).map(([k, v]) => (
+                                  <tr key={k} className="hover:bg-slate-50">
+                                    <td className="px-3 py-2 font-mono font-bold text-purple-700 text-[11px]">{k}</td>
+                                    <td className="px-3 py-2 text-gray-800 text-[11px]">{String(v)}</td>
+                                  </tr>
+                                ))}
+                                {Object.entries(jsonExtractedData.extraFields).map(([k, v]) => (
+                                  <tr key={`extra_${k}`} className="bg-indigo-50/40 hover:bg-indigo-50">
+                                    <td className="px-3 py-2 font-mono font-semibold text-indigo-700 text-[11px]">
+                                      {k} <span className="text-[9px] font-sans text-indigo-500 font-normal">(extra)</span>
+                                    </td>
+                                    <td className="px-3 py-2 text-indigo-950 text-[11px]">{String(v)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ) : jsonSubView === 'debug' ? (
+                        <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 space-y-3 text-xs font-mono">
+                          {jsonExtractedData.error && (
+                            <div className="p-2.5 bg-red-950/80 border border-red-800 rounded text-red-300">
+                              <span className="font-bold text-red-400 block uppercase text-[10px]">Error</span>
+                              <pre className="text-[10px] whitespace-pre-wrap">{jsonExtractedData.error}</pre>
+                            </div>
+                          )}
+                          <div className="space-y-1">
+                            <span className="text-purple-400 font-bold uppercase text-[10px]">📜 System Prompt</span>
+                            <pre className="p-2 bg-slate-900 rounded border border-slate-800 text-slate-300 text-[10px] whitespace-pre-wrap leading-relaxed">
+                              {jsonExtractedData.debugInfo?.system_prompt || 'No system prompt log stored.'}
+                            </pre>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-purple-400 font-bold uppercase text-[10px]">📄 User Prompt</span>
+                            <pre className="p-2 bg-slate-900 rounded border border-slate-800 text-slate-300 text-[10px] whitespace-pre-wrap leading-relaxed">
+                              {jsonExtractedData.debugInfo?.user_prompt || 'No user prompt log stored.'}
+                            </pre>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-emerald-400 font-bold uppercase text-[10px]">🤖 Raw LLM Output</span>
+                            <pre className="p-2 bg-slate-900 rounded border border-slate-800 text-emerald-300 text-[10px] whitespace-pre-wrap leading-relaxed">
+                              {jsonExtractedData.debugInfo?.raw_response || 'No raw response log stored.'}
+                            </pre>
+                          </div>
+                        </div>
+                      ) : (
+                        jsonExtractedData.entities.map((ent: any) => {
+                          const isEditing = editingEntityId === ent.id;
+                          return (
+                            <div
+                              key={ent.id}
+                              className="p-3 rounded-lg border border-gray-200 bg-white hover:border-purple-300 transition-colors text-xs space-y-1.5 shadow-2xs"
+                            >
+                              {isEditing ? (
+                                <div className="space-y-2 p-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-purple-700">Editing Entity</span>
+                                    <button
+                                      onClick={() => setEditingEntityId(null)}
+                                      className="text-xs text-slate-400 hover:text-slate-600 font-bold"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={editEntityForm.entity_key}
+                                    onChange={(e) => setEditEntityForm((prev) => ({ ...prev, entity_key: e.target.value }))}
+                                    className="w-full border rounded px-2 py-1 text-xs bg-white text-black"
+                                    placeholder="Entity Key"
+                                  />
+                                  <textarea
+                                    rows={2}
+                                    value={editEntityForm.value}
+                                    onChange={(e) => setEditEntityForm((prev) => ({ ...prev, value: e.target.value }))}
+                                    className="w-full border rounded px-2 py-1 text-xs bg-white text-black resize-none"
+                                  />
+                                  <button
+                                    onClick={() => handleSaveEntity(ent.id)}
+                                    disabled={savingEntity}
+                                    className="w-full py-1 rounded text-xs font-semibold bg-primary text-white cursor-pointer"
+                                  >
+                                    Save Entity
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-bold uppercase">
+                                        {ent.entity_type}
+                                      </span>
+                                      <span className="font-bold text-xs text-slate-900 truncate">
+                                        {formatEntityKey(ent.entity_key, ent.entity_type)}
+                                      </span>
+                                    </div>
+                                    <button
+                                      onClick={() => startEditEntity(ent)}
+                                      className="p-1 rounded text-slate-400 hover:text-purple-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                      title="Edit Entity"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                  <p className="text-xs text-slate-800 font-medium leading-relaxed bg-slate-50/70 p-2 rounded border border-slate-150">
+                                    {typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value)}
+                                  </p>
+                                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                                    <span>Confidence: <strong>{((ent.confidence ?? 1.0) * 100).toFixed(0)}%</strong></span>
+                                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
+                                      ent.basis === 'FACT' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                                    }`}>
+                                      {ent.basis || 'FACT'}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ========================================================================= */
+                /* FULL FOCUSED TAB VIEW (Single Section: Docling, OpenDataLoader, or JSON) */
+                /* ========================================================================= */
+                <div className="h-full flex flex-col bg-slate-50/50 p-4 overflow-y-auto">
+                  {ekpSliderSection === 'docling' && (
+                    <div className="max-w-4xl mx-auto w-full space-y-4">
+                      <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60 flex items-center justify-between flex-wrap gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 rounded-lg bg-emerald-600 text-white">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-slate-900">1. Dockling Document Extraction</h4>
+                            <p className="text-xs text-emerald-800 font-medium">IBM Docling PDF & Layout Analysis Parser Engine</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-800 text-xs font-bold font-mono shadow-2xs">
+                            {doclingData.spans.length} Paragraph Spans
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-800 text-xs font-bold font-mono shadow-2xs">
+                            {doclingData.rawText.length} Chars
+                          </span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(doclingData.rawText);
+                              setCopiedDoclingText(true);
+                              setTimeout(() => setCopiedDoclingText(false), 2000);
+                            }}
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                          >
+                            {copiedDoclingText ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiedDoclingText ? 'Copied' : 'Copy Text'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="relative flex-1">
+                          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                          <input
+                            type="text"
+                            placeholder="Filter dockling spans..."
+                            value={doclingSearch}
+                            onChange={(e) => setDoclingSearch(e.target.value)}
+                            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg bg-white text-slate-900 shadow-2xs"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 text-xs font-semibold shadow-2xs">
+                          <button
+                            onClick={() => setDoclingSubView('spans')}
+                            className={`px-3 py-1 rounded-md cursor-pointer ${
+                              doclingSubView === 'spans' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            Spans ({doclingData.spans.length})
+                          </button>
+                          <button
+                            onClick={() => setDoclingSubView('text')}
+                            className={`px-3 py-1 rounded-md cursor-pointer ${
+                              doclingSubView === 'text' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            Full Text
+                          </button>
+                        </div>
+                      </div>
+
+                      {doclingSubView === 'text' ? (
+                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed shadow-inner">
+                          {doclingData.rawText || 'No raw text stream available for Dockling.'}
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {doclingData.spans
+                            .filter((s: any) => {
+                              if (!doclingSearch) return true;
+                              const t = (s.text || s.text_content || '').toLowerCase();
+                              return t.includes(doclingSearch.toLowerCase());
+                            })
+                            .map((s: any, idx: number) => (
+                              <div
+                                key={s.span_id || `ds_f_${idx}`}
+                                className="p-3.5 rounded-xl border border-gray-200 bg-white hover:border-emerald-300 transition-all text-xs space-y-1.5 shadow-2xs"
+                              >
+                                <div className="flex items-center justify-between text-[11px] text-gray-500 font-medium">
+                                  <span className="font-mono text-emerald-700 font-bold">
+                                    {s.span_id || `Span #${idx + 1}`}
+                                  </span>
+                                  <span>
+                                    Page {s.page_number || 1} {s.block_type && `· ${s.block_type}`}
+                                  </span>
+                                </div>
+                                <p className="text-gray-800 leading-relaxed font-sans text-xs">
+                                  {s.text || s.text_content}
+                                </p>
+                                {s.bbox && (
+                                  <span className="text-[10px] font-mono text-gray-400 block pt-0.5">
+                                    bbox: [{s.bbox.map((n: number) => n.toFixed(1)).join(', ')}]
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {ekpSliderSection === 'opendataloader' && (
+                    <div className="max-w-4xl mx-auto w-full space-y-4">
+                      <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/60 flex items-center justify-between flex-wrap gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 rounded-lg bg-blue-600 text-white">
+                            <Layers className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-slate-900">2. OpenDataLoaderPDFParser Extraction</h4>
+                            <p className="text-xs text-blue-800 font-medium">OpenDataLoader / PyMuPDF Layout Analysis Engine</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-800 text-xs font-bold font-mono shadow-2xs">
+                            {openDataLoaderData.spans.length} Layout Spans
+                          </span>
+                          {ekpViewsData?.comparison_report?.jaccard_overlap_ratio && (
+                            <span className="px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-800 text-xs font-bold font-mono shadow-2xs">
+                              {((ekpViewsData.comparison_report.jaccard_overlap_ratio || 0.95) * 100).toFixed(1)}% Token Match
+                            </span>
+                          )}
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(openDataLoaderData.rawText);
+                              setCopiedOpenDataLoaderText(true);
+                              setTimeout(() => setCopiedOpenDataLoaderText(false), 2000);
+                            }}
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                          >
+                            {copiedOpenDataLoaderText ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiedOpenDataLoaderText ? 'Copied' : 'Copy Text'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="relative flex-1">
+                          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                          <input
+                            type="text"
+                            placeholder="Filter opendataloader spans..."
+                            value={openDataLoaderSearch}
+                            onChange={(e) => setOpenDataLoaderSearch(e.target.value)}
+                            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg bg-white text-slate-900 shadow-2xs"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 text-xs font-semibold shadow-2xs">
+                          <button
+                            onClick={() => setOpenDataLoaderSubView('spans')}
+                            className={`px-3 py-1 rounded-md cursor-pointer ${
+                              openDataLoaderSubView === 'spans' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            Spans ({openDataLoaderData.spans.length})
+                          </button>
+                          <button
+                            onClick={() => setOpenDataLoaderSubView('text')}
+                            className={`px-3 py-1 rounded-md cursor-pointer ${
+                              openDataLoaderSubView === 'text' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            Full Text
+                          </button>
+                        </div>
+                      </div>
+
+                      {openDataLoaderSubView === 'text' ? (
+                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed shadow-inner">
+                          {openDataLoaderData.rawText || 'No raw text stream available for OpenDataLoaderPDFParser.'}
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {openDataLoaderData.spans
+                            .filter((s: any) => {
+                              if (!openDataLoaderSearch) return true;
+                              const t = (s.text || s.text_content || '').toLowerCase();
+                              return t.includes(openDataLoaderSearch.toLowerCase());
+                            })
+                            .map((s: any, idx: number) => {
+                              const isRecovered = s.source_parser?.includes('recovered');
+                              return (
+                                <div
+                                  key={s.span_id || `od_f_${idx}`}
+                                  className={`p-3.5 rounded-xl border transition-all text-xs space-y-1.5 shadow-2xs ${
+                                    isRecovered ? 'border-amber-300 bg-amber-50/50' : 'border-gray-200 bg-white hover:border-blue-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between text-[11px] text-gray-500 font-medium">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono text-blue-700 font-bold">
+                                        {s.span_id || `OD-Span #${idx + 1}`}
+                                      </span>
+                                      {isRecovered && (
+                                        <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-bold text-[9px] uppercase">
+                                          Recovered Span
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span>
+                                      Page {s.page_number || 1} {s.block_type && `· ${s.block_type}`}
+                                    </span>
+                                  </div>
+                                  <p className="text-gray-800 leading-relaxed font-sans text-xs">
+                                    {s.text || s.text_content}
+                                  </p>
+                                  {s.bbox && (
+                                    <span className="text-[10px] font-mono text-gray-400 block pt-0.5">
+                                      bbox: [{s.bbox.map((n: number) => n.toFixed(1)).join(', ')}]
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {ekpSliderSection === 'json' && (
+                    <div className="max-w-4xl mx-auto w-full space-y-4">
+                      <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/60 flex items-center justify-between flex-wrap gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 rounded-lg bg-purple-600 text-white">
+                            <Sparkles className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-slate-900">3. JSON (if extracted)</h4>
+                            <p className="text-xs text-purple-800 font-medium">Domain-Specific Extracted Knowledge & Entities</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono border shadow-2xs ${
+                            jsonExtractedData.isExtracted
+                              ? 'bg-purple-100 text-purple-800 border-purple-200'
+                              : 'bg-gray-100 text-gray-500 border-gray-200'
+                          }`}>
+                            {jsonExtractedData.isExtracted ? 'JSON Extracted' : 'Not Extracted'}
+                          </span>
+                          {jsonExtractedData.isExtracted && (
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(prettifiedEntitiesJson);
+                                setCopiedJson(true);
+                                setTimeout(() => setCopiedJson(false), 2000);
+                              }}
+                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                            >
+                              {copiedJson ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                              <span>{copiedJson ? 'Copied' : 'Copy JSON'}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {!jsonExtractedData.isExtracted ? (
+                        <div className="p-12 text-center border border-dashed border-purple-200 rounded-2xl bg-white space-y-4 shadow-2xs">
+                          <div className="w-12 h-12 mx-auto rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                            <FileJson className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-slate-900">No Structured JSON Extracted Yet</h4>
+                            <p className="text-xs text-slate-500 mt-1.5 max-w-md mx-auto leading-relaxed">
+                              This document has completed text extraction via Dockling and OpenDataLoader, but structured domain JSON has not been extracted yet. You can trigger domain extraction now.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleReprocessDocument(selectedEkpDoc.id)}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Reprocess & Extract Domain JSON</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 text-xs font-semibold shadow-2xs">
+                            <button
+                              onClick={() => setJsonSubView('entities')}
+                              className={`px-3 py-1 rounded-md cursor-pointer ${
+                                jsonSubView === 'entities' ? 'bg-purple-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
+                              }`}
+                            >
+                              Entities Cards ({jsonExtractedData.entities.length})
+                            </button>
+                            <button
+                              onClick={() => setJsonSubView('domain_summary')}
+                              className={`px-3 py-1 rounded-md cursor-pointer ${
+                                jsonSubView === 'domain_summary' ? 'bg-purple-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
+                              }`}
+                            >
+                              Domain Schema Summary
+                            </button>
+                            <button
+                              onClick={() => setJsonSubView('raw_json')}
+                              className={`px-3 py-1 rounded-md cursor-pointer ${
+                                jsonSubView === 'raw_json' ? 'bg-purple-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
+                              }`}
+                            >
+                              Prettified JSON
+                            </button>
+                            <button
+                              onClick={() => setJsonSubView('debug')}
+                              className={`px-3 py-1 rounded-md cursor-pointer ${
+                                jsonSubView === 'debug' ? 'bg-purple-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
+                              }`}
+                            >
+                              LLM Prompts & Debug
+                            </button>
+                          </div>
+
+                          {jsonSubView === 'raw_json' ? (
+                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-emerald-400 font-mono text-xs whitespace-pre-wrap leading-relaxed shadow-inner">
+                              {prettifiedEntitiesJson}
+                            </div>
+                          ) : jsonSubView === 'domain_summary' ? (
+                            <div className="space-y-4">
+                              {jsonExtractedData.domainInfo && (
+                                <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 text-xs space-y-1">
+                                  <span className="font-bold text-indigo-900 block text-sm">
+                                    🏷️ Domain: {jsonExtractedData.domainInfo.domain_name} ({jsonExtractedData.domainInfo.domain_key})
+                                  </span>
+                                  {jsonExtractedData.domainInfo.status_note && (
+                                    <p className="text-xs text-amber-700 font-medium">⚠️ {jsonExtractedData.domainInfo.status_note}</p>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs bg-white">
+                                <table className="min-w-full divide-y divide-gray-200 text-xs">
+                                  <thead className="bg-slate-50">
+                                    <tr>
+                                      <th className="px-4 py-2.5 text-left font-bold text-gray-600 text-[11px] uppercase">Field Name</th>
+                                      <th className="px-4 py-2.5 text-left font-bold text-gray-600 text-[11px] uppercase">Extracted Value</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-200">
+                                    {Object.entries(jsonExtractedData.extractedFields).map(([k, v]) => (
+                                      <tr key={k} className="hover:bg-slate-50">
+                                        <td className="px-4 py-2.5 font-mono font-bold text-purple-700 text-xs">{k}</td>
+                                        <td className="px-4 py-2.5 text-gray-800 text-xs">{String(v)}</td>
+                                      </tr>
+                                    ))}
+                                    {Object.entries(jsonExtractedData.extraFields).map(([k, v]) => (
+                                      <tr key={`extra_${k}`} className="bg-indigo-50/30 hover:bg-indigo-50">
+                                        <td className="px-4 py-2.5 font-mono font-semibold text-indigo-700 text-xs">
+                                          {k} <span className="text-[10px] font-sans text-indigo-500 font-normal">(extra)</span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-indigo-950 text-xs">{String(v)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ) : jsonSubView === 'debug' ? (
+                            <div className="bg-slate-950 rounded-xl p-4 border border-slate-800 space-y-4 text-xs font-mono shadow-inner">
+                              {jsonExtractedData.error && (
+                                <div className="p-3 bg-red-950/80 border border-red-800 rounded-lg text-red-300">
+                                  <span className="font-bold text-red-400 block uppercase text-xs">⚠️ Extraction Error</span>
+                                  <pre className="text-xs whitespace-pre-wrap mt-1">{jsonExtractedData.error}</pre>
+                                </div>
+                              )}
+                              <div className="space-y-1.5">
+                                <span className="text-purple-400 font-bold uppercase text-xs">📜 System Prompt Passed to LLM:</span>
+                                <pre className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-slate-300 text-xs whitespace-pre-wrap leading-relaxed">
+                                  {jsonExtractedData.debugInfo?.system_prompt || 'No system prompt log stored.'}
+                                </pre>
+                              </div>
+                              <div className="space-y-1.5">
+                                <span className="text-purple-400 font-bold uppercase text-xs">📄 User Prompt & Content Passed to LLM:</span>
+                                <pre className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-slate-300 text-xs whitespace-pre-wrap leading-relaxed">
+                                  {jsonExtractedData.debugInfo?.user_prompt || 'No user prompt log stored.'}
+                                </pre>
+                              </div>
+                              <div className="space-y-1.5">
+                                <span className="text-emerald-400 font-bold uppercase text-xs">🤖 Raw Completion Output from LLM:</span>
+                                <pre className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-emerald-300 text-xs whitespace-pre-wrap leading-relaxed">
+                                  {jsonExtractedData.debugInfo?.raw_response || 'No raw completion output log stored.'}
+                                </pre>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {jsonExtractedData.entities.map((ent: any) => {
+                                const isEditing = editingEntityId === ent.id;
+                                return (
+                                  <div
+                                    key={ent.id}
+                                    className="p-4 rounded-xl border border-gray-200 bg-white hover:border-purple-300 transition-all shadow-2xs space-y-2"
+                                  >
+                                    {isEditing ? (
+                                      <div className="space-y-3 p-1">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-xs font-bold text-purple-700 uppercase">Editing Entity</span>
+                                          <button
+                                            onClick={() => setEditingEntityId(null)}
+                                            className="text-xs text-slate-400 hover:text-slate-600 font-bold"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                          <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Entity Type</label>
+                                            <input
+                                              type="text"
+                                              value={editEntityForm.entity_type}
+                                              onChange={(e) => setEditEntityForm((prev) => ({ ...prev, entity_type: e.target.value }))}
+                                              className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Entity Key</label>
+                                            <input
+                                              type="text"
+                                              value={editEntityForm.entity_key}
+                                              onChange={(e) => setEditEntityForm((prev) => ({ ...prev, entity_key: e.target.value }))}
+                                              className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5"
+                                            />
+                                          </div>
+                                        </div>
+                                        <textarea
+                                          rows={2}
+                                          value={editEntityForm.value}
+                                          onChange={(e) => setEditEntityForm((prev) => ({ ...prev, value: e.target.value }))}
+                                          className="w-full border rounded px-2 py-1 text-xs bg-white text-black resize-none"
+                                        />
+                                        <button
+                                          onClick={() => handleSaveEntity(ent.id)}
+                                          disabled={savingEntity}
+                                          className="w-full py-1.5 rounded text-xs font-semibold bg-primary text-white cursor-pointer"
+                                        >
+                                          Save Entity Changes
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold uppercase">
+                                              {ent.entity_type}
+                                            </span>
+                                            <span className="font-bold text-xs text-slate-900">
+                                              {formatEntityKey(ent.entity_key, ent.entity_type)}
+                                            </span>
+                                          </div>
+                                          <button
+                                            onClick={() => startEditEntity(ent)}
+                                            className="p-1 rounded text-slate-400 hover:text-purple-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                            title="Edit Entity"
+                                          >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                        <p className="text-xs text-slate-800 font-medium leading-relaxed bg-slate-50/70 p-2.5 rounded-lg border border-slate-150">
+                                          {typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value)}
+                                        </p>
+                                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                                          <span>Confidence: <strong>{((ent.confidence ?? 1.0) * 100).toFixed(0)}%</strong></span>
+                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                            ent.basis === 'FACT' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                                          }`}>
+                                            {ent.basis || 'FACT'}
+                                          </span>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* DRAWER FOOTER */}
-            <div className="p-4 border-t border-gray-200 flex items-center justify-between shrink-0 bg-slate-50">
+            <div className="p-3.5 border-t border-gray-200 flex items-center justify-between shrink-0 bg-slate-50">
               <span className="text-xs font-medium text-slate-500">
-                {ekpParagraphs.length} Paragraph Spans · {ekpEntities.length} Domain Entities
+                Dockling: {doclingData.spans.length} Spans · OpenDataLoader: {openDataLoaderData.spans.length} Spans · JSON: {
+                  jsonExtractedData.isExtracted ? `${jsonExtractedData.entities.length || Object.keys(jsonExtractedData.extractedFields).length} Fields` : 'Not Extracted'
+                }
               </span>
               <button
                 onClick={() => {
@@ -3159,9 +4358,379 @@ export default function KnowledgeBasesTab({
                   setSelectedEkpDoc(null);
                   setEditingEntityId(null);
                 }}
-                className="px-4 py-2 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-opacity cursor-pointer"
+                className="px-4 py-1.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-opacity cursor-pointer shadow-2xs"
               >
                 Done Viewing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: DOCUMENT 3 DATA VIEWS INSPECTOR (Extracted, Normalized, JSON Tree) */}
+      {/* ========================================================================= */}
+      {showViewsModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-hidden animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
+            {/* MODAL HEADER */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-slate-50 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-blue-100 text-blue-700 rounded-lg shrink-0">
+                  <Eye className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-base text-gray-900 truncate">
+                      {inspectingDoc?.name || 'Document Data Views'}
+                    </h3>
+                    <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                      {viewsData?.status || inspectingDoc?.status || 'ready'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 truncate">
+                    Inspect 3 data views: Raw extracted + comparison, normalized text, and structural JSON tree
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowViewsModal(false);
+                  setInspectingDoc(null);
+                  setViewsData(null);
+                }}
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* TAB NAVIGATION BAR */}
+            <div className="px-6 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setActiveViewTab('extracted')}
+                  className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+                    activeViewTab === 'extracted'
+                      ? 'border-blue-600 text-blue-700'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>1. Extracted & Comparison</span>
+                  {viewsData?.views?.extracted?.spans?.length > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-200">
+                      {viewsData.views.extracted.spans.length} spans
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveViewTab('normalized')}
+                  className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+                    activeViewTab === 'normalized'
+                      ? 'border-emerald-600 text-emerald-700'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>2. Normalized Text</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveViewTab('json')}
+                  className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+                    activeViewTab === 'json'
+                      ? 'border-purple-600 text-purple-700'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <FileJson className="w-4 h-4" />
+                  <span>3. JSON Structural Tree</span>
+                </button>
+              </div>
+
+              {activeViewTab === 'normalized' && (
+                <div className="flex items-center gap-2 pb-2">
+                  {saveSuccess && (
+                    <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Saved successfully
+                    </span>
+                  )}
+                  <button
+                    onClick={handleSaveNormalizedText}
+                    disabled={savingViews}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                  >
+                    {savingViews ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* MODAL BODY */}
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+              {loadingViews ? (
+                <div className="h-full flex flex-col items-center justify-center py-20">
+                  <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mb-2" />
+                  <p className="text-xs text-gray-500 font-medium">Loading document data views...</p>
+                </div>
+              ) : viewsError ? (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{viewsError}</span>
+                </div>
+              ) : (
+                <>
+                  {/* VIEW 1: EXTRACTED & COMPARISON */}
+                  {activeViewTab === 'extracted' && (
+                    <div className="space-y-6">
+                      {/* DUAL-PARSER COMPARISON SUMMARY BANNER */}
+                      {viewsData?.comparison_report && (
+                        <div className="p-4 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 shadow-2xs space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <Layers className="w-4 h-4 text-blue-700" />
+                              <h4 className="font-bold text-xs text-gray-900">
+                                2-Level Parser Cross-Validation & Reconciliation
+                              </h4>
+                            </div>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${
+                                viewsData.comparison_report.status === 'reconciled'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              }`}
+                            >
+                              Status: {viewsData.comparison_report.status || 'Aligned'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            <div className="p-2.5 rounded-lg bg-white border border-blue-100 shadow-2xs">
+                              <span className="text-gray-500 block text-[11px]">Primary Parser</span>
+                              <strong className="text-gray-900 font-semibold">{viewsData.comparison_report.primary_parser || 'docling'}</strong>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-white border border-blue-100 shadow-2xs">
+                              <span className="text-gray-500 block text-[11px]">Secondary Parser</span>
+                              <strong className="text-gray-900 font-semibold">{viewsData.comparison_report.secondary_parser || 'opendataloader'}</strong>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-white border border-blue-100 shadow-2xs">
+                              <span className="text-gray-500 block text-[11px]">Token Overlap Ratio</span>
+                              <strong className="text-gray-900 font-semibold">
+                                {((viewsData.comparison_report.jaccard_overlap_ratio || 0.95) * 100).toFixed(1)}%
+                              </strong>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-white border border-blue-100 shadow-2xs">
+                              <span className="text-gray-500 block text-[11px]">Recovered Spans</span>
+                              <strong className="text-emerald-700 font-semibold">
+                                +{viewsData.comparison_report.recovered_spans_count || 0} recovered
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ENTITY PROVENANCE SECTION & BOUNDING-BOX LINKAGE */}
+                      {viewsData?.entity_provenance && viewsData.entity_provenance.length > 0 && (
+                        <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Lock className="w-4 h-4 text-purple-700" />
+                              <h4 className="font-bold text-xs text-gray-900">
+                                High-Value Legal Entities Linked to Provenance & Sections
+                              </h4>
+                            </div>
+                            <span className="text-[11px] text-purple-700 font-semibold">
+                              {viewsData.entity_provenance.length} entities linked
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {viewsData.entity_provenance.map((ep: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className="p-3 bg-white rounded-lg border border-purple-150 shadow-2xs space-y-1.5"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-bold text-[11px] uppercase">
+                                    {ep.field_label || ep.field_key}
+                                  </span>
+                                  <span className="text-[11px] text-gray-500 font-medium">
+                                    Page {ep.page_number} · Para #{ep.paragraph_index}
+                                  </span>
+                                </div>
+                                <p className="text-xs font-bold text-gray-900">
+                                  {typeof ep.extracted_value === 'object'
+                                    ? JSON.stringify(ep.extracted_value)
+                                    : String(ep.extracted_value)}
+                                </p>
+                                <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                                  <span>Section: <strong>{ep.section_heading || 'General'}</strong></span>
+                                  {ep.bbox && (
+                                    <span className="font-mono text-purple-700 font-semibold">
+                                      BBox: [{ep.bbox.map((n: number) => Math.round(n)).join(', ')}]
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* SPANS WITH BOUNDING BOX PROVENANCE */}
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden">
+                        <div className="px-4 py-3 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
+                          <h4 className="font-bold text-xs text-gray-900">
+                            Extracted Spans & Bounding Box Coordinates
+                          </h4>
+                          <span className="text-xs text-gray-500 font-medium">
+                            {viewsData?.views?.extracted?.spans?.length || 0} total blocks
+                          </span>
+                        </div>
+                        <div className="divide-y divide-gray-150 max-h-96 overflow-y-auto">
+                          {viewsData?.views?.extracted?.spans?.length > 0 ? (
+                            viewsData.views.extracted.spans.map((span: any, sIdx: number) => (
+                              <div key={sIdx} className="p-3 hover:bg-slate-50/80 transition-colors space-y-1">
+                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-700">
+                                      Page {span.page_number} · Para #{span.paragraph_index}
+                                    </span>
+                                    <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-200">
+                                      {span.block_type || 'paragraph'}
+                                    </span>
+                                    {span.heading && (
+                                      <span className="text-xs text-blue-700 font-medium truncate max-w-xs">
+                                        [{span.heading}]
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {span.bbox && (
+                                      <span className="font-mono text-[11px] text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                        BBox: [{span.bbox.map((b: number) => Math.round(b)).join(', ')}]
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-150 font-semibold">
+                                      {span.source_parser || 'parser'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className="text-xs text-gray-800 leading-relaxed font-sans">{span.text}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-6 text-center text-xs text-gray-400">
+                              No granular spans available. Viewing raw text below.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* RAW TEXT FALLBACK */}
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden">
+                        <div className="px-4 py-3 border-b border-gray-200 bg-slate-50">
+                          <h4 className="font-bold text-xs text-gray-900">Raw Extracted Text</h4>
+                        </div>
+                        <pre className="p-4 text-xs font-mono text-gray-800 whitespace-pre-wrap max-h-72 overflow-y-auto bg-slate-50/30">
+                          {viewsData?.views?.extracted?.raw_text || 'No raw text extracted.'}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VIEW 2: NORMALIZED TEXT */}
+                  {activeViewTab === 'normalized' && (
+                    <div className="space-y-4">
+                      {/* NORMALIZATION STATS BADGE */}
+                      {viewsData?.views?.normalized?.cleaning_stats && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-emerald-600" />
+                            <span>
+                              <strong>Deterministic Cleanser Active:</strong> Normalized line endings (\n), stitched soft line wraps, preserved legal citations & sections.
+                            </span>
+                          </div>
+                          <span className="font-mono text-xs font-semibold">
+                            {viewsData.views.normalized.cleaning_stats.normalized_character_count || editedNormalizedText.length} chars
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden flex flex-col">
+                        <div className="px-4 py-2.5 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
+                          <span className="font-bold text-xs text-gray-700">
+                            Editable Normalized Text (Used for Semantic Tree & Embeddings)
+                          </span>
+                          <span className="text-[11px] text-gray-400">
+                            Edit directly to correct OCR artifacts before vector indexing
+                          </span>
+                        </div>
+                        <textarea
+                          rows={22}
+                          value={editedNormalizedText}
+                          onChange={(e) => setEditedNormalizedText(e.target.value)}
+                          className="w-full p-4 text-xs font-mono text-gray-900 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 resize-none leading-relaxed"
+                          placeholder="Normalized document text content..."
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VIEW 3: JSON STRUCTURAL TREE */}
+                  {activeViewTab === 'json' && (
+                    <div className="space-y-4">
+                      <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between text-xs text-purple-800">
+                        <div className="flex items-center gap-2">
+                          <FileJson className="w-4 h-4 text-purple-600" />
+                          <span>
+                            <strong>Hierarchical Structure:</strong> Document ├── Section ├── Paragraphs with bounding box coordinates.
+                          </span>
+                        </div>
+                        <span className="font-mono text-xs font-semibold">
+                          {viewsData?.views?.json?.sections?.length || 0} Sections
+                        </span>
+                      </div>
+
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden">
+                        <div className="px-4 py-2.5 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
+                          <span className="font-bold text-xs text-gray-700">Structured JSON Representation</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(JSON.stringify(viewsData?.views?.json, null, 2));
+                            }}
+                            className="px-2.5 py-1 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy JSON</span>
+                          </button>
+                        </div>
+                        <pre className="p-4 text-xs font-mono text-gray-900 whitespace-pre-wrap max-h-[60vh] overflow-y-auto bg-slate-900 text-slate-100 rounded-b-xl">
+                          {JSON.stringify(viewsData?.views?.json || {}, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* MODAL FOOTER */}
+            <div className="px-6 py-3 border-t border-gray-200 bg-slate-50 flex items-center justify-between shrink-0">
+              <span className="text-xs text-gray-500 font-medium">
+                Document ID: <strong className="font-mono">{inspectingDoc?.id}</strong>
+              </span>
+              <button
+                onClick={() => {
+                  setShowViewsModal(false);
+                  setInspectingDoc(null);
+                  setViewsData(null);
+                }}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Close Inspector
               </button>
             </div>
           </div>

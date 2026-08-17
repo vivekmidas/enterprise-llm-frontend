@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/api';
+import { toSentenceCase, toIdCase } from '@/lib/utils';
 import {
   Globe,
   Scale,
@@ -227,7 +228,16 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
 
   const handleUpdateField = (index: number, key: keyof DomainField, value: any) => {
     const updated = [...formFields];
-    updated[index] = { ...updated[index], [key]: value };
+    let sanitizedVal = value;
+    if (key === 'label' && typeof value === 'string') {
+      sanitizedVal = toSentenceCase(value);
+      if (!updated[index].key || updated[index].key.startsWith('field_')) {
+        updated[index].key = toIdCase(value);
+      }
+    } else if (key === 'key' && typeof value === 'string') {
+      sanitizedVal = toIdCase(value);
+    }
+    updated[index] = { ...updated[index], [key]: sanitizedVal };
     setFormFields(updated);
   };
 
@@ -674,21 +684,29 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                         type="text"
                         required
                         value={formName}
-                        onChange={(e) => setFormName(e.target.value)}
+                        onChange={(e) => {
+                          const val = toSentenceCase(e.target.value);
+                          setFormName(val);
+                          if (!editingDomain) {
+                            setFormDomainKey(toIdCase(e.target.value));
+                          }
+                        }}
+                        onBlur={() => setFormName(toSentenceCase(formName))}
                         placeholder="e.g. Legal AI Platform"
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-gray-900 focus:outline-none focus:border-indigo-500"
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-gray-700">Domain Key / Slug *</label>
+                      <label className="block text-xs font-bold text-gray-700">Domain Key / Slug (ID) *</label>
                       <input
                         type="text"
                         required
                         disabled={Boolean(editingDomain) && formScope === 'SYSTEM' && !isSystemAdmin}
                         value={formDomainKey}
-                        onChange={(e) => setFormDomainKey(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-                        placeholder="e.g. legal"
+                        onChange={(e) => setFormDomainKey(toIdCase(e.target.value))}
+                        onBlur={() => setFormDomainKey(toIdCase(formDomainKey))}
+                        placeholder="e.g. legal_ai_platform"
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono bg-white text-gray-900 focus:outline-none focus:border-indigo-500 disabled:bg-gray-100"
                       />
                     </div>

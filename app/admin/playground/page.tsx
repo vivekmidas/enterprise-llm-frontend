@@ -422,10 +422,10 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                 <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">Tags</label>
                 <input
                   type="text"
-                  placeholder="e.g. Q3"
+                  placeholder="e.g. Q3, POLICY"
                   value={metaTags}
-                  onChange={(e) => setMetaTags(e.target.value)}
-                  className="w-full border border-gray-350 rounded px-2 py-1 text-xs bg-white text-black focus:outline-none"
+                  onChange={(e) => setMetaTags(e.target.value.toUpperCase())}
+                  className="w-full border border-gray-350 rounded px-2 py-1 text-xs bg-white text-black focus:outline-none uppercase placeholder:normal-case font-medium"
                 />
               </div>
             </div>

@@ -786,13 +786,21 @@ export const api = {
   uploadDocument: async (
     kbId: string,
     file: File,
-    metadata?: { description?: string; tags?: string; doc_type?: string },
+    metadata?: {
+      description?: string;
+      tags?: string;
+      doc_type?: string;
+      parser_strategy?: string;
+      enable_dedup?: boolean;
+    },
   ) => {
     const formData = new FormData();
     formData.append('file', file);
     if (metadata?.description) formData.append('description', metadata.description);
     if (metadata?.tags) formData.append('tags', metadata.tags);
     if (metadata?.doc_type) formData.append('doc_type', metadata.doc_type);
+    if (metadata?.parser_strategy) formData.append('parser_strategy', metadata.parser_strategy);
+    if (metadata?.enable_dedup !== undefined) formData.append('enable_dedup', String(metadata.enable_dedup));
 
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/upload`, {
       method: 'POST',
@@ -825,6 +833,29 @@ export const api = {
       method: 'GET',
     });
     if (!res.ok) throw new Error('Failed to fetch document status');
+    return res.json();
+  },
+
+  getDocumentViews: async (kbId: string | number, docId: string | number) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}/views`, {
+      headers: getHeaders(),
+      method: 'GET',
+    });
+    if (!res.ok) throw new Error('Failed to fetch document views');
+    return res.json();
+  },
+
+  updateDocumentViews: async (
+    kbId: string | number,
+    docId: string | number,
+    payload: { normalized_text?: string; structured_json?: any }
+  ) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}/views`, {
+      method: 'PUT',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to update document views');
     return res.json();
   },
 

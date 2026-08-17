@@ -27,14 +27,15 @@ export function getColor(tag?: string) {
 // ── Tag Components ─────────────────────────────────────────────────────────────
 
 export function TagPill({ tag }: { tag: string }) {
-  const color = getColor(tag);
+  const upperTag = (tag || '').trim().toUpperCase();
+  const color = getColor(upperTag);
   return (
     <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-transform hover:scale-105"
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap transition-transform hover:scale-105"
       style={{ backgroundColor: color.bg, border: `1px solid ${color.border}`, color: color.text }}
     >
       <Tag className="w-2.5 h-2.5" />
-      {tag}
+      {upperTag}
     </span>
   );
 }
@@ -61,11 +62,21 @@ export function TagInput({
 }) {
   const [input, setInput] = useState('');
 
-  const addTag = () => {
-    const trimmed = input.trim();
-    if (trimmed && !tags.includes(trimmed)) {
-      onChange([...tags, trimmed]);
+  const addTag = (val?: string) => {
+    const raw = (val !== undefined ? val : input).trim();
+    if (!raw) return;
+    const incoming = raw
+      .split(',')
+      .map((t) => t.trim().toUpperCase())
+      .filter(Boolean);
+    const existingUpper = tags.map((t) => (t || '').trim().toUpperCase());
+    const next = [...existingUpper];
+    for (const t of incoming) {
+      if (!next.includes(t)) {
+        next.push(t);
+      }
     }
+    onChange(next);
     setInput('');
   };
 
@@ -73,21 +84,22 @@ export function TagInput({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1">
         {tags.map((tag) => {
-          const color = getColor(tag);
+          const upperTag = (tag || '').trim().toUpperCase();
+          const color = getColor(upperTag);
           return (
             <span
               key={tag}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
               style={{
                 backgroundColor: color.bg,
                 border: `1px solid ${color.border}`,
                 color: color.text,
               }}
             >
-              {tag}
+              {upperTag}
               <button
                 type="button"
-                onClick={() => onChange(tags.filter((t) => t !== tag))}
+                onClick={() => onChange(tags.filter((t) => (t || '').trim().toUpperCase() !== upperTag))}
                 className="ml-0.5 hover:opacity-70 cursor-pointer"
               >
                 <X className="w-2.5 h-2.5" />
@@ -99,16 +111,22 @@ export function TagInput({
       <input
         type="text"
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e) => setInput(e.target.value.toUpperCase())}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+          if (e.key === 'Enter' || e.key === ',') {
             e.preventDefault();
             addTag();
           }
         }}
+        onBlur={() => {
+          if (input.trim()) {
+            addTag();
+          }
+        }}
         placeholder={placeholder}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500"
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500 uppercase placeholder:normal-case font-medium"
       />
     </div>
   );
 }
+

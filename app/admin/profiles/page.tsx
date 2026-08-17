@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, BACKEND_URL, getHeaders } from '@/lib/api';
+import { toSentenceCase } from '@/lib/utils';
 import {
   AlertTriangle,
   Check,
@@ -1032,7 +1033,8 @@ const ProfileEditor = ({
               <input
                 type="text"
                 value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
+                onChange={(e) => setProfileName(toSentenceCase(e.target.value))}
+                onBlur={() => setProfileName(toSentenceCase(profileName))}
                 placeholder="Profile Name"
                 className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-800 bg-white focus:outline-none focus:border-blue-500"
                 autoFocus
@@ -1399,7 +1401,11 @@ const CreateProfileModal = ({
           )}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-655">Profile Name</label>
-            <TextInput value={name} onChange={setName} placeholder="e.g. Production RAG" />
+            <TextInput
+              value={name}
+              onChange={(val) => setName(toSentenceCase(val))}
+              placeholder="e.g. Production RAG"
+            />
           </div>
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-655">Description</label>
