@@ -2478,8 +2478,8 @@ export default function KnowledgeBasesTab({
                         const checked = e.target.checked;
                         if (!checked && !newKbEnableOpenDataLoader) return;
                         setNewKbEnableDocling(checked);
-                        if (checked && newKbEnableOpenDataLoader) {
-                          setNewKbEnableDedup(true);
+                        if (!checked || !newKbEnableOpenDataLoader) {
+                          setNewKbEnableDedup(false);
                         }
                       }}
                       className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer h-4 w-4"
@@ -2500,8 +2500,8 @@ export default function KnowledgeBasesTab({
                         const checked = e.target.checked;
                         if (!checked && !newKbEnableDocling) return;
                         setNewKbEnableOpenDataLoader(checked);
-                        if (checked && newKbEnableDocling) {
-                          setNewKbEnableDedup(true);
+                        if (!checked || !newKbEnableDocling) {
+                          setNewKbEnableDedup(false);
                         }
                       }}
                       className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
@@ -2513,26 +2513,33 @@ export default function KnowledgeBasesTab({
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
+                <div className={`flex items-center justify-between pt-2 border-t border-slate-200/80 transition-opacity ${
+                  newKbEnableDocling && newKbEnableOpenDataLoader ? 'opacity-100' : 'opacity-50'
+                }`}>
                   <div>
                     <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                       Enable Paragraph & Boilerplate Deduplication
-                      {newKbEnableDocling && newKbEnableOpenDataLoader && (
-                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-bold uppercase tracking-wider">
-                          Auto-Enabled for Dual
+                      {!(newKbEnableDocling && newKbEnableOpenDataLoader) && (
+                        <span className="px-1.5 py-0.5 bg-gray-150 text-gray-500 rounded text-[9px] font-medium">
+                          Requires Both Parsers
                         </span>
                       )}
                     </span>
-                    <span className="block text-[10px] text-gray-400">Filters duplicate boilerplate & cross-parser redundant blocks</span>
+                    <span className="block text-[10px] text-gray-400">
+                      Filters duplicate boilerplate & cross-parser redundant blocks (disabled by default)
+                    </span>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
+                  <label className={`relative inline-flex items-center ${
+                    newKbEnableDocling && newKbEnableOpenDataLoader ? 'cursor-pointer' : 'cursor-not-allowed'
+                  }`}>
                     <input
                       type="checkbox"
-                      checked={newKbEnableDedup}
+                      disabled={!(newKbEnableDocling && newKbEnableOpenDataLoader)}
+                      checked={newKbEnableDocling && newKbEnableOpenDataLoader && newKbEnableDedup}
                       onChange={(e) => setNewKbEnableDedup(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 peer-disabled:opacity-50"></div>
                   </label>
                 </div>
               </div>
@@ -2739,8 +2746,8 @@ export default function KnowledgeBasesTab({
                     onChange={(e: any) => {
                       const strat = e.target.value;
                       setDocParserStrategy(strat);
-                      if (strat === 'dual') {
-                        setDocEnableDedup(true);
+                      if (strat !== 'dual') {
+                        setDocEnableDedup(false);
                       }
                     }}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
@@ -2751,19 +2758,31 @@ export default function KnowledgeBasesTab({
                   </select>
                 </div>
 
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200/80">
+                <div className={`flex items-center justify-between pt-1 border-t border-slate-200/80 transition-opacity ${
+                  docParserStrategy === 'dual' ? 'opacity-100' : 'opacity-50'
+                }`}>
                   <div>
-                    <span className="block text-xs font-semibold text-gray-700">Enable Paragraph & Boilerplate Deduplication</span>
-                    <span className="block text-[10px] text-gray-400">Filters duplicate boilerplate & repetitive exercise blocks (Useful for textbooks/literature)</span>
+                    <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      Enable Paragraph & Boilerplate Deduplication
+                      {docParserStrategy !== 'dual' && (
+                        <span className="px-1.5 py-0.5 bg-gray-150 text-gray-500 rounded text-[9px] font-medium">
+                          Requires Dual Parser
+                        </span>
+                      )}
+                    </span>
+                    <span className="block text-[10px] text-gray-400">Filters duplicate boilerplate & cross-parser redundant blocks (disabled by default)</span>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
+                  <label className={`relative inline-flex items-center ${
+                    docParserStrategy === 'dual' ? 'cursor-pointer' : 'cursor-not-allowed'
+                  }`}>
                     <input
                       type="checkbox"
-                      checked={docEnableDedup}
+                      disabled={docParserStrategy !== 'dual'}
+                      checked={docParserStrategy === 'dual' && docEnableDedup}
                       onChange={(e) => setDocEnableDedup(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 peer-disabled:opacity-50"></div>
                   </label>
                 </div>
               </div>
@@ -3031,8 +3050,8 @@ export default function KnowledgeBasesTab({
                         const checked = e.target.checked;
                         if (!checked && !editKbEnableOpenDataLoader) return;
                         setEditKbEnableDocling(checked);
-                        if (checked && editKbEnableOpenDataLoader) {
-                          setEditKbEnableDedup(true);
+                        if (!checked || !editKbEnableOpenDataLoader) {
+                          setEditKbEnableDedup(false);
                         }
                       }}
                       className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer h-4 w-4"
@@ -3053,8 +3072,8 @@ export default function KnowledgeBasesTab({
                         const checked = e.target.checked;
                         if (!checked && !editKbEnableDocling) return;
                         setEditKbEnableOpenDataLoader(checked);
-                        if (checked && editKbEnableDocling) {
-                          setEditKbEnableDedup(true);
+                        if (!checked || !editKbEnableDocling) {
+                          setEditKbEnableDedup(false);
                         }
                       }}
                       className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
@@ -3066,26 +3085,33 @@ export default function KnowledgeBasesTab({
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200/80">
+                <div className={`flex items-center justify-between pt-2 border-t border-slate-200/80 transition-opacity ${
+                  editKbEnableDocling && editKbEnableOpenDataLoader ? 'opacity-100' : 'opacity-50'
+                }`}>
                   <div>
                     <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                       Enable Paragraph & Boilerplate Deduplication
-                      {editKbEnableDocling && editKbEnableOpenDataLoader && (
-                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-bold uppercase tracking-wider">
-                          Auto-Enabled for Dual
+                      {!(editKbEnableDocling && editKbEnableOpenDataLoader) && (
+                        <span className="px-1.5 py-0.5 bg-gray-150 text-gray-500 rounded text-[9px] font-medium">
+                          Requires Both Parsers
                         </span>
                       )}
                     </span>
-                    <span className="block text-[10px] text-gray-400">Filters duplicate boilerplate & cross-parser redundant blocks</span>
+                    <span className="block text-[10px] text-gray-400">
+                      Filters duplicate boilerplate & cross-parser redundant blocks (disabled by default)
+                    </span>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
+                  <label className={`relative inline-flex items-center ${
+                    editKbEnableDocling && editKbEnableOpenDataLoader ? 'cursor-pointer' : 'cursor-not-allowed'
+                  }`}>
                     <input
                       type="checkbox"
-                      checked={editKbEnableDedup}
+                      disabled={!(editKbEnableDocling && editKbEnableOpenDataLoader)}
+                      checked={editKbEnableDocling && editKbEnableOpenDataLoader && editKbEnableDedup}
                       onChange={(e) => setEditKbEnableDedup(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 peer-disabled:opacity-50"></div>
                   </label>
                 </div>
               </div>
