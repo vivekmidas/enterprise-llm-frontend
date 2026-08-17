@@ -18,7 +18,8 @@ import {
   Sliders,
   Check,
   AlertCircle,
-  Loader2
+  Loader2,
+  Filter
 } from 'lucide-react';
 
 export interface EmbeddingModelItem {
@@ -360,16 +361,6 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
 
                   <div className="flex items-start justify-between border-b border-gray-100 pb-1.5">
                     <span className="text-gray-400 flex items-center gap-1.5">
-                      <Cpu className="h-3.5 w-3.5 text-indigo-500" /> Chat Models
-                    </span>
-                    <div className="text-right">
-                      <span className="font-semibold text-gray-900">{preset.chat_models?.length || 0} available</span>
-                      <p className="text-[10px] text-gray-500 font-mono">Default: {preset.default_chat_model || 'None'}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start justify-between border-b border-gray-100 pb-1.5">
-                    <span className="text-gray-400 flex items-center gap-1.5">
                       <Database className="h-3.5 w-3.5 text-emerald-500" /> Embed Models
                     </span>
                     <div className="text-right">
@@ -380,13 +371,23 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                     </div>
                   </div>
 
-                  <div className="flex items-start justify-between pb-1">
+                  <div className="flex items-start justify-between border-b border-gray-100 pb-1.5">
                     <span className="text-gray-400 flex items-center gap-1.5">
-                      <Search className="h-3.5 w-3.5 text-amber-500" /> Search / Rerank
+                      <Filter className="h-3.5 w-3.5 text-amber-500" /> Rerank Models
                     </span>
                     <div className="text-right">
                       <span className="font-semibold text-gray-900">{preset.rerank_models?.length || 0} available</span>
                       <p className="text-[10px] text-gray-500 font-mono">Default: {preset.default_rerank_model || 'None'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start justify-between pb-1">
+                    <span className="text-gray-400 flex items-center gap-1.5">
+                      <Cpu className="h-3.5 w-3.5 text-indigo-500" /> Generation Models
+                    </span>
+                    <div className="text-right">
+                      <span className="font-semibold text-gray-900">{preset.chat_models?.length || 0} available</span>
+                      <p className="text-[10px] text-gray-500 font-mono">Default: {preset.default_chat_model || 'None'}</p>
                     </div>
                   </div>
                 </div>
@@ -428,33 +429,33 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                   <label className="block font-semibold text-gray-700 mb-1">Provider Key *</label>
                   <input
                     type="text"
-                    placeholder="e.g. ollama, vllm, grok, openai"
+                    placeholder="e.g. ollama, openai, azure"
                     value={editingPreset.provider_key || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, provider_key: e.target.value.toLowerCase().trim() })}
-                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono focus:ring-1 focus:ring-blue-500"
+                    disabled={!!editingPreset.id}
+                    onChange={(e) => setEditingPreset({ ...editingPreset, provider_key: e.target.value })}
+                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md focus:ring-1 focus:ring-blue-500 font-mono"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Unique identifier key used by profile forms.</p>
                 </div>
                 <div>
                   <label className="block font-semibold text-gray-700 mb-1">Display Name *</label>
                   <input
                     type="text"
-                    placeholder="e.g. Grok / xAI API"
+                    placeholder="e.g. Ollama (Local), OpenAI Official"
                     value={editingPreset.display_name || editingPreset.name || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, display_name: e.target.value, name: editingPreset.name || e.target.value })}
+                    onChange={(e) => setEditingPreset({ ...editingPreset, display_name: e.target.value, name: e.target.value })}
                     className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-gray-700 mb-1">Base Endpoint URL *</label>
+                <label className="block font-semibold text-gray-700 mb-1">Base API URL *</label>
                 <input
                   type="text"
-                  placeholder="http://localhost:11434 or https://api.x.ai/v1"
+                  placeholder="https://api.openai.com/v1 or http://localhost:11434"
                   value={editingPreset.base_url || ''}
                   onChange={(e) => setEditingPreset({ ...editingPreset, base_url: e.target.value })}
-                  className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono focus:ring-1 focus:ring-blue-500"
+                  className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md focus:ring-1 focus:ring-blue-500 font-mono"
                 />
               </div>
 
@@ -471,32 +472,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
 
               <div className="grid grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Chat Models (One per line)</label>
-                  <textarea
-                    rows={4}
-                    placeholder="llama3.2&#10;qwen2.5-coder&#10;mistral"
-                    value={chatModelsInput}
-                    onChange={(e) => setChatModelsInput(e.target.value)}
-                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono text-[11px]"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Default Chat Model"
-                    value={editingPreset.default_chat_model || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, default_chat_model: e.target.value })}
-                    className="w-full mt-2 p-1.5 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded text-[11px] font-mono"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Chat Endpoint Path (e.g. /chat/completions)"
-                    value={editingPreset.search_endpoint || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, search_endpoint: e.target.value })}
-                    className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-blue-700 bg-blue-50/80 placeholder-gray-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Embed Models (model:dimension)</label>
+                  <label className="block font-semibold text-gray-700 mb-1">1. Embed Models (model:dim)</label>
                   <textarea
                     rows={4}
                     placeholder="nomic-embed-text:768&#10;bge-m3:1024&#10;text-embedding-3-small:1536"
@@ -521,10 +497,10 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Search / Rerank Models</label>
+                  <label className="block font-semibold text-gray-700 mb-1">2. Rerank Models</label>
                   <textarea
                     rows={4}
-                    placeholder="qwen3:0.6b&#10;bge-reranker-large"
+                    placeholder="bge-reranker-large&#10;bge-reranker-base&#10;cohere-rerank-v3"
                     value={rerankModelsInput}
                     onChange={(e) => setRerankModelsInput(e.target.value)}
                     className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono text-[11px]"
@@ -542,6 +518,31 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                     value={editingPreset.rerank_endpoint || ''}
                     onChange={(e) => setEditingPreset({ ...editingPreset, rerank_endpoint: e.target.value })}
                     className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-amber-700 bg-amber-50/80 placeholder-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">3. Generation Models</label>
+                  <textarea
+                    rows={4}
+                    placeholder="gpt-4o&#10;gpt-4o-mini&#10;llama3.2"
+                    value={chatModelsInput}
+                    onChange={(e) => setChatModelsInput(e.target.value)}
+                    className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono text-[11px]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Default Generation Model"
+                    value={editingPreset.default_chat_model || ''}
+                    onChange={(e) => setEditingPreset({ ...editingPreset, default_chat_model: e.target.value })}
+                    className="w-full mt-2 p-1.5 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded text-[11px] font-mono"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Chat Endpoint Path (e.g. /chat/completions)"
+                    value={editingPreset.search_endpoint || ''}
+                    onChange={(e) => setEditingPreset({ ...editingPreset, search_endpoint: e.target.value })}
+                    className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-blue-700 bg-blue-50/80 placeholder-gray-400"
                   />
                 </div>
               </div>

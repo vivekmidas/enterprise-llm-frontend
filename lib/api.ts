@@ -831,6 +831,7 @@ export const api = {
   retrieveKnowledge: async (payload: {
     query: string;
     knowledge_base_ids: string[];
+    profile_id?: string;
     top_k?: number;
     min_score?: number;
     enable_reranking?: boolean;
@@ -854,6 +855,9 @@ export const api = {
     context: any;
     temperature?: number;
     max_generation_tokens?: number;
+    system_prompt?: string;
+    profile_id?: string;
+    llm_profile_id?: string;
     llm_config?: any;
     llm_config_id?: number | string;
   }) => {
@@ -912,7 +916,7 @@ export const api = {
   },
 
   getLlmProfile: async (profileId: string | number) => {
-    const res = await fetch(`${BACKEND_URL}/api/llm-profiles/${profileId}`, {
+    const res = await fetch(`${BACKEND_URL}/api/profiles/${profileId}`, {
       headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch LLM profile');
@@ -920,17 +924,17 @@ export const api = {
   },
 
   getLlmProfiles: async (customerId?: string | number) => {
-    const url = new URL(`${BACKEND_URL}/api/llm-profiles`);
-    if (customerId) {
+    const url = new URL(`${BACKEND_URL}/api/profiles`);
+    if (customerId && customerId !== 'all') {
       url.searchParams.append('customer_id', String(customerId));
     }
     const res = await fetch(url.toString(), {
       headers: getHeaders(),
     });
     if (!res.ok) {
-      // Fallback to admin route
-      const fallbackUrl = new URL(`${BACKEND_URL}/api/admin/company/llm-profiles`);
-      if (customerId) fallbackUrl.searchParams.append('customer_id', String(customerId));
+      // Fallback to /api/llm-profiles
+      const fallbackUrl = new URL(`${BACKEND_URL}/api/llm-profiles`);
+      if (customerId && customerId !== 'all') fallbackUrl.searchParams.append('customer_id', String(customerId));
       const fbRes = await fetch(fallbackUrl.toString(), { headers: getHeaders() });
       if (!fbRes.ok) throw new Error('Failed to fetch LLM profiles');
       return fbRes.json();
@@ -939,10 +943,7 @@ export const api = {
   },
 
   createLlmProfile: async (profile: any, customerId?: string) => {
-    const url = new URL(`${BACKEND_URL}/api/llm-profiles`);
-    if (customerId) {
-      url.searchParams.append('customer_id', String(customerId));
-    }
+    const url = new URL(`${BACKEND_URL}/api/profiles`);
     const res = await fetch(url.toString(), {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -953,10 +954,7 @@ export const api = {
   },
 
   updateLlmProfile: async (id: string, profile: any, customerId?: string) => {
-    const url = new URL(`${BACKEND_URL}/api/llm-profiles/${id}`);
-    if (customerId) {
-      url.searchParams.append('customer_id', String(customerId));
-    }
+    const url = new URL(`${BACKEND_URL}/api/profiles/${id}`);
     const res = await fetch(url.toString(), {
       method: 'PUT',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -967,21 +965,18 @@ export const api = {
   },
 
   deleteLlmProfile: async (id: string, customerId?: string) => {
-    const url = new URL(`${BACKEND_URL}/api/llm-profiles/${id}/${customerId}`);
+    const url = new URL(`${BACKEND_URL}/api/profiles/${id}`);
 
     const res = await fetch(url.toString(), {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to delete LLM profile');
-    return res.json();
+    if (!res.ok && res.status !== 204) throw new Error('Failed to delete LLM profile');
+    return true;
   },
 
   activateLlmProfile: async (id: number | string, customerId?: string | number) => {
-    const url = new URL(`${BACKEND_URL}/api/llm-profiles/${id}/set-default`);
-    if (customerId) {
-      url.searchParams.append('customer_id', String(customerId));
-    }
+    const url = new URL(`${BACKEND_URL}/api/profiles/${id}/set-default`);
     const res = await fetch(url.toString(), {
       method: 'POST',
       headers: getHeaders(),

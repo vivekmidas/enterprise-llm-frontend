@@ -58,6 +58,7 @@ interface RerankSection {
 }
 
 interface GenerationSection {
+  enabled?: boolean;
   provider: string;
   url: string;
   model: string;
@@ -75,10 +76,10 @@ interface ProfileSettings {
 }
 
 interface LLMProfile {
-  id: number;
+  id: string | number;
   name: string;
   description?: string;
-  customer_id?: number;
+  customer_id?: string | number;
   is_default: boolean;
   settings: ProfileSettings;
   created_at: string;
@@ -113,6 +114,7 @@ const DEFAULT_SETTINGS: ProfileSettings = {
     candidate_limit: 20,
   },
   generation: {
+    enabled: true,
     provider: 'ollama',
     url: 'http://localhost:11434/api/chat',
     model: 'llama3.2',
@@ -121,12 +123,20 @@ const DEFAULT_SETTINGS: ProfileSettings = {
   },
 };
 
-/** Deep-merge profile settings with defaults so missing sections don't crash editors. */
+/** Deep-merge profile settings with defaults so missing sections don't crash editors, preserving enabled flags. */
 const normalizeSettings = (raw: any): ProfileSettings => ({
   embedding: { ...DEFAULT_SETTINGS.embedding, ...(raw?.embedding ?? {}) },
   search: { ...DEFAULT_SETTINGS.search, ...(raw?.search ?? {}) },
-  reranking: { ...DEFAULT_SETTINGS.reranking, ...(raw?.reranking ?? {}) },
-  generation: { ...DEFAULT_SETTINGS.generation, ...(raw?.generation ?? {}) },
+  reranking: {
+    ...DEFAULT_SETTINGS.reranking,
+    ...(raw?.reranking ?? {}),
+    enabled: raw?.reranking?.enabled !== undefined ? Boolean(raw.reranking.enabled) : false,
+  },
+  generation: {
+    ...DEFAULT_SETTINGS.generation,
+    ...(raw?.generation ?? {}),
+    enabled: raw?.generation?.enabled !== undefined ? Boolean(raw.generation.enabled) : true,
+  },
 });
 
 // ---------------------------------------------------------------------------
@@ -423,73 +433,23 @@ const EmbeddingEditor = ({
 const SearchEditor = ({
   data,
   onChange,
-  presets = [],
 }: {
   data: SearchSection;
   onChange: (d: SearchSection) => void;
   presets?: any[];
 }) => {
-  const currentPreset = presets.find((p) => p.provider_key === data.provider);
-  const providerOptions =
-    presets.length > 0
-      ? presets.map((p) => ({ label: p.name, value: p.provider_key }))
-      : [
-          { label: 'Ollama', value: 'ollama' },
-          { label: 'OpenAI', value: 'openai' },
-          { label: 'Azure', value: 'azure' },
-          { label: 'vLLM', value: 'vllm' },
-          { label: 'Grok / xAI', value: 'grok' },
-          { label: 'Anthropic', value: 'anthropic' },
-          { label: 'Google Gemini', value: 'gemini' },
-        ];
-
-  const handleProviderChange = (newProvider: string) => {
-    const preset = presets.find((p) => p.provider_key === newProvider);
-    if (preset) {
-      const modelName = preset.default_rerank_model || preset.rerank_models?.[0] || data.model;
-      onChange({
-        ...data,
-        provider: newProvider,
-        model: modelName,
-      });
-    } else {
-      onChange({ ...data, provider: newProvider });
-    }
-  };
-
   return (
     <div className="space-y-4">
       <SectionHeader
         icon={<Search className="h-4 w-4" />}
-        title="Search"
-        subtitle="Retrieval strategy and candidate selection parameters"
+        title="Search & Retrieval Strategy"
+        subtitle="Retrieval strategy, scoring thresholds, and candidate selection parameters"
       />
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Provider">
-          <Select
-            value={data.provider || 'ollama'}
-            onChange={handleProviderChange}
-            options={providerOptions}
-          />
-        </Field>
-        <Field label="Model">
-          {currentPreset?.rerank_models && currentPreset.rerank_models.length > 0 ? (
-            <Select
-              value={data.model || ''}
-              onChange={(v) => onChange({ ...data, model: v })}
-              options={currentPreset.rerank_models.map((m: string) => ({
-                label: m,
-                value: m,
-              }))}
-            />
-          ) : (
-            <TextInput
-              value={data.model || ''}
-              onChange={(v) => onChange({ ...data, model: v })}
-              placeholder="qwen3:0.6b"
-            />
-          )}
-        </Field>
+      <div className="flex items-start gap-2.5 p-3 bg-blue-50/80 border border-blue-100 rounded-lg text-blue-900 text-xs leading-relaxed">
+        <Database className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <span className="font-semibold">Retrieval Mechanism:</span> Dense vector search automatically uses the query embedding model &amp; vector dimension configured in the <strong>Embedding</strong> tab. Keyword search operates via MySQL BM25.
+        </div>
       </div>
       <Field label="Search Approach" hint="Hybrid combines vector + keyword (BM25) with RRF fusion">
         <Select
@@ -511,7 +471,7 @@ const SearchEditor = ({
             placeholder="10"
           />
         </Field>
-        <Field label="Max Context Tokens">
+        <Field label="Max Context Tokens" hint="Maximum tokens allowed in context window">
           <TextInput
             type="number"
             value={data.max_context_tokens}
@@ -809,7 +769,7 @@ const ProfileEditor = ({
 }: {
   profile: LLMProfile;
   onSaved: (p: LLMProfile) => void;
-  onDeleted: (id: number) => void;
+  onDeleted: (id: string | number) => void;
 }) => {
   const [activeSection, setActiveSection] = useState<SectionTab>('embedding');
   const [settings, setSettings] = useState<ProfileSettings>(
@@ -1355,14 +1315,14 @@ const CreateProfileModal = ({
 }: {
   userRole?: string | null;
   customers?: any[];
-  defaultCustomerId?: number | null;
+  defaultCustomerId?: string | number | null;
   onCreated: (p: LLMProfile) => void;
   onCancel: () => void;
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isDefault, setIsDefault] = useState(false);
-  const [selectedCustId, setSelectedCustId] = useState<number | null>(
+  const [selectedCustId, setSelectedCustId] = useState<string | number | null>(
     defaultCustomerId || (customers.length > 0 ? customers[0].id : null)
   );
   const [saving, setSaving] = useState(false);
@@ -1484,10 +1444,10 @@ export default function ProfilesPage({
   customerId,
 }: {
   userRole?: string | null;
-  customerId?: number | null;
+  customerId?: string | number | null;
 } = {}) {
   const [profiles, setProfiles] = useState<LLMProfile[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | number | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1505,7 +1465,7 @@ export default function ProfilesPage({
     }
   }, [userRole]);
 
-  const selectedProfile = profiles.find((p) => p.id === selectedId) ?? null;
+  const selectedProfile = profiles.find((p) => String(p.id) === String(selectedId)) ?? null;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1537,7 +1497,7 @@ export default function ProfilesPage({
       }));
       setProfiles(normalized);
       if (data.length > 0) {
-        setSelectedId((prev) => (prev && data.some((p) => p.id === prev) ? prev : (data.find((p) => p.is_default)?.id ?? data[0].id)));
+        setSelectedId((prev) => (prev && data.some((p) => String(p.id) === String(prev)) ? prev : (data.find((p) => p.is_default)?.id ?? data[0].id)));
       } else {
         setSelectedId(null);
       }
@@ -1555,7 +1515,7 @@ export default function ProfilesPage({
   const handleSaved = (updated: LLMProfile) => {
     setProfiles((prev) =>
       prev.map((p) =>
-        p.id === updated.id
+        String(p.id) === String(updated.id)
           ? updated
           : updated.is_default
           ? { ...p, is_default: false }
@@ -1564,8 +1524,8 @@ export default function ProfilesPage({
     );
   };
 
-  const handleDeleted = (id: number) => {
-    const remaining = profiles.filter((p) => p.id !== id);
+  const handleDeleted = (id: string | number) => {
+    const remaining = profiles.filter((p) => String(p.id) !== String(id));
     setProfiles(remaining);
     setSelectedId(remaining[0]?.id ?? null);
   };
@@ -1576,9 +1536,9 @@ export default function ProfilesPage({
     setShowCreate(false);
   };
 
-  const getCustomerName = (cid?: number) => {
+  const getCustomerName = (cid?: string | number) => {
     if (!cid) return null;
-    const found = customers.find((c) => c.id === cid);
+    const found = customers.find((c) => String(c.id) === String(cid));
     return found ? (found.name || `Customer #${cid}`) : `Customer #${cid}`;
   };
 

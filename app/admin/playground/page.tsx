@@ -15,7 +15,8 @@ import {
   Bookmark,
   ChevronDown,
   RefreshCw,
-  Info
+  Info,
+  Database
 } from 'lucide-react';
 import { Tooltip } from '@/app/components/Tooltip';
 import { PARAM_TOOLTIPS } from '@/lib/paramTooltips';
@@ -247,6 +248,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
       const resA = await api.retrieveKnowledge({
         query: searchQuery,
         knowledge_base_ids: [selectedKbId],
+        profile_id: llmProfileIdA !== 'active' ? String(llmProfileIdA) : undefined,
         approach: approachA,
         enable_rrf: enableRrfA,
         top_k: topKA,
@@ -265,6 +267,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
       const resB = await api.retrieveKnowledge({
         query: searchQuery,
         knowledge_base_ids: [selectedKbId],
+        profile_id: llmProfileIdB !== 'active' ? String(llmProfileIdB) : undefined,
         approach: approachB,
         enable_rrf: enableRrfB,
         top_k: topKB,
@@ -285,7 +288,8 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
           query: searchQuery,
           context: resA.context,
           temperature: temperatureA,
-          llm_config_id: llmProfileIdA !== 'active' ? Number(llmProfileIdA) : undefined,
+          profile_id: llmProfileIdA !== 'active' ? String(llmProfileIdA) : undefined,
+          llm_config_id: llmProfileIdA !== 'active' ? String(llmProfileIdA) : undefined,
         }).then((gen) => {
           setAnswerA(gen.answer || '');
         }).catch((err) => {
@@ -302,7 +306,8 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
           query: searchQuery,
           context: resB.context,
           temperature: temperatureB,
-          llm_config_id: llmProfileIdB !== 'active' ? Number(llmProfileIdB) : undefined,
+          profile_id: llmProfileIdB !== 'active' ? String(llmProfileIdB) : undefined,
+          llm_config_id: llmProfileIdB !== 'active' ? String(llmProfileIdB) : undefined,
         }).then((gen) => {
           setAnswerB(gen.answer || '');
         }).catch((err) => {
@@ -372,6 +377,18 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                 </option>
               ))}
             </select>
+            {(() => {
+              const activeKb = kbList.find((kb) => String(kb.id) === String(selectedKbId));
+              if (!activeKb) return null;
+              const dim = activeKb.settings?.vector_dimension || 768;
+              const model = activeKb.settings?.embedding_model || 'nomic-embed-text';
+              return (
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50/80 border border-blue-100 rounded text-[10px] text-blue-800 font-mono mt-1">
+                  <Database className="w-3 h-3 text-blue-600 shrink-0" />
+                  <span className="truncate">Index: {model} ({dim}d)</span>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="space-y-1">

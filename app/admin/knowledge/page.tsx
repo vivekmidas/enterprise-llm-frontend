@@ -24,6 +24,8 @@ import {
   Copy,
   Check,
   Bug,
+  Lock,
+  Database
 } from 'lucide-react';
 import { COLOR_PALETTE } from '@/lib/utils';
 
@@ -2182,6 +2184,32 @@ export default function KnowledgeBasesTab({
                 )}
               </div>
 
+              <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-lg space-y-1.5">
+                <div className="text-[10px] font-bold text-blue-900 uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Database className="w-3 h-3 text-blue-600" />
+                    Qdrant Vector Index Specs
+                  </span>
+                  <span className="text-[9px] text-blue-600 font-semibold flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5" /> Immutable
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-500 font-medium block text-[10px]">Embedding Model</span>
+                    <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-blue-100 block truncate font-mono text-[11px]" title={activeCreateEmbeddingSettings.model}>
+                      {activeCreateEmbeddingSettings.model}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 font-medium block text-[10px]">Vector Dimension</span>
+                    <span className="font-semibold text-blue-700 bg-white px-2 py-1 rounded border border-blue-100 block font-mono text-[11px]">
+                      {activeCreateEmbeddingSettings.dimension} dims ({activeCreateEmbeddingSettings.provider})
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
                 <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
                   <span>Profile Chunking Configuration (RO)</span>
@@ -2191,13 +2219,13 @@ export default function KnowledgeBasesTab({
                   <div>
                     <span className="text-gray-400 font-medium block text-[10px]">Chunk Size</span>
                     <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
-                      {targetCustomerProfiles.find((p) => String(p.id) === String(newKbLlmProfileId))?.settings?.chunk_size || 1000} tokens
+                      {activeCreateEmbeddingSettings.chunk_size || 1000} tokens
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-400 font-medium block text-[10px]">Chunk Overlap</span>
                     <span className="font-semibold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200 block">
-                      {targetCustomerProfiles.find((p) => String(p.id) === String(newKbLlmProfileId))?.settings?.chunk_overlap || 200} tokens
+                      {activeCreateEmbeddingSettings.chunk_overlap || 200} tokens
                     </span>
                   </div>
                 </div>
