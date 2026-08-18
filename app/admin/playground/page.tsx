@@ -45,28 +45,55 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
   const [llmProfileIdA, setLlmProfileIdA] = useState<string>('default');
   const [llmProfileIdB, setLlmProfileIdB] = useState<string>('default');
 
+  // =====================================================================
+  // BLOCK COMMENT: FILTER PLAYGROUND PROFILES BY SELECTED KNOWLEDGE BASE
+  // Purpose: A Knowledge Base's vector store is indexed with a specific LLM/embedding profile.
+  // Querying with unrelated profiles produces vector space conflicts or empty results.
+  // Restricts available options to profiles linked to the selected KB.
+  // =====================================================================
   const getAvailableLlmProfiles = () => {
     const list: { id: string; name: string; provider: string }[] = [];
+    const selectedKb = kbList.find((k) => String(k.id) === String(selectedKbId));
+    const kbProfileId = selectedKb?.settings?.llm_profile_id;
 
-    llmProfiles.forEach((p) => {
-      const s = p.settings || {};
+    if (kbProfileId) {
+      const linkedProf = llmProfiles.find((p) => String(p.id) === String(kbProfileId));
+      if (linkedProf) {
+        const s = linkedProf.settings || {};
+        const cfg = s.generation || s.search || s.llm_config || {};
+        const providerKey = cfg.provider || linkedProf.provider || 'ollama';
+        return [{
+          id: String(linkedProf.id),
+          name: `${linkedProf.name} (Linked KB Profile)`,
+          provider: providerKey,
+        }];
+      }
+    }
+
+    // If KB doesn't have an explicit profile, use the tenant's default profile for this KB
+    const kbCustomerId = selectedKb?.customer_id;
+    const targetProfiles = kbCustomerId
+      ? llmProfiles.filter((p) => String(p.customer_id) === String(kbCustomerId))
+      : llmProfiles;
+
+    const defaultProf = targetProfiles.find((p) => p.is_default) || targetProfiles[0] || llmProfiles.find((p) => p.is_default) || llmProfiles[0];
+    if (defaultProf) {
+      const s = defaultProf.settings || {};
       const cfg = s.generation || s.search || s.llm_config || {};
-      const providerKey = cfg.provider || p.provider || 'ollama';
+      const providerKey = cfg.provider || defaultProf.provider || 'ollama';
       list.push({
-        id: String(p.id),
-        name: `${p.name}${p.is_default ? ' (Default)' : ''}`,
+        id: String(defaultProf.id),
+        name: `${defaultProf.name}${defaultProf.is_default ? ' (Default)' : ''}`,
         provider: providerKey,
       });
-    });
+    }
 
-    if (companySettings) {
-      if (!list.some((item) => item.id === 'company')) {
-        list.push({
-          id: 'company',
-          name: companySettings.active_config_name || companySettings.company_name || 'Tenant Settings',
-          provider: companySettings.llm_provider || 'ollama',
-        });
-      }
+    if (companySettings && list.length === 0) {
+      list.push({
+        id: 'company',
+        name: companySettings.active_config_name || companySettings.company_name || 'Tenant Settings',
+        provider: companySettings.llm_provider || 'ollama',
+      });
     }
 
     if (list.length === 0) {
@@ -216,6 +243,30 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
       setSelectedKbId(initialKbId);
     }
   }, [initialKbId]);
+
+  // =====================================================================
+  // BLOCK COMMENT: SYNC PLAYGROUND PROFILE SELECTION ON KB CHANGE
+  // Automatically defaults Config A and Config B to the selected KB's linked profile.
+  // =====================================================================
+  useEffect(() => {
+    if (selectedKbId && kbList.length > 0) {
+      const selectedKb = kbList.find((k) => String(k.id) === String(selectedKbId));
+      const kbProfId = selectedKb?.settings?.llm_profile_id;
+      if (kbProfId) {
+        setLlmProfileIdA(String(kbProfId));
+        setLlmProfileIdB(String(kbProfId));
+      } else {
+        const kbCustomerId = selectedKb?.customer_id;
+        const targetProfiles = kbCustomerId
+          ? llmProfiles.filter((p) => String(p.customer_id) === String(kbCustomerId))
+          : llmProfiles;
+        const defaultProf = targetProfiles.find((p) => p.is_default) || targetProfiles[0] || llmProfiles.find((p) => p.is_default) || llmProfiles[0];
+        const pid = defaultProf ? String(defaultProf.id) : (companySettings ? 'company' : 'default');
+        setLlmProfileIdA(pid);
+        setLlmProfileIdB(pid);
+      }
+    }
+  }, [selectedKbId, kbList, llmProfiles, companySettings]);
 
 
 
