@@ -142,56 +142,7 @@ export default function KnowledgeBasesTab({
   const [newDocType, setNewDocType] = useState('');
   const [savingDocTypes, setSavingDocTypes] = useState(false);
 
-  // ── Document 3 Views Inspector Modal State ───────────────────────────────
-  const [showViewsModal, setShowViewsModal] = useState(false);
-  const [inspectingDoc, setInspectingDoc] = useState<any | null>(null);
-  const [viewsData, setViewsData] = useState<any | null>(null);
-  const [loadingViews, setLoadingViews] = useState(false);
-  const [viewsError, setViewsError] = useState<string | null>(null);
-  const [activeViewTab, setActiveViewTab] = useState<'extracted' | 'normalized' | 'json'>('extracted');
-  const [editedNormalizedText, setEditedNormalizedText] = useState('');
-  const [savingViews, setSavingViews] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [selectedEntityFilter, setSelectedEntityFilter] = useState<string | null>(null);
 
-  const handleOpenViewsModal = async (doc: any) => {
-    if (!selectedKb) return;
-    setInspectingDoc(doc);
-    setShowViewsModal(true);
-    setLoadingViews(true);
-    setViewsError(null);
-    setSaveSuccess(false);
-    setSelectedEntityFilter(null);
-    try {
-      const data = await api.getDocumentViews(selectedKb.id, doc.id);
-      setViewsData(data);
-      setEditedNormalizedText(data.views?.normalized?.text || '');
-    } catch (err: any) {
-      console.error(err);
-      setViewsError('Failed to load document data views.');
-    } finally {
-      setLoadingViews(false);
-    }
-  };
-
-  const handleSaveNormalizedText = async () => {
-    if (!selectedKb || !inspectingDoc) return;
-    setSavingViews(true);
-    setViewsError(null);
-    try {
-      const updated = await api.updateDocumentViews(selectedKb.id, inspectingDoc.id, {
-        normalized_text: editedNormalizedText,
-      });
-      setViewsData(updated);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (err: any) {
-      console.error(err);
-      setViewsError('Failed to save updated normalized text.');
-    } finally {
-      setSavingViews(false);
-    }
-  };
 
   // Domain Schemas Modal state
   const [showDomainModal, setShowDomainModal] = useState(false);
@@ -320,23 +271,20 @@ export default function KnowledgeBasesTab({
     }
   };
 
-  // EKP / Parser Inspect Drawer state
+  // ── Unified 3-Way Extracted Data Inspector State ──────────────────────────
   const [ekpLoading, setEkpLoading] = useState(false);
   const [selectedEkpDoc, setSelectedEkpDoc] = useState<any>(null);
   const [showEkpInspectModal, setShowEkpInspectModal] = useState(false);
   const [ekpParagraphs, setEkpParagraphs] = useState<any[]>([]);
   const [ekpEntities, setEkpEntities] = useState<any[]>([]);
   const [ekpViewsData, setEkpViewsData] = useState<any>(null);
-  const [ekpSliderSection, setEkpSliderSection] = useState<'split' | 'docling' | 'opendataloader' | 'json'>('split');
-  const [doclingSubView, setDoclingSubView] = useState<'spans' | 'text' | 'tables'>('spans');
-  const [openDataLoaderSubView, setOpenDataLoaderSubView] = useState<'spans' | 'text' | 'audit'>('spans');
-  const [jsonSubView, setJsonSubView] = useState<'entities' | 'domain_summary' | 'structural_tree' | 'raw_json' | 'debug'>('entities');
-  const [doclingSearch, setDoclingSearch] = useState('');
-  const [openDataLoaderSearch, setOpenDataLoaderSearch] = useState('');
-  const [jsonSearch, setJsonSearch] = useState('');
-  const [copiedDoclingText, setCopiedDoclingText] = useState(false);
-  const [copiedOpenDataLoaderText, setCopiedOpenDataLoaderText] = useState(false);
+  const [activeTextParser, setActiveTextParser] = useState<'docling' | 'opendataloader'>('docling');
+  const [textSubView, setTextSubView] = useState<'spans' | 'text'>('spans');
+  const [textSearch, setTextSearch] = useState('');
+  const [entitySearch, setEntitySearch] = useState('');
+  const [copiedText, setCopiedText] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
+  const [copiedEntitiesJson, setCopiedEntitiesJson] = useState(false);
 
   // Entity Edit state
   const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
@@ -539,10 +487,10 @@ export default function KnowledgeBasesTab({
     setSelectedEkpDoc(doc);
     setEkpLoading(true);
     setShowEkpInspectModal(true);
-    setEkpSliderSection('split');
-    setDoclingSearch('');
-    setOpenDataLoaderSearch('');
-    setJsonSearch('');
+    setActiveTextParser('docling');
+    setTextSubView('spans');
+    setTextSearch('');
+    setEntitySearch('');
     try {
       const kbId = doc.knowledge_base_id || selectedKb?.id;
       const [pRes, eRes, vRes] = await Promise.all([
@@ -1034,6 +982,25 @@ export default function KnowledgeBasesTab({
       chunk_overlap: editKbChunkOverlap || selectedKb?.settings?.chunk_overlap || 200,
     };
   }, [activeEditProfile, selectedKb, editKbEmbeddingModel, editKbVectorDimension, editKbChunkSize, editKbChunkOverlap]);
+
+  // =====================================================================
+  // BLOCK COMMENT: KB PROFILE & VECTOR DIMENSION CHANGE GUARDRAILS
+  // Prevents saving profile changes that alter vector dimension for KBs with indexed docs.
+  // Flags warnings when profile changes require document re-processing.
+  // =====================================================================
+  const isDimensionMismatch = useMemo(() => {
+    if (!selectedKb || docList.length === 0) return false;
+    const existingDim = selectedKb.settings?.vector_dimension;
+    if (!existingDim) return false;
+    return Number(activeEditEmbeddingSettings.dimension) !== Number(existingDim);
+  }, [selectedKb, docList.length, activeEditEmbeddingSettings.dimension]);
+
+  const isProfileChanged = useMemo(() => {
+    if (!selectedKb || docList.length === 0 || isDimensionMismatch) return false;
+    const originalProfId = selectedKb.settings?.llm_profile_id || '';
+    const currentProfId = editKbLlmProfileId || '';
+    return originalProfId !== currentProfId;
+  }, [selectedKb, docList.length, isDimensionMismatch, editKbLlmProfileId]);
 
   const handleCreateKB = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1868,18 +1835,21 @@ export default function KnowledgeBasesTab({
                                 </span>
                               </div>
 
-                              {/* BLOCK: Extracted Domain Knowledge Metadata */}
-                              {doc.metadata_json?.domain_info && (
+                              {/* ===================================================================== */}
+                              {/* BLOCK COMMENT: EXTRACTED DOMAIN KNOWLEDGE METADATA */}
+                              {/* Guarded to only render if a valid domain_name exists */}
+                              {/* ===================================================================== */}
+                              {doc.metadata_json?.domain_info?.domain_name && (
                                 <div className="mt-2 text-xs bg-indigo-50/70 border border-indigo-150 rounded-lg p-2.5 space-y-1">
                                   <div className="flex items-center justify-between">
                                     <span className="font-bold text-indigo-900 text-xs flex items-center gap-1">
-                                      🏷️ Domain: {doc.metadata_json.domain_info.domain_name} ({doc.metadata_json.domain_info.domain_key})
+                                      🏷️ Domain: {doc.metadata_json.domain_info.domain_name} ({doc.metadata_json.domain_info.domain_key || ''})
                                     </span>
                                   </div>
                                   {Object.keys(doc.metadata_json.domain_info.extracted_fields || {}).length > 0 && (
                                     <div className="flex items-center gap-1.5 flex-wrap pt-1">
                                       {Object.entries(doc.metadata_json.domain_info.extracted_fields).map(([k, v]) => (
-                                        <span key={k} className="bg-white px-2 py-0.5 rounded border border-indigo-200 text-indigo-800 text-[11px] font-mono">
+                                        <span key={k} className="bg-white px-2 py-0.5 rounded border border-indigo-200 text-indigo-800 text-xs font-mono">
                                           <strong>{k}:</strong> {String(v)}
                                         </span>
                                       ))}
@@ -1887,9 +1857,9 @@ export default function KnowledgeBasesTab({
                                   )}
                                   {Object.keys(doc.metadata_json.domain_info.extra_fields || {}).length > 0 && (
                                     <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                                      <span className="text-[10px] text-indigo-600 font-semibold uppercase">Extra:</span>
+                                      <span className="text-xs text-indigo-600 font-semibold uppercase">Extra:</span>
                                       {Object.entries(doc.metadata_json.domain_info.extra_fields).map(([k, v]) => (
-                                        <span key={k} className="bg-indigo-100/60 px-1.5 py-0.5 rounded border border-indigo-200 text-indigo-900 text-[10px]">
+                                        <span key={k} className="bg-indigo-100/60 px-1.5 py-0.5 rounded border border-indigo-200 text-indigo-900 text-xs">
                                           {k}: {String(v)}
                                         </span>
                                       ))}
@@ -1903,10 +1873,11 @@ export default function KnowledgeBasesTab({
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => fetchEkpDocDetails(doc)}
-                                className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
-                                title="Inspect EKP Spans & Entities"
+                                className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                                title="Inspect 3-Way Extracted Data (Text, JSON Metadata, Entities)"
                               >
-                                <SlidersHorizontal className="w-3.5 h-3.5 text-purple-600" />
+                                <Eye className="w-3.5 h-3.5 text-purple-600" />
+                                <span>Inspect</span>
                               </button>
                               {(() => {
                                 const isReprocessable = ['completed', 'active', 'ready', 'failed', 'error'].includes(status);
@@ -1937,14 +1908,6 @@ export default function KnowledgeBasesTab({
                                   </button>
                                 );
                               })()}
-                                <button
-                                  onClick={() => handleOpenViewsModal(doc)}
-                                  className="px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                                  title="Inspect 3 Data Views (Extracted, Normalized, JSON Tree)"
-                                >
-                                  <Eye className="w-3.5 h-3.5 text-blue-600" />
-                                  <span>3 Views</span>
-                                </button>
                               <button
                                 onClick={() => openEditDocModal(doc)}
                                 className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
@@ -2982,7 +2945,7 @@ export default function KnowledgeBasesTab({
                       LLM Profile (Document Extraction)
                     </label>
                     {targetCustomerProfiles.length > 1 && (
-                      <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded font-bold">
+                      <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded font-bold">
                         {targetCustomerProfiles.length} profiles
                       </span>
                     )}
@@ -3009,7 +2972,7 @@ export default function KnowledgeBasesTab({
                       <Database className="w-3.5 h-3.5 text-blue-600" />
                       <span>Qdrant Vector Index Specs</span>
                     </label>
-                    <span className="text-[10px] text-blue-600 font-semibold flex items-center gap-1">
+                    <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
                       <Lock className="w-2.5 h-2.5" /> Immutable
                     </span>
                   </div>
@@ -3026,6 +2989,33 @@ export default function KnowledgeBasesTab({
                   </div>
                 </div>
               </div>
+
+              {/* ===================================================================== */}
+              {/* BLOCK COMMENT: VECTOR DIMENSION MISMATCH & RE-PROCESS WARNING BANNERS */}
+              {/* ===================================================================== */}
+              {isDimensionMismatch && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 text-red-800 font-bold">
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    <span>Vector Dimension Conflict ({docList.length} documents indexed)</span>
+                  </div>
+                  <p className="text-red-700 text-xs leading-relaxed">
+                    Selected profile uses <strong>{activeEditEmbeddingSettings.dimension} dimensions</strong> ({activeEditEmbeddingSettings.model}), but this Knowledge Base has {docList.length} documents indexed with <strong>{selectedKb?.settings?.vector_dimension} dimensions</strong>. Changing dimension is restricted to prevent Qdrant vector index corruption.
+                  </p>
+                </div>
+              )}
+
+              {isProfileChanged && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 text-amber-800 font-bold">
+                    <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Profile Change Notice</span>
+                  </div>
+                  <p className="text-amber-700 text-xs leading-relaxed">
+                    Switching LLM profile will apply to future document ingestion. To update metadata extractions for existing documents ({docList.length} docs), please re-process them after saving.
+                  </p>
+                </div>
+              )}
 
               {/* ROW 4: PDF PARSER ENGINES & DEDUPLICATION CONFIGURATION */}
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5">
@@ -3144,7 +3134,7 @@ export default function KnowledgeBasesTab({
                 </button>
                 <button
                   type="submit"
-                  disabled={savingKb || !editKbName.trim()}
+                  disabled={savingKb || !editKbName.trim() || isDimensionMismatch}
                   className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
                 >
                   {savingKb ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
@@ -3250,11 +3240,12 @@ export default function KnowledgeBasesTab({
       {/* ========================================================================= */}
       {/* EXPANDED SLIDER WINDOW: 3 SECTIONS (Dockling, OpenDataLoader, Extracted JSON) */}
       {/* ========================================================================= */}
+      {/* ========================================================================= */}
+      {/* UNIFIED 3-WAY SPLIT VIEW INSPECTOR (Text Extracted, JSON Metadata, Entities) */}
+      {/* ========================================================================= */}
       {showEkpInspectModal && selectedEkpDoc && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-end z-[120] animate-fade-in">
-          <div className={`bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 overflow-hidden animate-in slide-in-from-right duration-200 ${
-            ekpSliderSection === 'split' ? 'w-full max-w-[95vw]' : 'w-full max-w-5xl'
-          }`}>
+          <div className="bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 overflow-hidden animate-in slide-in-from-right duration-200 w-full max-w-[96vw]">
             {/* DRAWER HEADER */}
             <div className="px-6 py-3.5 bg-slate-900 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3 min-w-0">
@@ -3267,13 +3258,18 @@ export default function KnowledgeBasesTab({
                       {selectedEkpDoc.file_name || selectedEkpDoc.name || 'Document Details'}
                     </h3>
                     <span className="text-[10px] font-mono bg-purple-900/80 text-purple-200 px-2 py-0.5 rounded uppercase font-semibold border border-purple-700/50">
-                      Dual Extraction Engine
+                      3-Way Extraction Inspector
                     </span>
                     <span className="text-[10px] font-mono bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
                       {selectedEkpDoc.status || 'ready'}
                     </span>
+                    {ekpViewsData?.comparison_report && (
+                      <span className="text-[10px] font-mono bg-blue-950 text-blue-300 px-2 py-0.5 rounded border border-blue-800 font-semibold">
+                        {((ekpViewsData.comparison_report.jaccard_overlap_ratio || 0.95) * 100).toFixed(1)}% Cross-Match
+                      </span>
+                    )}
                   </div>
-                  <p className="text-[11px] text-slate-400 font-mono truncate">
+                  <p className="text-[11px] text-slate-400 font-mono truncate mt-0.5">
                     ID: {selectedEkpDoc.id} · Size: {formatBytes(selectedEkpDoc.file_size)} · Chunks: {selectedEkpDoc.chunk_count ?? 0}
                   </p>
                 </div>
@@ -3299,319 +3295,138 @@ export default function KnowledgeBasesTab({
               </div>
             </div>
 
-            {/* TOP 3-SECTION NAVIGATION TABS BAR */}
-            <div className="px-6 border-b border-gray-200 bg-slate-50 flex items-center justify-between shrink-0 overflow-x-auto">
-              <div className="flex items-center gap-2 pt-2 pb-2">
-                <button
-                  onClick={() => setEkpSliderSection('split')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    ekpSliderSection === 'split'
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-200/70'
-                  }`}
-                  title="View all 3 extraction sections side-by-side"
-                >
-                  <Columns className="w-3.5 h-3.5" />
-                  <span>Split 3-Way View</span>
-                </button>
-
-                <div className="h-4 w-px bg-gray-300 mx-1" />
-
-                {/* TAB 1: DOCKLING */}
-                <button
-                  onClick={() => setEkpSliderSection('docling')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                    ekpSliderSection === 'docling'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'text-gray-700 hover:bg-slate-200/70'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>1. Dockling</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                    ekpSliderSection === 'docling' ? 'bg-emerald-700 text-white' : 'bg-emerald-100 text-emerald-800'
-                  }`}>
-                    {doclingData.spans.length} Spans
-                  </span>
-                </button>
-
-                {/* TAB 2: OPENDATALOADER PDF PARSER */}
-                <button
-                  onClick={() => setEkpSliderSection('opendataloader')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                    ekpSliderSection === 'opendataloader'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-gray-700 hover:bg-slate-200/70'
-                  }`}
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>2. OpenDataLoaderPDFParser</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                    ekpSliderSection === 'opendataloader' ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {openDataLoaderData.spans.length} Spans
-                  </span>
-                </button>
-
-                {/* TAB 3: JSON (IF EXTRACTED) */}
-                <button
-                  onClick={() => setEkpSliderSection('json')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                    ekpSliderSection === 'json'
-                      ? 'bg-purple-600 text-white shadow-xs'
-                      : 'text-gray-700 hover:bg-slate-200/70'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>3. JSON (if extracted)</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                    jsonExtractedData.isExtracted
-                      ? ekpSliderSection === 'json'
-                        ? 'bg-purple-700 text-white'
-                        : 'bg-purple-100 text-purple-800'
-                      : 'bg-gray-200 text-gray-600'
-                  }`}>
-                    {jsonExtractedData.isExtracted
-                      ? `${jsonExtractedData.entities.length || Object.keys(jsonExtractedData.extractedFields).length} Fields`
-                      : 'Not Extracted'}
-                  </span>
-                </button>
-              </div>
-
-              {/* OVERLAP RECONCILIATION SUMMARY */}
-              {ekpViewsData?.comparison_report && (
-                <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-600">
-                  <span className="text-slate-400">Cross-Validation:</span>
-                  <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-mono text-[11px] font-bold">
-                    {((ekpViewsData.comparison_report.jaccard_overlap_ratio || 0.95) * 100).toFixed(1)}% Match
-                  </span>
-                  {ekpViewsData.comparison_report.recovered_spans_count > 0 && (
-                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono text-[11px] font-bold">
-                      +{ekpViewsData.comparison_report.recovered_spans_count} Recovered
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* DRAWER MAIN CONTENT */}
+            {/* DRAWER MAIN CONTENT: 3-WAY SPLIT VIEW */}
             <div className="flex-1 overflow-hidden">
-              {ekpSliderSection === 'split' ? (
-                /* ========================================================================= */
-                /* 3-COLUMN SPLIT VIEW */
-                /* ========================================================================= */
-                <div className="h-full grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-200 overflow-hidden bg-slate-100/50">
-                  {/* COLUMN 1: DOCKLING */}
-                  <div className="flex flex-col h-full overflow-hidden bg-white">
-                    <div className="p-3 border-b border-gray-200 bg-emerald-50/50 flex items-center justify-between shrink-0">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1 rounded bg-emerald-600 text-white">
-                          <FileText className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-xs text-slate-900">1. Dockling</h4>
-                          <p className="text-[10px] text-emerald-800 font-medium">IBM Docling Parser Engine</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono">
-                          {doclingData.spans.length} Spans
-                        </span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(doclingData.rawText);
-                            setCopiedDoclingText(true);
-                            setTimeout(() => setCopiedDoclingText(false), 2000);
-                          }}
-                          className="p-1 rounded text-slate-400 hover:text-emerald-700 hover:bg-white transition-colors cursor-pointer"
-                          title="Copy Dockling Text"
-                        >
-                          {copiedDoclingText ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                    </div>
+              <div className="h-full grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-200 overflow-hidden bg-slate-100/50">
+                {/* ========================================================================= */}
+                {/* COLUMN 1: TEXT EXTRACTED (Both Parsers or Single) */}
+                {/* ========================================================================= */}
+                {(() => {
+                  const currentParserData = activeTextParser === 'docling' ? doclingData : openDataLoaderData;
+                  const currentRawText = currentParserData.rawText;
+                  const currentSpans = currentParserData.spans || [];
+                  const filteredSpans = currentSpans.filter((s: any) => {
+                    if (!textSearch) return true;
+                    const t = (s.text || s.text_content || '').toLowerCase();
+                    return t.includes(textSearch.toLowerCase());
+                  });
 
-                    <div className="p-2 border-b border-gray-100 bg-white flex items-center gap-2 shrink-0">
-                      <div className="relative flex-1">
-                        <Search className="w-3 h-3 text-gray-400 absolute left-2 top-2" />
-                        <input
-                          type="text"
-                          placeholder="Search dockling text..."
-                          value={doclingSearch}
-                          onChange={(e) => setDoclingSearch(e.target.value)}
-                          className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded-md bg-gray-50 focus:bg-white text-slate-900 focus:outline-hidden"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-gray-200 text-[10px] font-semibold shrink-0">
-                        <button
-                          onClick={() => setDoclingSubView('spans')}
-                          className={`px-2 py-0.5 rounded cursor-pointer ${
-                            doclingSubView === 'spans' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
-                          }`}
-                        >
-                          Spans
-                        </button>
-                        <button
-                          onClick={() => setDoclingSubView('text')}
-                          className={`px-2 py-0.5 rounded cursor-pointer ${
-                            doclingSubView === 'text' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
-                          }`}
-                        >
-                          Raw Text
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                      {doclingSubView === 'text' ? (
-                        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-slate-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
-                          {doclingData.rawText || 'No raw text stream recorded from Dockling.'}
+                  return (
+                    <div className="flex flex-col h-full overflow-hidden bg-white">
+                      {/* Column 1 Header */}
+                      <div className="p-3 border-b border-gray-200 bg-emerald-50/50 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1 rounded bg-emerald-600 text-white">
+                            <FileText className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-xs text-slate-900">1. Text Extracted</h4>
+                            <p className="text-[10px] text-emerald-800 font-medium">Dual/Single Parser Text Stream</p>
+                          </div>
                         </div>
-                      ) : (
-                        doclingData.spans.filter((s: any) => {
-                          if (!doclingSearch) return true;
-                          const t = (s.text || s.text_content || '').toLowerCase();
-                          return t.includes(doclingSearch.toLowerCase());
-                        }).length === 0 ? (
-                          <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
-                            {doclingData.spans.length === 0
-                              ? 'Docling parser did not produce spans for this file (fallback or single-pass mode).'
-                              : 'No spans matched your search.'}
+
+                        {/* Parser Selectors & Copy */}
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center bg-white p-0.5 rounded-lg border border-emerald-200 text-[10px] font-semibold shadow-2xs">
+                            <button
+                              onClick={() => setActiveTextParser('docling')}
+                              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                                activeTextParser === 'docling'
+                                  ? 'bg-emerald-600 text-white font-bold shadow-2xs'
+                                  : 'text-gray-600 hover:text-emerald-800'
+                              }`}
+                              title="IBM Docling Parser"
+                            >
+                              Docling ({doclingData.spans.length})
+                            </button>
+                            <button
+                              onClick={() => setActiveTextParser('opendataloader')}
+                              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                                activeTextParser === 'opendataloader'
+                                  ? 'bg-blue-600 text-white font-bold shadow-2xs'
+                                  : 'text-gray-600 hover:text-blue-800'
+                              }`}
+                              title="OpenDataLoader / PyMuPDF Secondary Parser"
+                            >
+                              OpenDataLoader ({openDataLoaderData.spans.length})
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(currentRawText);
+                              setCopiedText(true);
+                              setTimeout(() => setCopiedText(false), 2000);
+                            }}
+                            className="p-1.5 rounded text-slate-400 hover:text-emerald-700 hover:bg-white transition-colors cursor-pointer"
+                            title="Copy Extracted Text"
+                          >
+                            {copiedText ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Column 1 Search & Subview Toggle */}
+                      <div className="p-2 border-b border-gray-100 bg-white flex items-center gap-2 shrink-0">
+                        <div className="relative flex-1">
+                          <Search className="w-3 h-3 text-gray-400 absolute left-2 top-2" />
+                          <input
+                            type="text"
+                            placeholder="Search extracted text..."
+                            value={textSearch}
+                            onChange={(e) => setTextSearch(e.target.value)}
+                            className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded-md bg-gray-50 focus:bg-white text-slate-900 focus:outline-hidden"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-gray-200 text-[10px] font-semibold shrink-0">
+                          <button
+                            onClick={() => setTextSubView('spans')}
+                            className={`px-2 py-0.5 rounded cursor-pointer ${
+                              textSubView === 'spans' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
+                            }`}
+                          >
+                            Spans ({currentSpans.length})
+                          </button>
+                          <button
+                            onClick={() => setTextSubView('text')}
+                            className={`px-2 py-0.5 rounded cursor-pointer ${
+                              textSubView === 'text' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
+                            }`}
+                          >
+                            Raw Text
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Column 1 Body */}
+                      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                        {textSubView === 'text' ? (
+                          <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-slate-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
+                            {currentRawText || `No raw text stream recorded from ${activeTextParser === 'docling' ? 'Docling' : 'OpenDataLoader'}.`}
                           </div>
                         ) : (
-                          doclingData.spans
-                            .filter((s: any) => {
-                              if (!doclingSearch) return true;
-                              const t = (s.text || s.text_content || '').toLowerCase();
-                              return t.includes(doclingSearch.toLowerCase());
-                            })
-                            .map((s: any, idx: number) => (
-                              <div
-                                key={s.span_id || `ds_${idx}`}
-                                className="p-2.5 rounded-lg border border-gray-200 bg-white hover:border-emerald-300 transition-colors text-xs space-y-1 shadow-2xs"
-                              >
-                                <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium">
-                                  <span className="font-mono text-emerald-700 font-bold">
-                                    {s.span_id || `P${s.page_number || 1}-S${s.paragraph_index || idx}`}
-                                  </span>
-                                  <span>
-                                    Page {s.page_number || 1} {s.block_type && `· ${s.block_type}`}
-                                  </span>
-                                </div>
-                                <p className="text-gray-800 leading-relaxed font-sans text-xs">
-                                  {s.text || s.text_content}
-                                </p>
-                                {s.bbox && (
-                                  <span className="text-[9px] font-mono text-gray-400 block pt-0.5">
-                                    bbox: [{s.bbox.map((n: number) => n.toFixed(1)).join(', ')}]
-                                  </span>
-                                )}
-                              </div>
-                            ))
-                        )
-                      )}
-                    </div>
-                  </div>
-
-                  {/* COLUMN 2: OPENDATALOADER PDF PARSER */}
-                  <div className="flex flex-col h-full overflow-hidden bg-white">
-                    <div className="p-3 border-b border-gray-200 bg-blue-50/50 flex items-center justify-between shrink-0">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1 rounded bg-blue-600 text-white">
-                          <Layers className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-xs text-slate-900">2. OpenDataLoaderPDFParser</h4>
-                          <p className="text-[10px] text-blue-800 font-medium">Layout & PyMuPDF Secondary Engine</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 font-mono">
-                          {openDataLoaderData.spans.length} Spans
-                        </span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(openDataLoaderData.rawText);
-                            setCopiedOpenDataLoaderText(true);
-                            setTimeout(() => setCopiedOpenDataLoaderText(false), 2000);
-                          }}
-                          className="p-1 rounded text-slate-400 hover:text-blue-700 hover:bg-white transition-colors cursor-pointer"
-                          title="Copy OpenDataLoader Text"
-                        >
-                          {copiedOpenDataLoaderText ? <Check className="w-3.5 h-3.5 text-blue-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-2 border-b border-gray-100 bg-white flex items-center gap-2 shrink-0">
-                      <div className="relative flex-1">
-                        <Search className="w-3 h-3 text-gray-400 absolute left-2 top-2" />
-                        <input
-                          type="text"
-                          placeholder="Search opendataloader text..."
-                          value={openDataLoaderSearch}
-                          onChange={(e) => setOpenDataLoaderSearch(e.target.value)}
-                          className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded-md bg-gray-50 focus:bg-white text-slate-900 focus:outline-hidden"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-gray-200 text-[10px] font-semibold shrink-0">
-                        <button
-                          onClick={() => setOpenDataLoaderSubView('spans')}
-                          className={`px-2 py-0.5 rounded cursor-pointer ${
-                            openDataLoaderSubView === 'spans' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-gray-500'
-                          }`}
-                        >
-                          Layout Spans
-                        </button>
-                        <button
-                          onClick={() => setOpenDataLoaderSubView('text')}
-                          className={`px-2 py-0.5 rounded cursor-pointer ${
-                            openDataLoaderSubView === 'text' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-gray-500'
-                          }`}
-                        >
-                          Raw Text
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                      {openDataLoaderSubView === 'text' ? (
-                        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-slate-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
-                          {openDataLoaderData.rawText || 'No raw text stream recorded from OpenDataLoaderPDFParser.'}
-                        </div>
-                      ) : (
-                        openDataLoaderData.spans.filter((s: any) => {
-                          if (!openDataLoaderSearch) return true;
-                          const t = (s.text || s.text_content || '').toLowerCase();
-                          return t.includes(openDataLoaderSearch.toLowerCase());
-                        }).length === 0 ? (
-                          <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
-                            {openDataLoaderData.spans.length === 0
-                              ? 'No secondary layout spans available for this document.'
-                              : 'No spans matched your search.'}
-                          </div>
-                        ) : (
-                          openDataLoaderData.spans
-                            .filter((s: any) => {
-                              if (!openDataLoaderSearch) return true;
-                              const t = (s.text || s.text_content || '').toLowerCase();
-                              return t.includes(openDataLoaderSearch.toLowerCase());
-                            })
-                            .map((s: any, idx: number) => {
+                          filteredSpans.length === 0 ? (
+                            <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
+                              {currentSpans.length === 0
+                                ? `No spans recorded for ${activeTextParser === 'docling' ? 'Docling' : 'OpenDataLoader'} parser.`
+                                : 'No spans matched your search.'}
+                            </div>
+                          ) : (
+                            filteredSpans.map((s: any, idx: number) => {
                               const isRecovered = s.source_parser?.includes('recovered');
                               return (
                                 <div
-                                  key={s.span_id || `od_${idx}`}
+                                  key={s.span_id || `span_${activeTextParser}_${idx}`}
                                   className={`p-2.5 rounded-lg border transition-colors text-xs space-y-1 shadow-2xs ${
                                     isRecovered
                                       ? 'border-amber-300 bg-amber-50/50'
-                                      : 'border-gray-200 bg-white hover:border-blue-300'
+                                      : 'border-gray-200 bg-white hover:border-emerald-300'
                                   }`}
                                 >
                                   <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium">
                                     <div className="flex items-center gap-1.5">
-                                      <span className="font-mono text-blue-700 font-bold">
-                                        {s.span_id || `OD-P${s.page_number || 1}-${idx}`}
+                                      <span className="font-mono text-emerald-700 font-bold">
+                                        {s.span_id || `P${s.page_number || 1}-S${s.paragraph_index || idx}`}
                                       </span>
                                       {isRecovered && (
                                         <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-bold text-[9px] uppercase">
@@ -3634,749 +3449,253 @@ export default function KnowledgeBasesTab({
                                 </div>
                               );
                             })
-                        )
-                      )}
-                    </div>
-                  </div>
-
-                  {/* COLUMN 3: EXTRACTED JSON */}
-                  <div className="flex flex-col h-full overflow-hidden bg-white">
-                    <div className="p-3 border-b border-gray-200 bg-purple-50/50 flex items-center justify-between shrink-0">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1 rounded bg-purple-600 text-white">
-                          <Sparkles className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-xs text-slate-900">3. JSON (if extracted)</h4>
-                          <p className="text-[10px] text-purple-800 font-medium">Domain Schema Structured Knowledge</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border font-mono ${
-                          jsonExtractedData.isExtracted
-                            ? 'bg-purple-100 text-purple-800 border-purple-200'
-                            : 'bg-gray-100 text-gray-500 border-gray-200'
-                        }`}>
-                          {jsonExtractedData.isExtracted ? 'JSON Extracted' : 'Not Extracted'}
-                        </span>
-                        {jsonExtractedData.isExtracted && (
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(prettifiedEntitiesJson);
-                              setCopiedJson(true);
-                              setTimeout(() => setCopiedJson(false), 2000);
-                            }}
-                            className="p-1 rounded text-slate-400 hover:text-purple-700 hover:bg-white transition-colors cursor-pointer"
-                            title="Copy Extracted JSON"
-                          >
-                            {copiedJson ? <Check className="w-3.5 h-3.5 text-purple-600" /> : <Copy className="w-3.5 h-3.5" />}
-                          </button>
+                          )
                         )}
                       </div>
                     </div>
+                  );
+                })()}
 
-                    <div className="p-2 border-b border-gray-100 bg-white flex items-center gap-2 shrink-0">
-                      <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-gray-200 text-[10px] font-semibold w-full">
-                        <button
-                          onClick={() => setJsonSubView('entities')}
-                          className={`flex-1 py-1 text-center rounded cursor-pointer ${
-                            jsonSubView === 'entities' ? 'bg-white text-purple-700 font-bold shadow-2xs' : 'text-gray-500'
-                          }`}
-                        >
-                          Entities ({jsonExtractedData.entities.length})
-                        </button>
-                        <button
-                          onClick={() => setJsonSubView('domain_summary')}
-                          className={`flex-1 py-1 text-center rounded cursor-pointer ${
-                            jsonSubView === 'domain_summary' ? 'bg-white text-purple-700 font-bold shadow-2xs' : 'text-gray-500'
-                          }`}
-                        >
-                          Fields Table
-                        </button>
-                        <button
-                          onClick={() => setJsonSubView('raw_json')}
-                          className={`flex-1 py-1 text-center rounded cursor-pointer ${
-                            jsonSubView === 'raw_json' ? 'bg-white text-purple-700 font-bold shadow-2xs' : 'text-gray-500'
-                          }`}
-                        >
-                          JSON Code
-                        </button>
-                        <button
-                          onClick={() => setJsonSubView('debug')}
-                          className={`flex-1 py-1 text-center rounded cursor-pointer ${
-                            jsonSubView === 'debug' ? 'bg-white text-purple-700 font-bold shadow-2xs' : 'text-gray-500'
-                          }`}
-                        >
-                          Debug
-                        </button>
+                {/* ========================================================================= */}
+                {/* COLUMN 2: JSON METADATA (Structured JSON Code) */}
+                {/* ========================================================================= */}
+                <div className="flex flex-col h-full overflow-hidden bg-white">
+                  {/* Column 2 Header */}
+                  <div className="p-3 border-b border-gray-200 bg-purple-50/50 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 rounded bg-purple-600 text-white">
+                        <FileJson className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs text-slate-900">2. JSON Metadata</h4>
+                        <p className="text-[10px] text-purple-800 font-medium">Structured Schema & Domain Data</p>
                       </div>
                     </div>
-
-                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                      {!jsonExtractedData.isExtracted ? (
-                        <div className="p-6 text-center border border-dashed border-purple-200 rounded-xl bg-purple-50/20 space-y-3 my-auto">
-                          <div className="w-10 h-10 mx-auto rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                            <FileJson className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h5 className="font-bold text-xs text-slate-800">No Structured JSON Extracted Yet</h5>
-                            <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto leading-relaxed">
-                              This document has dual text parsing (Dockling & OpenDataLoader), but domain JSON extraction has not been executed yet.
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleReprocessDocument(selectedEkpDoc.id)}
-                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                            <span>Extract Domain JSON</span>
-                          </button>
-                        </div>
-                      ) : jsonSubView === 'raw_json' ? (
-                        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-emerald-400 font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
-                          {prettifiedEntitiesJson}
-                        </div>
-                      ) : jsonSubView === 'domain_summary' ? (
-                        <div className="space-y-3">
-                          {jsonExtractedData.domainInfo && (
-                            <div className="p-2.5 rounded-lg bg-indigo-50 border border-indigo-200 text-xs space-y-1">
-                              <span className="font-bold text-indigo-900 block">
-                                🏷️ Domain: {jsonExtractedData.domainInfo.domain_name} ({jsonExtractedData.domainInfo.domain_key})
-                              </span>
-                              {jsonExtractedData.domainInfo.status_note && (
-                                <p className="text-[11px] text-amber-700">⚠️ {jsonExtractedData.domainInfo.status_note}</p>
-                              )}
-                            </div>
-                          )}
-
-                          <div className="border border-gray-200 rounded-lg overflow-hidden">
-                            <table className="min-w-full divide-y divide-gray-200 text-xs">
-                              <thead className="bg-slate-50">
-                                <tr>
-                                  <th className="px-3 py-2 text-left font-bold text-gray-600 text-[10px] uppercase">Field</th>
-                                  <th className="px-3 py-2 text-left font-bold text-gray-600 text-[10px] uppercase">Extracted Value</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-200 bg-white">
-                                {Object.entries(jsonExtractedData.extractedFields).map(([k, v]) => (
-                                  <tr key={k} className="hover:bg-slate-50">
-                                    <td className="px-3 py-2 font-mono font-bold text-purple-700 text-[11px]">{k}</td>
-                                    <td className="px-3 py-2 text-gray-800 text-[11px]">{String(v)}</td>
-                                  </tr>
-                                ))}
-                                {Object.entries(jsonExtractedData.extraFields).map(([k, v]) => (
-                                  <tr key={`extra_${k}`} className="bg-indigo-50/40 hover:bg-indigo-50">
-                                    <td className="px-3 py-2 font-mono font-semibold text-indigo-700 text-[11px]">
-                                      {k} <span className="text-[9px] font-sans text-indigo-500 font-normal">(extra)</span>
-                                    </td>
-                                    <td className="px-3 py-2 text-indigo-950 text-[11px]">{String(v)}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      ) : jsonSubView === 'debug' ? (
-                        <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 space-y-3 text-xs font-mono">
-                          {jsonExtractedData.error && (
-                            <div className="p-2.5 bg-red-950/80 border border-red-800 rounded text-red-300">
-                              <span className="font-bold text-red-400 block uppercase text-[10px]">Error</span>
-                              <pre className="text-[10px] whitespace-pre-wrap">{jsonExtractedData.error}</pre>
-                            </div>
-                          )}
-                          <div className="space-y-1">
-                            <span className="text-purple-400 font-bold uppercase text-[10px]">📜 System Prompt</span>
-                            <pre className="p-2 bg-slate-900 rounded border border-slate-800 text-slate-300 text-[10px] whitespace-pre-wrap leading-relaxed">
-                              {jsonExtractedData.debugInfo?.system_prompt || 'No system prompt log stored.'}
-                            </pre>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-purple-400 font-bold uppercase text-[10px]">📄 User Prompt</span>
-                            <pre className="p-2 bg-slate-900 rounded border border-slate-800 text-slate-300 text-[10px] whitespace-pre-wrap leading-relaxed">
-                              {jsonExtractedData.debugInfo?.user_prompt || 'No user prompt log stored.'}
-                            </pre>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-emerald-400 font-bold uppercase text-[10px]">🤖 Raw LLM Output</span>
-                            <pre className="p-2 bg-slate-900 rounded border border-slate-800 text-emerald-300 text-[10px] whitespace-pre-wrap leading-relaxed">
-                              {jsonExtractedData.debugInfo?.raw_response || 'No raw response log stored.'}
-                            </pre>
-                          </div>
-                        </div>
-                      ) : (
-                        jsonExtractedData.entities.map((ent: any) => {
-                          const isEditing = editingEntityId === ent.id;
-                          return (
-                            <div
-                              key={ent.id}
-                              className="p-3 rounded-lg border border-gray-200 bg-white hover:border-purple-300 transition-colors text-xs space-y-1.5 shadow-2xs"
-                            >
-                              {isEditing ? (
-                                <div className="space-y-2 p-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-purple-700">Editing Entity</span>
-                                    <button
-                                      onClick={() => setEditingEntityId(null)}
-                                      className="text-xs text-slate-400 hover:text-slate-600 font-bold"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={editEntityForm.entity_key}
-                                    onChange={(e) => setEditEntityForm((prev) => ({ ...prev, entity_key: e.target.value }))}
-                                    className="w-full border rounded px-2 py-1 text-xs bg-white text-black"
-                                    placeholder="Entity Key"
-                                  />
-                                  <textarea
-                                    rows={2}
-                                    value={editEntityForm.value}
-                                    onChange={(e) => setEditEntityForm((prev) => ({ ...prev, value: e.target.value }))}
-                                    className="w-full border rounded px-2 py-1 text-xs bg-white text-black resize-none"
-                                  />
-                                  <button
-                                    onClick={() => handleSaveEntity(ent.id)}
-                                    disabled={savingEntity}
-                                    className="w-full py-1 rounded text-xs font-semibold bg-primary text-white cursor-pointer"
-                                  >
-                                    Save Entity
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-bold uppercase">
-                                        {ent.entity_type}
-                                      </span>
-                                      <span className="font-bold text-xs text-slate-900 truncate">
-                                        {formatEntityKey(ent.entity_key, ent.entity_type)}
-                                      </span>
-                                    </div>
-                                    <button
-                                      onClick={() => startEditEntity(ent)}
-                                      className="p-1 rounded text-slate-400 hover:text-purple-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                                      title="Edit Entity"
-                                    >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                  <p className="text-xs text-slate-800 font-medium leading-relaxed bg-slate-50/70 p-2 rounded border border-slate-150">
-                                    {typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value)}
-                                  </p>
-                                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
-                                    <span>Confidence: <strong>{((ent.confidence ?? 1.0) * 100).toFixed(0)}%</strong></span>
-                                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
-                                      ent.basis === 'FACT' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-                                    }`}>
-                                      {ent.basis || 'FACT'}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          );
-                        })
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border font-mono ${
+                        jsonExtractedData.isExtracted
+                          ? 'bg-purple-100 text-purple-800 border-purple-200'
+                          : 'bg-gray-100 text-gray-500 border-gray-200'
+                      }`}>
+                        {jsonExtractedData.isExtracted ? 'JSON Extracted' : 'Not Extracted'}
+                      </span>
+                      {jsonExtractedData.isExtracted && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(prettifiedEntitiesJson);
+                            setCopiedJson(true);
+                            setTimeout(() => setCopiedJson(false), 2000);
+                          }}
+                          className="p-1 rounded text-slate-400 hover:text-purple-700 hover:bg-white transition-colors cursor-pointer"
+                          title="Copy JSON Metadata"
+                        >
+                          {copiedJson ? <Check className="w-3.5 h-3.5 text-purple-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
                       )}
                     </div>
                   </div>
-                </div>
-              ) : (
-                /* ========================================================================= */
-                /* FULL FOCUSED TAB VIEW (Single Section: Docling, OpenDataLoader, or JSON) */
-                /* ========================================================================= */
-                <div className="h-full flex flex-col bg-slate-50/50 p-4 overflow-y-auto">
-                  {ekpSliderSection === 'docling' && (
-                    <div className="max-w-4xl mx-auto w-full space-y-4">
-                      <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60 flex items-center justify-between flex-wrap gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2.5 rounded-lg bg-emerald-600 text-white">
-                            <FileText className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-sm text-slate-900">1. Dockling Document Extraction</h4>
-                            <p className="text-xs text-emerald-800 font-medium">IBM Docling PDF & Layout Analysis Parser Engine</p>
-                          </div>
+
+                  {/* Column 2 Body */}
+                  <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                    {!jsonExtractedData.isExtracted ? (
+                      <div className="p-6 text-center border border-dashed border-purple-200 rounded-xl bg-purple-50/20 space-y-3 my-auto">
+                        <div className="w-10 h-10 mx-auto rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                          <FileJson className="w-5 h-5" />
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-800 text-xs font-bold font-mono shadow-2xs">
-                            {doclingData.spans.length} Paragraph Spans
-                          </span>
-                          <span className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-800 text-xs font-bold font-mono shadow-2xs">
-                            {doclingData.rawText.length} Chars
-                          </span>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(doclingData.rawText);
-                              setCopiedDoclingText(true);
-                              setTimeout(() => setCopiedDoclingText(false), 2000);
-                            }}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                          >
-                            {copiedDoclingText ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copiedDoclingText ? 'Copied' : 'Copy Text'}</span>
-                          </button>
+                        <div>
+                          <h5 className="font-bold text-xs text-slate-800">No Structured JSON Metadata</h5>
+                          <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto leading-relaxed">
+                            Domain JSON extraction has not been executed yet for this document.
+                          </p>
                         </div>
+                        <button
+                          onClick={() => handleReprocessDocument(selectedEkpDoc.id)}
+                          className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>Extract Domain JSON</span>
+                        </button>
                       </div>
-
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="relative flex-1">
-                          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-                          <input
-                            type="text"
-                            placeholder="Filter dockling spans..."
-                            value={doclingSearch}
-                            onChange={(e) => setDoclingSearch(e.target.value)}
-                            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg bg-white text-slate-900 shadow-2xs"
-                          />
-                        </div>
-                        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 text-xs font-semibold shadow-2xs">
-                          <button
-                            onClick={() => setDoclingSubView('spans')}
-                            className={`px-3 py-1 rounded-md cursor-pointer ${
-                              doclingSubView === 'spans' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
-                            }`}
-                          >
-                            Spans ({doclingData.spans.length})
-                          </button>
-                          <button
-                            onClick={() => setDoclingSubView('text')}
-                            className={`px-3 py-1 rounded-md cursor-pointer ${
-                              doclingSubView === 'text' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
-                            }`}
-                          >
-                            Full Text
-                          </button>
-                        </div>
-                      </div>
-
-                      {doclingSubView === 'text' ? (
-                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed shadow-inner">
-                          {doclingData.rawText || 'No raw text stream available for Dockling.'}
-                        </div>
-                      ) : (
-                        <div className="space-y-2.5">
-                          {doclingData.spans
-                            .filter((s: any) => {
-                              if (!doclingSearch) return true;
-                              const t = (s.text || s.text_content || '').toLowerCase();
-                              return t.includes(doclingSearch.toLowerCase());
-                            })
-                            .map((s: any, idx: number) => (
-                              <div
-                                key={s.span_id || `ds_f_${idx}`}
-                                className="p-3.5 rounded-xl border border-gray-200 bg-white hover:border-emerald-300 transition-all text-xs space-y-1.5 shadow-2xs"
-                              >
-                                <div className="flex items-center justify-between text-[11px] text-gray-500 font-medium">
-                                  <span className="font-mono text-emerald-700 font-bold">
-                                    {s.span_id || `Span #${idx + 1}`}
-                                  </span>
-                                  <span>
-                                    Page {s.page_number || 1} {s.block_type && `· ${s.block_type}`}
-                                  </span>
-                                </div>
-                                <p className="text-gray-800 leading-relaxed font-sans text-xs">
-                                  {s.text || s.text_content}
-                                </p>
-                                {s.bbox && (
-                                  <span className="text-[10px] font-mono text-gray-400 block pt-0.5">
-                                    bbox: [{s.bbox.map((n: number) => n.toFixed(1)).join(', ')}]
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {ekpSliderSection === 'opendataloader' && (
-                    <div className="max-w-4xl mx-auto w-full space-y-4">
-                      <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/60 flex items-center justify-between flex-wrap gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2.5 rounded-lg bg-blue-600 text-white">
-                            <Layers className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-sm text-slate-900">2. OpenDataLoaderPDFParser Extraction</h4>
-                            <p className="text-xs text-blue-800 font-medium">OpenDataLoader / PyMuPDF Layout Analysis Engine</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-800 text-xs font-bold font-mono shadow-2xs">
-                            {openDataLoaderData.spans.length} Layout Spans
-                          </span>
-                          {ekpViewsData?.comparison_report?.jaccard_overlap_ratio && (
-                            <span className="px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-800 text-xs font-bold font-mono shadow-2xs">
-                              {((ekpViewsData.comparison_report.jaccard_overlap_ratio || 0.95) * 100).toFixed(1)}% Token Match
+                    ) : (
+                      <div className="space-y-2">
+                        {/* ===================================================================== */}
+                        {/* BLOCK COMMENT: MODAL EXTRACTED DOMAIN BADGE */}
+                        {/* Only renders when a linked domain with valid domain_name is present */}
+                        {/* ===================================================================== */}
+                        {jsonExtractedData.domainInfo && jsonExtractedData.domainInfo.domain_name && (
+                          <div className="p-2 rounded-lg bg-indigo-50 border border-indigo-200 text-xs flex items-center justify-between">
+                            <span className="font-bold text-indigo-900 text-xs">
+                              🏷️ Domain: {jsonExtractedData.domainInfo.domain_name} ({jsonExtractedData.domainInfo.domain_key || ''})
                             </span>
-                          )}
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(openDataLoaderData.rawText);
-                              setCopiedOpenDataLoaderText(true);
-                              setTimeout(() => setCopiedOpenDataLoaderText(false), 2000);
-                            }}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                          >
-                            {copiedOpenDataLoaderText ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copiedOpenDataLoaderText ? 'Copied' : 'Copy Text'}</span>
-                          </button>
+                            {jsonExtractedData.domainInfo.status_note && (
+                              <span className="text-xs text-amber-700 font-semibold">⚠️ {jsonExtractedData.domainInfo.status_note}</span>
+                            )}
+                          </div>
+                        )}
+                        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-emerald-400 font-mono text-xs whitespace-pre-wrap leading-relaxed">
+                          {prettifiedEntitiesJson}
                         </div>
                       </div>
+                    )}
+                  </div>
+                </div>
 
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="relative flex-1">
-                          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-                          <input
-                            type="text"
-                            placeholder="Filter opendataloader spans..."
-                            value={openDataLoaderSearch}
-                            onChange={(e) => setOpenDataLoaderSearch(e.target.value)}
-                            className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg bg-white text-slate-900 shadow-2xs"
-                          />
-                        </div>
-                        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 text-xs font-semibold shadow-2xs">
-                          <button
-                            onClick={() => setOpenDataLoaderSubView('spans')}
-                            className={`px-3 py-1 rounded-md cursor-pointer ${
-                              openDataLoaderSubView === 'spans' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
-                            }`}
-                          >
-                            Spans ({openDataLoaderData.spans.length})
-                          </button>
-                          <button
-                            onClick={() => setOpenDataLoaderSubView('text')}
-                            className={`px-3 py-1 rounded-md cursor-pointer ${
-                              openDataLoaderSubView === 'text' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
-                            }`}
-                          >
-                            Full Text
-                          </button>
-                        </div>
-                      </div>
+                {/* ========================================================================= */}
+                {/* COLUMN 3: ENTITIES EXTRACTED */}
+                {/* ========================================================================= */}
+                {(() => {
+                  const filteredEntities = (jsonExtractedData.entities || []).filter((ent: any) => {
+                    if (!entitySearch) return true;
+                    const q = entitySearch.toLowerCase();
+                    const k = (ent.entity_key || '').toLowerCase();
+                    const t = (ent.entity_type || '').toLowerCase();
+                    const v = (typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value || '')).toLowerCase();
+                    return k.includes(q) || t.includes(q) || v.includes(q);
+                  });
 
-                      {openDataLoaderSubView === 'text' ? (
-                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed shadow-inner">
-                          {openDataLoaderData.rawText || 'No raw text stream available for OpenDataLoaderPDFParser.'}
-                        </div>
-                      ) : (
-                        <div className="space-y-2.5">
-                          {openDataLoaderData.spans
-                            .filter((s: any) => {
-                              if (!openDataLoaderSearch) return true;
-                              const t = (s.text || s.text_content || '').toLowerCase();
-                              return t.includes(openDataLoaderSearch.toLowerCase());
-                            })
-                            .map((s: any, idx: number) => {
-                              const isRecovered = s.source_parser?.includes('recovered');
-                              return (
-                                <div
-                                  key={s.span_id || `od_f_${idx}`}
-                                  className={`p-3.5 rounded-xl border transition-all text-xs space-y-1.5 shadow-2xs ${
-                                    isRecovered ? 'border-amber-300 bg-amber-50/50' : 'border-gray-200 bg-white hover:border-blue-300'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between text-[11px] text-gray-500 font-medium">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-mono text-blue-700 font-bold">
-                                        {s.span_id || `OD-Span #${idx + 1}`}
-                                      </span>
-                                      {isRecovered && (
-                                        <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-bold text-[9px] uppercase">
-                                          Recovered Span
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span>
-                                      Page {s.page_number || 1} {s.block_type && `· ${s.block_type}`}
-                                    </span>
-                                  </div>
-                                  <p className="text-gray-800 leading-relaxed font-sans text-xs">
-                                    {s.text || s.text_content}
-                                  </p>
-                                  {s.bbox && (
-                                    <span className="text-[10px] font-mono text-gray-400 block pt-0.5">
-                                      bbox: [{s.bbox.map((n: number) => n.toFixed(1)).join(', ')}]
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {ekpSliderSection === 'json' && (
-                    <div className="max-w-4xl mx-auto w-full space-y-4">
-                      <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/60 flex items-center justify-between flex-wrap gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2.5 rounded-lg bg-purple-600 text-white">
-                            <Sparkles className="w-5 h-5" />
+                  return (
+                    <div className="flex flex-col h-full overflow-hidden bg-white">
+                      {/* Column 3 Header */}
+                      <div className="p-3 border-b border-gray-200 bg-indigo-50/50 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1 rounded bg-indigo-600 text-white">
+                            <Sparkles className="w-3.5 h-3.5" />
                           </div>
                           <div>
-                            <h4 className="font-bold text-sm text-slate-900">3. JSON (if extracted)</h4>
-                            <p className="text-xs text-purple-800 font-medium">Domain-Specific Extracted Knowledge & Entities</p>
+                            <h4 className="font-bold text-xs text-slate-900">3. Entities Extracted</h4>
+                            <p className="text-[10px] text-indigo-800 font-medium">Domain Entities & Field Values</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono border shadow-2xs ${
-                            jsonExtractedData.isExtracted
-                              ? 'bg-purple-100 text-purple-800 border-purple-200'
-                              : 'bg-gray-100 text-gray-500 border-gray-200'
-                          }`}>
-                            {jsonExtractedData.isExtracted ? 'JSON Extracted' : 'Not Extracted'}
+
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 font-mono">
+                            {jsonExtractedData.entities.length} Entities
                           </span>
-                          {jsonExtractedData.isExtracted && (
+                          {jsonExtractedData.entities.length > 0 && (
                             <button
                               onClick={() => {
-                                navigator.clipboard.writeText(prettifiedEntitiesJson);
-                                setCopiedJson(true);
-                                setTimeout(() => setCopiedJson(false), 2000);
+                                navigator.clipboard.writeText(JSON.stringify(jsonExtractedData.entities, null, 2));
+                                setCopiedEntitiesJson(true);
+                                setTimeout(() => setCopiedEntitiesJson(false), 2000);
                               }}
-                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                              className="p-1 rounded text-slate-400 hover:text-indigo-700 hover:bg-white transition-colors cursor-pointer"
+                              title="Copy Entities JSON"
                             >
-                              {copiedJson ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                              <span>{copiedJson ? 'Copied' : 'Copy JSON'}</span>
+                              {copiedEntitiesJson ? <Check className="w-3.5 h-3.5 text-indigo-600" /> : <Copy className="w-3.5 h-3.5" />}
                             </button>
                           )}
                         </div>
                       </div>
 
-                      {!jsonExtractedData.isExtracted ? (
-                        <div className="p-12 text-center border border-dashed border-purple-200 rounded-2xl bg-white space-y-4 shadow-2xs">
-                          <div className="w-12 h-12 mx-auto rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                            <FileJson className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-sm text-slate-900">No Structured JSON Extracted Yet</h4>
-                            <p className="text-xs text-slate-500 mt-1.5 max-w-md mx-auto leading-relaxed">
-                              This document has completed text extraction via Dockling and OpenDataLoader, but structured domain JSON has not been extracted yet. You can trigger domain extraction now.
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleReprocessDocument(selectedEkpDoc.id)}
-                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            <span>Reprocess & Extract Domain JSON</span>
-                          </button>
+                      {/* Column 3 Search */}
+                      <div className="p-2 border-b border-gray-100 bg-white flex items-center gap-2 shrink-0">
+                        <div className="relative flex-1">
+                          <Search className="w-3 h-3 text-gray-400 absolute left-2 top-2" />
+                          <input
+                            type="text"
+                            placeholder="Search entities by key, type, or value..."
+                            value={entitySearch}
+                            onChange={(e) => setEntitySearch(e.target.value)}
+                            className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded-md bg-gray-50 focus:bg-white text-slate-900 focus:outline-hidden"
+                          />
                         </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 text-xs font-semibold shadow-2xs">
-                            <button
-                              onClick={() => setJsonSubView('entities')}
-                              className={`px-3 py-1 rounded-md cursor-pointer ${
-                                jsonSubView === 'entities' ? 'bg-purple-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
-                              }`}
-                            >
-                              Entities Cards ({jsonExtractedData.entities.length})
-                            </button>
-                            <button
-                              onClick={() => setJsonSubView('domain_summary')}
-                              className={`px-3 py-1 rounded-md cursor-pointer ${
-                                jsonSubView === 'domain_summary' ? 'bg-purple-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
-                              }`}
-                            >
-                              Domain Schema Summary
-                            </button>
-                            <button
-                              onClick={() => setJsonSubView('raw_json')}
-                              className={`px-3 py-1 rounded-md cursor-pointer ${
-                                jsonSubView === 'raw_json' ? 'bg-purple-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
-                              }`}
-                            >
-                              Prettified JSON
-                            </button>
-                            <button
-                              onClick={() => setJsonSubView('debug')}
-                              className={`px-3 py-1 rounded-md cursor-pointer ${
-                                jsonSubView === 'debug' ? 'bg-purple-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-slate-100'
-                              }`}
-                            >
-                              LLM Prompts & Debug
-                            </button>
+                      </div>
+
+                      {/* Column 3 Body */}
+                      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                        {filteredEntities.length === 0 ? (
+                          <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
+                            {jsonExtractedData.entities.length === 0
+                              ? 'No entities extracted for this document.'
+                              : 'No entities match your search filter.'}
                           </div>
-
-                          {jsonSubView === 'raw_json' ? (
-                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-emerald-400 font-mono text-xs whitespace-pre-wrap leading-relaxed shadow-inner">
-                              {prettifiedEntitiesJson}
-                            </div>
-                          ) : jsonSubView === 'domain_summary' ? (
-                            <div className="space-y-4">
-                              {jsonExtractedData.domainInfo && (
-                                <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 text-xs space-y-1">
-                                  <span className="font-bold text-indigo-900 block text-sm">
-                                    🏷️ Domain: {jsonExtractedData.domainInfo.domain_name} ({jsonExtractedData.domainInfo.domain_key})
-                                  </span>
-                                  {jsonExtractedData.domainInfo.status_note && (
-                                    <p className="text-xs text-amber-700 font-medium">⚠️ {jsonExtractedData.domainInfo.status_note}</p>
-                                  )}
-                                </div>
-                              )}
-
-                              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs bg-white">
-                                <table className="min-w-full divide-y divide-gray-200 text-xs">
-                                  <thead className="bg-slate-50">
-                                    <tr>
-                                      <th className="px-4 py-2.5 text-left font-bold text-gray-600 text-[11px] uppercase">Field Name</th>
-                                      <th className="px-4 py-2.5 text-left font-bold text-gray-600 text-[11px] uppercase">Extracted Value</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-gray-200">
-                                    {Object.entries(jsonExtractedData.extractedFields).map(([k, v]) => (
-                                      <tr key={k} className="hover:bg-slate-50">
-                                        <td className="px-4 py-2.5 font-mono font-bold text-purple-700 text-xs">{k}</td>
-                                        <td className="px-4 py-2.5 text-gray-800 text-xs">{String(v)}</td>
-                                      </tr>
-                                    ))}
-                                    {Object.entries(jsonExtractedData.extraFields).map(([k, v]) => (
-                                      <tr key={`extra_${k}`} className="bg-indigo-50/30 hover:bg-indigo-50">
-                                        <td className="px-4 py-2.5 font-mono font-semibold text-indigo-700 text-xs">
-                                          {k} <span className="text-[10px] font-sans text-indigo-500 font-normal">(extra)</span>
-                                        </td>
-                                        <td className="px-4 py-2.5 text-indigo-950 text-xs">{String(v)}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          ) : jsonSubView === 'debug' ? (
-                            <div className="bg-slate-950 rounded-xl p-4 border border-slate-800 space-y-4 text-xs font-mono shadow-inner">
-                              {jsonExtractedData.error && (
-                                <div className="p-3 bg-red-950/80 border border-red-800 rounded-lg text-red-300">
-                                  <span className="font-bold text-red-400 block uppercase text-xs">⚠️ Extraction Error</span>
-                                  <pre className="text-xs whitespace-pre-wrap mt-1">{jsonExtractedData.error}</pre>
-                                </div>
-                              )}
-                              <div className="space-y-1.5">
-                                <span className="text-purple-400 font-bold uppercase text-xs">📜 System Prompt Passed to LLM:</span>
-                                <pre className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-slate-300 text-xs whitespace-pre-wrap leading-relaxed">
-                                  {jsonExtractedData.debugInfo?.system_prompt || 'No system prompt log stored.'}
-                                </pre>
-                              </div>
-                              <div className="space-y-1.5">
-                                <span className="text-purple-400 font-bold uppercase text-xs">📄 User Prompt & Content Passed to LLM:</span>
-                                <pre className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-slate-300 text-xs whitespace-pre-wrap leading-relaxed">
-                                  {jsonExtractedData.debugInfo?.user_prompt || 'No user prompt log stored.'}
-                                </pre>
-                              </div>
-                              <div className="space-y-1.5">
-                                <span className="text-emerald-400 font-bold uppercase text-xs">🤖 Raw Completion Output from LLM:</span>
-                                <pre className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-emerald-300 text-xs whitespace-pre-wrap leading-relaxed">
-                                  {jsonExtractedData.debugInfo?.raw_response || 'No raw completion output log stored.'}
-                                </pre>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {jsonExtractedData.entities.map((ent: any) => {
-                                const isEditing = editingEntityId === ent.id;
-                                return (
-                                  <div
-                                    key={ent.id}
-                                    className="p-4 rounded-xl border border-gray-200 bg-white hover:border-purple-300 transition-all shadow-2xs space-y-2"
-                                  >
-                                    {isEditing ? (
-                                      <div className="space-y-3 p-1">
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-xs font-bold text-purple-700 uppercase">Editing Entity</span>
-                                          <button
-                                            onClick={() => setEditingEntityId(null)}
-                                            className="text-xs text-slate-400 hover:text-slate-600 font-bold"
-                                          >
-                                            Cancel
-                                          </button>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 text-xs">
-                                          <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Entity Type</label>
-                                            <input
-                                              type="text"
-                                              value={editEntityForm.entity_type}
-                                              onChange={(e) => setEditEntityForm((prev) => ({ ...prev, entity_type: e.target.value }))}
-                                              className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5"
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Entity Key</label>
-                                            <input
-                                              type="text"
-                                              value={editEntityForm.entity_key}
-                                              onChange={(e) => setEditEntityForm((prev) => ({ ...prev, entity_key: e.target.value }))}
-                                              className="w-full border rounded px-2 py-1 text-xs bg-white text-black mt-0.5"
-                                            />
-                                          </div>
-                                        </div>
-                                        <textarea
-                                          rows={2}
-                                          value={editEntityForm.value}
-                                          onChange={(e) => setEditEntityForm((prev) => ({ ...prev, value: e.target.value }))}
-                                          className="w-full border rounded px-2 py-1 text-xs bg-white text-black resize-none"
-                                        />
-                                        <button
-                                          onClick={() => handleSaveEntity(ent.id)}
-                                          disabled={savingEntity}
-                                          className="w-full py-1.5 rounded text-xs font-semibold bg-primary text-white cursor-pointer"
-                                        >
-                                          Save Entity Changes
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <div className="flex items-center justify-between">
-                                          <div className="flex items-center gap-2">
-                                            <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold uppercase">
-                                              {ent.entity_type}
-                                            </span>
-                                            <span className="font-bold text-xs text-slate-900">
-                                              {formatEntityKey(ent.entity_key, ent.entity_type)}
-                                            </span>
-                                          </div>
-                                          <button
-                                            onClick={() => startEditEntity(ent)}
-                                            className="p-1 rounded text-slate-400 hover:text-purple-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                                            title="Edit Entity"
-                                          >
-                                            <Pencil className="w-3.5 h-3.5" />
-                                          </button>
-                                        </div>
-                                        <p className="text-xs text-slate-800 font-medium leading-relaxed bg-slate-50/70 p-2.5 rounded-lg border border-slate-150">
-                                          {typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value)}
-                                        </p>
-                                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
-                                          <span>Confidence: <strong>{((ent.confidence ?? 1.0) * 100).toFixed(0)}%</strong></span>
-                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                            ent.basis === 'FACT' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-                                          }`}>
-                                            {ent.basis || 'FACT'}
-                                          </span>
-                                        </div>
-                                      </>
-                                    )}
+                        ) : (
+                          filteredEntities.map((ent: any) => {
+                            const isEditing = editingEntityId === ent.id;
+                            return (
+                              <div
+                                key={ent.id}
+                                className="p-2.5 rounded-lg border border-gray-200 bg-white hover:border-indigo-300 transition-colors text-xs space-y-1.5 shadow-2xs"
+                              >
+                                {isEditing ? (
+                                  <div className="space-y-2 p-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-bold text-indigo-700">Editing Entity</span>
+                                      <button
+                                        onClick={() => setEditingEntityId(null)}
+                                        className="text-xs text-slate-400 hover:text-slate-600 font-bold"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={editEntityForm.entity_key}
+                                      onChange={(e) => setEditEntityForm((prev) => ({ ...prev, entity_key: e.target.value }))}
+                                      className="w-full border rounded px-2 py-1 text-xs bg-white text-black"
+                                      placeholder="Entity Key"
+                                    />
+                                    <textarea
+                                      rows={2}
+                                      value={editEntityForm.value}
+                                      onChange={(e) => setEditEntityForm((prev) => ({ ...prev, value: e.target.value }))}
+                                      className="w-full border rounded px-2 py-1 text-xs bg-white text-black resize-none"
+                                    />
+                                    <button
+                                      onClick={() => handleSaveEntity(ent.id)}
+                                      disabled={savingEntity}
+                                      className="w-full py-1 rounded text-xs font-semibold bg-primary text-white cursor-pointer"
+                                    >
+                                      Save Entity
+                                    </button>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
+                                ) : (
+                                  <>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <span className="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] font-bold uppercase shrink-0">
+                                          {ent.entity_type}
+                                        </span>
+                                        <span className="font-bold text-xs text-slate-900 truncate">
+                                          {formatEntityKey(ent.entity_key, ent.entity_type)}
+                                        </span>
+                                      </div>
+                                      <button
+                                        onClick={() => startEditEntity(ent)}
+                                        className="p-1 rounded text-slate-400 hover:text-indigo-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                                        title="Edit Entity"
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                    <p className="text-xs text-slate-800 font-medium leading-relaxed bg-slate-50/70 p-2 rounded border border-slate-150 break-words">
+                                      {typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value)}
+                                    </p>
+                                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                                      <span>Confidence: <strong>{((ent.confidence ?? 1.0) * 100).toFixed(0)}%</strong></span>
+                                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
+                                        ent.basis === 'FACT' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                                      }`}>
+                                        {ent.basis || 'FACT'}
+                                      </span>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
+                  );
+                })()}
+              </div>
             </div>
 
             {/* DRAWER FOOTER */}
             <div className="p-3.5 border-t border-gray-200 flex items-center justify-between shrink-0 bg-slate-50">
               <span className="text-xs font-medium text-slate-500">
-                Dockling: {doclingData.spans.length} Spans · OpenDataLoader: {openDataLoaderData.spans.length} Spans · JSON: {
-                  jsonExtractedData.isExtracted ? `${jsonExtractedData.entities.length || Object.keys(jsonExtractedData.extractedFields).length} Fields` : 'Not Extracted'
-                }
+                Dockling: {doclingData.spans.length} Spans · OpenDataLoader: {openDataLoaderData.spans.length} Spans · Entities: {jsonExtractedData.entities.length}
               </span>
               <button
                 onClick={() => {
@@ -4387,376 +3706,6 @@ export default function KnowledgeBasesTab({
                 className="px-4 py-1.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-opacity cursor-pointer shadow-2xs"
               >
                 Done Viewing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: DOCUMENT 3 DATA VIEWS INSPECTOR (Extracted, Normalized, JSON Tree) */}
-      {/* ========================================================================= */}
-      {showViewsModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-hidden animate-in fade-in duration-150">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
-            {/* MODAL HEADER */}
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-slate-50 shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 bg-blue-100 text-blue-700 rounded-lg shrink-0">
-                  <Eye className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-base text-gray-900 truncate">
-                      {inspectingDoc?.name || 'Document Data Views'}
-                    </h3>
-                    <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                      {viewsData?.status || inspectingDoc?.status || 'ready'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 truncate">
-                    Inspect 3 data views: Raw extracted + comparison, normalized text, and structural JSON tree
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowViewsModal(false);
-                  setInspectingDoc(null);
-                  setViewsData(null);
-                }}
-                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* TAB NAVIGATION BAR */}
-            <div className="px-6 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={() => setActiveViewTab('extracted')}
-                  className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-                    activeViewTab === 'extracted'
-                      ? 'border-blue-600 text-blue-700'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>1. Extracted & Comparison</span>
-                  {viewsData?.views?.extracted?.spans?.length > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-200">
-                      {viewsData.views.extracted.spans.length} spans
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => setActiveViewTab('normalized')}
-                  className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-                    activeViewTab === 'normalized'
-                      ? 'border-emerald-600 text-emerald-700'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  <span>2. Normalized Text</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveViewTab('json')}
-                  className={`pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
-                    activeViewTab === 'json'
-                      ? 'border-purple-600 text-purple-700'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  <FileJson className="w-4 h-4" />
-                  <span>3. JSON Structural Tree</span>
-                </button>
-              </div>
-
-              {activeViewTab === 'normalized' && (
-                <div className="flex items-center gap-2 pb-2">
-                  {saveSuccess && (
-                    <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5" /> Saved successfully
-                    </span>
-                  )}
-                  <button
-                    onClick={handleSaveNormalizedText}
-                    disabled={savingViews}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow-2xs transition-all cursor-pointer"
-                  >
-                    {savingViews ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* MODAL BODY */}
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
-              {loadingViews ? (
-                <div className="h-full flex flex-col items-center justify-center py-20">
-                  <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mb-2" />
-                  <p className="text-xs text-gray-500 font-medium">Loading document data views...</p>
-                </div>
-              ) : viewsError ? (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs font-semibold flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{viewsError}</span>
-                </div>
-              ) : (
-                <>
-                  {/* VIEW 1: EXTRACTED & COMPARISON */}
-                  {activeViewTab === 'extracted' && (
-                    <div className="space-y-6">
-                      {/* DUAL-PARSER COMPARISON SUMMARY BANNER */}
-                      {viewsData?.comparison_report && (
-                        <div className="p-4 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 shadow-2xs space-y-3">
-                          <div className="flex items-center justify-between flex-wrap gap-2">
-                            <div className="flex items-center gap-2">
-                              <Layers className="w-4 h-4 text-blue-700" />
-                              <h4 className="font-bold text-xs text-gray-900">
-                                2-Level Parser Cross-Validation & Reconciliation
-                              </h4>
-                            </div>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${
-                                viewsData.comparison_report.status === 'reconciled'
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                              }`}
-                            >
-                              Status: {viewsData.comparison_report.status || 'Aligned'}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                            <div className="p-2.5 rounded-lg bg-white border border-blue-100 shadow-2xs">
-                              <span className="text-gray-500 block text-[11px]">Primary Parser</span>
-                              <strong className="text-gray-900 font-semibold">{viewsData.comparison_report.primary_parser || 'docling'}</strong>
-                            </div>
-                            <div className="p-2.5 rounded-lg bg-white border border-blue-100 shadow-2xs">
-                              <span className="text-gray-500 block text-[11px]">Secondary Parser</span>
-                              <strong className="text-gray-900 font-semibold">{viewsData.comparison_report.secondary_parser || 'opendataloader'}</strong>
-                            </div>
-                            <div className="p-2.5 rounded-lg bg-white border border-blue-100 shadow-2xs">
-                              <span className="text-gray-500 block text-[11px]">Token Overlap Ratio</span>
-                              <strong className="text-gray-900 font-semibold">
-                                {((viewsData.comparison_report.jaccard_overlap_ratio || 0.95) * 100).toFixed(1)}%
-                              </strong>
-                            </div>
-                            <div className="p-2.5 rounded-lg bg-white border border-blue-100 shadow-2xs">
-                              <span className="text-gray-500 block text-[11px]">Recovered Spans</span>
-                              <strong className="text-emerald-700 font-semibold">
-                                +{viewsData.comparison_report.recovered_spans_count || 0} recovered
-                              </strong>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* ENTITY PROVENANCE SECTION & BOUNDING-BOX LINKAGE */}
-                      {viewsData?.entity_provenance && viewsData.entity_provenance.length > 0 && (
-                        <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/40 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Lock className="w-4 h-4 text-purple-700" />
-                              <h4 className="font-bold text-xs text-gray-900">
-                                High-Value Legal Entities Linked to Provenance & Sections
-                              </h4>
-                            </div>
-                            <span className="text-[11px] text-purple-700 font-semibold">
-                              {viewsData.entity_provenance.length} entities linked
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {viewsData.entity_provenance.map((ep: any, idx: number) => (
-                              <div
-                                key={idx}
-                                className="p-3 bg-white rounded-lg border border-purple-150 shadow-2xs space-y-1.5"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-bold text-[11px] uppercase">
-                                    {ep.field_label || ep.field_key}
-                                  </span>
-                                  <span className="text-[11px] text-gray-500 font-medium">
-                                    Page {ep.page_number} · Para #{ep.paragraph_index}
-                                  </span>
-                                </div>
-                                <p className="text-xs font-bold text-gray-900">
-                                  {typeof ep.extracted_value === 'object'
-                                    ? JSON.stringify(ep.extracted_value)
-                                    : String(ep.extracted_value)}
-                                </p>
-                                <div className="flex items-center gap-2 text-[11px] text-gray-500">
-                                  <span>Section: <strong>{ep.section_heading || 'General'}</strong></span>
-                                  {ep.bbox && (
-                                    <span className="font-mono text-purple-700 font-semibold">
-                                      BBox: [{ep.bbox.map((n: number) => Math.round(n)).join(', ')}]
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* SPANS WITH BOUNDING BOX PROVENANCE */}
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden">
-                        <div className="px-4 py-3 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
-                          <h4 className="font-bold text-xs text-gray-900">
-                            Extracted Spans & Bounding Box Coordinates
-                          </h4>
-                          <span className="text-xs text-gray-500 font-medium">
-                            {viewsData?.views?.extracted?.spans?.length || 0} total blocks
-                          </span>
-                        </div>
-                        <div className="divide-y divide-gray-150 max-h-96 overflow-y-auto">
-                          {viewsData?.views?.extracted?.spans?.length > 0 ? (
-                            viewsData.views.extracted.spans.map((span: any, sIdx: number) => (
-                              <div key={sIdx} className="p-3 hover:bg-slate-50/80 transition-colors space-y-1">
-                                <div className="flex items-center justify-between text-xs text-gray-500">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-700">
-                                      Page {span.page_number} · Para #{span.paragraph_index}
-                                    </span>
-                                    <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-200">
-                                      {span.block_type || 'paragraph'}
-                                    </span>
-                                    {span.heading && (
-                                      <span className="text-xs text-blue-700 font-medium truncate max-w-xs">
-                                        [{span.heading}]
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {span.bbox && (
-                                      <span className="font-mono text-[11px] text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
-                                        BBox: [{span.bbox.map((b: number) => Math.round(b)).join(', ')}]
-                                      </span>
-                                    )}
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-150 font-semibold">
-                                      {span.source_parser || 'parser'}
-                                    </span>
-                                  </div>
-                                </div>
-                                <p className="text-xs text-gray-800 leading-relaxed font-sans">{span.text}</p>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="p-6 text-center text-xs text-gray-400">
-                              No granular spans available. Viewing raw text below.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* RAW TEXT FALLBACK */}
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden">
-                        <div className="px-4 py-3 border-b border-gray-200 bg-slate-50">
-                          <h4 className="font-bold text-xs text-gray-900">Raw Extracted Text</h4>
-                        </div>
-                        <pre className="p-4 text-xs font-mono text-gray-800 whitespace-pre-wrap max-h-72 overflow-y-auto bg-slate-50/30">
-                          {viewsData?.views?.extracted?.raw_text || 'No raw text extracted.'}
-                        </pre>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* VIEW 2: NORMALIZED TEXT */}
-                  {activeViewTab === 'normalized' && (
-                    <div className="space-y-4">
-                      {/* NORMALIZATION STATS BADGE */}
-                      {viewsData?.views?.normalized?.cleaning_stats && (
-                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-emerald-600" />
-                            <span>
-                              <strong>Deterministic Cleanser Active:</strong> Normalized line endings (\n), stitched soft line wraps, preserved legal citations & sections.
-                            </span>
-                          </div>
-                          <span className="font-mono text-xs font-semibold">
-                            {viewsData.views.normalized.cleaning_stats.normalized_character_count || editedNormalizedText.length} chars
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden flex flex-col">
-                        <div className="px-4 py-2.5 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
-                          <span className="font-bold text-xs text-gray-700">
-                            Editable Normalized Text (Used for Semantic Tree & Embeddings)
-                          </span>
-                          <span className="text-[11px] text-gray-400">
-                            Edit directly to correct OCR artifacts before vector indexing
-                          </span>
-                        </div>
-                        <textarea
-                          rows={22}
-                          value={editedNormalizedText}
-                          onChange={(e) => setEditedNormalizedText(e.target.value)}
-                          className="w-full p-4 text-xs font-mono text-gray-900 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 resize-none leading-relaxed"
-                          placeholder="Normalized document text content..."
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* VIEW 3: JSON STRUCTURAL TREE */}
-                  {activeViewTab === 'json' && (
-                    <div className="space-y-4">
-                      <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between text-xs text-purple-800">
-                        <div className="flex items-center gap-2">
-                          <FileJson className="w-4 h-4 text-purple-600" />
-                          <span>
-                            <strong>Hierarchical Structure:</strong> Document ├── Section ├── Paragraphs with bounding box coordinates.
-                          </span>
-                        </div>
-                        <span className="font-mono text-xs font-semibold">
-                          {viewsData?.views?.json?.sections?.length || 0} Sections
-                        </span>
-                      </div>
-
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-2xs overflow-hidden">
-                        <div className="px-4 py-2.5 border-b border-gray-200 bg-slate-50 flex items-center justify-between">
-                          <span className="font-bold text-xs text-gray-700">Structured JSON Representation</span>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(JSON.stringify(viewsData?.views?.json, null, 2));
-                            }}
-                            className="px-2.5 py-1 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Copy JSON</span>
-                          </button>
-                        </div>
-                        <pre className="p-4 text-xs font-mono text-gray-900 whitespace-pre-wrap max-h-[60vh] overflow-y-auto bg-slate-900 text-slate-100 rounded-b-xl">
-                          {JSON.stringify(viewsData?.views?.json || {}, null, 2)}
-                        </pre>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* MODAL FOOTER */}
-            <div className="px-6 py-3 border-t border-gray-200 bg-slate-50 flex items-center justify-between shrink-0">
-              <span className="text-xs text-gray-500 font-medium">
-                Document ID: <strong className="font-mono">{inspectingDoc?.id}</strong>
-              </span>
-              <button
-                onClick={() => {
-                  setShowViewsModal(false);
-                  setInspectingDoc(null);
-                  setViewsData(null);
-                }}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Close Inspector
               </button>
             </div>
           </div>
