@@ -88,9 +88,10 @@ const THEME_PALETTES = [
   { label: 'Slate', value: '#475569' },
 ];
 
+/* BLOCK COMMENT: CANONICAL DEFAULT PROMPTS (SINGLE SOURCE OF TRUTH) */
 const DEFAULT_SYSTEM_PROMPT = `You are an expert domain knowledge extractor.
 Extract structured field values accurately from the provided document content based on the target schema.
-Maintain precise names, dates, policy numbers, amounts, and citations.
+Maintain precise names, dates, identifiers, amounts, and citations.
 If you find additional relevant domain knowledge that is not covered by the target schema, output it under the 'extra_fields' key.
 Return valid JSON only.`;
 
@@ -98,6 +99,9 @@ const DEFAULT_USER_PROMPT = `Document Filename: {filename}
 
 Target Schema Fields:
 {fields_summary}
+
+Target JSON Structure:
+{fields_json_schema}
 
 Document Content:
 {content}
@@ -170,7 +174,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
     setFormName(domain.name || '');
     setFormDomainKey(domain.domain_key || '');
     setFormDescription(domain.description || '');
-    
+
     const schemaData = domain.schema_json || {};
     const defaultPath = schemaData.default_path || (domain.domain_key === 'legal' ? '/legal' : domain.domain_key === 'general' ? '/admin/knowledge' : `/${domain.domain_key}`);
     setFormDefaultPath(defaultPath);
@@ -181,7 +185,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
     setFormFields(schemaData.fields || []);
     setFormSystemPrompt(domain.system_prompt || DEFAULT_SYSTEM_PROMPT);
     setFormUserPrompt(domain.user_prompt || DEFAULT_USER_PROMPT);
-    
+
     const customConfig = schemaData.config || {};
     setFormConfigJson(JSON.stringify(customConfig, null, 2));
 
@@ -407,11 +411,10 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                 key={sc}
                 type="button"
                 onClick={() => setScopeFilter(sc)}
-                className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
-                  scopeFilter === sc
-                    ? 'bg-white text-indigo-600 shadow-xs border border-gray-200'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${scopeFilter === sc
+                  ? 'bg-white text-indigo-600 shadow-xs border border-gray-200'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 {sc}
               </button>
@@ -426,11 +429,10 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                 key={st}
                 type="button"
                 onClick={() => setStatusFilter(st)}
-                className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
-                  statusFilter === st
-                    ? 'bg-white text-indigo-600 shadow-xs border border-gray-200'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${statusFilter === st
+                  ? 'bg-white text-indigo-600 shadow-xs border border-gray-200'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 {st}
               </button>
@@ -498,16 +500,14 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
 
                     <div className="flex items-center gap-1.5">
                       <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
-                          isSystem ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-blue-100 text-blue-800 border border-blue-200'
-                        }`}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${isSystem ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-blue-100 text-blue-800 border border-blue-200'
+                          }`}
                       >
                         {domain.scope}
                       </span>
                       <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
-                          status === 'active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-gray-100 text-gray-600 border border-gray-200'
-                        }`}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${status === 'active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-gray-100 text-gray-600 border border-gray-200'
+                          }`}
                       >
                         {status}
                       </span>
@@ -583,7 +583,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
       {/* Domain Config Modal / Drawer (Full 4-Tab Config Editor) */}
       {(showConfigModal || showAddModal) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl border border-gray-200 flex flex-col max-h-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">
@@ -622,11 +622,10 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
               <button
                 type="button"
                 onClick={() => setActiveConfigTab('general')}
-                className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeConfigTab === 'general'
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
+                className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${activeConfigTab === 'general'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
               >
                 <Globe className="w-3.5 h-3.5" />
                 <span>1. General & Routing</span>
@@ -635,11 +634,10 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
               <button
                 type="button"
                 onClick={() => setActiveConfigTab('schema')}
-                className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeConfigTab === 'schema'
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
+                className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${activeConfigTab === 'schema'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
               >
                 <Sliders className="w-3.5 h-3.5" />
                 <span>2. Extraction Schema Fields ({formFields.length})</span>
@@ -648,11 +646,10 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
               <button
                 type="button"
                 onClick={() => setActiveConfigTab('prompts')}
-                className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeConfigTab === 'prompts'
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
+                className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${activeConfigTab === 'prompts'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>3. AI Extraction Prompts</span>
@@ -661,11 +658,10 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
               <button
                 type="button"
                 onClick={() => setActiveConfigTab('advanced')}
-                className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeConfigTab === 'advanced'
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
+                className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${activeConfigTab === 'advanced'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
               >
                 <Code className="w-3.5 h-3.5" />
                 <span>4. Capabilities & JSON Config</span>
@@ -785,9 +781,8 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                               key={p.value}
                               type="button"
                               onClick={() => setFormThemeColor(p.value)}
-                              className={`w-5 h-5 rounded-md transition-transform cursor-pointer ${
-                                formThemeColor === p.value ? 'ring-2 ring-indigo-500 scale-110' : 'opacity-80 hover:opacity-100'
-                              }`}
+                              className={`w-5 h-5 rounded-md transition-transform cursor-pointer ${formThemeColor === p.value ? 'ring-2 ring-indigo-500 scale-110' : 'opacity-80 hover:opacity-100'
+                                }`}
                               style={{ backgroundColor: p.value }}
                               title={p.label}
                             />
@@ -992,7 +987,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-gray-700">System Prompt</label>
                     <textarea
-                      rows={4}
+                      rows={16}
                       value={formSystemPrompt}
                       onChange={(e) => setFormSystemPrompt(e.target.value)}
                       className="w-full border border-gray-300 rounded-lg p-3 text-xs font-mono bg-slate-900 text-slate-100 focus:outline-none focus:border-indigo-500"
@@ -1002,15 +997,16 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="block text-xs font-bold text-gray-700">User Prompt Template</label>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-mono">
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-mono flex-wrap">
                         <span>Variables:</span>
                         <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{filename}'}</span>
                         <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{fields_summary}'}</span>
+                        <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{fields_json_schema}'}</span>
                         <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{content}'}</span>
                       </div>
                     </div>
                     <textarea
-                      rows={6}
+                      rows={16}
                       value={formUserPrompt}
                       onChange={(e) => setFormUserPrompt(e.target.value)}
                       className="w-full border border-gray-300 rounded-lg p-3 text-xs font-mono bg-slate-900 text-slate-100 focus:outline-none focus:border-indigo-500"

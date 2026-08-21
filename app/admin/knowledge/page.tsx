@@ -316,11 +316,26 @@ export default function KnowledgeBasesTab({
     return formattedParts.length > 0 ? formattedParts.join(' → ') : (entityType || 'Entity');
   };
 
-  // Reconstruct prettified structured JSON object from extracted entities
+  // =========================================================================
+  // BLOCK COMMENT: 1-TO-1 ENTITIES & JSON DETAILS SYNCHRONIZATION
+  // Purpose:
+  // 1. Shows canonical domain_info extracted_fields directly when available.
+  // 2. Reconstructs structured JSON from entities without overwriting repeated keys (e.g. 41 connected cases).
+  // =========================================================================
   const prettifiedEntitiesJson = useMemo(() => {
-    if (selectedEkpDoc?.metadata_json?.domain_info && (!ekpEntities || ekpEntities.length === 0)) {
-      return JSON.stringify(selectedEkpDoc.metadata_json.domain_info, null, 2);
+    // 1. Prefer canonical extracted domain JSON from domain_info if present
+    const domainInfo = selectedEkpDoc?.metadata_json?.domain_info;
+    if (domainInfo?.extracted_fields && Object.keys(domainInfo.extracted_fields).length > 0) {
+      const canonicalJson: Record<string, any> = { ...domainInfo.extracted_fields };
+      if (domainInfo.extra_fields && Object.keys(domainInfo.extra_fields).length > 0) {
+        canonicalJson.extra_fields = domainInfo.extra_fields;
+      }
+      return JSON.stringify(canonicalJson, null, 2);
     }
+    if (domainInfo && Object.keys(domainInfo).length > 0) {
+      return JSON.stringify(domainInfo, null, 2);
+    }
+
     if (!ekpEntities || ekpEntities.length === 0) return '{}';
     const result: Record<string, any> = {};
 
@@ -348,29 +363,42 @@ export default function KnowledgeBasesTab({
           continue;
         }
 
+        const targetProp = propName || rawPart;
+
         if (isLast) {
           if (arrayIdx !== null) {
-            if (!Array.isArray(current[propName])) {
-              current[propName] = [];
+            if (!Array.isArray(current[targetProp])) {
+              current[targetProp] = [];
             }
-            current[propName][arrayIdx] = parsedVal;
+            current[targetProp][arrayIdx] = parsedVal;
           } else {
-            current[propName || rawPart] = parsedVal;
+            // If key already exists with different value, convert/append to array (1-to-1 multi-value preservation)
+            if (current[targetProp] !== undefined && current[targetProp] !== parsedVal) {
+              if (Array.isArray(current[targetProp])) {
+                if (!current[targetProp].includes(parsedVal)) {
+                  current[targetProp].push(parsedVal);
+                }
+              } else {
+                current[targetProp] = [current[targetProp], parsedVal];
+              }
+            } else {
+              current[targetProp] = parsedVal;
+            }
           }
         } else {
           if (arrayIdx !== null) {
-            if (!Array.isArray(current[propName])) {
-              current[propName] = [];
+            if (!Array.isArray(current[targetProp])) {
+              current[targetProp] = [];
             }
-            if (!current[propName][arrayIdx]) {
-              current[propName][arrayIdx] = {};
+            if (!current[targetProp][arrayIdx]) {
+              current[targetProp][arrayIdx] = {};
             }
-            current = current[propName][arrayIdx];
+            current = current[targetProp][arrayIdx];
           } else {
-            if (!current[propName] || typeof current[propName] !== 'object') {
-              current[propName] = {};
+            if (!current[targetProp] || typeof current[targetProp] !== 'object') {
+              current[targetProp] = {};
             }
-            current = current[propName];
+            current = current[targetProp];
           }
         }
       }
