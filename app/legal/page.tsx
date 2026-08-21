@@ -219,8 +219,8 @@ function LegalPlatformContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      <div className="flex-1 w-full max-w mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
+    <div className="min-h-[calc(100vh-4rem)] bg-background text-foreground flex flex-col font-sans">
+      <div className="flex-1 w-full max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 py-8 flex flex-col gap-6">
         {/* HEADER BANNER */}
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
@@ -276,7 +276,7 @@ function LegalPlatformContent() {
         </div>
 
         {/* STICKY TAB NAVIGATION */}
-        <div className="sticky top-16 z-40 bg-gray-50 border-b border-gray-200 flex items-center gap-1 py-1 overflow-x-auto whitespace-nowrap">
+        <nav aria-label="Legal workspace sections" className="sticky top-16 z-40 -mx-5 border-b border-border bg-background/95 px-5 py-1 backdrop-blur sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 flex items-center gap-1 overflow-x-auto whitespace-nowrap">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -290,7 +290,7 @@ function LegalPlatformContent() {
               <span>{tab.label}</span>
             </button>
           ))}
-        </div>
+        </nav>
 
         {/* TAB CONTENTS */}
         <div className="pt-2">

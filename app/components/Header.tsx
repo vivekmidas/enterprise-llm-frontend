@@ -75,8 +75,8 @@ export default function Header() {
     router.push('/login');
   };
 
-  // Don't show header on login/signup pages if preferred,
-  // but following instructions to add to layout.
+  // Legal routes render their own focused workspace header.
+  if (pathname?.startsWith('/legal')) return null;
 
   return (
     <>
