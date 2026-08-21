@@ -1,6 +1,6 @@
 import { LoginPayload, RegisterPayload } from '@/lib/types/login';
 
-export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://124.123.88.18:8000';
+export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://stoop-swoop-kiln.ngrok-free.dev';
 import { CategoryItem, AgentPayload } from '@/app/components/component-categoriees';
 
 export const getAccessToken = (): string | null => {
