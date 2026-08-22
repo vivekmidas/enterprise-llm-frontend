@@ -99,7 +99,7 @@ export default function LegalResearchHub() {
 
   // Search & Intent state
   const [searchQuery, setSearchQuery] = useState(
-    'Section 148A(b) Income Tax Act opportunity of hearing principles of natural justice breach'
+    ''
   );
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[]>([]);
@@ -235,9 +235,13 @@ export default function LegalResearchHub() {
     }
   };
 
+  /* ==============================================================================
+     BLOCK COMMENT: SESSION-SCOPED LEGAL CASE WORKSPACE STORAGE
+     Prevents cross-user / cross-tenant workspace persistence across logins.
+     ============================================================================== */
   const loadCaseWorkspaces = () => {
     try {
-      const stored = localStorage.getItem('legal_case_workspaces');
+      const stored = typeof window !== 'undefined' ? sessionStorage.getItem('legal_case_workspaces') : null;
       if (stored) {
         const cases = JSON.parse(stored);
         setCaseWorkspaces(cases || []);
@@ -351,7 +355,9 @@ export default function LegalResearchHub() {
 
       setCaseWorkspaces(updated);
       try {
-        localStorage.setItem('legal_case_workspaces', JSON.stringify(updated));
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('legal_case_workspaces', JSON.stringify(updated));
+        }
       } catch (e) { }
 
       setShowSavePrecedentModal(false);
