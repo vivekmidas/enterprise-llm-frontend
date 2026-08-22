@@ -20,7 +20,7 @@ import { IconMap } from '@/lib/icons';
 interface UsersTabProps {
   userId: string | null;
   loginEmail: string;
-  customerId?: string | number | null;
+  customerId?: string | null;
   userRole?: string | null;
 }
 
@@ -62,8 +62,8 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
         customerId !== undefined && customerId !== null
           ? customerId
           : selectedTenantFilter !== 'all'
-          ? selectedTenantFilter
-          : undefined;
+            ? selectedTenantFilter
+            : undefined;
 
       const [usrs, rls, custs] = await Promise.all([
         api.getUsers(targetCid).catch(() => []),
@@ -107,7 +107,7 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
         password: newUserPassword,
         role: selectedRole ? selectedRole.role_type : (newUserRoleId || 'tenant_user'),
         role_id: selectedRole ? selectedRole.id : (newUserRoleId || undefined),
-        customer_id: newUserCustomerId ? Number(newUserCustomerId) : undefined,
+        customer_id: newUserCustomerId ? String(newUserCustomerId) : undefined,
       });
       setShowAddUserModal(false);
       setNewUserName('');
@@ -285,11 +285,10 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
                           (roleObj && (roleObj.role_type === 'system_admin' || roleObj.role_type === 'tenant_admin'));
                         return (
                           <span
-                            className={`px-2.5 py-1 rounded text-xs font-bold ${
-                              isSuperOrAdmin
-                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                : 'bg-blue-50 text-blue-700 border border-blue-200'
-                            }`}
+                            className={`px-2.5 py-1 rounded text-xs font-bold ${isSuperOrAdmin
+                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                              }`}
                           >
                             {roleObj ? roleObj.role_name : u.role}
                           </span>
@@ -298,9 +297,8 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`text-sm font-medium ${
-                          u.status === 'active' ? 'text-green-600' : 'text-red-600'
-                        }`}
+                        className={`text-sm font-medium ${u.status === 'active' ? 'text-green-600' : 'text-red-600'
+                          }`}
                       >
                         {u.status}
                       </span>
@@ -323,8 +321,8 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
                           String(u.id) === String(userId)
                             ? 'You cannot delete your own account'
                             : u.role === 'system_admin'
-                            ? 'System admin users cannot be deleted'
-                            : 'Delete user'
+                              ? 'System admin users cannot be deleted'
+                              : 'Delete user'
                         }
                         className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-100 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-100 disabled:text-gray-300 disabled:hover:bg-white cursor-pointer"
                       >

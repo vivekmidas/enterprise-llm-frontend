@@ -32,13 +32,11 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      /* ==============================================================================
+         BLOCK COMMENT: AUTHENTICATION VIA HTTPONLY COOKIE
+         Server sets HttpOnly cookie via response header. No localStorage or document.cookie.
+         ============================================================================== */
       const data = await api.login({ email, password });
-      localStorage.setItem('token', data.token);
-
-      // Set a cookie so the proxy/middleware can access the token
-      // path=/ ensures the cookie is available for all routes
-      // max-age is set to 7 days (60s * 60m * 24h * 7d)
-      document.cookie = `token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 
       // Fetch user profile & permissions for dynamic domain routing
       const currentUser = await api.getCurrentUser().catch(() => null);

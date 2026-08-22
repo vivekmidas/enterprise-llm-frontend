@@ -25,7 +25,7 @@ import {
   FileText,
   XCircle,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, getHeaders } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
 import JsonSchemaGeneratorModal from './JsonSchemaGeneratorModal';
 
@@ -513,13 +513,13 @@ const SourcePropertyField = ({
           ? effectiveSourceUrl
           : `${BACKEND_URL}${effectiveSourceUrl.startsWith('/') ? '' : '/'}${effectiveSourceUrl}`;
 
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-        };
-
-        const res = await fetch(fullUrl, { headers });
+        /* ==============================================================================
+           BLOCK COMMENT: PROPERTY ENUM SOURCE FETCH WITH CREDENTIALS
+           ============================================================================== */
+        const res = await fetch(fullUrl, {
+          credentials: 'include',
+          headers: getHeaders({ 'Content-Type': 'application/json' }),
+        });
         if (!res.ok) {
           throw new Error(`Fetch failed: ${res.statusText}`);
         }
@@ -1350,7 +1350,11 @@ export default function PropertiesPanel({
 
   const handleStartAuth = (provider: string) => {
     const providerKey = provider || selectedProvider;
-    const url = `/auth/${providerKey}/connect/?client_id=${newConn.clientId}&client_secret=${newConn.clientSecret}&name=${encodeURIComponent(newConn.name)}`;
+    /* ==============================================================================
+       BLOCK COMMENT: STRIP CLIENT SECRET FROM BROWSER QUERY URL
+       Prevents secret leakage to browser history, logs, and referrers.
+       ============================================================================== */
+    const url = `/auth/${providerKey}/connect/?client_id=${encodeURIComponent(newConn.clientId)}&name=${encodeURIComponent(newConn.name)}`;
     const width = 600;
     const height = 700;
     const left = window.screenX + (window.outerWidth - width) / 2;
@@ -1901,11 +1905,14 @@ export default function PropertiesPanel({
           <div className="pt-2">
             <button
               type="button"
-              disabled={isDisabled || !clientId || !clientSecret || !selectedProvider}
+              disabled={isDisabled || !clientId || !selectedProvider}
               onClick={() => {
                 setActiveFieldKey(field.key);
                 const providerKey = selectedProvider;
-                const url = `/api/oauth/google/connect?client_id=${clientId}&client_secret=${clientSecret}&workflow_id=${workflowId}&node_id=${selectedNode?.id}`;
+                /* ==============================================================================
+                   BLOCK COMMENT: REMOVE CLIENT SECRET FROM BROWSER CONNECT URL
+                   ============================================================================== */
+                const url = `/api/oauth/google/connect?client_id=${encodeURIComponent(clientId)}&workflow_id=${encodeURIComponent(workflowId || '')}&node_id=${encodeURIComponent(selectedNode?.id || '')}`;
 
                 const width = 600;
                 const height = 700;

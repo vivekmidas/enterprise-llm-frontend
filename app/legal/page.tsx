@@ -66,7 +66,6 @@ import WorkflowsTab from '@/app/admin/workflows/page';
 import PlaygroundTab from '@/app/admin/playground/page';
 
 type View =
-  | 'overview'
   | 'cases'
   | 'search'
   | 'briefs'
@@ -87,7 +86,6 @@ interface TabDefinition {
 }
 
 const ALL_LEGAL_TABS: TabDefinition[] = [
-  { id: 'overview', label: 'Overview', icon: <Activity className="w-4 h-4" /> },
   { id: 'cases', label: 'Case Workspaces', icon: <FolderKanban className="w-4 h-4" />, permission: 'legal:case_management:view' },
   { id: 'search', label: 'Precedent Search', icon: <Library className="w-4 h-4" />, permission: 'legal:research:query' },
   { id: 'briefs', label: 'Saved Briefs', icon: <FileSearch className="w-4 h-4" />, permission: 'legal:case_management:bookmark' },
@@ -107,7 +105,7 @@ function LegalPlatformContent() {
   const [activeRole, setActiveRole] = useState<string>('tenant_admin');
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [availableRoles, setAvailableRoles] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<View>('overview');
+  const [activeTab, setActiveTab] = useState<View>('cases');
   const [playgroundKbId, setPlaygroundKbId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
 
@@ -173,7 +171,6 @@ function LegalPlatformContent() {
     hasPermissionScope(userPermissions, '*:*:*');
 
   const isAllowedTab = (tab: TabDefinition) => {
-    if (tab.id === 'overview') return true;
     if (isAdmin) return true;
     if (userPermissions.length === 0) {
       if (tab.fallbackAdmin) return isAdmin;
@@ -275,37 +272,21 @@ function LegalPlatformContent() {
           </div>
         </div>
 
-        {/* STICKY TAB NAVIGATION */}
-        <nav aria-label="Legal workspace sections" className="sticky top-16 z-40 -mx-5 border-b border-border bg-background/95 px-5 py-1 backdrop-blur sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 flex items-center gap-1 overflow-x-auto whitespace-nowrap">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0  ${activeTab === tab.id
-                ? 'bg-white text-violet-700 border-b-2 border-violet-700'
-                : 'text-gray-500 hover:text-gray-900 border-transparent hover:bg-gray-100/60'
-                }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </nav>
+        {/* OVERVIEW MAIN CONTENT */}
+        <OverviewTab
+          isAdmin={isAdmin}
+          currentUser={currentUser}
+          activeTab={activeTab}
+          isAllowedTab={(tabId) => {
+            const def = ALL_LEGAL_TABS.find((t) => t.id === tabId);
+            return def ? isAllowedTab(def) : false;
+          }}
+          setActiveTab={handleTabChange}
+          show={show}
+        />
 
         {/* TAB CONTENTS */}
         <div className="pt-2">
-          {activeTab === 'overview' && (
-            <OverviewTab
-              isAdmin={isAdmin}
-              currentUser={currentUser}
-              isAllowedTab={(tabId) => {
-                const def = ALL_LEGAL_TABS.find((t) => t.id === tabId);
-                return def ? isAllowedTab(def) : false;
-              }}
-              setActiveTab={handleTabChange}
-              show={show}
-            />
-          )}
           {activeTab === 'cases' && (
             <CasesTab setActiveTab={handleTabChange} show={show} />
           )}
@@ -382,19 +363,21 @@ export default function LegalPlatformPage() {
 function OverviewTab({
   isAdmin,
   currentUser,
+  activeTab,
   isAllowedTab,
   setActiveTab,
   show,
 }: {
   isAdmin: boolean;
   currentUser: any;
+  activeTab: View;
   isAllowedTab: (tabId: View) => boolean;
   setActiveTab: (tab: View) => void;
   show: (message: string) => void;
 }) {
   return (
     <div className="space-y-4">
-      {/* System Admin Modules Alert */}
+      {/* System Admin Modules Alert / Primary Admin Navigation */}
       {isAdmin && (
         <div className="bg-violet-50/80 border border-violet-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -415,7 +398,10 @@ function OverviewTab({
             {isAllowedTab('profiles') && (
               <button
                 onClick={() => setActiveTab('profiles')}
-                className="px-3 py-1.5 bg-white border border-violet-300 hover:bg-violet-100 text-violet-900 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'profiles'
+                  ? 'bg-violet-700 text-white border border-violet-700'
+                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                  }`}
               >
                 <Cpu className="w-3.5 h-3.5" /> LLM Profiles
               </button>
@@ -423,7 +409,10 @@ function OverviewTab({
             {isAllowedTab('knowledge') && (
               <button
                 onClick={() => setActiveTab('knowledge')}
-                className="px-3 py-1.5 bg-white border border-violet-300 hover:bg-violet-100 text-violet-900 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'knowledge'
+                  ? 'bg-violet-700 text-white border border-violet-700'
+                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                  }`}
               >
                 <Database className="w-3.5 h-3.5" /> Knowledge Bases
               </button>
@@ -431,7 +420,10 @@ function OverviewTab({
             {isAllowedTab('playground') && (
               <button
                 onClick={() => setActiveTab('playground')}
-                className="px-3 py-1.5 bg-white border border-violet-300 hover:bg-violet-100 text-violet-900 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'playground'
+                  ? 'bg-violet-700 text-white border border-violet-700'
+                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                  }`}
               >
                 <Sparkles className="w-3.5 h-3.5" /> Playground
               </button>
@@ -439,7 +431,10 @@ function OverviewTab({
             {isAllowedTab('users') && (
               <button
                 onClick={() => setActiveTab('users')}
-                className="px-3 py-1.5 bg-white border border-violet-300 hover:bg-violet-100 text-violet-900 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'users'
+                  ? 'bg-violet-700 text-white border border-violet-700'
+                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                  }`}
               >
                 <Users className="w-3.5 h-3.5" /> Users
               </button>
@@ -447,7 +442,10 @@ function OverviewTab({
             {isAllowedTab('roles') && (
               <button
                 onClick={() => setActiveTab('roles')}
-                className="px-3 py-1.5 bg-white border border-violet-300 hover:bg-violet-100 text-violet-900 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'roles'
+                  ? 'bg-violet-700 text-white border border-violet-700'
+                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                  }`}
               >
                 <Shield className="w-3.5 h-3.5" /> Roles
               </button>
@@ -455,9 +453,23 @@ function OverviewTab({
             {isAllowedTab('workflows') && (
               <button
                 onClick={() => setActiveTab('workflows')}
-                className="px-3 py-1.5 bg-white border border-violet-300 hover:bg-violet-100 text-violet-900 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'workflows'
+                  ? 'bg-violet-700 text-white border border-violet-700'
+                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                  }`}
               >
                 <Workflow className="w-3.5 h-3.5" /> Workflows
+              </button>
+            )}
+            {isAllowedTab('audit') && (
+              <button
+                onClick={() => setActiveTab('audit')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'audit'
+                  ? 'bg-violet-700 text-white border border-violet-700'
+                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                  }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" /> Audit Trail
               </button>
             )}
           </div>
@@ -466,7 +478,7 @@ function OverviewTab({
 
       {/* Grid of Workspaces */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col gap-3">
+        {/* <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col gap-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
             Matter & Research Actions
           </p>
@@ -477,50 +489,59 @@ function OverviewTab({
           <div className="flex flex-col gap-2 pt-1">
             <button
               onClick={() => setActiveTab('cases')}
-              className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-violet-300 hover:bg-violet-50/50 transition text-left cursor-pointer"
+              className={`flex items-center gap-3 p-3 rounded-xl border transition text-left cursor-pointer ${activeTab === 'cases'
+                ? 'border-violet-500 bg-violet-50/90 ring-1 ring-violet-500'
+                : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/50'
+                }`}
             >
-              <FolderKanban className="w-4 h-4 text-violet-700 shrink-0" />
+              <FolderKanban className={`w-4 h-4 shrink-0 ${activeTab === 'cases' ? 'text-violet-800' : 'text-violet-700'}`} />
               <div className="flex-1">
-                <strong className="block text-xs font-bold text-gray-900">Case Workspaces</strong>
+                <strong className={`block text-xs font-bold ${activeTab === 'cases' ? 'text-violet-950' : 'text-gray-900'}`}>Case Workspaces</strong>
                 <span className="block text-[11px] text-gray-500">
                   Organize matter documents and upload intake files via /legal/ingest
                 </span>
               </div>
-              <ArrowRight className="w-4 h-4 text-gray-400" />
+              <ArrowRight className={`w-4 h-4 ${activeTab === 'cases' ? 'text-violet-700' : 'text-gray-400'}`} />
             </button>
 
             <button
               onClick={() => setActiveTab('search')}
-              className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-violet-300 hover:bg-violet-50/50 transition text-left cursor-pointer"
+              className={`flex items-center gap-3 p-3 rounded-xl border transition text-left cursor-pointer ${activeTab === 'search'
+                ? 'border-violet-500 bg-violet-50/90 ring-1 ring-violet-500'
+                : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/50'
+                }`}
             >
-              <Library className="w-4 h-4 text-violet-700 shrink-0" />
+              <Library className={`w-4 h-4 shrink-0 ${activeTab === 'search' ? 'text-violet-800' : 'text-violet-700'}`} />
               <div className="flex-1">
-                <strong className="block text-xs font-bold text-gray-900">Precedent Research Hub</strong>
+                <strong className={`block text-xs font-bold ${activeTab === 'search' ? 'text-violet-950' : 'text-gray-900'}`}>Precedent Research Hub</strong>
                 <span className="block text-[11px] text-gray-500">
                   AI Semantic search across statutory sections, courts, and binding precedents
                 </span>
               </div>
-              <ArrowRight className="w-4 h-4 text-gray-400" />
+              <ArrowRight className={`w-4 h-4 ${activeTab === 'search' ? 'text-violet-700' : 'text-gray-400'}`} />
             </button>
 
             <button
               onClick={() => setActiveTab('briefs')}
-              className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-violet-300 hover:bg-violet-50/50 transition text-left cursor-pointer"
+              className={`flex items-center gap-3 p-3 rounded-xl border transition text-left cursor-pointer ${activeTab === 'briefs'
+                ? 'border-violet-500 bg-violet-50/90 ring-1 ring-violet-500'
+                : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/50'
+                }`}
             >
-              <FileSearch className="w-4 h-4 text-violet-700 shrink-0" />
+              <FileSearch className={`w-4 h-4 shrink-0 ${activeTab === 'briefs' ? 'text-violet-800' : 'text-violet-700'}`} />
               <div className="flex-1">
-                <strong className="block text-xs font-bold text-gray-900">Saved Briefs & Queries</strong>
+                <strong className={`block text-xs font-bold ${activeTab === 'briefs' ? 'text-violet-950' : 'text-gray-900'}`}>Saved Briefs & Queries</strong>
                 <span className="block text-[11px] text-gray-500">
                   Review and export structured research binders
                 </span>
               </div>
-              <ArrowRight className="w-4 h-4 text-gray-400" />
+              <ArrowRight className={`w-4 h-4 ${activeTab === 'briefs' ? 'text-violet-700' : 'text-gray-400'}`} />
             </button>
           </div>
-        </div>
+        </div> */}
 
         {/* Decoupled Architecture Card */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col gap-3">
+        {/* <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col gap-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
             Tenant Workflow Dispatcher
           </p>
@@ -543,7 +564,7 @@ function OverviewTab({
               </div>
             ))}
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

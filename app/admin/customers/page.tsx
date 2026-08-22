@@ -45,12 +45,13 @@ const SourceValueSelector = ({
         const fullUrl = sourceUrl.startsWith('http')
           ? sourceUrl
           : `${BACKEND_URL}${sourceUrl.startsWith('/') ? '' : '/'}${sourceUrl}`;
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-        };
-        const res = await fetch(fullUrl, { headers });
+        /* ==============================================================================
+           BLOCK COMMENT: SOURCE SELECTOR API FETCH WITH AUTH HEADERS & CREDENTIALS
+           ============================================================================== */
+        const res = await fetch(fullUrl, {
+          credentials: 'include',
+          headers: getHeaders({ 'Content-Type': 'application/json' }),
+        });
         if (!res.ok) throw new Error(`Fetch failed: ${res.statusText}`);
         const json = await res.json();
         if (active) setData(json);
@@ -379,13 +380,12 @@ export default function CustomersTab() {
     setCustomerTracesLoading(true);
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      /* ==============================================================================
+         BLOCK COMMENT: LOAD CUSTOMER TRACES WITH AUTH HEADERS & CREDENTIALS
+         ============================================================================== */
       const res = await fetch(`${backendUrl}/api/observability/traces?customer_id=${cid}`, {
-        headers,
+        credentials: 'include',
+        headers: getHeaders(),
       });
       const result = await res.json();
       setCustomerTraces(result.traces || []);

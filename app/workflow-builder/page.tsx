@@ -73,33 +73,33 @@ function AgentBuilderContent() {
   const [prevNodeContract, setPrevNodeContract] = useState<any>(null);
   const [nextNodeContract, setNextNodeContract] = useState<any>(null);
 
+  /* ==============================================================================
+     BLOCK COMMENT: INITIALIZE AUTHENTICATED WORKFLOW BUILDER
+     ============================================================================== */
   useEffect(() => {
     setIsMounted(true);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (token) {
-      api
-        .getCurrentUser()
-        .then((userData) => {
-          setUserId(userData.id);
-          setUserRole(userData.role || '');
-          setUserEmail(userData.email || '');
+    api
+      .getCurrentUser()
+      .then((userData) => {
+        setUserId(userData.id);
+        setUserRole(userData.role || '');
+        setUserEmail(userData.email || '');
 
-          const perms = userData.permissions || [];
-          const requiredPerm = getRequiredPermissionForPath('/workflow-builder') || 'workflow:view';
-          const hasAccess = hasPermissionScope(perms, requiredPerm);
+        const perms = userData.permissions || [];
+        const requiredPerm = getRequiredPermissionForPath('/workflow-builder') || 'workflow:view';
+        const hasAccess = hasPermissionScope(perms, requiredPerm);
 
-          if (!hasAccess) {
-            const fallback = getDefaultRedirectForPermissions(perms, userData.role) || '/legal';
-            window.location.href = fallback;
-            return;
-          }
-        })
-        .catch((err) => {
-          console.error('Failed to fetch user in workflow builder:', err);
-          api.logout();
-          window.location.href = '/login';
-        });
-    }
+        if (!hasAccess) {
+          const fallback = getDefaultRedirectForPermissions(perms, userData.role) || '/legal';
+          window.location.href = fallback;
+          return;
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch user in workflow builder:', err);
+        api.logout();
+        window.location.href = '/login';
+      });
 
     // ── Demo mode: load pre-built flow from ?demo=<id> ──
     const demoId = searchParams?.get('demo');

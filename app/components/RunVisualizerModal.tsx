@@ -13,7 +13,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { CustomNode } from './reactflow/CustomNode';
 import { JsonTreeView } from './JsonTreeView';
-import { api } from '@/lib/api';
+import { api, getHeaders } from '@/lib/api';
 import { X, Play, Square, RefreshCw, Clock, Activity, AlertCircle } from 'lucide-react';
 
 const nodeTypes = {
@@ -23,11 +23,13 @@ const nodeTypes = {
 
 interface RunVisualizerModalProps {
   trace: any;
+  isOpen?: boolean;
   onClose: () => void;
 }
 
 export default function RunVisualizerModal({
   trace: initialTrace,
+  isOpen,
   onClose,
 }: RunVisualizerModalProps) {
   const [trace, setTrace] = useState<any>(initialTrace);
@@ -41,13 +43,14 @@ export default function RunVisualizerModal({
   // Fetch full trace details
   const fetchTraceDetails = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
+      /* ==============================================================================
+         BLOCK COMMENT: FETCH TRACE DETAILS WITH AUTH HEADERS & CREDENTIALS
+         ============================================================================== */
       const response = await fetch(
         `http://localhost:8000/api/observability/traces/${initialTrace.trace_id}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          credentials: 'include',
+          headers: getHeaders(),
         },
       );
       if (response.ok) {
@@ -180,14 +183,15 @@ export default function RunVisualizerModal({
     if (!confirm('Are you sure you want to stop this running workflow?')) return;
     setIsStopping(true);
     try {
-      const token = localStorage.getItem('token');
+      /* ==============================================================================
+         BLOCK COMMENT: STOP WORKFLOW TRACE WITH AUTH HEADERS & CREDENTIALS
+         ============================================================================== */
       const response = await fetch(
         `http://localhost:8000/api/observability/traces/${trace.trace_id}/stop`,
         {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          credentials: 'include',
+          headers: getHeaders(),
         },
       );
       if (response.ok) {

@@ -469,13 +469,13 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               ? effectiveSource
               : `${BACKEND_URL}${effectiveSource.startsWith('/') ? '' : '/'}${effectiveSource}`;
 
-            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-            const headers: Record<string, string> = {
-              'Content-Type': 'application/json',
-              ...(token && { Authorization: `Bearer ${token}` }),
-            };
-
-            const res = await fetch(fullUrl, { headers });
+            /* ==============================================================================
+               BLOCK COMMENT: DYNAMIC NODE ENUM SOURCE FETCH WITH CREDENTIALS
+               ============================================================================== */
+            const res = await fetch(fullUrl, {
+              credentials: 'include',
+              headers: getHeaders({ 'Content-Type': 'application/json' }),
+            });
             if (!res.ok) throw new Error(`Failed to fetch ${effectiveSource}`);
             const json = await res.json();
 

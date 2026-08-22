@@ -2,7 +2,7 @@
 // File: frontend/lib/config/route_permissions.ts
 // Description: Evaluates exact permission keys, submodule wildcards (xx:yy:*), module wildcards (xx:*:*), and global super admin (*:*:*).
 
-import { api } from '@/lib/api';
+import { api, getAccessToken } from '@/lib/api';
 
 export interface RoutePermissionRule {
   pattern: string;
@@ -104,26 +104,42 @@ export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
 
 
 let activeRoutePatterns: RoutePermissionRule[] = [...DEFAULT_ROUTE_PATTERNS];
+let pendingRoutePermissionsPromise: Promise<RoutePermissionRule[]> | null = null;
 
 /**
  * Loads route permission rules dynamically from DB at startup.
  */
 export async function loadRoutePermissionsFromDB(): Promise<RoutePermissionRule[]> {
-  try {
-    const dbRoutes = await api.getRoutePermissions();
-    if (Array.isArray(dbRoutes) && dbRoutes.length > 0) {
-      activeRoutePatterns = dbRoutes.map((r: any) => ({
-        pattern: r.pattern,
-        permission: r.permission || r.permission_id,
-        module: r.module,
-        submodule: r.submodule,
-        label: r.label,
-      }));
-    }
-  } catch (err) {
-    console.error("Failed to load route permissions from DB, using defaults:", err);
+  // If not authenticated, use default route patterns directly
+  if (!getAccessToken()) {
+    return activeRoutePatterns;
   }
-  return activeRoutePatterns;
+
+  if (pendingRoutePermissionsPromise) {
+    return pendingRoutePermissionsPromise;
+  }
+
+  pendingRoutePermissionsPromise = (async () => {
+    try {
+      const dbRoutes = await api.getRoutePermissions();
+      if (Array.isArray(dbRoutes) && dbRoutes.length > 0) {
+        activeRoutePatterns = dbRoutes.map((r: any) => ({
+          pattern: r.pattern,
+          permission: r.permission || r.permission_id,
+          module: r.module,
+          submodule: r.submodule,
+          label: r.label,
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to load route permissions from DB, using defaults:", err);
+    } finally {
+      pendingRoutePermissionsPromise = null;
+    }
+    return activeRoutePatterns;
+  })();
+
+  return pendingRoutePermissionsPromise;
 }
 
 export function getActiveRoutePatterns(): RoutePermissionRule[] {

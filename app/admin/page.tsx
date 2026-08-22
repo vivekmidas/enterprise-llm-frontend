@@ -145,19 +145,24 @@ function AdminDashboardContent() {
     return () => window.removeEventListener('resize', checkTabVisibility);
   }, [loading, isAuthenticated, checkTabVisibility]);
 
+  /* ==============================================================================
+     BLOCK COMMENT: INITIALIZE AUTHENTICATED ADMIN CONSOLE
+     Validates session via api.getCurrentUser() and routes to allowed tabs.
+     ============================================================================== */
   useEffect(() => {
     setIsMounted(true);
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setIsAuthenticated(false);
-      setLoading(false);
-      return;
-    }
 
     async function initializeUser() {
       try {
         const routes = await loadRoutePermissionsFromDB();
         const userData = await api.getCurrentUser();
+        if (!userData || !userData.id) {
+          setIsAuthenticated(false);
+          router.push('/login');
+          return;
+        }
+
+        setIsAuthenticated(true);
         const perms = userData.permissions || [];
         setUserPermissions(perms);
 
@@ -199,14 +204,11 @@ function AdminDashboardContent() {
         const urlTab = searchParams?.get('tab');
         if (urlTab) {
           setActiveTab(urlTab);
-        } else if (filteredTabs.length > 0 && !filteredTabs.some(t => t.id === 'nodes')) {
+        } else if (filteredTabs.length > 0) {
           setActiveTab(filteredTabs[0].id);
         }
-
-        setIsAuthenticated(true);
       } catch (err) {
-        console.error('Failed to authenticate in Admin Console:', err);
-        api.logout();
+        console.error('Failed to initialize admin user:', err);
         setIsAuthenticated(false);
         router.push('/login');
       } finally {
@@ -215,7 +217,7 @@ function AdminDashboardContent() {
     }
 
     initializeUser();
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -271,90 +273,16 @@ function AdminDashboardContent() {
     );
   }
 
+  /* ==============================================================================
+     BLOCK COMMENT: UNAUTHENTICATED REDIRECT STATE
+     Redirects unauthorized requests to primary /login page.
+     ============================================================================== */
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
-          <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mx-auto mb-3">
-              <Lock className="w-6 h-6" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-              {isRegistering ? 'Create Admin Account' : 'Enterprise Admin Login'}
-            </h2>
-            <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider font-semibold">
-              Gateway Management Console
-            </p>
-          </div>
-
-          {alertMessage && (
-            <Alert severity={alertMessage.type} className="mb-6 rounded-xl">
-              {alertMessage.text}
-            </Alert>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                Username
-              </label>
-              <input
-                type="text"
-                value={loginUsername}
-                onChange={(e) => setLoginUsername(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                placeholder="admin"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                placeholder="admin@enterprise.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                Password
-              </label>
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-2.5 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-wider shadow-md hover:bg-primary/90 transition-all cursor-pointer"
-            >
-              {isRegistering ? 'Sign Up' : 'Sign In'}
-            </button>
-
-            <div className="text-center mt-4">
-              <button
-                type="button"
-                onClick={() => setIsRegistering(!isRegistering)}
-                className="text-xs text-primary hover:underline font-bold"
-              >
-                {isRegistering
-                  ? 'Already have an account? Sign In'
-                  : "Don't have an account? Sign Up"}
-              </button>
-            </div>
-          </form>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-sm font-semibold text-gray-500">Redirecting to login...</span>
         </div>
       </div>
     );
@@ -471,7 +399,7 @@ function AdminDashboardContent() {
             <UsersTab
               userId={userId}
               loginEmail={userEmail || ''}
-              customerId={customerId ? Number(customerId) : null}
+              customerId={customerId ? (customerId) : null}
               userRole={userRole}
             />
           )}

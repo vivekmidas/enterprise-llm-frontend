@@ -3,27 +3,55 @@ import { LoginPayload, RegisterPayload } from '@/lib/types/login';
 export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 import { CategoryItem, AgentPayload } from '@/app/components/component-categoriees';
 
-export const getAccessToken = (): string | null => {
-  if (typeof window === 'undefined') {
-    return null;
-  }
+/* ==============================================================================
+   BLOCK COMMENT: CENTRAL API AUTH & CREDENTIALS CLIENT
+   Maintains access token in memory / session and passes Authorization header
+   along with credentials: 'include' for cross-port compatibility.
+   ============================================================================== */
+let inMemoryToken: string | null = null;
 
-  return localStorage.getItem('token');
+export const setAccessToken = (token: string | null) => {
+  inMemoryToken = token;
+  if (typeof window !== 'undefined') {
+    if (token) {
+      sessionStorage.setItem('token', token);
+      document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+    } else {
+      sessionStorage.removeItem('token');
+      localStorage.removeItem('token');
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    }
+  }
+};
+
+export const getAccessToken = (): string | null => {
+  if (inMemoryToken) return inMemoryToken;
+  if (typeof window !== 'undefined') {
+    return sessionStorage.getItem('token') || localStorage.getItem('token');
+  }
+  return null;
 };
 
 export const getHeaders = (headers: Record<string, string> = {}): Record<string, string> => {
   const token = getAccessToken();
-
   return {
     ...headers,
-    ...(token && { Authorization: `Bearer ${token}` }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 };
 
 export const getToken = () => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
+  const token = getAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : null;
+};
+
+export const apiFetch = async (url: string, init: RequestInit = {}): Promise<Response> => {
+  const headers = getHeaders((init.headers as Record<string, string>) || {});
+  return fetch(url, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
 };
 
 export const api = {
@@ -33,43 +61,58 @@ export const api = {
     const res = await fetch(`${BACKEND_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(credentials),
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.detail || 'Login failed');
     }
-    return res.json();
+    const data = await res.json();
+    if (data.token) {
+      setAccessToken(data.token);
+    }
+    return data;
   },
 
   getCurrentUser: async () => {
-    const headers = getHeaders();
-    console.log(headers);
     const res = await fetch(`${BACKEND_URL}/auth/me`, {
       method: 'GET',
+      credentials: 'include',
       headers: getHeaders(),
     });
+    if (res.status === 401) {
+      setAccessToken(null);
+    }
     if (!res.ok) throw new Error('Failed to fetch user details');
     return res.json();
   },
 
-  logout: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
+  logout: async () => {
+    try {
+      await fetch(`${BACKEND_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      }).catch(() => {});
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
 
-      // Clear all local cookies
-      document.cookie.split(';').forEach((cookie) => {
-        const name = cookie.split('=')[0].trim();
-        if (name) {
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-        }
-      });
+        // Clear all accessible cookies
+        document.cookie.split(';').forEach((cookie) => {
+          const name = cookie.split('=')[0].trim();
+          if (name) {
+            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+          }
+        });
+      }
     }
   },
 
   register: async (data: RegisterPayload) => {
     const res = await fetch(`${BACKEND_URL}/auth/register`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
@@ -312,7 +355,7 @@ export const api = {
   },
 
   /** User Management */
-  getUsers: async (customerId?: string | number) => {
+  getUsers: async (customerId?: string) => {
     const url = new URL(`${BACKEND_URL}/admin/users`);
     if (customerId !== undefined && customerId !== null && String(customerId) !== 'all') {
       url.searchParams.append('customer_id', String(customerId));
@@ -1176,7 +1219,7 @@ export const api = {
       try {
         const data = await res.json();
         detail = data.detail || detail;
-      } catch {}
+      } catch { }
       throw new Error(detail);
     }
     return res.json();
@@ -1418,7 +1461,7 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || 'Failed to generate SQL data backup');
     }
-    
+
     // Extract filename from header or generate default matching ekb_data_dd_mm_yyyy_sss.sql format
     const contentDisposition = res.headers.get('Content-Disposition');
     let filename = 'ekb_data_dump.sql';
@@ -1428,7 +1471,7 @@ export const api = {
         filename = match[1];
       }
     }
-    
+
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
