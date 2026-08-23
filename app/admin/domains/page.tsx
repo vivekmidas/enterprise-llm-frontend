@@ -970,13 +970,18 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                 </div>
               )}
 
-              {/* TAB 3: AI PROMPTS */}
+              {/* TAB 3: AI EXTRACTION PROMPTS */}
               {activeConfigTab === 'prompts' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-500">
-                      Customize system & user prompts for domain-specific LLM extraction and structured parsing.
-                    </p>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                        Domain Schema Base Extraction Prompts
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        Baseline system and user prompt templates used for extracting structured entity metadata during document ingestion into this domain.
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -990,7 +995,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-gray-700">System Prompt</label>
+                    <label className="block text-xs font-bold text-gray-700">
+                      Schema Extraction System Prompt (schema_extraction_system_prompt)
+                    </label>
                     <textarea
                       rows={4}
                       value={formSystemPrompt}
@@ -1001,11 +1008,14 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
 
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="block text-xs font-bold text-gray-700">User Prompt Template</label>
+                      <label className="block text-xs font-bold text-gray-700">
+                        Schema Extraction User Prompt Template (schema_extraction_user_prompt)
+                      </label>
                       <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-mono">
                         <span>Variables:</span>
                         <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{filename}'}</span>
                         <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{fields_summary}'}</span>
+                        <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{fields_json_schema}'}</span>
                         <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{content}'}</span>
                       </div>
                     </div>

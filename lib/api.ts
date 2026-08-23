@@ -1120,8 +1120,8 @@ export const api = {
     return res.json();
   },
 
-  // BLOCK COMMENT: LEGAL RESEARCH SEARCH API ENDPOINT
-  // Routes to /api/knowledge/legal/search mounted under knowledge router
+  // BLOCK COMMENT: LEGAL & DOMAIN RESEARCH SEARCH API ENDPOINT
+  // Routes to /api/knowledge/legal/search or /api/knowledge/search
   searchLegalCases: async (payload: {
     query: string;
     court_code?: string;
@@ -1134,6 +1134,8 @@ export const api = {
     year_min?: number;
     year_max?: number;
     limit?: number;
+    search_system_prompt?: string;
+    search_user_prompt?: string;
   }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/search`, {
       method: 'POST',
@@ -1141,6 +1143,51 @@ export const api = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error('Legal search failed');
+    return res.json();
+  },
+
+  searchDomainKnowledge: async (payload: {
+    query: string;
+    domain?: string;
+    knowledge_base_id?: string;
+    filters?: Record<string, any>;
+    concepts?: string[];
+    approach?: string;
+    weights?: Record<string, number>;
+    include_summary?: boolean;
+    page?: number;
+    limit?: number;
+    search_system_prompt?: string;
+    search_user_prompt?: string;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/search`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Domain search failed');
+    return res.json();
+  },
+
+  synthesizeDomainResearch: async (payload: {
+    instruction: string;
+    domain?: string;
+    knowledge_base_id?: string;
+    document_ids?: string[];
+    case_cnrs?: string[];
+    user_notes?: string;
+    raw_context?: string;
+    filing_type?: string;
+    llm_profile_id?: string;
+    drafting_system_prompt?: string;
+    drafting_user_prompt?: string;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/api/knowledge/synthesize`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Research drafting failed');
     return res.json();
   },
 

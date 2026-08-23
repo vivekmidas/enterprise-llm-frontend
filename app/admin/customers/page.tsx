@@ -189,7 +189,7 @@ const BASE_TENANT_ROLES = [
 
 const getRelevantRolesForDomains = (allowedDomains: string[] = [], domainSchemas: any[] = []) => {
   const rolesMap = new Map<string, { role_type: string; role_name: string; description?: string }>();
-  
+
   BASE_TENANT_ROLES.forEach((r) => rolesMap.set(r.role_type, r));
 
   const domains = allowedDomains && allowedDomains.length > 0 ? allowedDomains : [];
@@ -229,6 +229,10 @@ export default function CustomersTab() {
   const [editCustomerPluginsEnabled, setEditCustomerPluginsEnabled] = useState(false);
   const [editCustomerStoragePath, setEditCustomerStoragePath] = useState('');
   const [editCustomerAllowedDomains, setEditCustomerAllowedDomains] = useState<string[]>([]);
+  const [editCustomerSearchSystemPrompt, setEditCustomerSearchSystemPrompt] = useState('');
+  const [editCustomerSearchUserPrompt, setEditCustomerSearchUserPrompt] = useState('');
+  const [editCustomerDraftingSystemPrompt, setEditCustomerDraftingSystemPrompt] = useState('');
+  const [editCustomerDraftingUserPrompt, setEditCustomerDraftingUserPrompt] = useState('');
 
   const [customerNodes, setCustomerNodes] = useState<any[]>([]);
   const [customerNodesLoading, setCustomerNodesLoading] = useState(false);
@@ -248,6 +252,10 @@ export default function CustomersTab() {
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
   const [newCustomerContactPerson, setNewCustomerContactPerson] = useState('');
   const [newCustomerAllowedDomains, setNewCustomerAllowedDomains] = useState<string[]>([]);
+  const [newCustomerSearchSystemPrompt, setNewCustomerSearchSystemPrompt] = useState('');
+  const [newCustomerSearchUserPrompt, setNewCustomerSearchUserPrompt] = useState('');
+  const [newCustomerDraftingSystemPrompt, setNewCustomerDraftingSystemPrompt] = useState('');
+  const [newCustomerDraftingUserPrompt, setNewCustomerDraftingUserPrompt] = useState('');
 
   // Add Customer User Modal
   const [showAddCustomerUserModal, setShowAddCustomerUserModal] = useState(false);
@@ -338,7 +346,7 @@ export default function CustomersTab() {
       // ==============================================================================
       // ARRAY SAFEGUARD FOR CUSTOMER NODES
       // ==============================================================================
-      setCustomerNodes( nodes?.configs || []);
+      setCustomerNodes(nodes?.configs || []);
     } catch (err: any) {
       alert('Failed to load customer nodes: ' + err.message);
       setCustomerNodes([]);
@@ -401,6 +409,21 @@ export default function CustomersTab() {
     e.preventDefault();
     if (!selectedCustomer) return;
     try {
+      const promptsPayload: any = {};
+      if (editCustomerSearchSystemPrompt.trim()) promptsPayload.search_system_prompt = editCustomerSearchSystemPrompt.trim();
+      if (editCustomerSearchUserPrompt.trim()) promptsPayload.search_user_prompt = editCustomerSearchUserPrompt.trim();
+      if (editCustomerDraftingSystemPrompt.trim()) promptsPayload.drafting_system_prompt = editCustomerDraftingSystemPrompt.trim();
+      if (editCustomerDraftingUserPrompt.trim()) promptsPayload.drafting_user_prompt = editCustomerDraftingUserPrompt.trim();
+
+      const existingSettings = selectedCustomer.settings || {};
+      const updatedSettings = {
+        ...existingSettings,
+        prompts: {
+          ...(existingSettings.prompts || {}),
+          ...promptsPayload,
+        },
+      };
+
       const updated = await api.updateCustomer(selectedCustomer.id, {
         name: editCustomerName,
         domain: editCustomerDomain,
@@ -411,6 +434,7 @@ export default function CustomersTab() {
         custom_plugins_enabled: editCustomerPluginsEnabled,
         plugin_storage_path: editCustomerPluginsEnabled ? editCustomerStoragePath : null,
         allowed_domains: editCustomerAllowedDomains,
+        settings: updatedSettings,
       });
       setSelectedCustomer(updated);
       setIsEditingCustomer(false);
@@ -423,6 +447,12 @@ export default function CustomersTab() {
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const promptsPayload: any = {};
+      if (newCustomerSearchSystemPrompt.trim()) promptsPayload.search_system_prompt = newCustomerSearchSystemPrompt.trim();
+      if (newCustomerSearchUserPrompt.trim()) promptsPayload.search_user_prompt = newCustomerSearchUserPrompt.trim();
+      if (newCustomerDraftingSystemPrompt.trim()) promptsPayload.drafting_system_prompt = newCustomerDraftingSystemPrompt.trim();
+      if (newCustomerDraftingUserPrompt.trim()) promptsPayload.drafting_user_prompt = newCustomerDraftingUserPrompt.trim();
+
       await api.createCustomer({
         name: newCustomerName,
         domain: newCustomerDomain,
@@ -434,6 +464,7 @@ export default function CustomersTab() {
         address: newCustomerAddress || null,
         contact_person: newCustomerContactPerson || null,
         allowed_domains: newCustomerAllowedDomains,
+        settings: Object.keys(promptsPayload).length > 0 ? { prompts: promptsPayload } : {},
       });
       setShowAddCustomerModal(false);
       setNewCustomerName('');
@@ -443,6 +474,10 @@ export default function CustomersTab() {
       setNewCustomerContactPerson('');
       setNewCustomerPluginsEnabled(false);
       setNewCustomerStoragePath('');
+      setNewCustomerSearchSystemPrompt('');
+      setNewCustomerSearchUserPrompt('');
+      setNewCustomerDraftingSystemPrompt('');
+      setNewCustomerDraftingUserPrompt('');
       const defaultDomainId = domainSchemas.length > 0 ? [domainSchemas[0].id] : [];
       setNewCustomerAllowedDomains(defaultDomainId);
       fetchInitialData();
@@ -694,20 +729,20 @@ export default function CustomersTab() {
                 onClick={() => setSelectedCustomer(null)}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm cursor-pointer"
               >
-                ← Back to Customers
+                Back
               </button>
               <div>
-                <h2 className="text-2xl font-bold text-black flex items-center gap-2">
+                <h3 className="text-xl font-bold text-black flex items-center gap-2">
                   <span
                     className="h-3 w-3 rounded-full"
                     style={{ backgroundColor: selectedCustomer.color_schema || '#2563eb' }}
                   ></span>
                   {selectedCustomer.name}
-                </h2>
-                <span className="text-xs text-gray-500 font-mono">
-                  ID: {selectedCustomer.id} | Domain: {selectedCustomer.domain}
-                </span>
+                </h3>
+
+
               </div>
+              {selectedCustomer.id} | {selectedCustomer.domain}
             </div>
             <div className="flex gap-2">
               <button
@@ -721,6 +756,11 @@ export default function CustomersTab() {
                   setEditCustomerPluginsEnabled(selectedCustomer.custom_plugins_enabled || false);
                   setEditCustomerStoragePath(selectedCustomer.plugin_storage_path || '');
                   setEditCustomerAllowedDomains(selectedCustomer.allowed_domains || []);
+                  const existingPrompts = selectedCustomer.settings?.prompts || {};
+                  setEditCustomerSearchSystemPrompt(existingPrompts.search_system_prompt || selectedCustomer.settings?.search_system_prompt || '');
+                  setEditCustomerSearchUserPrompt(existingPrompts.search_user_prompt || selectedCustomer.settings?.search_user_prompt || '');
+                  setEditCustomerDraftingSystemPrompt(existingPrompts.drafting_system_prompt || existingPrompts.synthesize_system_prompt || selectedCustomer.settings?.drafting_system_prompt || '');
+                  setEditCustomerDraftingUserPrompt(existingPrompts.drafting_user_prompt || existingPrompts.synthesize_user_prompt || selectedCustomer.settings?.drafting_user_prompt || '');
                   setIsEditingCustomer(true);
                 }}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm cursor-pointer"
@@ -776,7 +816,7 @@ export default function CustomersTab() {
           {customerDetailTab === 'details' && (
             <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               {isEditingCustomer ? (
-                <form onSubmit={handleSaveCustomerDetails} className="space-y-4 max-w-lg">
+                <form onSubmit={handleSaveCustomerDetails} className="space-y-4 max-w">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
@@ -931,6 +971,74 @@ export default function CustomersTab() {
                     </div>
                   </div>
 
+                  {/* BLOCK COMMENT: CLIENT-LEVEL AI PROMPTS CONFIGURATION */}
+                  <div className="border border-indigo-100 rounded-xl p-4 bg-indigo-50/40 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase text-indigo-900 tracking-wider">
+                          Client AI Prompts (Search & Response Drafting)
+                        </h4>
+                        <p className="text-[11px] text-gray-500">
+                          Configure default search summary and response drafting prompts automatically applied to all users in this tenant.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-gray-700">
+                          Search System Prompt (search_system_prompt)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={editCustomerSearchSystemPrompt}
+                          onChange={(e) => setEditCustomerSearchSystemPrompt(e.target.value)}
+                          placeholder="e.g. Format search results into a JSON list of cases with minimum basic fields..."
+                          className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-gray-700">
+                          Search User Prompt Template (search_user_prompt)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={editCustomerSearchUserPrompt}
+                          onChange={(e) => setEditCustomerSearchUserPrompt(e.target.value)}
+                          placeholder="e.g. Matching Records:\n{context}\n\nSearch Query: {query}"
+                          className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-gray-700">
+                          Drafting System Prompt this is required to instruct system when drafting a response (drafting_system_prompt)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={editCustomerDraftingSystemPrompt}
+                          onChange={(e) => setEditCustomerDraftingSystemPrompt(e.target.value)}
+                          placeholder="e.g. You are an expert Legal Research Drafter. Ground all analysis strictly in context..."
+                          className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-gray-700">
+                          Drafting User Prompt this is required to instruct system when drafting a response(drafting_user_prompt)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={editCustomerDraftingUserPrompt}
+                          onChange={(e) => setEditCustomerDraftingUserPrompt(e.target.value)}
+                          placeholder="e.g. Context:\n{context}\n\nNotes: {user_notes}\n\nTask: {instruction}"
+                          className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex gap-2 pt-2">
                     <button
                       type="submit"
@@ -948,92 +1056,178 @@ export default function CustomersTab() {
                   </div>
                 </form>
               ) : (
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                        Domain name
-                      </span>
-                      <span className="text-sm font-semibold text-black">
-                        {selectedCustomer.domain}
-                      </span>
+                <div className="w-full space-y-6">
+                  {/* ROW 1: BASIC CUSTOMER INFORMATION */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-gray-100">
+                    <div className="space-y-4">
+                      <div>
+                        <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                          Domain name
+                        </span>
+                        <span className="text-sm font-semibold text-black">
+                          {selectedCustomer.domain}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                          Email address
+                        </span>
+                        <span className="text-sm font-semibold text-black">
+                          {selectedCustomer.email || 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                          Contact person
+                        </span>
+                        <span className="text-sm font-semibold text-black">
+                          {selectedCustomer.contact_person || 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                          Status
+                        </span>
+                        <span
+                          className={`px-2.5 py-1 rounded text-xs font-bold uppercase inline-block mt-1 ${selectedCustomer.status === 'active'
+                            ? 'bg-green-50 text-green-700 border border-green-200'
+                            : 'bg-red-50 text-red-700 border border-red-200'
+                            }`}
+                        >
+                          {selectedCustomer.status}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                        Email address
-                      </span>
-                      <span className="text-sm font-semibold text-black">
-                        {selectedCustomer.email || 'N/A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                        Contact person
-                      </span>
-                      <span className="text-sm font-semibold text-black">
-                        {selectedCustomer.contact_person || 'N/A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                        Status
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-xs font-bold uppercase inline-block mt-1 ${selectedCustomer.status === 'active'
-                          ? 'bg-green-50 text-green-700'
-                          : 'bg-red-50 text-red-700'
-                          }`}
-                      >
-                        {selectedCustomer.status}
-                      </span>
+
+                    <div className="space-y-4">
+                      <div>
+                        <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                          Allowed Knowledge Domains
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {selectedCustomer.allowed_domains && selectedCustomer.allowed_domains.length > 0 ? (
+                            selectedCustomer.allowed_domains.map((dom: string) => (
+                              <span
+                                key={dom}
+                                className="px-2.5 py-1 rounded text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase shadow-2xs"
+                              >
+                                {getDomainLabel(dom)}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">None assigned</span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                          Address
+                        </span>
+                        <span className="text-sm font-semibold text-black block whitespace-pre-line leading-relaxed">
+                          {selectedCustomer.address || 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                          Custom Plugins
+                        </span>
+                        <span className="text-sm font-semibold text-black block mt-1">
+                          {selectedCustomer.custom_plugins_enabled ? (
+                            <span className="text-emerald-700 font-bold">Enabled</span>
+                          ) : (
+                            <span className="text-gray-500">Disabled</span>
+                          )}
+                        </span>
+                      </div>
+                      {selectedCustomer.custom_plugins_enabled && (
+                        <div>
+                          <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                            Plugin Storage Path
+                          </span>
+                          <span className="text-sm font-mono font-semibold text-black block mt-1">
+                            {selectedCustomer.plugin_storage_path || 'Default'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="space-y-4">
-                    <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                        Allowed Domains
-                      </span>
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {selectedCustomer.allowed_domains && selectedCustomer.allowed_domains.length > 0 ? (
-                          selectedCustomer.allowed_domains.map((dom: string) => (
-                            <span
-                              key={dom}
-                              className="px-2 py-0.5 rounded text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase"
-                            >
-                              {getDomainLabel(dom)}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">None assigned</span>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                        Address
-                      </span>
-                      <span className="text-sm font-semibold text-black block whitespace-pre-line leading-relaxed">
-                        {selectedCustomer.address || 'N/A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                        Custom Plugins
-                      </span>
-                      <span className="text-sm font-semibold text-black block mt-1">
-                        {selectedCustomer.custom_plugins_enabled ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </div>
-                    {selectedCustomer.custom_plugins_enabled && (
+
+                  {/* ROW 2: CLIENT AI PROMPTS SECTION */}
+                  <div className="border border-indigo-100 rounded-xl p-5 bg-indigo-50/40 space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-indigo-100/80">
                       <div>
-                        <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                          Plugin Storage Path
-                        </span>
-                        <span className="text-sm font-mono font-semibold text-black block mt-1">
-                          {selectedCustomer.plugin_storage_path || 'Default'}
-                        </span>
+                        <h4 className="text-xs font-bold uppercase text-indigo-900 tracking-wider">
+                          Client AI Prompts (Search & Response Drafting)
+                        </h4>
+                        <p className="text-[11px] text-gray-500">
+                          Tenant-default prompt configurations applied to search summaries and long-form drafted briefs.
+                        </p>
                       </div>
-                    )}
+                    </div>
+
+                    {(() => {
+                      const prompts = selectedCustomer.settings?.prompts || {};
+                      const searchSys = prompts.search_system_prompt || selectedCustomer.settings?.search_system_prompt;
+                      const searchUser = prompts.search_user_prompt || selectedCustomer.settings?.search_user_prompt;
+                      const draftSys = prompts.drafting_system_prompt || prompts.synthesize_system_prompt || selectedCustomer.settings?.drafting_system_prompt || selectedCustomer.settings?.synthesize_system_prompt;
+                      const draftUser = prompts.drafting_user_prompt || prompts.synthesize_user_prompt || selectedCustomer.settings?.drafting_user_prompt || selectedCustomer.settings?.synthesize_user_prompt;
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1.5 bg-white p-3.5 rounded-lg border border-gray-200">
+                            <span className="block text-[10px] font-bold uppercase text-gray-500">
+                              Search System Prompt (search_system_prompt)
+                            </span>
+                            {searchSys ? (
+                              <pre className="text-xs font-mono bg-slate-900 text-slate-100 p-2.5 rounded-md whitespace-pre-wrap max-h-36 overflow-y-auto">
+                                {searchSys}
+                              </pre>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">Default system prompt active (Multi-case JSON summary)</span>
+                            )}
+                          </div>
+
+                          <div className="space-y-1.5 bg-white p-3.5 rounded-lg border border-gray-200">
+                            <span className="block text-[10px] font-bold uppercase text-gray-500">
+                              Search User Prompt Template (search_user_prompt)
+                            </span>
+                            {searchUser ? (
+                              <pre className="text-xs font-mono bg-slate-900 text-slate-100 p-2.5 rounded-md whitespace-pre-wrap max-h-36 overflow-y-auto">
+                                {searchUser}
+                              </pre>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">Default template active ({'{context}'}, {'{query}'})</span>
+                            )}
+                          </div>
+
+                          <div className="space-y-1.5 bg-white p-3.5 rounded-lg border border-gray-200">
+                            <span className="block text-[10px] font-bold uppercase text-gray-500">
+                              Drafting System Prompt (drafting_system_prompt)
+                            </span>
+                            {draftSys ? (
+                              <pre className="text-xs font-mono bg-slate-900 text-slate-100 p-2.5 rounded-md whitespace-pre-wrap max-h-36 overflow-y-auto">
+                                {draftSys}
+                              </pre>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">Default system prompt active (Grounded Research Drafter)</span>
+                            )}
+                          </div>
+
+                          <div className="space-y-1.5 bg-white p-3.5 rounded-lg border border-gray-200">
+                            <span className="block text-[10px] font-bold uppercase text-gray-500">
+                              Drafting User Prompt Template (drafting_user_prompt)
+                            </span>
+                            {draftUser ? (
+                              <pre className="text-xs font-mono bg-slate-900 text-slate-100 p-2.5 rounded-md whitespace-pre-wrap max-h-36 overflow-y-auto">
+                                {draftUser}
+                              </pre>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">Default template active ({'{context}'}, {'{user_notes}'}, {'{instruction}'})</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -1481,7 +1675,7 @@ export default function CustomersTab() {
       {/* Add Customer Modal */}
       {showAddCustomerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
+          <div className="w-full max-w rounded-2xl bg-white p-8 shadow-xl border border-gray-100">
             <h3 className="text-xl font-bold text-black mb-4">Add Customer Tenant</h3>
             <form onSubmit={handleAddCustomer} className="space-y-4">
               <div>
@@ -1636,6 +1830,73 @@ export default function CustomersTab() {
                   </div>
                 )}
               </div>
+
+              {/* BLOCK COMMENT: NEW CUSTOMER CLIENT AI PROMPTS */}
+              <div className="border border-indigo-100 rounded-xl p-4 bg-indigo-50/40 space-y-3">
+                <div>
+                  <h4 className="text-xs font-bold uppercase text-indigo-900 tracking-wider">
+                    Client AI Prompts (Search & Response Drafting)
+                  </h4>
+                  <p className="text-[11px] text-gray-500">
+                    Optional tenant-default prompts for search result formatting and long-form response drafting.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-gray-700">
+                      Search System Prompt
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={newCustomerSearchSystemPrompt}
+                      onChange={(e) => setNewCustomerSearchSystemPrompt(e.target.value)}
+                      placeholder="e.g. Format search results into a JSON list of cases with minimum basic fields..."
+                      className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-gray-700">
+                      Search User Prompt Template
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={newCustomerSearchUserPrompt}
+                      onChange={(e) => setNewCustomerSearchUserPrompt(e.target.value)}
+                      placeholder="e.g. Matching Records:\n{context}\n\nSearch Query: {query}"
+                      className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-gray-700">
+                      Drafting System Prompt
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={newCustomerDraftingSystemPrompt}
+                      onChange={(e) => setNewCustomerDraftingSystemPrompt(e.target.value)}
+                      placeholder="e.g. You are an expert Legal Research Drafter. Ground all analysis strictly in context..."
+                      className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-gray-700">
+                      Drafting User Prompt Template
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={newCustomerDraftingUserPrompt}
+                      onChange={(e) => setNewCustomerDraftingUserPrompt(e.target.value)}
+                      placeholder="e.g. Context:\n{context}\n\nNotes: {user_notes}\n\nTask: {instruction}"
+                      className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
@@ -1859,7 +2120,7 @@ export default function CustomersTab() {
                       </div>
 
                       {/* Overrides form */}
-                      <div className="space-y-4 max-w-xl">
+                      <div className="space-y-4 max-w">
                         {configuringNode.properties?.length > 0 ? (
                           configuringNode.properties.map((prop: any) => {
                             const val = (customerNodeProperties[configuringNode.name] || {})[
