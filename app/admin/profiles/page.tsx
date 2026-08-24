@@ -729,15 +729,6 @@ const GenerationEditor = ({
           />
         </Field>
       </div>
-      <Field label="System Prompt" hint="Overrides the global system prompt for this profile">
-        <textarea
-          value={data.system_prompt || ''}
-          onChange={(e) => onChange({ ...data, system_prompt: e.target.value || null })}
-          placeholder="You are a helpful enterprise assistant..."
-          rows={4}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-gray-900 focus:outline-none focus:border-blue-500 transition-colors resize-none"
-        />
-      </Field>
       <Field label="API Key" hint="Required for OpenAI / Azure / Grok / Anthropic providers">
         <TextInput
           value={data.api_key || ''}
