@@ -59,6 +59,83 @@ const EMBEDDING_MODELS = [
 /* BLOCK: Multi-tenant support for system-admin in KnowledgeBasesTab */
 import { BACKEND_URL, getHeaders } from '@/lib/api';
 
+// =============================================================================
+// DOMAIN-AGNOSTIC DYNAMIC EXTRACTED JSON RENDERER
+// Dynamically renders any domain schema fields from extracted_json directly
+// =============================================================================
+function renderDynamicExtractedJson(data: any) {
+  if (!data || typeof data !== 'object') return null;
+
+  const payload = data.extracted_fields || data;
+  if (!payload || typeof payload !== 'object' || Object.keys(payload).length === 0) return null;
+
+  // Extract only target fields: executive_summary, bench, court, sections
+  const executiveSummary =
+    payload.executive_case_summary?.case_overview || payload.executive_summary || "NA";
+
+  const court = payload.document?.court || payload.court || payload.court_name;
+  const bench = payload.document?.judge || payload.bench || payload.judges || payload.judge;
+  const sections = payload.document?.citation || payload.sections || payload.section || payload.acts_and_sections || payload.provisions;
+
+  const hasBadges = Boolean(court || bench || sections);
+  if (!executiveSummary && !hasBadges) return null;
+
+  return (
+    <div className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+      {executiveSummary && (
+        <div className="p-2.5 bg-blue-50/70 border border-blue-150 rounded-lg text-blue-950">
+          <div className="flex items-center gap-1.5 font-bold text-[11px] text-blue-800 uppercase tracking-wider mb-1">
+            <BookOpen className="w-3.5 h-3.5 text-blue-600" />
+            Executive Summary
+          </div>
+          <p className="text-xs leading-relaxed text-slate-700 font-normal line-clamp-3">
+            {executiveSummary}
+          </p>
+        </div>
+      )}
+
+      {hasBadges && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          {court && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-900 border border-blue-200 shadow-2xs">
+              <span className="font-semibold text-blue-700">Court:</span>{' '}
+              {Array.isArray(court) ? court.join(', ') : String(court)}
+            </span>
+          )}
+
+          {bench && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-purple-50 text-purple-900 border border-purple-200 shadow-2xs">
+              <span className="font-semibold text-purple-700">Bench:</span>{' '}
+              {Array.isArray(bench)
+                ? bench.map((b) => (typeof b === 'object' ? JSON.stringify(b) : String(b))).join(', ')
+                : String(bench)}
+            </span>
+          )}
+
+          {sections && (
+            Array.isArray(sections) ? (
+              sections.slice(0, 10).map((sec, idx) => (
+                <span
+                  key={`sec-${idx}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-2xs"
+                >
+                  <span className="font-semibold text-emerald-700">Section:</span>{' '}
+                  {typeof sec === 'object' ? JSON.stringify(sec) : String(sec)}
+                </span>
+              ))
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-2xs">
+                <span className="font-semibold text-emerald-700">Sections:</span>{' '}
+                {String(sections)}
+              </span>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export interface KnowledgeBasesTabProps {
   userRole?: string;
   customerId?: number | null;
@@ -156,8 +233,8 @@ export default function KnowledgeBasesTab({
         const tags = Array.isArray(doc.tags)
           ? doc.tags.map((t: any) => (typeof t === 'string' ? t : t.value || '').toLowerCase()).join(' ')
           : Array.isArray(doc.metadata_json?.tags)
-          ? doc.metadata_json.tags.join(' ').toLowerCase()
-          : '';
+            ? doc.metadata_json.tags.join(' ').toLowerCase()
+            : '';
         if (!name.includes(q) && !type.includes(q) && !desc.includes(q) && !tags.includes(q)) {
           return false;
         }
@@ -464,11 +541,19 @@ export default function KnowledgeBasesTab({
     return String(val);
   };
 
-  // Reconstruct prettified structured JSON object from extracted entities
+  // Structured JSON object from extracted_json or views without needing on-the-fly reconstruction
   const prettifiedEntitiesJson = useMemo(() => {
-    if (selectedEkpDoc?.metadata_json?.domain_info && (!ekpEntities || ekpEntities.length === 0)) {
-      return JSON.stringify(selectedEkpDoc.metadata_json.domain_info, null, 2);
+    const directExtracted =
+      selectedEkpDoc?.extracted_json ||
+      ekpViewsData?.extracted_json ||
+      ekpViewsData?.views?.json ||
+      selectedEkpDoc?.metadata_json?.extracted_json ||
+      selectedEkpDoc?.metadata_json?.domain_info;
+
+    if (directExtracted && typeof directExtracted === 'object' && Object.keys(directExtracted).length > 0) {
+      return JSON.stringify(directExtracted, null, 2);
     }
+
     if (!ekpEntities || ekpEntities.length === 0) return '{}';
     const result: Record<string, any> = {};
 
@@ -525,7 +610,7 @@ export default function KnowledgeBasesTab({
     });
 
     return JSON.stringify(result, null, 2);
-  }, [ekpEntities, selectedEkpDoc]);
+  }, [ekpEntities, selectedEkpDoc, ekpViewsData]);
 
   // Computed parser data for Docling
   const doclingData = useMemo(() => {
@@ -612,19 +697,25 @@ export default function KnowledgeBasesTab({
 
   // Computed data for Extracted JSON
   const jsonExtractedData = useMemo(() => {
-    const domainInfo = selectedEkpDoc?.metadata_json?.domain_info;
+    const rawExtracted =
+      selectedEkpDoc?.extracted_json ||
+      ekpViewsData?.extracted_json ||
+      ekpViewsData?.views?.json ||
+      selectedEkpDoc?.metadata_json?.extracted_json ||
+      selectedEkpDoc?.metadata_json?.domain_info;
+
+    const domainInfo = (rawExtracted && typeof rawExtracted === 'object') ? rawExtracted : selectedEkpDoc?.metadata_json?.domain_info;
     const jsonTree = ekpViewsData?.views?.json || selectedEkpDoc?.metadata_json?.views?.json;
     const hasEntities = ekpEntities && ekpEntities.length > 0;
-    const hasDomainFields = Boolean(domainInfo && (Object.keys(domainInfo.extracted_fields || {}).length > 0 || Object.keys(domainInfo.extra_fields || {}).length > 0));
-    const hasJsonTree = Boolean(jsonTree && jsonTree.sections && jsonTree.sections.length > 0);
-    const isExtracted = hasEntities || hasDomainFields || hasJsonTree;
+    const hasExtractedJson = Boolean(rawExtracted && typeof rawExtracted === 'object' && Object.keys(rawExtracted).length > 0);
+    const isExtracted = hasExtractedJson || hasEntities;
 
     return {
       isExtracted,
       domainInfo,
       jsonTree,
       entities: ekpEntities || [],
-      extractedFields: domainInfo?.extracted_fields || {},
+      extractedFields: domainInfo?.extracted_fields || domainInfo || {},
       extraFields: domainInfo?.extra_fields || {},
       debugInfo: domainInfo?.debug_info || {},
       error: domainInfo?.error || null,
@@ -1783,7 +1874,7 @@ export default function KnowledgeBasesTab({
                             </span>
                           </div>
 
-                          {tags.length > 0 && (
+                          {/* {tags.length > 0 && (
                             <div className="flex items-center gap-1 flex-wrap pt-1">
                               {tags.map((t: string) => (
                                 <span
@@ -1799,7 +1890,7 @@ export default function KnowledgeBasesTab({
                                 </span>
                               ))}
                             </div>
-                          )}
+                          )} */}
                         </div>
                         <div className="flex items-center gap-1">
                           <button
@@ -1937,19 +2028,17 @@ export default function KnowledgeBasesTab({
                           key={tab.key}
                           type="button"
                           onClick={() => setDocStatusFilter(tab.key as any)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                            isActive
-                              ? `${tab.activeClass} border-transparent shadow-xs`
-                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900'
-                          }`}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${isActive
+                            ? `${tab.activeClass} border-transparent shadow-xs`
+                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900'
+                            }`}
                         >
                           <span>{tab.label}</span>
                           <span
-                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                              isActive
-                                ? 'bg-white/25 text-white'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
+                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isActive
+                              ? 'bg-white/25 text-white'
+                              : 'bg-gray-100 text-gray-600'
+                              }`}
                           >
                             {tab.count}
                           </span>
@@ -1980,8 +2069,8 @@ export default function KnowledgeBasesTab({
                           {allFilteredSelected
                             ? 'Deselect all'
                             : someFilteredSelected
-                            ? 'Select all'
-                            : `Select all (${filteredDocList.length})`}
+                              ? 'Select all'
+                              : `Select all (${filteredDocList.length})`}
                         </span>
                       </label>
 
@@ -2082,318 +2171,212 @@ export default function KnowledgeBasesTab({
                         const docDescription = doc.metadata_json?.description || '';
                         const docType =
                           doc.metadata_json?.type || doc.metadata_json?.doc_type || 'general';
-                        const fields =
-                          doc.metadata_json?.domain_info?.extracted_fields || {};
-
-                        const document = fields.document || {};
-                        const embedding = fields.embedding_metadata || {};
-                        const entities = fields.knowledge_graph_entities || {};
-
-                        const caseNumber =
-                          document.case_number ||
-                          document.case_numbers;
-
-                        const coram =
-                          document.coram ||
-                          document.judge;
-
-                        const court = document.court;
-
-                        const practiceAreas = Array.isArray(embedding.practice_areas)
-                          ? embedding.practice_areas
-                          : embedding.practice_areas
-                            ? [embedding.practice_areas]
-                            : [];
-
-                        const locations = Array.isArray(entities.locations)
-                          ? entities.locations
-                          : entities.locations
-                            ? [entities.locations]
-                            : [];
                         return (
                           <div
                             key={doc.id}
-                            className={`border rounded-xl p-4 flex items-start justify-between transition-all shadow-xs ${
-                              isSelected
-                                ? 'border-indigo-300 bg-indigo-50/25 ring-1 ring-indigo-200'
-                                : 'border-gray-150 hover:bg-slate-50/30 bg-white'
-                            } ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
+                            className={`border rounded-xl p-4 transition-all shadow-xs ${isSelected
+                              ? 'border-indigo-300 bg-indigo-50/25 ring-1 ring-indigo-200'
+                              : 'border-gray-150 hover:bg-slate-50/30 bg-white'
+                              } ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
                           >
-                            {/* Checkbox */}
-                            <div className="pt-0.5 pr-3 shrink-0">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                disabled={isBulkDeleting || isDeleting}
-                                onChange={() => toggleSelectDoc(doc.id)}
-                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed"
-                              />
-                            </div>
-
-                            <div className="space-y-2 flex-1 min-w-0 pr-4">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-bold text-sm text-gray-800 truncate">
-                                  {doc.name}
-                                </span>
-                                <div className="relative group inline-flex items-center">
-                                  <select
-                                    value={docType.toLowerCase()}
-                                    disabled={updatingDocTypeIds[doc.id] || isDeleting}
-                                    onChange={(e) => handleUpdateDocType(doc, e.target.value)}
-                                    className="appearance-none pl-2 pr-5 py-0.5 bg-blue-50 hover:bg-blue-100 disabled:bg-blue-50 text-bg-primary rounded text-xs font-bold uppercase tracking-wider border-none focus:ring-1 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed outline-none transition-colors duration-150"
-                                    title="Change Document Type"
-                                  >
-                                    {(docTypes && docTypes.length > 0
-                                      ? docTypes
-                                      : ['General', 'Policy', 'FAQ', 'Technical', 'Contract']
-                                    ).map((type) => (
-                                      <option
-                                        key={type}
-                                        value={type.toLowerCase()}
-                                        className="bg-white text-gray-800 normal-case font-normal text-xs"
-                                      >
-                                        {type.toUpperCase()}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <span className="absolute right-1.5 pointer-events-none text-bg-primary flex items-center justify-center">
-                                    {updatingDocTypeIds[doc.id] ? (
-                                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                                    ) : (
-                                      <ChevronDown className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100 transition-opacity" />
-                                    )}
-                                  </span>
+                            {/* Top Row: Checkbox, Title/Badges/Meta on Left, Operations on Right */}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 min-w-0 flex-1">
+                                {/* Checkbox */}
+                                <div className="pt-0.5 shrink-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    disabled={isBulkDeleting || isDeleting}
+                                    onChange={() => toggleSelectDoc(doc.id)}
+                                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed"
+                                  />
                                 </div>
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${isSuccess
-                                    ? 'bg-green-100 text-green-800 border border-green-200'
-                                    : isProcessing
-                                      ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
-                                      : 'bg-red-100 text-red-800 border border-red-200'
-                                    }`}
-                                >
-                                  {isProcessing ? 'PROCESSING' : isSuccess ? (doc.status === 'ready' ? 'READY' : doc.status.toUpperCase()) : (doc.status || 'UNKNOWN').toUpperCase()}
-                                </span>
-                              </div>
 
-                              {/* Live Processing Progress Bar & DB Message */}
-                              {isProcessing && (
-                                <div className="w-full bg-amber-50/80 border border-amber-200 rounded-lg p-2.5 space-y-1.5 my-1.5">
-                                  <div className="flex items-center justify-between text-xs font-semibold text-amber-900">
-                                    <span className="flex items-center gap-1.5 font-mono">
-                                      <RefreshCw className="w-3 h-3 animate-spin text-amber-600 shrink-0" />
-                                      {doc.job_message || 'Processing document...'}
+                                <div className="space-y-1.5 min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-bold text-sm text-gray-800 truncate">
+                                      {doc.name}
                                     </span>
-                                    <span className="font-bold font-mono">
-                                      {doc.job_progress !== undefined && doc.job_progress !== null
-                                        ? `${doc.job_progress}%`
-                                        : '10%'}
-                                    </span>
-                                  </div>
-                                  <div className="w-full bg-amber-200/60 rounded-full h-1.5 overflow-hidden">
-                                    <div
-                                      className="bg-amber-600 h-1.5 rounded-full transition-all duration-300"
-                                      style={{ width: `${doc.job_progress ?? 10}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Metadata Details Row */}
-                              <div className="flex items-center gap-3 text-xs text-gray-450 font-medium flex-wrap">
-                                {docDescription && (
-                                  <p className="text-xs text-gray-550 leading-relaxed">
-                                    {docDescription}
-                                  </p>
-                                )}
-                                {docTags.length > 0 && (
-                                  <div className="flex items-center gap-1 flex-wrap">
-                                    {docTags.map((t: string, tagIdx: number) => (
-                                      <span
-                                        key={`doc-${doc.id}-tag-${t}-${tagIdx}`}
-                                        id={`doc-${doc.id}-tag-${t}-${tagIdx}`}
-                                        style={{
-                                          backgroundColor: getColor(t).bg,
-                                          border: getColor(t).border,
-                                          color: getColor(t).text,
-                                        }}
-                                        className="px-2 py-0.5 rounded text-[11px] font-semibold"
+                                    <div className="relative group inline-flex items-center">
+                                      <select
+                                        value={docType.toLowerCase()}
+                                        disabled={updatingDocTypeIds[doc.id] || isDeleting}
+                                        onChange={(e) => handleUpdateDocType(doc, e.target.value)}
+                                        className="appearance-none pl-2 pr-5 py-0.5 bg-blue-50 hover:bg-blue-100 disabled:bg-blue-50 text-bg-primary rounded text-xs font-bold uppercase tracking-wider border-none focus:ring-1 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed outline-none transition-colors duration-150"
+                                        title="Change Document Type"
                                       >
-                                        #{t}
+                                        {(docTypes && docTypes.length > 0
+                                          ? docTypes
+                                          : ['General', 'Policy', 'FAQ', 'Technical', 'Contract']
+                                        ).map((type) => (
+                                          <option
+                                            key={type}
+                                            value={type.toLowerCase()}
+                                            className="bg-white text-gray-800 normal-case font-normal text-xs"
+                                          >
+                                            {type.toUpperCase()}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <span className="absolute right-1.5 pointer-events-none text-bg-primary flex items-center justify-center">
+                                        {updatingDocTypeIds[doc.id] ? (
+                                          <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                        ) : (
+                                          <ChevronDown className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                                        )}
                                       </span>
-                                    ))}
+                                    </div>
+                                    <span
+                                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${isSuccess
+                                        ? 'bg-green-100 text-green-800 border border-green-200'
+                                        : isProcessing
+                                          ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                                          : 'bg-red-100 text-red-800 border border-red-200'
+                                        }`}
+                                    >
+                                      {isProcessing ? 'PROCESSING' : isSuccess ? (doc.status === 'ready' ? 'READY' : doc.status.toUpperCase()) : (doc.status || 'UNKNOWN').toUpperCase()}
+                                    </span>
                                   </div>
-                                )}
-                                <span>Size: {formatBytes(doc.file_size)}</span>
-                                <span>·</span>
-                                <span>Chunks: {doc.chunk_count ?? 0}</span>
-                                <span>·</span>
-                                <span>
-                                  Created:{' '}
-                                  {doc.created_at
-                                    ? new Date(doc.created_at).toLocaleString('en-US', {
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })
-                                    : '-'}
-                                </span>
-                              </div>
 
-                              {/* BLOCK COMMENT: EXTRACTED DOMAIN KNOWLEDGE METADATA */}
-                              {doc.metadata_json?.domain_info?.domain_name && (
-                                <div className="mt-2 text-xs bg-indigo-50/70 border border-indigo-150 rounded-lg p-2.5 space-y-1">
-                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4">
-                                    <div className="rounded-md border border-slate-200 bg-white px-5 py-4">
-                                      <div className="grid grid-cols-1 gap-x-12 gap-y-5 md:grid-cols-2">
-                                        {/* Case Number */}
-                                        {caseNumber && (
-                                          <div>
-                                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                                              Case Number
-                                            </div>
-                                            <div className="mt-1 text-[16px] font-semibold text-slate-800">
-                                              {caseNumber}
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        {/* Coram */}
-                                        {coram && (
-                                          <div>
-                                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                                              Coram
-                                            </div>
-                                            <div className="mt-1 text-[16px] font-medium text-slate-700">
-                                              {coram}
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        {/* Court */}
-                                        {court && (
-                                          <div>
-                                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                                              Court
-                                            </div>
-                                            <div className="mt-1 text-[16px] font-medium text-slate-700">
-                                              {court}
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        {/* Law */}
-                                        {practiceAreas.length > 0 && (
-                                          <div>
-                                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                                              Law
-                                            </div>
-                                            <div className="mt-1 flex flex-wrap gap-1.5">
-                                              {practiceAreas.map((area: string, index: number) => (
-                                                <span
-                                                  key={index}
-                                                  className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600"
-                                                >
-                                                  {area}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        {/* Location */}
-                                        {locations.length > 0 && (
-                                          <div className="md:col-span-2">
-                                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                                              Location
-                                            </div>
-                                            <div className="mt-1 flex flex-wrap gap-1.5">
-                                              {locations.map((location: string, index: number) => (
-                                                <span
-                                                  key={index}
-                                                  className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600"
-                                                >
-                                                  {location}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
+                                  {/* Live Processing Progress Bar & DB Message */}
+                                  {isProcessing && (
+                                    <div className="w-full bg-amber-50/80 border border-amber-200 rounded-lg p-2.5 space-y-1.5 my-1.5">
+                                      <div className="flex items-center justify-between text-xs font-semibold text-amber-900">
+                                        <span className="flex items-center gap-1.5 font-mono">
+                                          <RefreshCw className="w-3 h-3 animate-spin text-amber-600 shrink-0" />
+                                          {doc.job_message || 'Processing document...'}
+                                        </span>
+                                        <span className="font-bold font-mono">
+                                          {doc.job_progress !== undefined && doc.job_progress !== null
+                                            ? `${doc.job_progress}%`
+                                            : '10%'}
+                                        </span>
+                                      </div>
+                                      <div className="w-full bg-amber-200/60 rounded-full h-1.5 overflow-hidden">
+                                        <div
+                                          className="bg-amber-600 h-1.5 rounded-full transition-all duration-300"
+                                          style={{ width: `${doc.job_progress ?? 10}%` }}
+                                        />
                                       </div>
                                     </div>
+                                  )}
+
+                                  {/* Metadata Details Row: Size · Chunks · Created */}
+                                  <div className="flex items-center gap-3 text-xs text-gray-450 font-medium flex-wrap">
+                                    {docDescription && (
+                                      <p className="text-xs text-gray-550 leading-relaxed">
+                                        {docDescription}
+                                      </p>
+                                    )}
+                                    {/* {docTags.length > 0 && (
+                                      <div className="flex items-center gap-1 flex-wrap">
+                                        {docTags.map((t: string, tagIdx: number) => (
+                                          <span
+                                            key={`doc-${doc.id}-tag-${t}-${tagIdx}`}
+                                            id={`doc-${doc.id}-tag-${t}-${tagIdx}`}
+                                            style={{
+                                              backgroundColor: getColor(t).bg,
+                                              border: getColor(t).border,
+                                              color: getColor(t).text,
+                                            }}
+                                            className="px-2 py-0.5 rounded text-[11px] font-semibold"
+                                          >
+                                            #{t}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )} */}
+                                    <span>Size: {formatBytes(doc.file_size)}</span>
+                                    <span>·</span>
+                                    <span>Chunks: {doc.chunk_count ?? 0}</span>
+                                    <span>·</span>
+                                    <span>
+                                      Created:{' '}
+                                      {doc.created_at
+                                        ? new Date(doc.created_at).toLocaleString('en-US', {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })
+                                        : '-'}
+                                    </span>
                                   </div>
                                 </div>
-                              )}
+                              </div>
+
+                              {/* Operations */}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  onClick={() => fetchEkpDocDetails(doc)}
+                                  className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                                  title="Inspect 3-Way Extracted Data (Text, JSON Metadata, Entities)"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-purple-600" />
+                                  <span>Inspect</span>
+                                </button>
+                                {(() => {
+                                  const isReprocessable = ['completed', 'active', 'ready', 'failed', 'error'].includes(status);
+                                  const isProcessingDoc = ['processing', 'pending', 'chunking', 'embedding'].includes(status) || reprocessingDocIds[doc.id];
+                                  return (
+                                    <button
+                                      onClick={() => handleReprocessDocument(doc.id)}
+                                      disabled={!isReprocessable || isProcessingDoc || isDeleting || isBulkDeleting}
+                                      className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 border ${isProcessingDoc
+                                        ? 'bg-amber-50 text-amber-800 border-amber-200 cursor-not-allowed opacity-75'
+                                        : isReprocessable
+                                          ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs'
+                                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                        }`}
+                                      title={
+                                        isProcessingDoc
+                                          ? 'Document processing currently in progress...'
+                                          : isReprocessable
+                                            ? 'Reprocess Document (Re-run domain extraction & vector embedding)'
+                                            : 'Reprocess is available once document processing completes'
+                                      }
+                                    >
+                                      <RefreshCw
+                                        className={`w-3.5 h-3.5 ${isProcessingDoc ? 'animate-spin' : ''}`}
+                                      />
+                                      <span>{isProcessingDoc ? 'Processing...' : 'Reprocess'}</span>
+                                    </button>
+                                  );
+                                })()}
+                                <button
+                                  onClick={() => openEditDocModal(doc)}
+                                  disabled={isDeleting || isBulkDeleting}
+                                  className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-all cursor-pointer"
+                                  title="Edit Document Meta"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleUploadNewVersion(doc)}
+                                  disabled={isDeleting || isBulkDeleting}
+                                  className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-all cursor-pointer"
+                                  title="Upload New Version"
+                                >
+                                  <Upload className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteDoc(doc.id, doc.name)}
+                                  disabled={isDeleting || isBulkDeleting}
+                                  className="p-1.5 text-gray-400 hover:text-red-650 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-all cursor-pointer"
+                                  title="Delete Document"
+                                >
+                                  {isDeleting ? (
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-red-500" />
+                                  ) : (
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
                             </div>
 
-                            {/* Operations */}
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => fetchEkpDocDetails(doc)}
-                                className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                                title="Inspect 3-Way Extracted Data (Text, JSON Metadata, Entities)"
-                              >
-                                <Eye className="w-3.5 h-3.5 text-purple-600" />
-                                <span>Inspect</span>
-                              </button>
-                              {(() => {
-                                const isReprocessable = ['completed', 'active', 'ready', 'failed', 'error'].includes(status);
-                                const isProcessingDoc = ['processing', 'pending', 'chunking', 'embedding'].includes(status) || reprocessingDocIds[doc.id];
-                                return (
-                                  <button
-                                    onClick={() => handleReprocessDocument(doc.id)}
-                                    disabled={!isReprocessable || isProcessingDoc || isDeleting || isBulkDeleting}
-                                    className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 border ${isProcessingDoc
-                                      ? 'bg-amber-50 text-amber-800 border-amber-200 cursor-not-allowed opacity-75'
-                                      : isReprocessable
-                                        ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs'
-                                        : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                      }`}
-                                    title={
-                                      isProcessingDoc
-                                        ? 'Document processing currently in progress...'
-                                        : isReprocessable
-                                          ? 'Reprocess Document (Re-run domain extraction & vector embedding)'
-                                          : 'Reprocess is available once document processing completes'
-                                    }
-                                  >
-                                    <RefreshCw
-                                      className={`w-3.5 h-3.5 ${isProcessingDoc ? 'animate-spin' : ''}`}
-                                    />
-                                    <span>{isProcessingDoc ? 'Processing...' : 'Reprocess'}</span>
-                                  </button>
-                                );
-                              })()}
-                              <button
-                                onClick={() => openEditDocModal(doc)}
-                                disabled={isDeleting || isBulkDeleting}
-                                className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-all cursor-pointer"
-                                title="Edit Document Meta"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleUploadNewVersion(doc)}
-                                disabled={isDeleting || isBulkDeleting}
-                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-all cursor-pointer"
-                                title="Upload New Version"
-                              >
-                                <Upload className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteDoc(doc.id, doc.name)}
-                                disabled={isDeleting || isBulkDeleting}
-                                className="p-1.5 text-gray-400 hover:text-red-650 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-all cursor-pointer"
-                                title="Delete Document"
-                              >
-                                {isDeleting ? (
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-red-500" />
-                                ) : (
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-                            </div>
+                            {/* Second Row / Extended Extracted JSON Box (Full Width) */}
+                            {renderDynamicExtractedJson(doc.extracted_json || doc.metadata_json?.extracted_json || doc.metadata_json?.domain_info)}
                           </div>
                         );
                       })}
