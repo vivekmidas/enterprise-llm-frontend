@@ -28,7 +28,7 @@ function parseJwtPayload(token: string) {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const publicPaths = ['/login', '/signup', '/'];
+  const publicPaths = ['/login', '/signup', '/', '/autopilot'];
   const isPublicPath = publicPaths.includes(pathname);
   const token = request.cookies.get('token')?.value;
 
