@@ -797,7 +797,7 @@ export const api = {
   updateDocument: async (
     kbId: number | string,
     docId: number | string,
-    payload: { name?: string; metadata?: any; status?: string },
+    payload: { name?: string; metadata?: any; tags?: any[]; status?: string },
   ) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}`, {
       method: 'PUT',
@@ -1167,6 +1167,20 @@ export const api = {
     });
     if (!res.ok) throw new Error('Domain search failed');
     return res.json();
+  },
+
+  getTaxonomySuggestions: async (query: string, category?: string, limit: number = 12): Promise<{ suggestions: Array<{ id: string; category: string; canonical_name: string; code?: string; usage_count: number; is_auto_discovered: boolean }>; query: string }> => {
+    try {
+      const params = new URLSearchParams({ q: query, limit: String(limit) });
+      if (category) params.append('category', category);
+      const res = await fetch(`${BACKEND_URL}/api/knowledge/taxonomy/suggest?${params.toString()}`, {
+        headers: getHeaders(),
+      });
+      if (!res.ok) return { suggestions: [], query };
+      return res.json();
+    } catch {
+      return { suggestions: [], query };
+    }
   },
 
   synthesizeDomainResearch: async (payload: {

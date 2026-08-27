@@ -86,9 +86,9 @@ interface TabDefinition {
 }
 
 const ALL_LEGAL_TABS: TabDefinition[] = [
-  { id: 'cases', label: 'Case Workspaces', icon: <FolderKanban className="w-4 h-4" />, permission: 'legal:case_management:view' },
   { id: 'search', label: 'Precedent Search', icon: <Library className="w-4 h-4" />, permission: 'legal:research:query' },
-  { id: 'briefs', label: 'Saved Briefs', icon: <FileSearch className="w-4 h-4" />, permission: 'legal:case_management:bookmark' },
+  { id: 'cases', label: 'Case Workspaces', icon: <FolderKanban className="w-4 h-4" />, permission: 'legal:research:view' },
+  { id: 'briefs', label: 'Saved Briefs', icon: <FileSearch className="w-4 h-4" />, permission: 'legal:research:bookmark' },
   { id: 'profiles', label: 'LLM Profiles', icon: <Cpu className="w-4 h-4" />, permission: 'admin:profiles:view', fallbackAdmin: true },
   { id: 'knowledge', label: 'Knowledge Bases', icon: <Database className="w-4 h-4" />, permission: 'admin:knowledge:view', fallbackAdmin: true },
   { id: 'playground', label: 'Playground', icon: <Sparkles className="w-4 h-4" />, permission: 'admin:playground:view', fallbackAdmin: true },
@@ -102,10 +102,10 @@ function LegalPlatformContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [activeRole, setActiveRole] = useState<string>('tenant_admin');
+  const [activeRole, setActiveRole] = useState<string>('para_legal');
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [availableRoles, setAvailableRoles] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<View>('cases');
+  const [activeTab, setActiveTab] = useState<View>('search');
   const [playgroundKbId, setPlaygroundKbId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
 
@@ -117,7 +117,7 @@ function LegalPlatformContent() {
         const user = await api.getCurrentUser();
         if (user) {
           setCurrentUser(user);
-          const userRole = user.role || user.role_type || 'tenant_user';
+          const userRole = user.role || user.role_type || 'para_legal';
           setActiveRole(userRole);
           setUserPermissions(user.permissions || []);
 
@@ -183,13 +183,7 @@ function LegalPlatformContent() {
     if (tab.permission && hasPermissionScope(userPermissions, tab.permission)) {
       return true;
     }
-    if (tab.id === 'cases' && (hasPermissionScope(userPermissions, 'legal:*:*') || hasPermissionScope(userPermissions, 'legal:case_management:*'))) {
-      return true;
-    }
-    if (tab.id === 'search' && (hasPermissionScope(userPermissions, 'legal:*:*') || hasPermissionScope(userPermissions, 'legal:research:*'))) {
-      return true;
-    }
-    if (tab.id === 'briefs' && (hasPermissionScope(userPermissions, 'legal:*:*') || hasPermissionScope(userPermissions, 'legal:research:*') || hasPermissionScope(userPermissions, 'legal:case_management:*'))) {
+    if (tab.id === 'search' || tab.id === 'cases' || tab.id === 'briefs') {
       return true;
     }
     if (tab.id === 'knowledge' && (hasPermissionScope(userPermissions, 'kb:*:*') || hasPermissionScope(userPermissions, 'kb:base:view') || hasPermissionScope(userPermissions, 'admin:knowledge:*'))) {
@@ -217,7 +211,7 @@ function LegalPlatformContent() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background text-foreground flex flex-col font-sans">
-      <div className="flex-1 w-full max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 py-8 flex flex-col gap-6">
+      <div className="flex-1 w-full max-w mx-auto px-5 sm:px-8 lg:px-12 py-8 flex flex-col gap-6">
         {/* HEADER BANNER */}
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">

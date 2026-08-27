@@ -90,6 +90,111 @@ export default function KnowledgeBasesTab({
   const [docError, setDocError] = useState<string | null>(null);
   const [reprocessingDocIds, setReprocessingDocIds] = useState<Record<string, boolean>>({});
 
+  // Document Status & Search Filtering State
+  const [docStatusFilter, setDocStatusFilter] = useState<'all' | 'ready' | 'processing' | 'failed'>('all');
+  const [docSearchQuery, setDocSearchQuery] = useState('');
+
+  // Document Multi-Select & Sequential Deletion State
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [deletingDocIds, setDeletingDocIds] = useState<Record<string, boolean>>({});
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // Snackbar Notification State (4-second auto-dismiss)
+  const [snackbar, setSnackbar] = useState<{
+    id: number;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
+  const snackbarTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const triggerSnackbar = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    if (snackbarTimeoutRef.current) {
+      clearTimeout(snackbarTimeoutRef.current);
+    }
+    const id = Date.now();
+    setSnackbar({ id, message, type });
+    snackbarTimeoutRef.current = setTimeout(() => {
+      setSnackbar((current) => (current?.id === id ? null : current));
+    }, 4000);
+  };
+
+  // Status breakdown counts
+  const statusCounts = useMemo(() => {
+    const counts = { all: docList.length, ready: 0, processing: 0, failed: 0 };
+    docList.forEach((doc) => {
+      const s = (doc.status || '').toLowerCase();
+      if (['ready', 'completed', 'active', 'indexed'].includes(s)) {
+        counts.ready++;
+      } else if (['processing', 'pending', 'chunking', 'embedding', 'queued'].includes(s)) {
+        counts.processing++;
+      } else if (['error', 'failed'].includes(s)) {
+        counts.failed++;
+      } else {
+        counts.ready++;
+      }
+    });
+    return counts;
+  }, [docList]);
+
+  // Filtered documents list based on status & search
+  const filteredDocList = useMemo(() => {
+    return docList.filter((doc) => {
+      const s = (doc.status || '').toLowerCase();
+      const isReady = ['ready', 'completed', 'active', 'indexed'].includes(s);
+      const isProcessing = ['processing', 'pending', 'chunking', 'embedding', 'queued'].includes(s);
+      const isFailed = ['error', 'failed'].includes(s);
+
+      if (docStatusFilter === 'ready' && !isReady && (isProcessing || isFailed)) return false;
+      if (docStatusFilter === 'processing' && !isProcessing) return false;
+      if (docStatusFilter === 'failed' && !isFailed) return false;
+
+      if (docSearchQuery.trim()) {
+        const q = docSearchQuery.toLowerCase().trim();
+        const name = (doc.name || '').toLowerCase();
+        const type = (doc.metadata_json?.type || doc.metadata_json?.doc_type || '').toLowerCase();
+        const desc = (doc.metadata_json?.description || '').toLowerCase();
+        const tags = Array.isArray(doc.tags)
+          ? doc.tags.map((t: any) => (typeof t === 'string' ? t : t.value || '').toLowerCase()).join(' ')
+          : Array.isArray(doc.metadata_json?.tags)
+          ? doc.metadata_json.tags.join(' ').toLowerCase()
+          : '';
+        if (!name.includes(q) && !type.includes(q) && !desc.includes(q) && !tags.includes(q)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [docList, docStatusFilter, docSearchQuery]);
+
+  // Selection helpers
+  const toggleSelectDoc = (docId: string | number) => {
+    const idStr = String(docId);
+    setSelectedDocIds((prev) =>
+      prev.includes(idStr) ? prev.filter((id) => id !== idStr) : [...prev, idStr]
+    );
+  };
+
+  const allFilteredSelected =
+    filteredDocList.length > 0 &&
+    filteredDocList.every((d) => selectedDocIds.includes(String(d.id)));
+
+  const someFilteredSelected =
+    filteredDocList.some((d) => selectedDocIds.includes(String(d.id))) && !allFilteredSelected;
+
+  const toggleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      const filteredIds = new Set(filteredDocList.map((d) => String(d.id)));
+      setSelectedDocIds((prev) => prev.filter((id) => !filteredIds.has(id)));
+    } else {
+      const filteredIds = filteredDocList.map((d) => String(d.id));
+      setSelectedDocIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedDocIds([]);
+  };
+
   // KB Form state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newKbName, setNewKbName] = useState('');
@@ -314,6 +419,49 @@ export default function KnowledgeBasesTab({
     }
 
     return formattedParts.length > 0 ? formattedParts.join(' → ') : (entityType || 'Entity');
+  };
+
+  // Format complex domain fields (objects, arrays) into clean, human-readable strings instead of [object Object]
+  const formatDomainFieldValue = (val: any, depth = 0): string => {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+
+    if (Array.isArray(val)) {
+      if (val.length === 0) return '';
+      return val
+        .map((item) => {
+          if (typeof item === 'object' && item !== null) {
+            if (depth >= 2) return JSON.stringify(item);
+            return formatDomainFieldValue(item, depth + 1);
+          }
+          return String(item);
+        })
+        .filter(Boolean)
+        .join(', ');
+    }
+
+    if (typeof val === 'object') {
+      const entries = Object.entries(val).filter(
+        ([_, v]) => v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0)
+      );
+      if (entries.length === 0) return '';
+
+      return entries
+        .map(([subKey, subVal]) => {
+          const cleanKey = subKey.replace(/_/g, ' ');
+          if (typeof subVal === 'object' && subVal !== null) {
+            if (depth >= 2) return `${cleanKey}: ${JSON.stringify(subVal)}`;
+            const formattedSub = formatDomainFieldValue(subVal, depth + 1);
+            return formattedSub ? `${cleanKey}: ${formattedSub}` : '';
+          }
+          return `${cleanKey}: ${String(subVal)}`;
+        })
+        .filter(Boolean)
+        .join(' • ');
+    }
+
+    return String(val);
   };
 
   // Reconstruct prettified structured JSON object from extracted entities
@@ -790,6 +938,7 @@ export default function KnowledgeBasesTab({
   const fetchDocs = async (kbId: number) => {
     setDocsLoading(true);
     setDocError(null);
+    setSelectedDocIds([]);
     try {
       const data = await api.getKnowledgeBaseDocuments(kbId);
       setDocList(data || []);
@@ -1174,23 +1323,80 @@ export default function KnowledgeBasesTab({
     }
   };
 
-  const handleDeleteDoc = async (docId: number) => {
+  const handleDeleteDoc = async (docId: number | string, docName?: string) => {
     if (!selectedKb) return;
+    const displayName = docName || `document #${docId}`;
     if (
       !confirm(
-        'Are you sure you want to delete this document? This will remove all chunks and Qdrant points.',
+        `Are you sure you want to delete "${displayName}"? This will remove all chunks and Qdrant points.`,
       )
     ) {
       return;
     }
 
+    const idStr = String(docId);
+    setDeletingDocIds((prev) => ({ ...prev, [idStr]: true }));
     setDocError(null);
     try {
-      await api.deleteDocument(String(selectedKb.id), String(docId));
-      setDocList((prev) => prev.filter((doc) => doc.id !== docId));
+      await api.deleteDocument(String(selectedKb.id), idStr);
+      setDocList((prev) => prev.filter((doc) => String(doc.id) !== idStr));
+      setSelectedDocIds((prev) => prev.filter((id) => id !== idStr));
+      triggerSnackbar(`Document "${displayName}" deleted successfully.`, 'success');
     } catch (err: any) {
       console.error(err);
-      setDocError('Failed to delete document.');
+      triggerSnackbar(err.message || `Failed to delete "${displayName}".`, 'error');
+    } finally {
+      setDeletingDocIds((prev) => {
+        const next = { ...prev };
+        delete next[idStr];
+        return next;
+      });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedKb || selectedDocIds.length === 0) return;
+    const totalCount = selectedDocIds.length;
+    if (
+      !confirm(
+        `Are you sure you want to delete ${totalCount} selected document${totalCount > 1 ? 's' : ''}? This will remove all chunks and Qdrant points.`,
+      )
+    ) {
+      return;
+    }
+
+    setIsBulkDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+    const idsToDelete = [...selectedDocIds];
+
+    for (const docId of idsToDelete) {
+      setDeletingDocIds((prev) => ({ ...prev, [docId]: true }));
+      try {
+        await api.deleteDocument(String(selectedKb.id), String(docId));
+        setDocList((prev) => prev.filter((doc) => String(doc.id) !== String(docId)));
+        setSelectedDocIds((prev) => prev.filter((id) => id !== String(docId)));
+        successCount++;
+      } catch (err: any) {
+        console.error(`Failed to delete document ${docId}`, err);
+        failCount++;
+      } finally {
+        setDeletingDocIds((prev) => {
+          const next = { ...prev };
+          delete next[docId];
+          return next;
+        });
+      }
+    }
+
+    setIsBulkDeleting(false);
+
+    if (successCount > 0 && failCount === 0) {
+      triggerSnackbar(`Successfully deleted ${successCount} document${successCount > 1 ? 's' : ''}.`, 'success');
+    } else if (successCount > 0 && failCount > 0) {
+      triggerSnackbar(`Deleted ${successCount} document${successCount > 1 ? 's' : ''}. Failed to delete ${failCount} document${failCount > 1 ? 's' : ''}.`, 'error');
+    } else if (failCount > 0) {
+      triggerSnackbar(`Failed to delete ${failCount} document${failCount > 1 ? 's' : ''}.`, 'error');
     }
   };
 
@@ -1281,7 +1487,10 @@ export default function KnowledgeBasesTab({
     setEditDoc(doc);
     setEditDocName(doc.name);
     setEditDocDesc(doc.metadata_json?.description || '');
-    setEditDocTags(Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags.map((t: string) => (t || '').trim().toUpperCase()).filter(Boolean) : []);
+    const initialTags = Array.isArray(doc.tags) && doc.tags.length > 0
+      ? doc.tags.map((t: any) => typeof t === 'string' ? t : (t.value || t.canonical_name || '')).filter(Boolean)
+      : (Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags : []);
+    setEditDocTags(initialTags.map((t: string) => (t || '').trim().toUpperCase()).filter(Boolean));
     setEditDocType(doc.metadata_json?.type || doc.metadata_json?.doc_type || '');
     setShowEditDocModal(true);
   };
@@ -1295,10 +1504,10 @@ export default function KnowledgeBasesTab({
     try {
       await api.updateDocument(selectedKb.id, editDoc.id, {
         name: editDocName,
+        tags: editDocTags,
         metadata: {
           ...(editDoc.metadata_json || {}),
           description: editDocDesc || undefined,
-          tags: editDocTags.length > 0 ? editDocTags : undefined,
           doc_type: editDocType || undefined,
         },
       });
@@ -1366,8 +1575,8 @@ export default function KnowledgeBasesTab({
             <button
               onClick={() => setActiveMainTab('kb')}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeMainTab === 'kb'
-                  ? 'bg-white text-indigo-700 shadow-xs border border-gray-200'
-                  : 'text-gray-600 hover:bg-slate-200/60'
+                ? 'bg-white text-indigo-700 shadow-xs border border-gray-200'
+                : 'text-gray-600 hover:bg-slate-200/60'
                 }`}
             >
               <BookOpen className="w-4 h-4" />
@@ -1380,8 +1589,8 @@ export default function KnowledgeBasesTab({
             <button
               onClick={() => setActiveMainTab('domains')}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeMainTab === 'domains'
-                  ? 'bg-white text-indigo-700 shadow-xs border border-gray-200'
-                  : 'text-gray-600 hover:bg-slate-200/60'
+                ? 'bg-white text-indigo-700 shadow-xs border border-gray-200'
+                : 'text-gray-600 hover:bg-slate-200/60'
                 }`}
             >
               <SlidersHorizontal className="w-4 h-4" />
@@ -1501,7 +1710,7 @@ export default function KnowledgeBasesTab({
                           setSelectedKb(kb);
 
                         }}
-                        className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${isSelected ? 'bg-blue-50/40 border-l-4 border-bg-primary' : ''
+                        className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${isSelected ? 'bg-blue-50/40 border-l-4 border-l-primary' : ''
                           }`}
                       >
                         <div className="space-y-1.5 pr-2 min-w-0 flex-1">
@@ -1538,7 +1747,7 @@ export default function KnowledgeBasesTab({
                           {kb.settings?.llm_profile_id && llmProfilesMap[kb.settings.llm_profile_id] && (
                             <div className="pt-0.5">
                               <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1">
-                                🤖 {llmProfilesMap[kb.settings.llm_profile_id].name}
+                                {llmProfilesMap[kb.settings.llm_profile_id].name}
                               </span>
                             </div>
                           )}
@@ -1687,6 +1896,138 @@ export default function KnowledgeBasesTab({
                   </div>
                 )}
 
+                {/* Documents Search & Status Filter Toolbar */}
+                <div className="px-4 py-2.5 border-b border-gray-200 bg-slate-50/70 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
+                  {/* Search input */}
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search documents by name, type, tags..."
+                      value={docSearchQuery}
+                      onChange={(e) => setDocSearchQuery(e.target.value)}
+                      className="w-full bg-white border border-gray-300 rounded-lg pl-8 pr-8 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-500 shadow-2xs"
+                    />
+                    {docSearchQuery && (
+                      <button
+                        onClick={() => setDocSearchQuery('')}
+                        className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 p-0.5 rounded cursor-pointer"
+                        title="Clear search"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Status Filter Tabs */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mr-1 flex items-center gap-1">
+                      <Filter className="w-3 h-3 text-gray-400" />
+                      Status:
+                    </span>
+                    {[
+                      { key: 'all', label: 'All', count: statusCounts.all, activeClass: 'bg-indigo-600 text-white' },
+                      { key: 'ready', label: 'Ready', count: statusCounts.ready, activeClass: 'bg-emerald-600 text-white' },
+                      { key: 'processing', label: 'Processing', count: statusCounts.processing, activeClass: 'bg-amber-600 text-white' },
+                      { key: 'failed', label: 'Failed', count: statusCounts.failed, activeClass: 'bg-rose-600 text-white' },
+                    ].map((tab) => {
+                      const isActive = docStatusFilter === tab.key;
+                      return (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => setDocStatusFilter(tab.key as any)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                            isActive
+                              ? `${tab.activeClass} border-transparent shadow-xs`
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900'
+                          }`}
+                        >
+                          <span>{tab.label}</span>
+                          <span
+                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                              isActive
+                                ? 'bg-white/25 text-white'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {tab.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Multi-Select & Bulk Action Bar */}
+                {filteredDocList.length > 0 && (
+                  <div className="px-4 py-2 border-b border-gray-200 bg-white flex items-center justify-between gap-3 text-xs shrink-0">
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 font-medium text-gray-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={allFilteredSelected}
+                          ref={(input) => {
+                            if (input) {
+                              input.indeterminate = someFilteredSelected;
+                            }
+                          }}
+                          disabled={isBulkDeleting}
+                          onChange={toggleSelectAllFiltered}
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <span>
+                          {allFilteredSelected
+                            ? 'Deselect all'
+                            : someFilteredSelected
+                            ? 'Select all'
+                            : `Select all (${filteredDocList.length})`}
+                        </span>
+                      </label>
+
+                      {selectedDocIds.length > 0 && (
+                        <>
+                          <span className="text-gray-400 text-xs">·</span>
+                          <span className="text-indigo-600 font-semibold text-xs">
+                            {selectedDocIds.length} of {docList.length} selected
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    {selectedDocIds.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleClearSelection}
+                          disabled={isBulkDeleting}
+                          className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 font-medium cursor-pointer disabled:opacity-50"
+                        >
+                          Clear
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleBulkDelete}
+                          disabled={isBulkDeleting}
+                          className="flex items-center gap-1.5 px-3 py-1 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          {isBulkDeleting ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>Deleting ({selectedDocIds.length} remaining)...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete Selected ({selectedDocIds.length})</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Doc List Container */}
                 <div className="flex-1 overflow-y-auto p-4">
                   {docsLoading && docList.length === 0 ? (
@@ -1704,27 +2045,91 @@ export default function KnowledgeBasesTab({
                         Click the "Upload Document" button above to ingest your text, PDF, or Word files.
                       </p>
                     </div>
+                  ) : filteredDocList.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-gray-400 text-sm border border-dashed border-gray-200 rounded-xl bg-slate-50/50">
+                      <Search className="w-8 h-8 text-gray-300 mb-2" />
+                      <p className="font-semibold text-gray-700 text-xs">
+                        No documents match the current filter or search.
+                      </p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        Try selecting another status tab or clearing the search query.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDocStatusFilter('all');
+                          setDocSearchQuery('');
+                        }}
+                        className="mt-3 px-3 py-1 bg-white border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors cursor-pointer shadow-2xs"
+                      >
+                        Reset Filters
+                      </button>
+                    </div>
                   ) : (
                     <div className="space-y-3">
-                      {docList.map((doc) => {
+                      {filteredDocList.map((doc) => {
+                        const isSelected = selectedDocIds.includes(String(doc.id));
+                        const isDeleting = Boolean(deletingDocIds[String(doc.id)]);
                         const status = doc.status?.toLowerCase();
                         const isProcessing = ['processing', 'pending', 'chunking', 'embedding', 'queued'].includes(
                           status,
                         );
                         const isError = ['error', 'failed'].includes(status);
                         const isSuccess = ['ready', 'completed', 'active', 'indexed'].includes(status);
-                        const docTags = Array.isArray(doc.metadata_json?.tags)
-                          ? doc.metadata_json.tags
-                          : [];
+                        const docTags = Array.isArray(doc.tags) && doc.tags.length > 0
+                          ? doc.tags.map((t: any) => typeof t === 'string' ? t : (t.value || t.canonical_name || '')).filter(Boolean)
+                          : (Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags : []);
                         const docDescription = doc.metadata_json?.description || '';
                         const docType =
                           doc.metadata_json?.type || doc.metadata_json?.doc_type || 'general';
+                        const fields =
+                          doc.metadata_json?.domain_info?.extracted_fields || {};
 
+                        const document = fields.document || {};
+                        const embedding = fields.embedding_metadata || {};
+                        const entities = fields.knowledge_graph_entities || {};
+
+                        const caseNumber =
+                          document.case_number ||
+                          document.case_numbers;
+
+                        const coram =
+                          document.coram ||
+                          document.judge;
+
+                        const court = document.court;
+
+                        const practiceAreas = Array.isArray(embedding.practice_areas)
+                          ? embedding.practice_areas
+                          : embedding.practice_areas
+                            ? [embedding.practice_areas]
+                            : [];
+
+                        const locations = Array.isArray(entities.locations)
+                          ? entities.locations
+                          : entities.locations
+                            ? [entities.locations]
+                            : [];
                         return (
                           <div
                             key={doc.id}
-                            className="border border-gray-150 rounded-xl p-4 flex items-start justify-between hover:bg-slate-50/30 transition-all shadow-xs"
+                            className={`border rounded-xl p-4 flex items-start justify-between transition-all shadow-xs ${
+                              isSelected
+                                ? 'border-indigo-300 bg-indigo-50/25 ring-1 ring-indigo-200'
+                                : 'border-gray-150 hover:bg-slate-50/30 bg-white'
+                            } ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
                           >
+                            {/* Checkbox */}
+                            <div className="pt-0.5 pr-3 shrink-0">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                disabled={isBulkDeleting || isDeleting}
+                                onChange={() => toggleSelectDoc(doc.id)}
+                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed"
+                              />
+                            </div>
+
                             <div className="space-y-2 flex-1 min-w-0 pr-4">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-bold text-sm text-gray-800 truncate">
@@ -1733,7 +2138,7 @@ export default function KnowledgeBasesTab({
                                 <div className="relative group inline-flex items-center">
                                   <select
                                     value={docType.toLowerCase()}
-                                    disabled={updatingDocTypeIds[doc.id]}
+                                    disabled={updatingDocTypeIds[doc.id] || isDeleting}
                                     onChange={(e) => handleUpdateDocType(doc, e.target.value)}
                                     className="appearance-none pl-2 pr-5 py-0.5 bg-blue-50 hover:bg-blue-100 disabled:bg-blue-50 text-bg-primary rounded text-xs font-bold uppercase tracking-wider border-none focus:ring-1 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed outline-none transition-colors duration-150"
                                     title="Change Document Type"
@@ -1761,10 +2166,10 @@ export default function KnowledgeBasesTab({
                                 </div>
                                 <span
                                   className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${isSuccess
-                                      ? 'bg-green-100 text-green-800 border border-green-200'
-                                      : isProcessing
-                                        ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
-                                        : 'bg-red-100 text-red-800 border border-red-200'
+                                    ? 'bg-green-100 text-green-800 border border-green-200'
+                                    : isProcessing
+                                      ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                                      : 'bg-red-100 text-red-800 border border-red-200'
                                     }`}
                                 >
                                   {isProcessing ? 'PROCESSING' : isSuccess ? (doc.status === 'ready' ? 'READY' : doc.status.toUpperCase()) : (doc.status || 'UNKNOWN').toUpperCase()}
@@ -1803,9 +2208,10 @@ export default function KnowledgeBasesTab({
                                 )}
                                 {docTags.length > 0 && (
                                   <div className="flex items-center gap-1 flex-wrap">
-                                    {docTags.map((t: string) => (
+                                    {docTags.map((t: string, tagIdx: number) => (
                                       <span
-                                        key={t}
+                                        key={`doc-${doc.id}-tag-${t}-${tagIdx}`}
+                                        id={`doc-${doc.id}-tag-${t}-${tagIdx}`}
                                         style={{
                                           backgroundColor: getColor(t).bg,
                                           border: getColor(t).border,
@@ -1835,36 +2241,88 @@ export default function KnowledgeBasesTab({
                                 </span>
                               </div>
 
-                              {/* ===================================================================== */}
                               {/* BLOCK COMMENT: EXTRACTED DOMAIN KNOWLEDGE METADATA */}
-                              {/* Guarded to only render if a valid domain_name exists */}
-                              {/* ===================================================================== */}
                               {doc.metadata_json?.domain_info?.domain_name && (
                                 <div className="mt-2 text-xs bg-indigo-50/70 border border-indigo-150 rounded-lg p-2.5 space-y-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-bold text-indigo-900 text-xs flex items-center gap-1">
-                                      🏷️ Domain: {doc.metadata_json.domain_info.domain_name} ({doc.metadata_json.domain_info.domain_key || ''})
-                                    </span>
+                                  <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4">
+                                    <div className="rounded-md border border-slate-200 bg-white px-5 py-4">
+                                      <div className="grid grid-cols-1 gap-x-12 gap-y-5 md:grid-cols-2">
+                                        {/* Case Number */}
+                                        {caseNumber && (
+                                          <div>
+                                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                                              Case Number
+                                            </div>
+                                            <div className="mt-1 text-[16px] font-semibold text-slate-800">
+                                              {caseNumber}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Coram */}
+                                        {coram && (
+                                          <div>
+                                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                                              Coram
+                                            </div>
+                                            <div className="mt-1 text-[16px] font-medium text-slate-700">
+                                              {coram}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Court */}
+                                        {court && (
+                                          <div>
+                                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                                              Court
+                                            </div>
+                                            <div className="mt-1 text-[16px] font-medium text-slate-700">
+                                              {court}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Law */}
+                                        {practiceAreas.length > 0 && (
+                                          <div>
+                                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                                              Law
+                                            </div>
+                                            <div className="mt-1 flex flex-wrap gap-1.5">
+                                              {practiceAreas.map((area: string, index: number) => (
+                                                <span
+                                                  key={index}
+                                                  className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600"
+                                                >
+                                                  {area}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Location */}
+                                        {locations.length > 0 && (
+                                          <div className="md:col-span-2">
+                                            <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                                              Location
+                                            </div>
+                                            <div className="mt-1 flex flex-wrap gap-1.5">
+                                              {locations.map((location: string, index: number) => (
+                                                <span
+                                                  key={index}
+                                                  className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600"
+                                                >
+                                                  {location}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                  {Object.keys(doc.metadata_json.domain_info.extracted_fields || {}).length > 0 && (
-                                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                                      {Object.entries(doc.metadata_json.domain_info.extracted_fields).map(([k, v]) => (
-                                        <span key={k} className="bg-white px-2 py-0.5 rounded border border-indigo-200 text-indigo-800 text-xs font-mono">
-                                          <strong>{k}:</strong> {String(v)}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {Object.keys(doc.metadata_json.domain_info.extra_fields || {}).length > 0 && (
-                                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                                      <span className="text-xs text-indigo-600 font-semibold uppercase">Extra:</span>
-                                      {Object.entries(doc.metadata_json.domain_info.extra_fields).map(([k, v]) => (
-                                        <span key={k} className="bg-indigo-100/60 px-1.5 py-0.5 rounded border border-indigo-200 text-indigo-900 text-xs">
-                                          {k}: {String(v)}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
                                 </div>
                               )}
                             </div>
@@ -1881,53 +2339,59 @@ export default function KnowledgeBasesTab({
                               </button>
                               {(() => {
                                 const isReprocessable = ['completed', 'active', 'ready', 'failed', 'error'].includes(status);
-                                const isProcessing = ['processing', 'pending', 'chunking', 'embedding'].includes(status) || reprocessingDocIds[doc.id];
+                                const isProcessingDoc = ['processing', 'pending', 'chunking', 'embedding'].includes(status) || reprocessingDocIds[doc.id];
                                 return (
                                   <button
                                     onClick={() => handleReprocessDocument(doc.id)}
-                                    disabled={!isReprocessable || isProcessing}
-                                    className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 border ${
-                                      isProcessing
-                                        ? 'bg-amber-50 text-amber-800 border-amber-200 cursor-not-allowed opacity-75'
-                                        : isReprocessable
+                                    disabled={!isReprocessable || isProcessingDoc || isDeleting || isBulkDeleting}
+                                    className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 border ${isProcessingDoc
+                                      ? 'bg-amber-50 text-amber-800 border-amber-200 cursor-not-allowed opacity-75'
+                                      : isReprocessable
                                         ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs'
                                         : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                    }`}
+                                      }`}
                                     title={
-                                      isProcessing
+                                      isProcessingDoc
                                         ? 'Document processing currently in progress...'
                                         : isReprocessable
-                                        ? 'Reprocess Document (Re-run domain extraction & vector embedding)'
-                                        : 'Reprocess is available once document processing completes'
+                                          ? 'Reprocess Document (Re-run domain extraction & vector embedding)'
+                                          : 'Reprocess is available once document processing completes'
                                     }
                                   >
                                     <RefreshCw
-                                      className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin' : ''}`}
+                                      className={`w-3.5 h-3.5 ${isProcessingDoc ? 'animate-spin' : ''}`}
                                     />
-                                    <span>{isProcessing ? 'Processing...' : 'Reprocess'}</span>
+                                    <span>{isProcessingDoc ? 'Processing...' : 'Reprocess'}</span>
                                   </button>
                                 );
                               })()}
                               <button
                                 onClick={() => openEditDocModal(doc)}
-                                className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                                disabled={isDeleting || isBulkDeleting}
+                                className="p-1.5 text-gray-400 hover:text-bg-primary hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-all cursor-pointer"
                                 title="Edit Document Meta"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => handleUploadNewVersion(doc)}
-                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+                                disabled={isDeleting || isBulkDeleting}
+                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-all cursor-pointer"
                                 title="Upload New Version"
                               >
                                 <Upload className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => handleDeleteDoc(doc.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                                onClick={() => handleDeleteDoc(doc.id, doc.name)}
+                                disabled={isDeleting || isBulkDeleting}
+                                className="p-1.5 text-gray-400 hover:text-red-650 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-all cursor-pointer"
                                 title="Delete Document"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                {isDeleting ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-red-500" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
                               </button>
                             </div>
                           </div>
@@ -1981,8 +2445,8 @@ export default function KnowledgeBasesTab({
                       type="button"
                       onClick={() => setDomainScopeFilter(sc)}
                       className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${domainScopeFilter === sc
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
                         }`}
                     >
                       {sc}
@@ -2015,8 +2479,8 @@ export default function KnowledgeBasesTab({
                           handleOpenEditDomain(d);
                         }}
                         className={`p-3 rounded-xl cursor-pointer transition-all border ${isSelected
-                            ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-200 shadow-xs'
-                            : 'bg-white border-gray-200 hover:border-indigo-200 hover:bg-slate-50'
+                          ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-200 shadow-xs'
+                          : 'bg-white border-gray-200 hover:border-indigo-200 hover:bg-slate-50'
                           }`}
                       >
                         <div className="flex items-center justify-between mb-1">
@@ -2431,9 +2895,8 @@ export default function KnowledgeBasesTab({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
-                    newKbEnableDocling ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                  }`}>
+                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${newKbEnableDocling ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}>
                     <input
                       type="checkbox"
                       checked={newKbEnableDocling}
@@ -2453,9 +2916,8 @@ export default function KnowledgeBasesTab({
                     </div>
                   </label>
 
-                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
-                    newKbEnableOpenDataLoader ? 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                  }`}>
+                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${newKbEnableOpenDataLoader ? 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}>
                     <input
                       type="checkbox"
                       checked={newKbEnableOpenDataLoader}
@@ -2476,9 +2938,8 @@ export default function KnowledgeBasesTab({
                   </label>
                 </div>
 
-                <div className={`flex items-center justify-between pt-2 border-t border-slate-200/80 transition-opacity ${
-                  newKbEnableDocling && newKbEnableOpenDataLoader ? 'opacity-100' : 'opacity-50'
-                }`}>
+                <div className={`flex items-center justify-between pt-2 border-t border-slate-200/80 transition-opacity ${newKbEnableDocling && newKbEnableOpenDataLoader ? 'opacity-100' : 'opacity-50'
+                  }`}>
                   <div>
                     <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                       Enable Paragraph & Boilerplate Deduplication
@@ -2492,9 +2953,8 @@ export default function KnowledgeBasesTab({
                       Filters duplicate boilerplate & cross-parser redundant blocks (disabled by default)
                     </span>
                   </div>
-                  <label className={`relative inline-flex items-center ${
-                    newKbEnableDocling && newKbEnableOpenDataLoader ? 'cursor-pointer' : 'cursor-not-allowed'
-                  }`}>
+                  <label className={`relative inline-flex items-center ${newKbEnableDocling && newKbEnableOpenDataLoader ? 'cursor-pointer' : 'cursor-not-allowed'
+                    }`}>
                     <input
                       type="checkbox"
                       disabled={!(newKbEnableDocling && newKbEnableOpenDataLoader)}
@@ -2624,12 +3084,12 @@ export default function KnowledgeBasesTab({
                           <div className="flex items-center gap-2 shrink-0">
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${item.status === 'completed'
-                                  ? 'bg-green-100 text-green-700'
-                                  : item.status === 'uploading'
-                                    ? 'bg-amber-100 text-amber-700 animate-pulse'
-                                    : item.status === 'failed'
-                                      ? 'bg-red-100 text-red-700'
-                                      : 'bg-gray-100 text-gray-600'
+                                ? 'bg-green-100 text-green-700'
+                                : item.status === 'uploading'
+                                  ? 'bg-amber-100 text-amber-700 animate-pulse'
+                                  : item.status === 'failed'
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-gray-100 text-gray-600'
                                 }`}
                             >
                               {item.status}
@@ -2721,9 +3181,8 @@ export default function KnowledgeBasesTab({
                   </select>
                 </div>
 
-                <div className={`flex items-center justify-between pt-1 border-t border-slate-200/80 transition-opacity ${
-                  docParserStrategy === 'dual' ? 'opacity-100' : 'opacity-50'
-                }`}>
+                <div className={`flex items-center justify-between pt-1 border-t border-slate-200/80 transition-opacity ${docParserStrategy === 'dual' ? 'opacity-100' : 'opacity-50'
+                  }`}>
                   <div>
                     <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                       Enable Paragraph & Boilerplate Deduplication
@@ -2735,9 +3194,8 @@ export default function KnowledgeBasesTab({
                     </span>
                     <span className="block text-[10px] text-gray-400">Filters duplicate boilerplate & cross-parser redundant blocks (disabled by default)</span>
                   </div>
-                  <label className={`relative inline-flex items-center ${
-                    docParserStrategy === 'dual' ? 'cursor-pointer' : 'cursor-not-allowed'
-                  }`}>
+                  <label className={`relative inline-flex items-center ${docParserStrategy === 'dual' ? 'cursor-pointer' : 'cursor-not-allowed'
+                    }`}>
                     <input
                       type="checkbox"
                       disabled={docParserStrategy !== 'dual'}
@@ -3030,9 +3488,8 @@ export default function KnowledgeBasesTab({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
-                    editKbEnableDocling ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                  }`}>
+                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${editKbEnableDocling ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}>
                     <input
                       type="checkbox"
                       checked={editKbEnableDocling}
@@ -3052,9 +3509,8 @@ export default function KnowledgeBasesTab({
                     </div>
                   </label>
 
-                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
-                    editKbEnableOpenDataLoader ? 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                  }`}>
+                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${editKbEnableOpenDataLoader ? 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}>
                     <input
                       type="checkbox"
                       checked={editKbEnableOpenDataLoader}
@@ -3075,9 +3531,8 @@ export default function KnowledgeBasesTab({
                   </label>
                 </div>
 
-                <div className={`flex items-center justify-between pt-2 border-t border-slate-200/80 transition-opacity ${
-                  editKbEnableDocling && editKbEnableOpenDataLoader ? 'opacity-100' : 'opacity-50'
-                }`}>
+                <div className={`flex items-center justify-between pt-2 border-t border-slate-200/80 transition-opacity ${editKbEnableDocling && editKbEnableOpenDataLoader ? 'opacity-100' : 'opacity-50'
+                  }`}>
                   <div>
                     <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                       Enable Paragraph & Boilerplate Deduplication
@@ -3091,9 +3546,8 @@ export default function KnowledgeBasesTab({
                       Filters duplicate boilerplate & cross-parser redundant blocks (disabled by default)
                     </span>
                   </div>
-                  <label className={`relative inline-flex items-center ${
-                    editKbEnableDocling && editKbEnableOpenDataLoader ? 'cursor-pointer' : 'cursor-not-allowed'
-                  }`}>
+                  <label className={`relative inline-flex items-center ${editKbEnableDocling && editKbEnableOpenDataLoader ? 'cursor-pointer' : 'cursor-not-allowed'
+                    }`}>
                     <input
                       type="checkbox"
                       disabled={!(editKbEnableDocling && editKbEnableOpenDataLoader)}
@@ -3330,22 +3784,20 @@ export default function KnowledgeBasesTab({
                           <div className="flex items-center bg-white p-0.5 rounded-lg border border-emerald-200 text-[10px] font-semibold shadow-2xs">
                             <button
                               onClick={() => setActiveTextParser('docling')}
-                              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
-                                activeTextParser === 'docling'
-                                  ? 'bg-emerald-600 text-white font-bold shadow-2xs'
-                                  : 'text-gray-600 hover:text-emerald-800'
-                              }`}
+                              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${activeTextParser === 'docling'
+                                ? 'bg-emerald-600 text-white font-bold shadow-2xs'
+                                : 'text-gray-600 hover:text-emerald-800'
+                                }`}
                               title="IBM Docling Parser"
                             >
                               Docling ({doclingData.spans.length})
                             </button>
                             <button
                               onClick={() => setActiveTextParser('opendataloader')}
-                              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
-                                activeTextParser === 'opendataloader'
-                                  ? 'bg-blue-600 text-white font-bold shadow-2xs'
-                                  : 'text-gray-600 hover:text-blue-800'
-                              }`}
+                              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${activeTextParser === 'opendataloader'
+                                ? 'bg-blue-600 text-white font-bold shadow-2xs'
+                                : 'text-gray-600 hover:text-blue-800'
+                                }`}
                               title="OpenDataLoader / PyMuPDF Secondary Parser"
                             >
                               OpenDataLoader ({openDataLoaderData.spans.length})
@@ -3381,17 +3833,15 @@ export default function KnowledgeBasesTab({
                         <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-gray-200 text-[10px] font-semibold shrink-0">
                           <button
                             onClick={() => setTextSubView('spans')}
-                            className={`px-2 py-0.5 rounded cursor-pointer ${
-                              textSubView === 'spans' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
-                            }`}
+                            className={`px-2 py-0.5 rounded cursor-pointer ${textSubView === 'spans' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
+                              }`}
                           >
                             Spans ({currentSpans.length})
                           </button>
                           <button
                             onClick={() => setTextSubView('text')}
-                            className={`px-2 py-0.5 rounded cursor-pointer ${
-                              textSubView === 'text' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
-                            }`}
+                            className={`px-2 py-0.5 rounded cursor-pointer ${textSubView === 'text' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
+                              }`}
                           >
                             Raw Text
                           </button>
@@ -3417,11 +3867,10 @@ export default function KnowledgeBasesTab({
                               return (
                                 <div
                                   key={s.span_id || `span_${activeTextParser}_${idx}`}
-                                  className={`p-2.5 rounded-lg border transition-colors text-xs space-y-1 shadow-2xs ${
-                                    isRecovered
-                                      ? 'border-amber-300 bg-amber-50/50'
-                                      : 'border-gray-200 bg-white hover:border-emerald-300'
-                                  }`}
+                                  className={`p-2.5 rounded-lg border transition-colors text-xs space-y-1 shadow-2xs ${isRecovered
+                                    ? 'border-amber-300 bg-amber-50/50'
+                                    : 'border-gray-200 bg-white hover:border-emerald-300'
+                                    }`}
                                 >
                                   <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium">
                                     <div className="flex items-center gap-1.5">
@@ -3472,11 +3921,10 @@ export default function KnowledgeBasesTab({
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border font-mono ${
-                        jsonExtractedData.isExtracted
-                          ? 'bg-purple-100 text-purple-800 border-purple-200'
-                          : 'bg-gray-100 text-gray-500 border-gray-200'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border font-mono ${jsonExtractedData.isExtracted
+                        ? 'bg-purple-100 text-purple-800 border-purple-200'
+                        : 'bg-gray-100 text-gray-500 border-gray-200'
+                        }`}>
                         {jsonExtractedData.isExtracted ? 'JSON Extracted' : 'Not Extracted'}
                       </span>
                       {jsonExtractedData.isExtracted && (
@@ -3673,9 +4121,8 @@ export default function KnowledgeBasesTab({
                                     </p>
                                     <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
                                       <span>Confidence: <strong>{((ent.confidence ?? 1.0) * 100).toFixed(0)}%</strong></span>
-                                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
-                                        ent.basis === 'FACT' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-                                      }`}>
+                                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${ent.basis === 'FACT' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                                        }`}>
                                         {ent.basis || 'FACT'}
                                       </span>
                                     </div>
@@ -3709,6 +4156,27 @@ export default function KnowledgeBasesTab({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 4-SECOND NOTIFICATION SNACKBAR */}
+      {snackbar && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border text-xs font-semibold backdrop-blur-md animate-in fade-in slide-in-from-bottom-5 duration-200 transition-all bg-white border-slate-200 text-slate-800">
+          {snackbar.type === 'success' ? (
+            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+          ) : snackbar.type === 'error' ? (
+            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+          ) : (
+            <Info className="w-4 h-4 text-blue-500 shrink-0" />
+          )}
+          <span className="font-medium text-slate-800 pr-1">{snackbar.message}</span>
+          <button
+            onClick={() => setSnackbar(null)}
+            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+            title="Dismiss notification"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
     </>
