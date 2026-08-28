@@ -30,6 +30,22 @@ export interface TimelineEvent {
   title: string;
   description: string;
   source: SourceRef;
+  event_type?: 'Hearing' | 'Order' | 'Filing' | 'Evidence' | 'Notice';
+  impact_badge?: string;
+  next_date?: string;
+  bench_direction?: string;
+}
+
+export interface HearingRecord {
+  id: string;
+  hearing_date: string;
+  court_bench: string;
+  proceeding_stage: 'Notice Returnable' | 'Interim Arguments' | 'Framing of Issues' | 'Evidence / Cross' | 'Final Hearing' | 'Order Reserved';
+  order_summary: string;
+  directions_given: string;
+  next_hearing_date?: string;
+  strategic_impact: string;
+  remedial_action_added?: string;
 }
 
 export interface ExtractedDocClause {
@@ -149,6 +165,7 @@ export interface MatterCase {
   case_subtitle: string;
   court_forum: string;
   claim_amount: string;
+  dispute_description: string;
   matter_status: string;
   evidence_completeness: number;
   open_gaps_count: number;
@@ -164,6 +181,9 @@ export interface MatterCase {
   sample_enrichment_text: string;
   sample_enrichment_doc_name: string;
   enrichment_applied?: boolean;
+  case_category?: string;
+  next_hearing_date?: string;
+  hearing_records?: HearingRecord[];
 }
 
 // -----------------------------------------------------------------------------
@@ -399,6 +419,62 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
       ],
     },
   },
+  art226_writ: {
+    section_code: 'art226_writ',
+    short_label: 'Article 226 Constitution (Writ Jurisdiction)',
+    act_name: 'Constitution of India, 1950',
+    summary_view: {
+      core_legal_rule:
+        'Empowers High Courts to issue directions, orders, or writs (Habeas Corpus, Mandamus, Prohibition, Quo Warranto, Certiorari) for enforcement of Fundamental Rights and for any other purpose against State and public authorities.',
+      essential_ingredients: [
+        'State action or policy must be arbitrary, irrational, or in violation of Articles 14, 19, or 21.',
+        'Alternative efficacious remedy must either be inadequate, non-existent, or fundamentally breached principles of natural justice.',
+        'Strict scrutiny of doctrine of proportionality and Wednesbury unreasonableness.',
+      ],
+      statutory_limitation: 'No rigid limitation, but doctrine of laches applies if unexplained delay occurs.',
+      landmark_sc_ruling:
+        'Whirlpool Corporation v. Registrar of Trade Marks, (1998) 8 SCC 1 & Radha Krishan Industries v. State of HP, (2021) 6 SCC 771.',
+      counsel_checklist: [
+        'Establish that Respondent is "State" under Article 12 or performing public duty.',
+        'Highlight jurisdictional error or patent breach of audi alteram partem in the impugned order.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Article 226. Power of High Courts to issue certain writs.',
+      verbatim_text:
+        '(1) Notwithstanding anything in Article 32, every High Court shall have powers... to issue to any person or authority, including in appropriate cases, any Government... directions, orders or writs, including writs in the nature of habeas corpus, mandamus, prohibition, quo warranto and certiorari, or any of them, for the enforcement of any of the rights conferred by Part III and for any other purpose.',
+      provisos_and_explanations: [
+        'Clause (2) allows High Courts to exercise jurisdiction if cause of action wholly or in part arises within its territory.',
+      ],
+    },
+  },
+  order39_cpc: {
+    section_code: 'order39_cpc',
+    short_label: 'Order 39 Rules 1 & 2 CPC (Temporary Injunction)',
+    act_name: 'Code of Civil Procedure, 1908',
+    summary_view: {
+      core_legal_rule:
+        'Grants temporary injunction to stay alienation, damage, or wastage of property in dispute until final disposal of suit, subject to the classic tripartite test.',
+      essential_ingredients: [
+        'Prima facie case in favour of plaintiff.',
+        'Balance of convenience tilting towards grant of injunction.',
+        'Irreparable injury that cannot be adequately compensated in monetary damages if relief is denied.',
+      ],
+      statutory_limitation: 'Filed along with Plaint or during pendency of suit.',
+      landmark_sc_ruling:
+        'Dalpat Kumar v. Prahlad Singh, (1992) 1 SCC 719 & Gujarat Bottling Co. Ltd. v. Coca Cola Co., (1995) 5 SCC 545.',
+      counsel_checklist: [
+        'Provide photographic or documentary evidence of imminent threat of alienation or construction.',
+        'Comply with Order 39 Rule 3 proviso if seeking ex-parte ad-interim injunction.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Order XXXIX Rule 1. Cases in which temporary injunction may be granted.',
+      verbatim_text:
+        'Where in any suit it is proved by affidavit or otherwise—\n(a) that any property in dispute in a suit is in danger of being wasted, damaged or alienated by any party to the suit, or wrongfully sold in execution of a decree, or\n(b) that the defendant threatens, or intends, to remove or dispose of his property with a view to defrauding his creditors...\nthe Court may by order grant a temporary injunction to restrain such act.',
+      provisos_and_explanations: ['Read with Section 151 (Inherent Powers of Court).'],
+    },
+  },
 };
 
 // -----------------------------------------------------------------------------
@@ -411,6 +487,7 @@ export const CASE_ORION_V_DELTA: MatterCase = {
   case_subtitle: 'Commercial recovery matter · Delhi District Court · Internal preparation workspace',
   court_forum: 'Commercial Court, Patiala House Courts, New Delhi',
   claim_amount: '₹1,85,00,000 (Principal ₹1.50 Cr + 18% p.a. Interest)',
+  dispute_description: 'Recovery of unpaid structural steel invoices (₹1.85 Cr) with counter-allegations of latent defective fabrication raised by respondent after contractual 15-day inspection window.',
   matter_status: 'Initial assessment',
   evidence_completeness: 82,
   open_gaps_count: 4,
@@ -777,6 +854,7 @@ export const CASE_CLOUDNET_V_STARLIGHT: MatterCase = {
   case_subtitle: 'Service SLA termination dispute · Bengaluru Commercial Court · Internal preparation',
   court_forum: 'Commercial Court, Bengaluru City Civil Court',
   claim_amount: '₹65,00,000 (Final Invoices + Wrongful Termination Notice Pay)',
+  dispute_description: 'Wrongful unilateral termination of multi-year enterprise SaaS agreement, disputed milestone acceptance, and non-payment of final transition deliverables and lock-in period fees.',
   matter_status: 'Active assessment',
   evidence_completeness: 74,
   open_gaps_count: 2,
@@ -1009,6 +1087,7 @@ export const CASE_PRECISION_V_VANGUARD: MatterCase = {
   case_subtitle: 'Summary debt recovery · Delhi Commercial Court · Ready for filing',
   court_forum: 'Commercial Court, Saket Courts, New Delhi',
   claim_amount: '₹42,00,000 (Admitted Trade Debt)',
+  dispute_description: 'Default on admitted trade debt arising from industrial pumps consignment supply, supported by signed delivery challans and formal written balance confirmation letter from debtor CFO.',
   matter_status: 'Ready for action',
   evidence_completeness: 94,
   open_gaps_count: 1,
@@ -1201,6 +1280,7 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
   case_subtitle: 'Commercial Cheating, Criminal Breach of Trust & Sec 138 NI Act · Tis Hazari Courts, Delhi',
   court_forum: 'Court of Chief Metropolitan Magistrate (CMM), Central District, Tis Hazari Courts, Delhi',
   claim_amount: '₹92,00,000 (Dishonoured Cheques + Inducement)',
+  dispute_description: 'Commercial cheating and dishonour of multiple post-dated settlement cheques totaling ₹92 Lakhs, accompanied by fraudulent diversion of hypothecated inventory and false solvency declarations.',
   matter_status: 'Pre-Trial & Bail Stage',
   evidence_completeness: 78,
   open_gaps_count: 3,

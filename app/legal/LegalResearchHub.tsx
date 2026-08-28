@@ -649,9 +649,9 @@ export default function LegalResearchHub() {
       `LEGAL PRECEDENT DOSSIER - EXTRACTED RECORD`,
       `================================================================================`,
       `CASE TITLE: ${item.case_title || item.title || 'Not available'}`,
-      `CASE NUMBER / CNR: ${item.case_number || item.cnr || 'Not available'}`,
+      `CASE NUMBER / CNR: ${Array.isArray(item.case_number) ? item.case_number.join(', ') : (item.case_number || item.cnr || 'Not available')}`,
       `COURT / JURISDICTION: ${item.court_type || item.court || 'Not available'}`,
-      `CORAM / JUDGE: ${item.judge || item.judges || item.coram || 'Not available'}`,
+      `CORAM / JUDGE: ${Array.isArray(item.judge) ? item.judge.join(', ') : (item.judge || item.judges || item.coram || 'Not available')}`,
       `DECISION DATE: ${item.decision_date || item.date || 'Not available'}`,
       item.filing_date ? `FILING DATE: ${item.filing_date}` : null,
       item.hearing_date ? `HEARING DATE: ${item.hearing_date}` : null,
@@ -1373,7 +1373,8 @@ export default function LegalResearchHub() {
                 const isSelected = selectedCnr === r.cnr;
                 const caseTitle = r.case_title || r.title || 'Not available';
                 const courtType = r.court_type || r.court || 'Not available';
-                const judge = r.judge || r.judges || r.coram || 'Not available';
+                const judge = Array.isArray(r.judge) ? r.judge.join(', ') : (r.judge || r.judges || r.coram || 'Not available');
+                const caseNumbersPills = toPillsArray(r.case_number);
                 const partiesPills = toPillsArray(r.parties);
                 const respondentsPills = toPillsArray(r.respondents);
                 const plaintiffsPills = toPillsArray(r.plaintiffs || r.appellants || r.petitioners);
@@ -1399,15 +1400,26 @@ export default function LegalResearchHub() {
                           {caseTitle}
                         </h3>
                         <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono flex-wrap">
-                          {r.case_number && (
+                          {caseNumbersPills.length > 0 ? (
+                            caseNumbersPills.map((cn) => (
+                              <span
+                                key={cn}
+                                onClick={(e) => handleQuickSearch(cn, e)}
+                                className="font-bold text-violet-900 bg-violet-50 hover:bg-violet-100 px-1.5 py-0.5 rounded border border-violet-200 cursor-pointer"
+                                title="Click to search this case number"
+                              >
+                                {cn}
+                              </span>
+                            ))
+                          ) : r.case_number ? (
                             <span
-                              onClick={(e) => handleQuickSearch(r.case_number, e)}
+                              onClick={(e) => handleQuickSearch(String(r.case_number), e)}
                               className="font-bold text-violet-900 bg-violet-50 hover:bg-violet-100 px-1.5 py-0.5 rounded border border-violet-200 cursor-pointer"
                               title="Click to search this case number"
                             >
-                              {r.case_number}
+                              {String(r.case_number)}
                             </span>
-                          )}
+                          ) : null}
                           {r.decision_date && (
                             <span
                               onClick={(e) => handleQuickSearch(r.decision_date, e)}
@@ -1758,15 +1770,18 @@ export default function LegalResearchHub() {
                   {/* Coram / Judge & Court */}
                   <div className="grid grid-cols-2 gap-2">
                     <div
-                      onClick={(e) => handleQuickSearch(selectedResult.judge || selectedResult.judges || selectedResult.coram, e)}
+                      onClick={(e) => {
+                        const targetJudge = Array.isArray(selectedResult.judge) ? selectedResult.judge[0] : (selectedResult.judge || selectedResult.judges || selectedResult.coram);
+                        if (targetJudge) handleQuickSearch(targetJudge, e);
+                      }}
                       className="bg-white p-2.5 rounded-xl border border-slate-200 hover:border-violet-400 hover:bg-violet-50/40 transition cursor-pointer flex flex-col gap-0.5"
                       title="Click to search all cases by this Judge"
                     >
                       <span className="text-[9px] font-bold uppercase text-slate-500 flex items-center gap-1">
                         <Gavel className="w-3 h-3 text-violet-700" /> Coram / Judge
                       </span>
-                      <span className="text-[11px] font-bold text-slate-900 truncate block">
-                        {selectedResult.judge || selectedResult.judges || selectedResult.coram || 'Not available'}
+                      <span className="text-[11px] font-bold text-slate-900 truncate block" title={Array.isArray(selectedResult.judge) ? selectedResult.judge.join(', ') : selectedResult.judge}>
+                        {Array.isArray(selectedResult.judge) ? selectedResult.judge.join(', ') : (selectedResult.judge || selectedResult.judges || selectedResult.coram || 'Not available')}
                       </span>
                     </div>
 

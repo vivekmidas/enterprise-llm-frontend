@@ -64,9 +64,18 @@ import { BACKEND_URL, getHeaders } from '@/lib/api';
 // Dynamically renders any domain schema fields from extracted_json directly
 // =============================================================================
 function renderDynamicExtractedJson(data: any) {
-  if (!data || typeof data !== 'object') return null;
+  if (!data) return null;
+  let parsed = data;
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch (_) {
+      return null;
+    }
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
 
-  const payload = data.extracted_fields || data;
+  const payload = parsed.extracted_fields || parsed;
   if (!payload || typeof payload !== 'object' || Object.keys(payload).length === 0) return null;
 
   // Extract only target fields: executive_summary, bench, court, sections
@@ -543,12 +552,18 @@ export default function KnowledgeBasesTab({
 
   // Structured JSON object from extracted_json or views without needing on-the-fly reconstruction
   const prettifiedEntitiesJson = useMemo(() => {
-    const directExtracted =
+    let directExtracted =
       selectedEkpDoc?.extracted_json ||
       ekpViewsData?.extracted_json ||
       ekpViewsData?.views?.json ||
       selectedEkpDoc?.metadata_json?.extracted_json ||
       selectedEkpDoc?.metadata_json?.domain_info;
+
+    if (typeof directExtracted === 'string') {
+      try {
+        directExtracted = JSON.parse(directExtracted);
+      } catch (_) { }
+    }
 
     if (directExtracted && typeof directExtracted === 'object' && Object.keys(directExtracted).length > 0) {
       return JSON.stringify(directExtracted, null, 2);
@@ -600,7 +615,7 @@ export default function KnowledgeBasesTab({
             }
             current = current[propName][arrayIdx];
           } else {
-            if (!current[propName] || typeof current[propName] !== 'object') {
+            if (!current[propName]) {
               current[propName] = {};
             }
             current = current[propName];
@@ -612,100 +627,93 @@ export default function KnowledgeBasesTab({
     return JSON.stringify(result, null, 2);
   }, [ekpEntities, selectedEkpDoc, ekpViewsData]);
 
-  // Computed parser data for Docling
+  // Computed Docling spans & raw text with graceful fallback
   const doclingData = useMemo(() => {
     const rawText =
       ekpViewsData?.views?.extracted?.docling_raw_text ||
       (ekpViewsData?.views?.extracted?.parser_name?.includes('docling') ? ekpViewsData?.views?.extracted?.raw_text : '') ||
       selectedEkpDoc?.metadata_json?.views?.extracted?.docling_raw_text ||
+      selectedEkpDoc?.metadata_json?.views?.extracted?.raw_text ||
       '';
-
-    let spans: any[] =
+    const spans =
       ekpViewsData?.views?.extracted?.docling_spans ||
       selectedEkpDoc?.metadata_json?.views?.extracted?.docling_spans ||
       [];
-
-    if (!spans || spans.length === 0) {
+    if (spans.length === 0 && ekpParagraphs && ekpParagraphs.length > 0) {
+      // Map EKP paragraphs to viewer span format
       const allExtractedSpans = ekpViewsData?.views?.extracted?.spans || selectedEkpDoc?.metadata_json?.views?.extracted?.spans;
-      if (allExtractedSpans && Array.isArray(allExtractedSpans) && allExtractedSpans.length > 0) {
-        spans = allExtractedSpans.filter((s: any) => !s.source_parser || s.source_parser.includes('docling') || s.source_parser === 'unknown');
-      } else if (ekpParagraphs && ekpParagraphs.length > 0) {
-        spans = ekpParagraphs.map((p) => ({
-          span_id: p.span_id || p.id,
-          page_number: p.page_number || 1,
-          paragraph_index: p.paragraph_number || 0,
-          text: p.text_content || '',
-          block_type: 'paragraph',
-          source_parser: 'docling',
-          bbox: p.bounding_box || null,
-        }));
+      if (allExtractedSpans && allExtractedSpans.length > 0) {
+        return { rawText, spans: allExtractedSpans };
       }
+      return {
+        rawText,
+        spans: ekpParagraphs.map((p, idx) => ({
+          span_id: p.span_id || `span_${idx}`,
+          page_number: p.page_number || 1,
+          paragraph_index: p.paragraph_number || idx,
+          text: p.text_content || '',
+          bbox: p.bounding_box || null,
+          source_parser: 'docling',
+        })),
+      };
     }
-
     const tables = ekpViewsData?.views?.extracted?.tables || selectedEkpDoc?.metadata_json?.views?.extracted?.tables || [];
     const report = ekpViewsData?.comparison_report || selectedEkpDoc?.metadata_json?.comparison_report;
-
-    return {
-      rawText: rawText || spans.map((s: any) => s.text || s.text_content || '').join('\n\n'),
-      spans,
-      tables,
-      report,
-      isAvailable: spans.length > 0 || Boolean(rawText),
-    };
+    return { rawText, spans, tables, report };
   }, [ekpViewsData, selectedEkpDoc, ekpParagraphs]);
 
-  // Computed parser data for OpenDataLoaderPDFParser
+  // Computed OpenDataLoader spans & raw text with fallback
   const openDataLoaderData = useMemo(() => {
     const rawText =
       ekpViewsData?.views?.extracted?.opendataloader_raw_text ||
       (ekpViewsData?.views?.extracted?.parser_name?.includes('opendataloader') ? ekpViewsData?.views?.extracted?.raw_text : '') ||
       selectedEkpDoc?.metadata_json?.views?.extracted?.opendataloader_raw_text ||
       '';
-
-    let spans: any[] =
+    const spans =
       ekpViewsData?.views?.extracted?.opendataloader_spans ||
       selectedEkpDoc?.metadata_json?.views?.extracted?.opendataloader_spans ||
       [];
-
-    if (!spans || spans.length === 0) {
+    if (spans.length === 0) {
       const allExtractedSpans = ekpViewsData?.views?.extracted?.spans || selectedEkpDoc?.metadata_json?.views?.extracted?.spans;
-      if (allExtractedSpans && Array.isArray(allExtractedSpans) && allExtractedSpans.length > 0) {
-        spans = allExtractedSpans.filter((s: any) => s.source_parser && (s.source_parser.includes('opendataloader') || s.source_parser.includes('pymupdf') || s.source_parser.includes('recovered')));
+      if (allExtractedSpans && allExtractedSpans.length > 0) {
+        return { rawText, spans: allExtractedSpans };
       }
       if (spans.length === 0 && ekpParagraphs && ekpParagraphs.length > 0 && (ekpViewsData?.comparison_report?.secondary_parser?.includes('opendataloader') || selectedEkpDoc?.metadata_json?.comparison_report?.secondary_parser?.includes('opendataloader'))) {
-        spans = ekpParagraphs.map((p) => ({
-          span_id: p.span_id || p.id,
-          page_number: p.page_number || 1,
-          paragraph_index: p.paragraph_number || 0,
-          text: p.text_content || '',
-          block_type: 'paragraph',
-          source_parser: 'opendataloader_pdf',
-          bbox: p.bounding_box || null,
-        }));
+        return {
+          rawText,
+          spans: ekpParagraphs.map((p, idx) => ({
+            span_id: p.span_id || `span_odl_${idx}`,
+            page_number: p.page_number || 1,
+            paragraph_index: p.paragraph_number || idx,
+            text: p.text_content || '',
+            bbox: p.bounding_box || null,
+            source_parser: 'opendataloader',
+          })),
+        };
       }
     }
-
+    const tables = ekpViewsData?.views?.extracted?.tables || selectedEkpDoc?.metadata_json?.views?.extracted?.tables || [];
     const report = ekpViewsData?.comparison_report || selectedEkpDoc?.metadata_json?.comparison_report;
-
-    return {
-      rawText: rawText || (spans.length > 0 ? spans.map((s: any) => s.text || s.text_content || '').join('\n\n') : (report?.secondary_raw_sample || '')),
-      spans,
-      report,
-      isAvailable: spans.length > 0 || Boolean(rawText) || Boolean(report?.secondary_parser),
-    };
+    return { rawText, spans, tables, report };
   }, [ekpViewsData, selectedEkpDoc, ekpParagraphs]);
 
   // Computed data for Extracted JSON
   const jsonExtractedData = useMemo(() => {
-    const rawExtracted =
+    let rawExtracted =
       selectedEkpDoc?.extracted_json ||
       ekpViewsData?.extracted_json ||
       ekpViewsData?.views?.json ||
       selectedEkpDoc?.metadata_json?.extracted_json ||
       selectedEkpDoc?.metadata_json?.domain_info;
 
+    if (typeof rawExtracted === 'string') {
+      try {
+        rawExtracted = JSON.parse(rawExtracted);
+      } catch (_) { }
+    }
+
     const domainInfo = (rawExtracted && typeof rawExtracted === 'object') ? rawExtracted : selectedEkpDoc?.metadata_json?.domain_info;
-    const jsonTree = ekpViewsData?.views?.json || selectedEkpDoc?.metadata_json?.views?.json;
+    const jsonTree = ekpViewsData?.views?.json || selectedEkpDoc?.metadata_json?.views?.json || rawExtracted;
     const hasEntities = ekpEntities && ekpEntities.length > 0;
     const hasExtractedJson = Boolean(rawExtracted && typeof rawExtracted === 'object' && Object.keys(rawExtracted).length > 0);
     const isExtracted = hasExtractedJson || hasEntities;
@@ -732,27 +740,37 @@ export default function KnowledgeBasesTab({
     setEntitySearch('');
     try {
       const kbId = doc.knowledge_base_id || selectedKb?.id;
-      const [pRes, eRes, vRes] = await Promise.all([
+      const [pRes, eRes, vRes, dRes] = await Promise.all([
         fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/paragraphs`, { headers: getHeaders() }),
         fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/entities`, { headers: getHeaders() }),
-        kbId ? fetch(`${BACKEND_URL}/api/v3/knowledge/bases/${kbId}/documents/${doc.id}/views`, { headers: getHeaders() }) : Promise.resolve(null),
+        kbId
+          ? fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${doc.id}/views`, { headers: getHeaders() })
+          : fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/views`, { headers: getHeaders() }),
+        kbId
+          ? fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${doc.id}`, { headers: getHeaders() })
+          : fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}`, { headers: getHeaders() }),
       ]);
-      if (pRes.ok) {
+      if (pRes && pRes.ok) {
         const pData = await pRes.json();
         setEkpParagraphs(pData || []);
       } else {
         setEkpParagraphs([]);
       }
 
+      if (dRes && dRes.ok) {
+        const dData = await dRes.json();
+        setSelectedEkpDoc((prev: any) => ({ ...prev, ...dData }));
+      }
+
       if (vRes && vRes.ok) {
         const vData = await vRes.json();
         setEkpViewsData(vData);
       } else {
-        setEkpViewsData(doc.metadata_json?.views ? { views: doc.metadata_json.views, comparison_report: doc.metadata_json.comparison_report } : null);
+        setEkpViewsData(doc.metadata_json?.views ? { views: doc.metadata_json.views, comparison_report: doc.metadata_json.comparison_report, extracted_json: doc.extracted_json } : null);
       }
 
       let entities: any[] = [];
-      if (eRes.ok) {
+      if (eRes && eRes.ok) {
         entities = await eRes.json();
       }
 
@@ -1124,18 +1142,15 @@ export default function KnowledgeBasesTab({
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
-    const hasProcessingDocs = docList.some((d) =>
-      ['processing', 'pending', 'chunking', 'embedding', 'queued'].includes(d.status?.toLowerCase())
-    );
-    if ((autoRefresh || hasProcessingDocs) && selectedKb) {
+    if (autoRefresh && selectedKb) {
       interval = setInterval(() => {
         fetchDocs(selectedKb.id);
-      }, 2000);
+      }, 3000);
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefresh, selectedKb, docList]);
+  }, [autoRefresh, selectedKb]);
 
   const getProfileEmbeddingSettings = (profile: any) => {
     if (!profile) {
