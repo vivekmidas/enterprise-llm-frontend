@@ -193,8 +193,9 @@ const MultiSelectDropdown = ({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
-        className={`w-full flex items-center justify-between rounded-lg border px-3 py-2 text-sm text-left transition-all ${open ? 'border-blue-500 ring-1 ring-blue-100' : 'border-gray-300 hover:border-gray-400'
-          } ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'bg-white cursor-pointer'}`}
+        className={`w-full flex items-center justify-between rounded-lg border px-3 py-2 text-sm text-left transition-all ${
+          open ? 'border-blue-500 ring-1 ring-blue-100' : 'border-gray-300 hover:border-gray-400'
+        } ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'bg-white cursor-pointer'}`}
       >
         <span className={`truncate ${selectedLabels.length ? 'text-gray-800' : 'text-gray-400'}`}>
           {selectedLabels.length ? selectedLabels.join(', ') : placeholder}
@@ -255,9 +256,9 @@ const PathPropertyField = ({
   // Derive the current list of selected paths from the stored string
   const selectedPaths: string[] = value
     ? value
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean)
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean)
     : [];
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -308,9 +309,10 @@ const PathPropertyField = ({
         disabled={isDisabled}
         onClick={() => !isDisabled && inputRef.current?.click()}
         className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-all
-          ${isDisabled
-            ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
-            : 'bg-white border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-600 cursor-pointer'
+          ${
+            isDisabled
+              ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+              : 'bg-white border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-600 cursor-pointer'
           }`}
       >
         <Upload className="w-3.5 h-3.5 shrink-0" />
@@ -445,10 +447,11 @@ const JsonObjectPropertyField = ({
         onChange={handleChange}
         placeholder="{}"
         rows={4}
-        className={`w-full border rounded-xl px-3 py-2 text-xs font-mono bg-white text-slate-900 outline-none focus:ring-2 transition-all resize-y min-h-20 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100 ${error
-          ? 'border-amber-400 focus:ring-amber-100'
-          : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-100 shadow-inner-sm'
-          }`}
+        className={`w-full border rounded-xl px-3 py-2 text-xs font-mono bg-white text-slate-900 outline-none focus:ring-2 transition-all resize-y min-h-20 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100 ${
+          error
+            ? 'border-amber-400 focus:ring-amber-100'
+            : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-100 shadow-inner-sm'
+        }`}
       />
       {error && <p className="text-[10px] text-amber-600 font-medium italic mt-0.5">{error}</p>}
     </div>
@@ -568,8 +571,8 @@ const SourcePropertyField = ({
   const selectValue = isMultiple
     ? Array.isArray(propVal)
       ? propVal.map((v) =>
-        typeof v === 'object' && v !== null ? String(v.id ?? v.key ?? v.value ?? '') : String(v),
-      )
+          typeof v === 'object' && v !== null ? String(v.id ?? v.key ?? v.value ?? '') : String(v),
+        )
       : typeof propVal === 'string' && propVal.trim()
         ? propVal.split(',')
         : []
@@ -592,11 +595,11 @@ const SourcePropertyField = ({
   const displayKeyValuePairs =
     selectedItem && typeof selectedItem === 'object' && !Array.isArray(selectedItem)
       ? Object.entries(selectedItem).filter(
-        ([k]) =>
-          !['id', 'created_at', 'updated_at', 'customer_id', 'tenant_id', 'created_by'].includes(
-            k.toLowerCase(),
-          ),
-      )
+          ([k]) =>
+            !['id', 'created_at', 'updated_at', 'customer_id', 'tenant_id', 'created_by'].includes(
+              k.toLowerCase(),
+            ),
+        )
       : [];
 
   return (
@@ -906,134 +909,136 @@ const ContractTreeRenderer: React.FC<{
   onToggleRequired,
   onToggleStateable,
 }) => {
-    const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-    return (
-      <div className="space-y-1 font-mono text-[11px] w-full">
-        {nodes.map((node) => {
-          const isExpanded = !collapsed[node.path];
-          const hasChildren = node.children && node.children.length > 0;
+  return (
+    <div className="space-y-1 font-mono text-[11px] w-full">
+      {nodes.map((node) => {
+        const isExpanded = !collapsed[node.path];
+        const hasChildren = node.children && node.children.length > 0;
 
-          return (
-            <div key={node.path} className="flex flex-col w-full">
-              <div
-                className="flex items-center justify-between py-1 px-2 rounded hover:bg-slate-100/80 gap-2 transition-colors w-full"
-                style={{ paddingLeft: `${depth * 0.75 + 0.25}rem` }}
-              >
-                <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                  {hasChildren ? (
-                    <button
-                      onClick={() =>
-                        setCollapsed((prev) => ({ ...prev, [node.path]: !prev[node.path] }))
-                      }
-                      className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors cursor-pointer shrink-0"
-                    >
-                      {isExpanded ? (
-                        <ChevronDown className="w-3 h-3" />
-                      ) : (
-                        <ChevronRight className="w-3 h-3" />
-                      )}
-                    </button>
-                  ) : (
-                    <span className="w-4 shrink-0" />
-                  )}
-
-                  {hasChildren ? (
-                    isExpanded ? (
-                      <FolderOpen className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+        return (
+          <div key={node.path} className="flex flex-col w-full">
+            <div
+              className="flex items-center justify-between py-1 px-2 rounded hover:bg-slate-100/80 gap-2 transition-colors w-full"
+              style={{ paddingLeft: `${depth * 0.75 + 0.25}rem` }}
+            >
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                {hasChildren ? (
+                  <button
+                    onClick={() =>
+                      setCollapsed((prev) => ({ ...prev, [node.path]: !prev[node.path] }))
+                    }
+                    className="p-0.5 hover:bg-slate-200 rounded text-slate-500 transition-colors cursor-pointer shrink-0"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="w-3 h-3" />
                     ) : (
-                      <Folder className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                    )
-                  ) : (
-                    <FileCode className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  )}
-
-                  <span className="text-slate-700 truncate font-semibold">
-                    {node.name}
-                    {node.required && (
-                      <span className="text-red-500 ml-0.5 font-bold" title="Required">
-                        *
-                      </span>
+                      <ChevronRight className="w-3 h-3" />
                     )}
-                  </span>
+                  </button>
+                ) : (
+                  <span className="w-4 shrink-0" />
+                )}
 
-                  <span className="text-[8px] font-semibold text-slate-500 bg-slate-100 px-1 rounded border border-slate-250/70 uppercase shrink-0">
-                    {node.type}
-                  </span>
-                </div>
-
-                {/* Status Badges */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {isOutput ? (
-                    <>
-                      <button
-                        onClick={() => onToggleRequired?.(node.path, !node.required)}
-                        className={`text-[8px] font-bold px-1.5 py-0.5 rounded border transition-colors cursor-pointer shrink-0 uppercase tracking-wider ${node.required
-                          ? 'text-amber-600 bg-amber-50 border-amber-250 hover:bg-amber-100/80'
-                          : 'text-slate-400 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
-                          }`}
-                        title={node.required ? 'Click to make optional' : 'Click to make required'}
-                      >
-                        Req
-                      </button>
-                      <button
-                        onClick={() => onToggleStateable?.(node.path, !node.stateable)}
-                        className={`flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded border transition-colors cursor-pointer shrink-0 uppercase tracking-wider ${node.stateable
-                          ? 'text-emerald-600 bg-emerald-50 border-emerald-250 hover:bg-emerald-100/80'
-                          : 'text-slate-400 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
-                          }`}
-                        title={
-                          node.stateable
-                            ? 'Click to stop sharing state'
-                            : 'Click to share value to workflow state'
-                        }
-                      >
-                        <Share2
-                          className={`w-2 h-2 ${node.stateable ? 'text-emerald-500' : 'text-slate-400'}`}
-                        />
-                        Shared
-                      </button>
-                    </>
+                {hasChildren ? (
+                  isExpanded ? (
+                    <FolderOpen className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                   ) : (
-                    <>
-                      {node.required && (
-                        <span
-                          className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1 py-0.5 rounded border border-amber-250 tracking-wider uppercase shrink-0"
-                          title="Required Parameter"
-                        >
-                          Req
-                        </span>
-                      )}
-                      {node.stateable && (
-                        <span
-                          className="flex items-center gap-0.5 text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-250 tracking-wider uppercase shrink-0"
-                          title="State Shared Variable"
-                        >
-                          <Share2 className="w-2 h-2 text-emerald-500" />
-                          Shared
-                        </span>
-                      )}
-                    </>
+                    <Folder className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  )
+                ) : (
+                  <FileCode className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                )}
+
+                <span className="text-slate-700 truncate font-semibold">
+                  {node.name}
+                  {node.required && (
+                    <span className="text-red-500 ml-0.5 font-bold" title="Required">
+                      *
+                    </span>
                   )}
-                </div>
+                </span>
+
+                <span className="text-[8px] font-semibold text-slate-500 bg-slate-100 px-1 rounded border border-slate-250/70 uppercase shrink-0">
+                  {node.type}
+                </span>
               </div>
 
-              {hasChildren && isExpanded && (
-                <ContractTreeRenderer
-                  nodes={node.children!}
-                  depth={depth + 1}
-                  isOutput={isOutput}
-                  readOnly={readOnly}
-                  onToggleRequired={onToggleRequired}
-                  onToggleStateable={onToggleStateable}
-                />
-              )}
+              {/* Status Badges */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {isOutput ? (
+                  <>
+                    <button
+                      onClick={() => onToggleRequired?.(node.path, !node.required)}
+                      className={`text-[8px] font-bold px-1.5 py-0.5 rounded border transition-colors cursor-pointer shrink-0 uppercase tracking-wider ${
+                        node.required
+                          ? 'text-amber-600 bg-amber-50 border-amber-250 hover:bg-amber-100/80'
+                          : 'text-slate-400 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
+                      }`}
+                      title={node.required ? 'Click to make optional' : 'Click to make required'}
+                    >
+                      Req
+                    </button>
+                    <button
+                      onClick={() => onToggleStateable?.(node.path, !node.stateable)}
+                      className={`flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded border transition-colors cursor-pointer shrink-0 uppercase tracking-wider ${
+                        node.stateable
+                          ? 'text-emerald-600 bg-emerald-50 border-emerald-250 hover:bg-emerald-100/80'
+                          : 'text-slate-400 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
+                      }`}
+                      title={
+                        node.stateable
+                          ? 'Click to stop sharing state'
+                          : 'Click to share value to workflow state'
+                      }
+                    >
+                      <Share2
+                        className={`w-2 h-2 ${node.stateable ? 'text-emerald-500' : 'text-slate-400'}`}
+                      />
+                      Shared
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {node.required && (
+                      <span
+                        className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1 py-0.5 rounded border border-amber-250 tracking-wider uppercase shrink-0"
+                        title="Required Parameter"
+                      >
+                        Req
+                      </span>
+                    )}
+                    {node.stateable && (
+                      <span
+                        className="flex items-center gap-0.5 text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-250 tracking-wider uppercase shrink-0"
+                        title="State Shared Variable"
+                      >
+                        <Share2 className="w-2 h-2 text-emerald-500" />
+                        Shared
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          );
-        })}
-      </div>
-    );
-  };
+
+            {hasChildren && isExpanded && (
+              <ContractTreeRenderer
+                nodes={node.children!}
+                depth={depth + 1}
+                isOutput={isOutput}
+                readOnly={readOnly}
+                onToggleRequired={onToggleRequired}
+                onToggleStateable={onToggleStateable}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 // Assuming AgentPropertyDefinition and PropertyValue are defined in component-categoriees.ts
 // If not, you would define them here:
@@ -1464,8 +1469,8 @@ export default function PropertiesPanel({
   );
   const stringifiedOutputContract = JSON.stringify(
     (selectedNode?.data as any)?.output_contract ||
-    (selectedNode?.data as any)?.outputContract ||
-    {},
+      (selectedNode?.data as any)?.outputContract ||
+      {},
   );
   useEffect(() => {
     if (selectedNode) {
@@ -1851,10 +1856,10 @@ export default function PropertiesPanel({
                 <select
                   value={String(
                     selectedProvider ||
-                    (isSystem
-                      ? systemProps[`${field.key}_provider`]
-                      : (userProps[`${field.key}_provider`] as string)) ||
-                    '',
+                      (isSystem
+                        ? systemProps[`${field.key}_provider`]
+                        : (userProps[`${field.key}_provider`] as string)) ||
+                      '',
                   )}
                   disabled={isDisabled}
                   onChange={(e) => setSelectedProvider(e.target.value)}
@@ -1924,10 +1929,11 @@ export default function PropertiesPanel({
                   `width=${width},height=${height},left=${left},top=${top}`,
                 );
               }}
-              className={`w-full py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 ${credentialId
-                ? 'bg-white border border-blue-200 text-bg-primary hover:bg-blue-50'
-                : 'bg-primary text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none'
-                }`}
+              className={`w-full py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 ${
+                credentialId
+                  ? 'bg-white border border-blue-200 text-bg-primary hover:bg-blue-50'
+                  : 'bg-primary text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none'
+              }`}
             >
               {credentialId ? 'Reconnect Account' : 'Authenticate & Connect'}
             </button>
@@ -2281,19 +2287,21 @@ export default function PropertiesPanel({
       <div className="flex border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-500 shrink-0">
         <button
           onClick={() => setViewMode('config')}
-          className={`flex-1 py-3 text-center transition-all cursor-pointer ${viewMode === 'config'
-            ? 'bg-white text-indigo-650 border-b-2 border-indigo-600 font-bold'
-            : 'bg-slate-50/50 hover:bg-slate-50 hover:text-slate-700'
-            }`}
+          className={`flex-1 py-3 text-center transition-all cursor-pointer ${
+            viewMode === 'config'
+              ? 'bg-white text-indigo-650 border-b-2 border-indigo-600 font-bold'
+              : 'bg-slate-50/50 hover:bg-slate-50 hover:text-slate-700'
+          }`}
         >
           Properties
         </button>
         <button
           onClick={() => setViewMode('contract')}
-          className={`flex-1 py-3 text-center text-[10px] transition-all cursor-pointer ${viewMode === 'contract'
-            ? 'bg-white text-indigo-650 border-b-2 border-indigo-600 font-bold'
-            : 'bg-slate-50/50 hover:bg-slate-50 hover:text-slate-700'
-            }`}
+          className={`flex-1 py-3 text-center text-[10px] transition-all cursor-pointer ${
+            viewMode === 'contract'
+              ? 'bg-white text-indigo-650 border-b-2 border-indigo-600 font-bold'
+              : 'bg-slate-50/50 hover:bg-slate-50 hover:text-slate-700'
+          }`}
         >
           Data Contracts
         </button>
@@ -2410,8 +2418,9 @@ export default function PropertiesPanel({
                     </span>
                   </div>
                   <ChevronDown
-                    className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${collapsedSections.parameters ? '-rotate-90' : 'rotate-0'
-                      }`}
+                    className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
+                      collapsedSections.parameters ? '-rotate-90' : 'rotate-0'
+                    }`}
                   />
                 </button>
                 {!collapsedSections.parameters && (
@@ -2437,7 +2446,7 @@ export default function PropertiesPanel({
                           );
                           const schemaArray = ensureArray(
                             (selectedNode?.data as any)?.propertySchema ||
-                            (selectedNode?.data as any)?.property_schema,
+                              (selectedNode?.data as any)?.property_schema,
                           );
 
                           const catalogSchema =
@@ -2670,7 +2679,7 @@ export default function PropertiesPanel({
                                 <input
                                   type={
                                     key.toLowerCase().includes('password') ||
-                                      key.toLowerCase().includes('secret')
+                                    key.toLowerCase().includes('secret')
                                       ? 'password'
                                       : 'text'
                                   }
@@ -2730,8 +2739,9 @@ export default function PropertiesPanel({
                         </button>
                       )}
                       <ChevronDown
-                        className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${collapsedSections.mapping ? '-rotate-90' : 'rotate-0'
-                          }`}
+                        className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
+                          collapsedSections.mapping ? '-rotate-90' : 'rotate-0'
+                        }`}
                       />
                     </div>
                   </div>
@@ -2801,8 +2811,9 @@ export default function PropertiesPanel({
                         READ ONLY
                       </span>
                       <ChevronDown
-                        className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${collapsedSections.system ? '-rotate-90' : 'rotate-0'
-                          }`}
+                        className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
+                          collapsedSections.system ? '-rotate-90' : 'rotate-0'
+                        }`}
                       />
                     </div>
                   </button>

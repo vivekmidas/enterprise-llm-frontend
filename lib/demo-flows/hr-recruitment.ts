@@ -19,7 +19,7 @@
 
 import type { Node, Edge } from '@xyflow/react';
 
-export const HR_FLOW_ID   = 'demo-hr-recruitment';
+export const HR_FLOW_ID = 'demo-hr-recruitment';
 export const HR_FLOW_NAME = 'ATS — AI Talent Pipeline';
 export const HR_FLOW_DESCRIPTION =
   'Webhook-driven ATS: CV ingest (PDF→VectorDB with metadata tags) and ' +
@@ -46,15 +46,15 @@ export const HR_FLOW_CATEGORY = 'HR';
 //        ▼
 //  [Ingest Confirmation]
 
-const X_TRIGGER    = 60;
-const X_INGEST     = 60;
-const X_SEARCH     = 640;
+const X_TRIGGER = 60;
+const X_INGEST = 60;
+const X_SEARCH = 640;
 
-const Y_TRIGGER    = 280;
-const Y_STEP1      = 460;
-const Y_STEP2      = 640;
-const Y_STEP3      = 820;
-const Y_STEP4      = 1000;
+const Y_TRIGGER = 280;
+const Y_STEP1 = 460;
+const Y_STEP2 = 640;
+const Y_STEP3 = 820;
+const Y_STEP4 = 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Nodes — all use existing registered node names
@@ -81,30 +81,30 @@ export const hrNodes: Node[] = [
       // Workflow-instance properties override the base node's defaults
       user_properties: {},
       system_properties: {
-        base_path: 'ats',   // → /webhooks/run/ats
+        base_path: 'ats', // → /webhooks/run/ats
       },
       // Input contract for this ATS instance
       input_contract: {
-        mode:             { type: 'string',  required: true,  enum: ['ingest', 'search', 'ingest_email'] },
+        mode: { type: 'string', required: true, enum: ['ingest', 'search', 'ingest_email'] },
         // ingest fields
-        applicant_name:   { type: 'string',  required: false },
-        email:            { type: 'string',  required: false },
-        position_applied: { type: 'string',  required: false },
-        experience_years: { type: 'number',  required: false },
-        source:           { type: 'string',  required: false },
-        cv_file_b64:      { type: 'string',  required: false, description: 'Base64 PDF/DOCX bytes' },
-        cv_url:           { type: 'string',  required: false },
+        applicant_name: { type: 'string', required: false },
+        email: { type: 'string', required: false },
+        position_applied: { type: 'string', required: false },
+        experience_years: { type: 'number', required: false },
+        source: { type: 'string', required: false },
+        cv_file_b64: { type: 'string', required: false, description: 'Base64 PDF/DOCX bytes' },
+        cv_url: { type: 'string', required: false },
         // search fields
-        query_text:       { type: 'string',  required: false },
-        jd_file_b64:      { type: 'string',  required: false },
-        position:         { type: 'string',  required: false },
-        top_k:            { type: 'integer', required: false },
-        min_score:        { type: 'number',  required: false },
-        filters:          { type: 'object',  required: false },
+        query_text: { type: 'string', required: false },
+        jd_file_b64: { type: 'string', required: false },
+        position: { type: 'string', required: false },
+        top_k: { type: 'integer', required: false },
+        min_score: { type: 'number', required: false },
+        filters: { type: 'object', required: false },
         // email ingest
-        raw_email:        { type: 'string',  required: false },
-        from_address:     { type: 'string',  required: false },
-        subject:          { type: 'string',  required: false },
+        raw_email: { type: 'string', required: false },
+        from_address: { type: 'string', required: false },
+        subject: { type: 'string', required: false },
       },
       output_contract: {
         // Passes body through unchanged — downstream nodes access fields directly
@@ -144,9 +144,9 @@ export const hrNodes: Node[] = [
         max_tokens: 4096,
       },
       input_contract: {
-        cv_file_b64:     { type: 'string', required: false, description: 'Base64 PDF/DOCX' },
-        mime_type:       { type: 'string', required: false },
-        applicant_name:  { type: 'string', required: false },
+        cv_file_b64: { type: 'string', required: false, description: 'Base64 PDF/DOCX' },
+        mime_type: { type: 'string', required: false },
+        applicant_name: { type: 'string', required: false },
       },
       output_contract: {
         text: { type: 'string', required: true, description: 'Raw extracted CV text' },
@@ -224,24 +224,24 @@ export const hrNodes: Node[] = [
       color: '#2cb23c',
       badge: 'VectorDB',
       user_properties: {
-        operation:         'upsert',
-        db_type:           'qdrant',
-        url:               '',           // Set at workflow config time (Qdrant URL)
-        collection_name:   'ats_cv_pool',
-        embedding_api_url: '',           // Set at workflow config time
-        embedding_model:   'nomic-embed-text',
+        operation: 'upsert',
+        db_type: 'qdrant',
+        url: '', // Set at workflow config time (Qdrant URL)
+        collection_name: 'ats_cv_pool',
+        embedding_api_url: '', // Set at workflow config time
+        embedding_model: 'nomic-embed-text',
         embedding_api_key: '',
         chunking_strategy: 'recursive',
-        chunk_size:        800,
-        chunk_overlap:     150,
+        chunk_size: 800,
+        chunk_overlap: 150,
       },
       // Runtime payload keys (from upstream gemini_node output via transformer)
       input_contract: {
-        text:       { type: 'string', required: false, description: 'Raw CV text to embed' },
+        text: { type: 'string', required: false, description: 'Raw CV text to embed' },
         pdf_base64: { type: 'string', required: false, description: 'Base64 PDF bytes' },
       },
       output_contract: {
-        status:          { type: 'string',  required: true  },
+        status: { type: 'string', required: true },
         upserted_points: { type: 'integer', required: false },
       },
       executionStatus: 'idle',
@@ -267,11 +267,11 @@ export const hrNodes: Node[] = [
       badge: 'Transform',
       user_properties: {
         mapping_template: JSON.stringify({
-          status:         '{{ input_data.status }}',
-          message:        '{{ input_data.message }}',
-          document_id:    '{{ input_data.document_id }}',
+          status: '{{ input_data.status }}',
+          message: '{{ input_data.message }}',
+          document_id: '{{ input_data.document_id }}',
           applicant_name: '{{ input_data.applicant_name }}',
-          email:          '{{ input_data.email }}',
+          email: '{{ input_data.email }}',
           chunks_indexed: '{{ input_data.chunk_count }}',
         }),
         output_format: 'json',
@@ -300,24 +300,24 @@ export const hrNodes: Node[] = [
       color: '#2cb23c',
       badge: 'VectorDB',
       user_properties: {
-        operation:         'search',
-        db_type:           'qdrant',
-        url:               '',           // Set at workflow config time
-        collection_name:   'ats_cv_pool',
-        embedding_api_url: '',           // Set at workflow config time
-        embedding_model:   'nomic-embed-text',
+        operation: 'search',
+        db_type: 'qdrant',
+        url: '', // Set at workflow config time
+        collection_name: 'ats_cv_pool',
+        embedding_api_url: '', // Set at workflow config time
+        embedding_model: 'nomic-embed-text',
         embedding_api_key: '',
         similarity_threshold: 0.55,
-        top_k:             10,
+        top_k: 10,
       },
       // Runtime payload: { text: <query> } or { query: <query> }
       input_contract: {
-        text:  { type: 'string', required: false, description: 'Job description or keyword query' },
+        text: { type: 'string', required: false, description: 'Job description or keyword query' },
         query: { type: 'string', required: false, description: 'Alias for text' },
       },
       output_contract: {
-        results: { type: 'array',  required: true  },
-        count:   { type: 'integer',required: false },
+        results: { type: 'array', required: true },
+        count: { type: 'integer', required: false },
       },
       executionStatus: 'idle',
     },
@@ -362,7 +362,7 @@ export const hrNodes: Node[] = [
       },
       input_contract: {
         context: { type: 'string', required: true, description: 'Retrieved candidate chunks' },
-        query:   { type: 'string', required: true, description: 'Original job description query' },
+        query: { type: 'string', required: true, description: 'Original job description query' },
       },
       output_contract: {
         text: { type: 'string', required: true, description: 'JSON array of ranked candidates' },
@@ -390,13 +390,13 @@ export const hrNodes: Node[] = [
       badge: 'Transform',
       user_properties: {
         mapping_template: JSON.stringify({
-          status:           'success',
-          query:            '{{ input_data.query }}',
-          candidates:       '{{ input_data.text }}',
+          status: 'success',
+          query: '{{ input_data.query }}',
+          candidates: '{{ input_data.text }}',
           total_candidates: '{{ input_data.results | length }}',
           search_metadata: {
-            top_k:   10,
-            source:  'ats-cv-pool',
+            top_k: 10,
+            source: 'ats-cv-pool',
           },
         }),
         output_format: 'json',
@@ -420,9 +420,14 @@ export const hrEdges: Edge[] = [
     data: { condition: 'ingest' },
   },
   // Ingest path
-  { id: 'e-extractor-tagger',  source: 'ats-cv-extractor',  target: 'ats-cv-tagger',       animated: true },
-  { id: 'e-tagger-ingest',     source: 'ats-cv-tagger',     target: 'ats-vectordb-ingest',  animated: true },
-  { id: 'e-ingest-confirm',    source: 'ats-vectordb-ingest',target: 'ats-ingest-confirm',   animated: true },
+  { id: 'e-extractor-tagger', source: 'ats-cv-extractor', target: 'ats-cv-tagger', animated: true },
+  { id: 'e-tagger-ingest', source: 'ats-cv-tagger', target: 'ats-vectordb-ingest', animated: true },
+  {
+    id: 'e-ingest-confirm',
+    source: 'ats-vectordb-ingest',
+    target: 'ats-ingest-confirm',
+    animated: true,
+  },
 
   // Trigger → search path
   {
@@ -434,20 +439,20 @@ export const hrEdges: Edge[] = [
     data: { condition: 'search' },
   },
   // Search path
-  { id: 'e-search-ranker',   source: 'ats-search',  target: 'ats-ranker',   animated: true },
-  { id: 'e-ranker-response', source: 'ats-ranker',  target: 'ats-response', animated: true },
+  { id: 'e-search-ranker', source: 'ats-search', target: 'ats-ranker', animated: true },
+  { id: 'e-ranker-response', source: 'ats-ranker', target: 'ats-response', animated: true },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Payload for saveAgent API
 // ─────────────────────────────────────────────────────────────────────────────
 export const hrDemoPayload = {
-  id:          HR_FLOW_ID,
-  name:        HR_FLOW_NAME,
+  id: HR_FLOW_ID,
+  name: HR_FLOW_NAME,
   description: HR_FLOW_DESCRIPTION,
-  category:    HR_FLOW_CATEGORY,
-  is_enabled:  true,
-  nodes:       hrNodes,
-  edges:       hrEdges,
-  properties:  {},
+  category: HR_FLOW_CATEGORY,
+  is_enabled: true,
+  nodes: hrNodes,
+  edges: hrEdges,
+  properties: {},
 };

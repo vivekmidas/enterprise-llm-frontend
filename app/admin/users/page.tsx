@@ -33,7 +33,7 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
   // Search & Filter State (Default: customerId if given, else 'all')
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTenantFilter, setSelectedTenantFilter] = useState<string>(
-    customerId !== undefined && customerId !== null ? String(customerId) : 'all'
+    customerId !== undefined && customerId !== null ? String(customerId) : 'all',
   );
 
   // Add User Form States
@@ -43,7 +43,7 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRoleId, setNewUserRoleId] = useState<string>('');
   const [newUserCustomerId, setNewUserCustomerId] = useState<string>(
-    customerId !== undefined && customerId !== null ? String(customerId) : ''
+    customerId !== undefined && customerId !== null ? String(customerId) : '',
   );
 
   // Edit User Role Modal States
@@ -51,7 +51,7 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [editUserRoleId, setEditUserRoleId] = useState<string>('');
   const [editUserCustomerId, setEditUserCustomerId] = useState<string>(
-    customerId !== undefined && customerId !== null ? String(customerId) : 'system'
+    customerId !== undefined && customerId !== null ? String(customerId) : 'system',
   );
   const [updating, setUpdating] = useState(false);
 
@@ -105,8 +105,8 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
         name: newUserName,
         email: newUserEmail,
         password: newUserPassword,
-        role: selectedRole ? selectedRole.role_type : (newUserRoleId || 'tenant_user'),
-        role_id: selectedRole ? selectedRole.id : (newUserRoleId || undefined),
+        role: selectedRole ? selectedRole.role_type : newUserRoleId || 'tenant_user',
+        role_id: selectedRole ? selectedRole.id : newUserRoleId || undefined,
         customer_id: newUserCustomerId ? String(newUserCustomerId) : undefined,
       });
       setShowAddUserModal(false);
@@ -122,9 +122,14 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
   const handleOpenEditUserModal = (user: any) => {
     setEditingUser(user);
     const matchedRole = rolesList.find(
-      (r) => String(r.id) === String(user.role_id) || r.role_type === user.role || r.role_name === user.role
+      (r) =>
+        String(r.id) === String(user.role_id) ||
+        r.role_type === user.role ||
+        r.role_name === user.role,
     );
-    setEditUserRoleId(matchedRole ? String(matchedRole.id) : (user.role_id || user.role || 'tenant_user'));
+    setEditUserRoleId(
+      matchedRole ? String(matchedRole.id) : user.role_id || user.role || 'tenant_user',
+    );
     setEditUserCustomerId(user.customer_id ? String(user.customer_id) : 'system');
     setShowEditUserModal(true);
   };
@@ -179,8 +184,7 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
       (u.role && String(u.role).toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesTenant =
-      selectedTenantFilter === 'all' ||
-      String(u.customer_id) === String(selectedTenantFilter);
+      selectedTenantFilter === 'all' || String(u.customer_id) === String(selectedTenantFilter);
 
     return matchesSearch && matchesTenant;
   });
@@ -251,7 +255,9 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
               <tr>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Username</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Email</th>
-                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Tenant / Customer</th>
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">
+                  Tenant / Customer
+                </th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">RBAC Role</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">
@@ -278,17 +284,25 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
                     <td className="px-4 py-3">
                       {(() => {
                         const roleObj = rolesList.find(
-                          (r) => String(r.id) === String(u.role_id) || r.role_type === u.role || r.role_name === u.role
+                          (r) =>
+                            String(r.id) === String(u.role_id) ||
+                            r.role_type === u.role ||
+                            r.role_name === u.role,
                         );
                         const isSuperOrAdmin =
-                          u.role === 'admin' || u.role === 'system_admin' || u.role === 'tenant_admin' ||
-                          (roleObj && (roleObj.role_type === 'system_admin' || roleObj.role_type === 'tenant_admin'));
+                          u.role === 'admin' ||
+                          u.role === 'system_admin' ||
+                          u.role === 'tenant_admin' ||
+                          (roleObj &&
+                            (roleObj.role_type === 'system_admin' ||
+                              roleObj.role_type === 'tenant_admin'));
                         return (
                           <span
-                            className={`px-2.5 py-1 rounded text-xs font-bold ${isSuperOrAdmin
-                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                              : 'bg-blue-50 text-blue-700 border border-blue-200'
-                              }`}
+                            className={`px-2.5 py-1 rounded text-xs font-bold ${
+                              isSuperOrAdmin
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}
                           >
                             {roleObj ? roleObj.role_name : u.role}
                           </span>
@@ -297,8 +311,9 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`text-sm font-medium ${u.status === 'active' ? 'text-green-600' : 'text-red-600'
-                          }`}
+                        className={`text-sm font-medium ${
+                          u.status === 'active' ? 'text-green-600' : 'text-red-600'
+                        }`}
                       >
                         {u.status}
                       </span>
@@ -427,12 +442,13 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
                       (r) =>
                         r.is_system_preset ||
                         !r.customer_id ||
-                        String(r.customer_id) === String(newUserCustomerId)
+                        String(r.customer_id) === String(newUserCustomerId),
                     );
                     return filteredRoles.length > 0 ? (
                       filteredRoles.map((r) => (
                         <option key={r.id} value={r.id}>
-                          {r.role_name} ({r.role_type}) {r.customer_id ? '— [Tenant Custom]' : '— [System]'}
+                          {r.role_name} ({r.role_type}){' '}
+                          {r.customer_id ? '— [Tenant Custom]' : '— [System]'}
                         </option>
                       ))
                     ) : (
@@ -467,7 +483,8 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-gray-100">
             <h3 className="text-lg font-bold text-black mb-1">Edit User Role</h3>
             <p className="text-xs text-gray-500 mb-4">
-              Update RBAC role profile for <span className="font-semibold text-gray-800">{editingUser.email_id}</span>
+              Update RBAC role profile for{' '}
+              <span className="font-semibold text-gray-800">{editingUser.email_id}</span>
             </p>
 
             <form onSubmit={handleSaveUserRole} className="space-y-4">
@@ -504,12 +521,14 @@ export default function UsersTab({ userId, loginEmail, customerId, userRole }: U
                       (r) =>
                         r.is_system_preset ||
                         !r.customer_id ||
-                        (editUserCustomerId !== 'system' && String(r.customer_id) === String(editUserCustomerId))
+                        (editUserCustomerId !== 'system' &&
+                          String(r.customer_id) === String(editUserCustomerId)),
                     );
                     return filteredRoles.length > 0 ? (
                       filteredRoles.map((r) => (
                         <option key={r.id} value={r.id}>
-                          {r.role_name} ({r.role_type}) {r.customer_id ? '— [Tenant Custom]' : '— [System]'}
+                          {r.role_name} ({r.role_type}){' '}
+                          {r.customer_id ? '— [Tenant Custom]' : '— [System]'}
                         </option>
                       ))
                     ) : (

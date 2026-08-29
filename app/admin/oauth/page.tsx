@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { IconMap } from '@/lib/icons';
 
-
 export default function OAuthTab() {
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

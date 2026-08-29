@@ -31,7 +31,7 @@ import {
   Route,
   Sparkles,
   RefreshCw,
-  CornerDownRight
+  CornerDownRight,
 } from 'lucide-react';
 
 interface RolesTabProps {
@@ -89,7 +89,7 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
       const [rolesData, custsData, modsData] = await Promise.all([
         api.request('/roles').catch(() => []),
         api.getCustomers().catch(() => []),
-        api.getModules().catch(() => [])
+        api.getModules().catch(() => []),
       ]);
       setRoles(rolesData || []);
       setCustomersList(custsData || []);
@@ -109,7 +109,7 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
     setEditingRole(null);
     setRoleName('');
     setRoleDescription('');
-    setRoleCustomerId(isSystemAdmin ? 'system' : (customerId || 'system'));
+    setRoleCustomerId(isSystemAdmin ? 'system' : customerId || 'system');
     setSelectedPermissions([]);
     setSelectedMethodsByPerm({});
     setErrorMessage(null);
@@ -132,7 +132,8 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
   // Toggle all methods for an action
   const handleToggleAction = (act: ModuleAction, modActions: ModuleAction[]) => {
     const actionPermId = act.id;
-    const availableMethods = act.http_methods && act.http_methods.length > 0 ? act.http_methods : ['GET'];
+    const availableMethods =
+      act.http_methods && act.http_methods.length > 0 ? act.http_methods : ['GET'];
 
     setSelectedPermissions((prev) => {
       const isCurrentlySelected = prev.includes(actionPermId);
@@ -161,10 +162,11 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
   const handleToggleSpecificMethod = (
     act: ModuleAction,
     method: string,
-    modActions: ModuleAction[]
+    modActions: ModuleAction[],
   ) => {
     const actionPermId = act.id;
-    const availableMethods = act.http_methods && act.http_methods.length > 0 ? act.http_methods : [method];
+    const availableMethods =
+      act.http_methods && act.http_methods.length > 0 ? act.http_methods : [method];
 
     setSelectedPermissions((prev) => {
       const isCurrentlySelected = prev.includes(actionPermId);
@@ -235,7 +237,8 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
       const methodsMap: Record<string, string[]> = {};
       modulesList.forEach((m) => {
         m.actions.forEach((a) => {
-          methodsMap[a.id] = a.http_methods && a.http_methods.length > 0 ? [...a.http_methods] : ['GET'];
+          methodsMap[a.id] =
+            a.http_methods && a.http_methods.length > 0 ? [...a.http_methods] : ['GET'];
         });
       });
       setSelectedMethodsByPerm(methodsMap);
@@ -344,7 +347,8 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
               </span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Configure tenant and system-wide roles with route-linked atomic capability permissions.
+              Configure tenant and system-wide roles with route-linked atomic capability
+              permissions.
             </p>
           </div>
         </div>
@@ -383,7 +387,9 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
 
         {isSystemAdmin && (
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="text-xs font-bold uppercase text-slate-500 font-mono shrink-0">Tenant Scope:</span>
+            <span className="text-xs font-bold uppercase text-slate-500 font-mono shrink-0">
+              Tenant Scope:
+            </span>
             <select
               value={selectedTenantScope}
               onChange={(e) => setSelectedTenantScope(e.target.value)}
@@ -414,8 +420,11 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredRoles.map((role) => {
-            const isWildcard = role.permissions?.includes('*:*:*') || role.permissions?.includes('admin:*:*');
-            const matchedTenant = customersList.find((c) => String(c.id) === String(role.customer_id));
+            const isWildcard =
+              role.permissions?.includes('*:*:*') || role.permissions?.includes('admin:*:*');
+            const matchedTenant = customersList.find(
+              (c) => String(c.id) === String(role.customer_id),
+            );
 
             return (
               <div
@@ -426,7 +435,9 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div>
                       <h3 className="text-sm font-extrabold text-slate-900">{role.role_name}</h3>
-                      <span className="text-[11px] text-slate-500 font-mono">type: {role.role_type}</span>
+                      <span className="text-[11px] text-slate-500 font-mono">
+                        type: {role.role_type}
+                      </span>
                     </div>
 
                     {role.is_system_preset ? (
@@ -435,7 +446,8 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
                       </span>
                     ) : role.customer_id ? (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
-                        <Building className="w-2.5 h-2.5" /> {matchedTenant?.name || `Tenant ${role.customer_id}`}
+                        <Building className="w-2.5 h-2.5" />{' '}
+                        {matchedTenant?.name || `Tenant ${role.customer_id}`}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
@@ -453,7 +465,9 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
                       <span>Assigned Capabilities ({role.permissions?.length || 0})</span>
                       {isWildcard && (
-                        <span className="text-[10px] text-amber-600 font-extrabold">Full Access Wildcard</span>
+                        <span className="text-[10px] text-amber-600 font-extrabold">
+                          Full Access Wildcard
+                        </span>
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
@@ -472,7 +486,8 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
                 {/* Footer Controls */}
                 <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
                   <span className="text-[11px] text-slate-400">
-                    Updated {role.updated_at ? new Date(role.updated_at).toLocaleDateString() : 'N/A'}
+                    Updated{' '}
+                    {role.updated_at ? new Date(role.updated_at).toLocaleDateString() : 'N/A'}
                   </span>
 
                   <div className="flex items-center gap-1.5">
@@ -511,7 +526,9 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-indigo-700" />
                 <h3 className="text-sm font-extrabold text-slate-900">
-                  {editingRole ? `Edit Role: ${editingRole.role_name}` : 'Create Custom Role & Capability Matrix'}
+                  {editingRole
+                    ? `Edit Role: ${editingRole.role_name}`
+                    : 'Create Custom Role & Capability Matrix'}
                 </h3>
               </div>
               <button
@@ -627,7 +644,8 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
                 <div className="space-y-3">
                   {filteredMatrixModules.map((m) => {
                     const allModSelected =
-                      m.actions.length > 0 && m.actions.every((a) => selectedPermissions.includes(a.id));
+                      m.actions.length > 0 &&
+                      m.actions.every((a) => selectedPermissions.includes(a.id));
 
                     return (
                       <div
@@ -700,7 +718,9 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
                                       <div className="flex items-center gap-1.5">
                                         <span
                                           className={`text-xs font-bold ${
-                                            isPermSelected ? 'text-indigo-950 font-extrabold' : 'text-slate-900'
+                                            isPermSelected
+                                              ? 'text-indigo-950 font-extrabold'
+                                              : 'text-slate-900'
                                           }`}
                                         >
                                           {act.label}
@@ -731,12 +751,12 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
                                       const mClass = !isMethodActive
                                         ? 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
                                         : meth === 'GET'
-                                        ? 'bg-sky-50 text-sky-900 border-sky-300 shadow-xs'
-                                        : meth === 'POST'
-                                        ? 'bg-emerald-50 text-emerald-900 border-emerald-300 shadow-xs'
-                                        : meth === 'PUT'
-                                        ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-xs'
-                                        : 'bg-rose-50 text-rose-900 border-rose-300 shadow-xs';
+                                          ? 'bg-sky-50 text-sky-900 border-sky-300 shadow-xs'
+                                          : meth === 'POST'
+                                            ? 'bg-emerald-50 text-emerald-900 border-emerald-300 shadow-xs'
+                                            : meth === 'PUT'
+                                              ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-xs'
+                                              : 'bg-rose-50 text-rose-900 border-rose-300 shadow-xs';
 
                                       return (
                                         <button
@@ -775,7 +795,9 @@ export default function RolesTab({ userRole, customerId }: RolesTabProps = {}) {
                               );
                             })
                           ) : (
-                            <div className="p-3 text-slate-400 text-xs italic">No actions registered</div>
+                            <div className="p-3 text-slate-400 text-xs italic">
+                              No actions registered
+                            </div>
                           )}
                         </div>
                       </div>

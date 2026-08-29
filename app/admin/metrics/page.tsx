@@ -19,7 +19,6 @@ import {
   Copy,
 } from 'lucide-react';
 
-
 interface MetricsTabProps {
   userRole: string | null;
 }

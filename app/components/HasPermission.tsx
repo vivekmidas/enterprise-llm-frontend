@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import React from "react";
-import { hasPermissionScope } from "@/lib/config/route_permissions";
+import React from 'react';
+import { hasPermissionScope } from '@/lib/config/route_permissions';
 
 interface HasPermissionProps {
   permission: string;

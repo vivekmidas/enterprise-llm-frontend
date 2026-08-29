@@ -41,7 +41,7 @@ export interface NodeDefinition {
   label?: string;
   description: string;
   version?: string;
-  category:  string; // Renamed from group
+  category: string; // Renamed from group
   nodeType?: 'trigger' | 'tool' | 'default';
   icon: string;
   color?: string;
@@ -130,38 +130,50 @@ export interface AgentPayload {
 }
 
 export const CATEGORIES: Record<string, Category> = {
-  Start: { id: "1", name: 'Start', label: 'Agent Start', icon: 'play-circle', color: 'emerald' },
+  Start: { id: '1', name: 'Start', label: 'Agent Start', icon: 'play-circle', color: 'emerald' },
   Guardrails: {
-    id: "2",
+    id: '2',
     name: 'Guardrails',
     label: 'Safety Guardrails',
     icon: 'fence',
     color: 'red',
   },
   Validation: {
-    id: "3",
+    id: '3',
     name: 'Validation',
     label: 'Input Validation',
     icon: 'alert-triangle',
     color: 'amber',
   },
-  Context: { id: "4", name: 'Context', label: 'Context Injection', icon: 'user-cog', color: 'blue' },
-  LLM: { id: "5", name: 'LLM', label: 'LLM Processing', icon: 'bot', color: 'purple' },
+  Context: {
+    id: '4',
+    name: 'Context',
+    label: 'Context Injection',
+    icon: 'user-cog',
+    color: 'blue',
+  },
+  LLM: { id: '5', name: 'LLM', label: 'LLM Processing', icon: 'bot', color: 'purple' },
   Output: {
-    id: "6",
+    id: '6',
     name: 'Output',
     label: 'Output Generation',
     icon: 'check-circle',
     color: 'emerald',
   },
-  Trigger: { id:"7", name: 'Trigger', label: 'Event Trigger', icon: 'play-circle', color: 'blue' },
-  End: { id: "8", name: 'End', label: 'Agent End', icon: 'check-circle', color: 'gray' },
-  Data: { id: "9", name: 'Data', label: 'Data Operations', icon: 'database', color: 'cyan' },
-  Agent: { id: "10", name: 'Agent', label: 'AI Agent', icon: 'message-square', color: 'gray' },
-  Custom: { id: "11", name: 'Custom', label: 'Custom Node', icon: 'message-square', color: 'gray' },
-  Clock: { id: "12", name: 'Clock', label: 'Timer/Schedule', icon: 'clock', color: 'orange' },
-  Workflow: { id: "13", name: 'Workflow', label: 'Sub-workflow', icon: 'workflow', color: 'indigo' },
-  VectorDB: { id: "14", name: 'VectorDB', label: 'Vector DB', icon: 'blocks', color: 'emerald' },
+  Trigger: { id: '7', name: 'Trigger', label: 'Event Trigger', icon: 'play-circle', color: 'blue' },
+  End: { id: '8', name: 'End', label: 'Agent End', icon: 'check-circle', color: 'gray' },
+  Data: { id: '9', name: 'Data', label: 'Data Operations', icon: 'database', color: 'cyan' },
+  Agent: { id: '10', name: 'Agent', label: 'AI Agent', icon: 'message-square', color: 'gray' },
+  Custom: { id: '11', name: 'Custom', label: 'Custom Node', icon: 'message-square', color: 'gray' },
+  Clock: { id: '12', name: 'Clock', label: 'Timer/Schedule', icon: 'clock', color: 'orange' },
+  Workflow: {
+    id: '13',
+    name: 'Workflow',
+    label: 'Sub-workflow',
+    icon: 'workflow',
+    color: 'indigo',
+  },
+  VectorDB: { id: '14', name: 'VectorDB', label: 'Vector DB', icon: 'blocks', color: 'emerald' },
 };
 
 export const getCategory = (name?: number): Category => {

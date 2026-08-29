@@ -48,8 +48,24 @@ function buildDynamicAdminTabs(routes: RoutePermissionRule[]): AdminTabItem[] {
   const tabsMap = new Map<string, AdminTabItem>();
 
   // Baseline tab order
-  const defaultTabOrder = ['nodes', 'workflows', 'users', 'roles', 'permissions', 'domains', 'customers', 'knowledge', 'oauth', 'logs', 'metrics', 'backup', 'profiles', 'provider-presets', 'playground', 'settings'];
-
+  const defaultTabOrder = [
+    'nodes',
+    'workflows',
+    'users',
+    'roles',
+    'permissions',
+    'domains',
+    'customers',
+    'knowledge',
+    'oauth',
+    'logs',
+    'metrics',
+    'backup',
+    'profiles',
+    'provider-presets',
+    'playground',
+    'settings',
+  ];
 
   routes.forEach((rule) => {
     if (!rule.pattern || rule.pattern.includes('*')) return;
@@ -63,7 +79,8 @@ function buildDynamicAdminTabs(routes: RoutePermissionRule[]): AdminTabItem[] {
 
     if (!tabId) return;
 
-    const formattedLabel = rule.label || (rule.submodule ? rule.submodule.replace(/_/g, ' ') : tabId.replace(/-/g, ' '));
+    const formattedLabel =
+      rule.label || (rule.submodule ? rule.submodule.replace(/_/g, ' ') : tabId.replace(/-/g, ' '));
     const capitalizedLabel = formattedLabel.charAt(0).toUpperCase() + formattedLabel.slice(1);
 
     if (!tabsMap.has(tabId)) {
@@ -111,9 +128,6 @@ function AdminDashboardContent() {
     type: 'success' | 'error';
     text: string;
   } | null>(null);
-
-
-
 
   const navContainerRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
@@ -267,7 +281,9 @@ function AdminDashboardContent() {
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50 text-gray-700">
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
-          <p className="text-xs font-bold uppercase tracking-wider">Loading enterprise gateway...</p>
+          <p className="text-xs font-bold uppercase tracking-wider">
+            Loading enterprise gateway...
+          </p>
         </div>
       </div>
     );
@@ -288,7 +304,8 @@ function AdminDashboardContent() {
     );
   }
 
-  const isAdmin = userRole === 'admin' || userRole === 'system_admin' || userRole === 'tenant_admin';
+  const isAdmin =
+    userRole === 'admin' || userRole === 'system_admin' || userRole === 'tenant_admin';
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -314,10 +331,11 @@ function AdminDashboardContent() {
                       if (tab.id === 'playground') setPlaygroundKbId(null);
                       handleTabChange(tab.id);
                     }}
-                    className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0  ${activeTab === tab.id
-                      ? 'bg-white text-primary bg-primary/10 border-primary'
-                      : 'text-muted-foreground hover:text-foreground  border-transparent'
-                      }`}
+                    className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0  ${
+                      activeTab === tab.id
+                        ? 'bg-white text-primary bg-primary/10 border-primary'
+                        : 'text-muted-foreground hover:text-foreground  border-transparent'
+                    }`}
                   >
                     {tab.label}
                   </button>
@@ -335,20 +353,17 @@ function AdminDashboardContent() {
                   >
                     <span>+{hiddenTabs.length} More</span>
                     <ChevronDown
-                      className={`h-4 w-4 transition-transform duration-200 ${isMenuOpen ? 'rotate-180 text-foreground' : 'text-muted-foreground'
-                        }`}
+                      className={`h-4 w-4 transition-transform duration-200 ${
+                        isMenuOpen ? 'rotate-180 text-foreground' : 'text-muted-foreground'
+                      }`}
                     />
                   </button>
 
                   {isMenuOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
-                      <div
-                        className="absolute right-0 top-full mt-2 w-60 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1 z-50 max-h-96 overflow-y-auto"
-                      >
-                        <div
-                          className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border-b border-border text-muted-foreground"
-                        >
+                      <div className="absolute right-0 top-full mt-2 w-60 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1 z-50 max-h-96 overflow-y-auto">
+                        <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border-b border-border text-muted-foreground">
                           Hidden Options
                         </div>
                         {hiddenTabs.map((tab) => (
@@ -367,10 +382,11 @@ function AdminDashboardContent() {
                                 checkTabVisibility();
                               }, 50);
                             }}
-                            className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors cursor-pointer ${activeTab === tab.id
-                              ? 'bg-accent text-foreground font-bold'
-                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                              }`}
+                            className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors cursor-pointer ${
+                              activeTab === tab.id
+                                ? 'bg-accent text-foreground font-bold'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
                           >
                             <span>{tab.label}</span>
                             {activeTab === tab.id && (
@@ -399,7 +415,7 @@ function AdminDashboardContent() {
             <UsersTab
               userId={userId}
               loginEmail={userEmail || ''}
-              customerId={customerId ? (customerId) : null}
+              customerId={customerId ? customerId : null}
               userRole={userRole}
             />
           )}
@@ -407,25 +423,15 @@ function AdminDashboardContent() {
             <RolesTab userRole={userRole} customerId={customerId ? String(customerId) : null} />
           )}
           {/* BLOCK COMMENT: RENDER PERMISSIONS TAB */}
-          {activeTab === 'permissions' && isAdmin && (
-            <PermissionsTab />
-          )}
+          {activeTab === 'permissions' && isAdmin && <PermissionsTab />}
           {activeTab === 'domains' && isAdmin && (
             <DomainsTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}
-          {activeTab === 'oauth' && isAdmin && (
-            <OAuthTab />
-          )}
+          {activeTab === 'oauth' && isAdmin && <OAuthTab />}
 
-          {activeTab === 'logs' && isAdmin && (
-            <LogsTab userRole={userRole} />
-          )}
-          {activeTab === 'metrics' && isAdmin && (
-            <MetricsTab userRole={userRole} />
-          )}
-          {activeTab === 'backup' && isAdmin && (
-            <BackupTab />
-          )}
+          {activeTab === 'logs' && isAdmin && <LogsTab userRole={userRole} />}
+          {activeTab === 'metrics' && isAdmin && <MetricsTab userRole={userRole} />}
+          {activeTab === 'backup' && isAdmin && <BackupTab />}
           {/* BLOCK: Pass userRole and customerId to KnowledgeBasesTab */}
           {activeTab === 'knowledge' && (
             <KnowledgeBasesTab
@@ -445,14 +451,9 @@ function AdminDashboardContent() {
             <ProviderPresetsTab userRole={userRole} />
           )}
           {activeTab === 'settings' && isAdmin && (
-            <CompanySettingsTab
-              userRole={userRole}
-              customerId={customerId || undefined}
-            />
+            <CompanySettingsTab userRole={userRole} customerId={customerId || undefined} />
           )}
-          {activeTab === 'playground' && (
-            <PlaygroundTab initialKbId={playgroundKbId} />
-          )}
+          {activeTab === 'playground' && <PlaygroundTab initialKbId={playgroundKbId} />}
         </div>
       </div>
     </div>
@@ -461,7 +462,13 @@ function AdminDashboardContent() {
 
 export default function AdminPage() {
   return (
-    <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white">Loading admin page...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white">
+          Loading admin page...
+        </div>
+      }
+    >
       <AdminDashboardContent />
     </Suspense>
   );

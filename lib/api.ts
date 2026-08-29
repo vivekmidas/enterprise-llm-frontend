@@ -385,7 +385,10 @@ export const api = {
     return res.json();
   },
 
-  updateUserRole: async (userId: string, data: { name?: string; role?: string; role_id?: string; customer_id?: string | number | null }) => {
+  updateUserRole: async (
+    userId: string,
+    data: { name?: string; role?: string; role_id?: string; customer_id?: string | number | null },
+  ) => {
     const res = await fetch(`${BACKEND_URL}/admin/users/${userId}`, {
       method: 'PUT',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -714,7 +717,15 @@ export const api = {
     theme_color?: string;
     status?: string;
     config?: any;
-    fields?: Array<{ key: string; label: string; description?: string; type?: string; weight: number; importance: string; required?: boolean }>;
+    fields?: Array<{
+      key: string;
+      label: string;
+      description?: string;
+      type?: string;
+      weight: number;
+      importance: string;
+      required?: boolean;
+    }>;
     system_prompt?: string;
     user_prompt?: string;
   }) => {
@@ -738,7 +749,15 @@ export const api = {
       theme_color?: string;
       status?: string;
       config?: any;
-      fields?: Array<{ key: string; label: string; description?: string; type?: string; weight: number; importance: string; required?: boolean }>;
+      fields?: Array<{
+        key: string;
+        label: string;
+        description?: string;
+        type?: string;
+        weight: number;
+        importance: string;
+        required?: boolean;
+      }>;
       system_prompt?: string;
       user_prompt?: string;
     },
@@ -762,7 +781,12 @@ export const api = {
   },
   /* END BLOCK */
 
-  createKnowledgeBase: async (payload: { name: string; description?: string; domain_id?: string; settings?: any }) => {
+  createKnowledgeBase: async (payload: {
+    name: string;
+    description?: string;
+    domain_id?: string;
+    settings?: any;
+  }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -783,7 +807,13 @@ export const api = {
 
   updateKnowledgeBase: async (
     id: number | string,
-    payload: { name?: string; description?: string; domain_id?: string; status?: string; settings?: any },
+    payload: {
+      name?: string;
+      description?: string;
+      domain_id?: string;
+      status?: string;
+      settings?: any;
+    },
   ) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${id}`, {
       method: 'PUT',
@@ -809,10 +839,13 @@ export const api = {
   },
 
   reprocessDocument: async (kbId: number | string, docId: number | string) => {
-    const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}/reprocess`, {
-      method: 'POST',
-      headers: getHeaders(),
-    });
+    const res = await fetch(
+      `${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}/reprocess`,
+      {
+        method: 'POST',
+        headers: getHeaders(),
+      },
+    );
     if (!res.ok) throw new Error('Failed to queue document for reprocessing');
     return res.json();
   },
@@ -843,7 +876,8 @@ export const api = {
     if (metadata?.tags) formData.append('tags', metadata.tags);
     if (metadata?.doc_type) formData.append('doc_type', metadata.doc_type);
     if (metadata?.parser_strategy) formData.append('parser_strategy', metadata.parser_strategy);
-    if (metadata?.enable_dedup !== undefined) formData.append('enable_dedup', String(metadata.enable_dedup));
+    if (metadata?.enable_dedup !== undefined)
+      formData.append('enable_dedup', String(metadata.enable_dedup));
 
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/upload`, {
       method: 'POST',
@@ -855,7 +889,7 @@ export const api = {
       try {
         const errData = await res.json();
         msg = errData.detail || msg;
-      } catch { }
+      } catch {}
       throw new Error(msg);
     }
     return res.json();
@@ -891,7 +925,7 @@ export const api = {
   updateDocumentViews: async (
     kbId: string | number,
     docId: string | number,
-    payload: { normalized_text?: string; structured_json?: any }
+    payload: { normalized_text?: string; structured_json?: any },
   ) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${docId}/views`, {
       method: 'PUT',
@@ -1008,7 +1042,8 @@ export const api = {
     if (!res.ok) {
       // Fallback to /api/llm-profiles
       const fallbackUrl = new URL(`${BACKEND_URL}/api/llm-profiles`);
-      if (customerId && customerId !== 'all') fallbackUrl.searchParams.append('customer_id', String(customerId));
+      if (customerId && customerId !== 'all')
+        fallbackUrl.searchParams.append('customer_id', String(customerId));
       const fbRes = await fetch(fallbackUrl.toString(), { headers: getHeaders() });
       if (!fbRes.ok) throw new Error('Failed to fetch LLM profiles');
       return fbRes.json();
@@ -1169,13 +1204,30 @@ export const api = {
     return res.json();
   },
 
-  getTaxonomySuggestions: async (query: string, category?: string, limit: number = 12): Promise<{ suggestions: Array<{ id: string; category: string; canonical_name: string; code?: string; usage_count: number; is_auto_discovered: boolean }>; query: string }> => {
+  getTaxonomySuggestions: async (
+    query: string,
+    category?: string,
+    limit: number = 12,
+  ): Promise<{
+    suggestions: Array<{
+      id: string;
+      category: string;
+      canonical_name: string;
+      code?: string;
+      usage_count: number;
+      is_auto_discovered: boolean;
+    }>;
+    query: string;
+  }> => {
     try {
       const params = new URLSearchParams({ q: query, limit: String(limit) });
       if (category) params.append('category', category);
-      const res = await fetch(`${BACKEND_URL}/api/knowledge/taxonomy/suggest?${params.toString()}`, {
-        headers: getHeaders(),
-      });
+      const res = await fetch(
+        `${BACKEND_URL}/api/knowledge/taxonomy/suggest?${params.toString()}`,
+        {
+          headers: getHeaders(),
+        },
+      );
       if (!res.ok) return { suggestions: [], query };
       return res.json();
     } catch {
@@ -1214,7 +1266,6 @@ export const api = {
     return res.json();
   },
 
-
   getSavedQueries: async () => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/saved-queries`, {
       method: 'GET',
@@ -1224,7 +1275,12 @@ export const api = {
     return res.json();
   },
 
-  saveQuery: async (payload: { title: string; query_text?: string; filters_json?: any; is_public: boolean }) => {
+  saveQuery: async (payload: {
+    title: string;
+    query_text?: string;
+    filters_json?: any;
+    is_public: boolean;
+  }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/legal/saved-queries`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -1280,7 +1336,7 @@ export const api = {
       try {
         const data = await res.json();
         detail = data.detail || detail;
-      } catch { }
+      } catch {}
       throw new Error(detail);
     }
     return res.json();
@@ -1298,7 +1354,7 @@ export const api = {
   /** Generic API request wrapper */
   request: async (path: string, options: RequestInit = {}) => {
     const url = path.startsWith('/') ? `${BACKEND_URL}${path}` : `${BACKEND_URL}/${path}`;
-    const headers = getHeaders(options.headers as any || { 'Content-Type': 'application/json' });
+    const headers = getHeaders((options.headers as any) || { 'Content-Type': 'application/json' });
     const res = await fetch(url, { ...options, headers });
     if (!res.ok) {
       let msg = 'API request failed';
@@ -1316,20 +1372,35 @@ export const api = {
 
   /** Roles & Permissions API */
   getRoles: async (customerId?: string) => {
-    const url = customerId ? `${BACKEND_URL}/roles?customer_id=${customerId}` : `${BACKEND_URL}/roles`;
+    const url = customerId
+      ? `${BACKEND_URL}/roles?customer_id=${customerId}`
+      : `${BACKEND_URL}/roles`;
     const res = await fetch(url, { method: 'GET', headers: getHeaders() });
     if (!res.ok) return [];
     return res.json();
   },
 
   getPermissionsRegistry: async () => {
-    const res = await fetch(`${BACKEND_URL}/roles/permissions`, { method: 'GET', headers: getHeaders() });
+    const res = await fetch(`${BACKEND_URL}/roles/permissions`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
     if (!res.ok) return { permissions: [], grouped_by_module: {} };
     return res.json();
   },
 
-  createRole: async (data: { role_name: string; role_type?: string; description?: string; permission_ids?: string[] }, customerId?: string) => {
-    const url = customerId ? `${BACKEND_URL}/roles?customer_id=${customerId}` : `${BACKEND_URL}/roles`;
+  createRole: async (
+    data: {
+      role_name: string;
+      role_type?: string;
+      description?: string;
+      permission_ids?: string[];
+    },
+    customerId?: string,
+  ) => {
+    const url = customerId
+      ? `${BACKEND_URL}/roles?customer_id=${customerId}`
+      : `${BACKEND_URL}/roles`;
     const res = await fetch(url, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -1342,7 +1413,10 @@ export const api = {
     return res.json();
   },
 
-  updateRole: async (roleId: string, data: { role_name?: string; description?: string; permission_ids?: string[] }) => {
+  updateRole: async (
+    roleId: string,
+    data: { role_name?: string; description?: string; permission_ids?: string[] },
+  ) => {
     const res = await fetch(`${BACKEND_URL}/roles/${roleId}`, {
       method: 'PUT',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -1431,7 +1505,13 @@ export const api = {
     return res.json();
   },
 
-  createPermission: async (data: { id: string; module: string; submodule?: string; label: string; description?: string }) => {
+  createPermission: async (data: {
+    id: string;
+    module: string;
+    submodule?: string;
+    label: string;
+    description?: string;
+  }) => {
     const res = await fetch(`${BACKEND_URL}/roles/permissions`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -1461,7 +1541,14 @@ export const api = {
     return res.json();
   },
 
-  createRoutePermissionBinding: async (data: { pattern: string; permission_id: string; module?: string; submodule?: string; label?: string; description?: string }) => {
+  createRoutePermissionBinding: async (data: {
+    pattern: string;
+    permission_id: string;
+    module?: string;
+    submodule?: string;
+    label?: string;
+    description?: string;
+  }) => {
     const res = await fetch(`${BACKEND_URL}/roles/route-permissions`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -1474,7 +1561,17 @@ export const api = {
     return res.json();
   },
 
-  updateRoutePermissionBinding: async (id: string, data: { pattern: string; permission_id: string; module?: string; submodule?: string; label?: string; description?: string }) => {
+  updateRoutePermissionBinding: async (
+    id: string,
+    data: {
+      pattern: string;
+      permission_id: string;
+      module?: string;
+      submodule?: string;
+      label?: string;
+      description?: string;
+    },
+  ) => {
     const res = await fetch(`${BACKEND_URL}/roles/route-permissions/${id}`, {
       method: 'PUT',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -1545,7 +1642,9 @@ export const api = {
     return filename;
   },
 
-  getSqlBackupsHistory: async (): Promise<Array<{ filename: string; filepath: string; size_bytes: number; created_at: number }>> => {
+  getSqlBackupsHistory: async (): Promise<
+    Array<{ filename: string; filepath: string; size_bytes: number; created_at: number }>
+  > => {
     const res = await fetch(`${BACKEND_URL}/api/admin/backup/history`, {
       headers: getHeaders(),
     });
@@ -1557,9 +1656,12 @@ export const api = {
   },
 
   downloadSqlBackupFile: async (filename: string) => {
-    const res = await fetch(`${BACKEND_URL}/api/admin/backup/download/${encodeURIComponent(filename)}`, {
-      headers: getHeaders(),
-    });
+    const res = await fetch(
+      `${BACKEND_URL}/api/admin/backup/download/${encodeURIComponent(filename)}`,
+      {
+        headers: getHeaders(),
+      },
+    );
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || 'Failed to download SQL backup file');
@@ -1576,5 +1678,3 @@ export const api = {
     return filename;
   },
 };
-
-

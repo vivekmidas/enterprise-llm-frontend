@@ -12,7 +12,10 @@ export default function LegalHeader() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    api.getCurrentUser().then(setUser).catch(() => setUser(null));
+    api
+      .getCurrentUser()
+      .then(setUser)
+      .catch(() => setUser(null));
   }, [pathname]);
 
   const handleLogout = () => {
@@ -42,7 +45,9 @@ export default function LegalHeader() {
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
               <User className="h-4 w-4 text-gray-400" />
-              <span className="text-sm font-medium text-gray-600">{user?.name || user?.email || 'Legal User'}</span>
+              <span className="text-sm font-medium text-gray-600">
+                {user?.name || user?.email || 'Legal User'}
+              </span>
               {user?.role && (
                 <span className="text-sm font-medium text-gray-500 ml-2">
                   ({String(user.role).replace(/_/g, ' ')})

@@ -108,4 +108,3 @@ export const IconMap: Record<string, any> = {
   key: Lock,
 };
 export default IconMap;
-

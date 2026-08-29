@@ -37,7 +37,7 @@ import {
   Table,
   Filter,
   ChevronRight,
-  FileCode
+  FileCode,
 } from 'lucide-react';
 import { COLOR_PALETTE } from '@/lib/utils';
 
@@ -80,11 +80,16 @@ function renderDynamicExtractedJson(data: any) {
 
   // Extract only target fields: executive_summary, bench, court, sections
   const executiveSummary =
-    payload.executive_case_summary?.case_overview || payload.executive_summary || "NA";
+    payload.executive_case_summary?.case_overview || payload.executive_summary || 'NA';
 
   const court = payload.document?.court || payload.court || payload.court_name;
   const bench = payload.document?.judge || payload.bench || payload.judges || payload.judge;
-  const sections = payload.document?.citation || payload.sections || payload.section || payload.acts_and_sections || payload.provisions;
+  const sections =
+    payload.document?.citation ||
+    payload.sections ||
+    payload.section ||
+    payload.acts_and_sections ||
+    payload.provisions;
 
   const hasBadges = Boolean(court || bench || sections);
   if (!executiveSummary && !hasBadges) return null;
@@ -116,13 +121,15 @@ function renderDynamicExtractedJson(data: any) {
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-purple-50 text-purple-900 border border-purple-200 shadow-2xs">
               <span className="font-semibold text-purple-700">Bench:</span>{' '}
               {Array.isArray(bench)
-                ? bench.map((b) => (typeof b === 'object' ? JSON.stringify(b) : String(b))).join(', ')
+                ? bench
+                    .map((b) => (typeof b === 'object' ? JSON.stringify(b) : String(b)))
+                    .join(', ')
                 : String(bench)}
             </span>
           )}
 
-          {sections && (
-            Array.isArray(sections) ? (
+          {sections &&
+            (Array.isArray(sections) ? (
               sections.slice(0, 10).map((sec, idx) => (
                 <span
                   key={`sec-${idx}`}
@@ -134,11 +141,9 @@ function renderDynamicExtractedJson(data: any) {
               ))
             ) : (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-2xs">
-                <span className="font-semibold text-emerald-700">Sections:</span>{' '}
-                {String(sections)}
+                <span className="font-semibold text-emerald-700">Sections:</span> {String(sections)}
               </span>
-            )
-          )}
+            ))}
         </div>
       )}
     </div>
@@ -177,7 +182,9 @@ export default function KnowledgeBasesTab({
   const [reprocessingDocIds, setReprocessingDocIds] = useState<Record<string, boolean>>({});
 
   // Document Status & Search Filtering State
-  const [docStatusFilter, setDocStatusFilter] = useState<'all' | 'ready' | 'processing' | 'failed'>('all');
+  const [docStatusFilter, setDocStatusFilter] = useState<'all' | 'ready' | 'processing' | 'failed'>(
+    'all',
+  );
   const [docSearchQuery, setDocSearchQuery] = useState('');
 
   // Document Multi-Select & Sequential Deletion State
@@ -240,7 +247,9 @@ export default function KnowledgeBasesTab({
         const type = (doc.metadata_json?.type || doc.metadata_json?.doc_type || '').toLowerCase();
         const desc = (doc.metadata_json?.description || '').toLowerCase();
         const tags = Array.isArray(doc.tags)
-          ? doc.tags.map((t: any) => (typeof t === 'string' ? t : t.value || '').toLowerCase()).join(' ')
+          ? doc.tags
+              .map((t: any) => (typeof t === 'string' ? t : t.value || '').toLowerCase())
+              .join(' ')
           : Array.isArray(doc.metadata_json?.tags)
             ? doc.metadata_json.tags.join(' ').toLowerCase()
             : '';
@@ -256,7 +265,7 @@ export default function KnowledgeBasesTab({
   const toggleSelectDoc = (docId: string | number) => {
     const idStr = String(docId);
     setSelectedDocIds((prev) =>
-      prev.includes(idStr) ? prev.filter((id) => id !== idStr) : [...prev, idStr]
+      prev.includes(idStr) ? prev.filter((id) => id !== idStr) : [...prev, idStr],
     );
   };
 
@@ -300,12 +309,15 @@ export default function KnowledgeBasesTab({
   const [domainScopeFilter, setDomainScopeFilter] = useState<'ALL' | 'SYSTEM' | 'TENANT'>('ALL');
 
   useEffect(() => {
-    api.getDomainSchemas().then((data) => {
-      setDomainSchemas(data || []);
-      if (data && data.length > 0 && !selectedDomainId) {
-        setSelectedDomainId(data[0].id);
-      }
-    }).catch((err) => console.error('Failed to load domain schemas', err));
+    api
+      .getDomainSchemas()
+      .then((data) => {
+        setDomainSchemas(data || []);
+        if (data && data.length > 0 && !selectedDomainId) {
+          setSelectedDomainId(data[0].id);
+        }
+      })
+      .catch((err) => console.error('Failed to load domain schemas', err));
   }, []);
 
   const domainSchemasMap = useMemo(() => {
@@ -322,7 +334,9 @@ export default function KnowledgeBasesTab({
   const [docDescription, setDocDescription] = useState('');
   const [docTags, setDocTags] = useState('');
   const [docType, setDocType] = useState('general');
-  const [docParserStrategy, setDocParserStrategy] = useState<'dual' | 'docling_only' | 'opendataloader_only'>('dual');
+  const [docParserStrategy, setDocParserStrategy] = useState<
+    'dual' | 'docling_only' | 'opendataloader_only'
+  >('dual');
   const [docEnableDedup, setDocEnableDedup] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
@@ -333,8 +347,6 @@ export default function KnowledgeBasesTab({
   const [newDocType, setNewDocType] = useState('');
   const [savingDocTypes, setSavingDocTypes] = useState(false);
 
-
-
   // Domain Schemas Modal state
   const [showDomainModal, setShowDomainModal] = useState(false);
   const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
@@ -343,17 +355,46 @@ export default function KnowledgeBasesTab({
   const [domainScope, setDomainScope] = useState<'SYSTEM' | 'TENANT'>('SYSTEM');
   const [domainDescription, setDomainDescription] = useState('');
   const [domainSystemPrompt, setDomainSystemPrompt] = useState(
-    "You are an expert domain knowledge extractor.\nExtract structured field values accurately from the provided document content based on the target schema.\nIf you find additional relevant domain knowledge that is not covered by the target schema, output it under the 'extra_fields' key.\nReturn valid JSON only."
+    "You are an expert domain knowledge extractor.\nExtract structured field values accurately from the provided document content based on the target schema.\nIf you find additional relevant domain knowledge that is not covered by the target schema, output it under the 'extra_fields' key.\nReturn valid JSON only.",
   );
   const [domainUserPrompt, setDomainUserPrompt] = useState(
-    'Document Filename: {filename}\n\nTarget Schema Fields:\n{fields_summary}\n\nContent:\n{content}'
+    'Document Filename: {filename}\n\nTarget Schema Fields:\n{fields_summary}\n\nContent:\n{content}',
   );
   const [domainFields, setDomainFields] = useState<
-    Array<{ key: string; label: string; description?: string; type?: string; weight: number; importance: string; required?: boolean }>
+    Array<{
+      key: string;
+      label: string;
+      description?: string;
+      type?: string;
+      weight: number;
+      importance: string;
+      required?: boolean;
+    }>
   >([
-    { key: 'case_number', label: 'Case Number', description: 'Extract case reference number e.g. W.P. No.348 of 1998', weight: 2.0, importance: 'high', required: true },
-    { key: 'parties', label: 'Parties Involved', description: 'Extract petitioners and respondents with name and type', weight: 2.0, importance: 'high', required: false },
-    { key: 'rulings', label: 'Court Rulings', description: 'Extract ruling decisions, reasoning, and consequences', weight: 2.5, importance: 'critical', required: false },
+    {
+      key: 'case_number',
+      label: 'Case Number',
+      description: 'Extract case reference number e.g. W.P. No.348 of 1998',
+      weight: 2.0,
+      importance: 'high',
+      required: true,
+    },
+    {
+      key: 'parties',
+      label: 'Parties Involved',
+      description: 'Extract petitioners and respondents with name and type',
+      weight: 2.0,
+      importance: 'high',
+      required: false,
+    },
+    {
+      key: 'rulings',
+      label: 'Court Rulings',
+      description: 'Extract ruling decisions, reasoning, and consequences',
+      weight: 2.5,
+      importance: 'critical',
+      required: false,
+    },
   ]);
   const [savingDomain, setSavingDomain] = useState(false);
   const [domainError, setDomainError] = useState<string | null>(null);
@@ -365,14 +406,28 @@ export default function KnowledgeBasesTab({
     setDomainScope(isSystemAdmin ? 'SYSTEM' : 'TENANT');
     setDomainDescription('');
     setDomainSystemPrompt(
-      "You are an expert domain knowledge extractor.\nExtract structured field values accurately from the provided document content based on the target schema.\nIf you find additional relevant domain knowledge that is not covered by the target schema, output it under the 'extra_fields' key.\nReturn valid JSON only."
+      "You are an expert domain knowledge extractor.\nExtract structured field values accurately from the provided document content based on the target schema.\nIf you find additional relevant domain knowledge that is not covered by the target schema, output it under the 'extra_fields' key.\nReturn valid JSON only.",
     );
     setDomainUserPrompt(
-      'Document Filename: {filename}\n\nTarget Schema Fields:\n{fields_summary}\n\nContent:\n{content}'
+      'Document Filename: {filename}\n\nTarget Schema Fields:\n{fields_summary}\n\nContent:\n{content}',
     );
     setDomainFields([
-      { key: 'policy_number', label: 'Policy Number', type: 'string', weight: 2.0, importance: 'high', required: true },
-      { key: 'validity_expiry', label: 'Validity Expiry', type: 'date', weight: 1.5, importance: 'medium', required: false },
+      {
+        key: 'policy_number',
+        label: 'Policy Number',
+        type: 'string',
+        weight: 2.0,
+        importance: 'high',
+        required: true,
+      },
+      {
+        key: 'validity_expiry',
+        label: 'Validity Expiry',
+        type: 'date',
+        weight: 1.5,
+        importance: 'medium',
+        required: false,
+      },
     ]);
     setDomainError(null);
     setShowDomainModal(true);
@@ -386,11 +441,11 @@ export default function KnowledgeBasesTab({
     setDomainDescription(domain.description || '');
     setDomainSystemPrompt(
       domain.system_prompt ||
-      "You are an expert domain knowledge extractor.\nExtract structured field values accurately from the provided document content based on the target schema.\nIf you find additional relevant domain knowledge that is not covered by the target schema, output it under the 'extra_fields' key.\nReturn valid JSON only."
+        "You are an expert domain knowledge extractor.\nExtract structured field values accurately from the provided document content based on the target schema.\nIf you find additional relevant domain knowledge that is not covered by the target schema, output it under the 'extra_fields' key.\nReturn valid JSON only.",
     );
     setDomainUserPrompt(
       domain.user_prompt ||
-      'Document Filename: {filename}\n\nTarget Schema Fields:\n{fields_summary}\n\nContent:\n{content}'
+        'Document Filename: {filename}\n\nTarget Schema Fields:\n{fields_summary}\n\nContent:\n{content}',
     );
     setDomainFields(domain.schema_json?.fields || []);
     setDomainError(null);
@@ -409,9 +464,7 @@ export default function KnowledgeBasesTab({
   };
 
   const handleUpdateField = (idx: number, key: string, val: any) => {
-    setDomainFields((prev) =>
-      prev.map((f, i) => (i === idx ? { ...f, [key]: val } : f))
-    );
+    setDomainFields((prev) => prev.map((f, i) => (i === idx ? { ...f, [key]: val } : f)));
   };
 
   const handleSaveDomain = async (e: React.FormEvent) => {
@@ -458,7 +511,10 @@ export default function KnowledgeBasesTab({
       setDomainSchemas(updatedList);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || 'Failed to delete Domain Schema. It may be linked to active Knowledge Bases.');
+      alert(
+        err.message ||
+          'Failed to delete Domain Schema. It may be linked to active Knowledge Bases.',
+      );
     }
   };
 
@@ -504,7 +560,7 @@ export default function KnowledgeBasesTab({
       formattedParts.shift();
     }
 
-    return formattedParts.length > 0 ? formattedParts.join(' → ') : (entityType || 'Entity');
+    return formattedParts.length > 0 ? formattedParts.join(' → ') : entityType || 'Entity';
   };
 
   // Format complex domain fields (objects, arrays) into clean, human-readable strings instead of [object Object]
@@ -529,7 +585,8 @@ export default function KnowledgeBasesTab({
 
     if (typeof val === 'object') {
       const entries = Object.entries(val).filter(
-        ([_, v]) => v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0)
+        ([_, v]) =>
+          v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0),
       );
       if (entries.length === 0) return '';
 
@@ -562,10 +619,14 @@ export default function KnowledgeBasesTab({
     if (typeof directExtracted === 'string') {
       try {
         directExtracted = JSON.parse(directExtracted);
-      } catch (_) { }
+      } catch (_) {}
     }
 
-    if (directExtracted && typeof directExtracted === 'object' && Object.keys(directExtracted).length > 0) {
+    if (
+      directExtracted &&
+      typeof directExtracted === 'object' &&
+      Object.keys(directExtracted).length > 0
+    ) {
       return JSON.stringify(directExtracted, null, 2);
     }
 
@@ -574,10 +635,13 @@ export default function KnowledgeBasesTab({
 
     ekpEntities.forEach((ent) => {
       let parsedVal = ent.value;
-      if (typeof parsedVal === 'string' && (parsedVal.trim().startsWith('{') || parsedVal.trim().startsWith('['))) {
+      if (
+        typeof parsedVal === 'string' &&
+        (parsedVal.trim().startsWith('{') || parsedVal.trim().startsWith('['))
+      ) {
         try {
           parsedVal = JSON.parse(parsedVal);
-        } catch (_) { }
+        } catch (_) {}
       }
 
       const keyPath = ent.entity_key || ent.entity_type || 'entity';
@@ -631,7 +695,9 @@ export default function KnowledgeBasesTab({
   const doclingData = useMemo(() => {
     const rawText =
       ekpViewsData?.views?.extracted?.docling_raw_text ||
-      (ekpViewsData?.views?.extracted?.parser_name?.includes('docling') ? ekpViewsData?.views?.extracted?.raw_text : '') ||
+      (ekpViewsData?.views?.extracted?.parser_name?.includes('docling')
+        ? ekpViewsData?.views?.extracted?.raw_text
+        : '') ||
       selectedEkpDoc?.metadata_json?.views?.extracted?.docling_raw_text ||
       selectedEkpDoc?.metadata_json?.views?.extracted?.raw_text ||
       '';
@@ -641,7 +707,9 @@ export default function KnowledgeBasesTab({
       [];
     if (spans.length === 0 && ekpParagraphs && ekpParagraphs.length > 0) {
       // Map EKP paragraphs to viewer span format
-      const allExtractedSpans = ekpViewsData?.views?.extracted?.spans || selectedEkpDoc?.metadata_json?.views?.extracted?.spans;
+      const allExtractedSpans =
+        ekpViewsData?.views?.extracted?.spans ||
+        selectedEkpDoc?.metadata_json?.views?.extracted?.spans;
       if (allExtractedSpans && allExtractedSpans.length > 0) {
         return { rawText, spans: allExtractedSpans };
       }
@@ -657,8 +725,12 @@ export default function KnowledgeBasesTab({
         })),
       };
     }
-    const tables = ekpViewsData?.views?.extracted?.tables || selectedEkpDoc?.metadata_json?.views?.extracted?.tables || [];
-    const report = ekpViewsData?.comparison_report || selectedEkpDoc?.metadata_json?.comparison_report;
+    const tables =
+      ekpViewsData?.views?.extracted?.tables ||
+      selectedEkpDoc?.metadata_json?.views?.extracted?.tables ||
+      [];
+    const report =
+      ekpViewsData?.comparison_report || selectedEkpDoc?.metadata_json?.comparison_report;
     return { rawText, spans, tables, report };
   }, [ekpViewsData, selectedEkpDoc, ekpParagraphs]);
 
@@ -666,7 +738,9 @@ export default function KnowledgeBasesTab({
   const openDataLoaderData = useMemo(() => {
     const rawText =
       ekpViewsData?.views?.extracted?.opendataloader_raw_text ||
-      (ekpViewsData?.views?.extracted?.parser_name?.includes('opendataloader') ? ekpViewsData?.views?.extracted?.raw_text : '') ||
+      (ekpViewsData?.views?.extracted?.parser_name?.includes('opendataloader')
+        ? ekpViewsData?.views?.extracted?.raw_text
+        : '') ||
       selectedEkpDoc?.metadata_json?.views?.extracted?.opendataloader_raw_text ||
       '';
     const spans =
@@ -674,11 +748,21 @@ export default function KnowledgeBasesTab({
       selectedEkpDoc?.metadata_json?.views?.extracted?.opendataloader_spans ||
       [];
     if (spans.length === 0) {
-      const allExtractedSpans = ekpViewsData?.views?.extracted?.spans || selectedEkpDoc?.metadata_json?.views?.extracted?.spans;
+      const allExtractedSpans =
+        ekpViewsData?.views?.extracted?.spans ||
+        selectedEkpDoc?.metadata_json?.views?.extracted?.spans;
       if (allExtractedSpans && allExtractedSpans.length > 0) {
         return { rawText, spans: allExtractedSpans };
       }
-      if (spans.length === 0 && ekpParagraphs && ekpParagraphs.length > 0 && (ekpViewsData?.comparison_report?.secondary_parser?.includes('opendataloader') || selectedEkpDoc?.metadata_json?.comparison_report?.secondary_parser?.includes('opendataloader'))) {
+      if (
+        spans.length === 0 &&
+        ekpParagraphs &&
+        ekpParagraphs.length > 0 &&
+        (ekpViewsData?.comparison_report?.secondary_parser?.includes('opendataloader') ||
+          selectedEkpDoc?.metadata_json?.comparison_report?.secondary_parser?.includes(
+            'opendataloader',
+          ))
+      ) {
         return {
           rawText,
           spans: ekpParagraphs.map((p, idx) => ({
@@ -692,8 +776,12 @@ export default function KnowledgeBasesTab({
         };
       }
     }
-    const tables = ekpViewsData?.views?.extracted?.tables || selectedEkpDoc?.metadata_json?.views?.extracted?.tables || [];
-    const report = ekpViewsData?.comparison_report || selectedEkpDoc?.metadata_json?.comparison_report;
+    const tables =
+      ekpViewsData?.views?.extracted?.tables ||
+      selectedEkpDoc?.metadata_json?.views?.extracted?.tables ||
+      [];
+    const report =
+      ekpViewsData?.comparison_report || selectedEkpDoc?.metadata_json?.comparison_report;
     return { rawText, spans, tables, report };
   }, [ekpViewsData, selectedEkpDoc, ekpParagraphs]);
 
@@ -709,13 +797,19 @@ export default function KnowledgeBasesTab({
     if (typeof rawExtracted === 'string') {
       try {
         rawExtracted = JSON.parse(rawExtracted);
-      } catch (_) { }
+      } catch (_) {}
     }
 
-    const domainInfo = (rawExtracted && typeof rawExtracted === 'object') ? rawExtracted : selectedEkpDoc?.metadata_json?.domain_info;
-    const jsonTree = ekpViewsData?.views?.json || selectedEkpDoc?.metadata_json?.views?.json || rawExtracted;
+    const domainInfo =
+      rawExtracted && typeof rawExtracted === 'object'
+        ? rawExtracted
+        : selectedEkpDoc?.metadata_json?.domain_info;
+    const jsonTree =
+      ekpViewsData?.views?.json || selectedEkpDoc?.metadata_json?.views?.json || rawExtracted;
     const hasEntities = ekpEntities && ekpEntities.length > 0;
-    const hasExtractedJson = Boolean(rawExtracted && typeof rawExtracted === 'object' && Object.keys(rawExtracted).length > 0);
+    const hasExtractedJson = Boolean(
+      rawExtracted && typeof rawExtracted === 'object' && Object.keys(rawExtracted).length > 0,
+    );
     const isExtracted = hasExtractedJson || hasEntities;
 
     return {
@@ -741,13 +835,23 @@ export default function KnowledgeBasesTab({
     try {
       const kbId = doc.knowledge_base_id || selectedKb?.id;
       const [pRes, eRes, vRes, dRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/paragraphs`, { headers: getHeaders() }),
-        fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/entities`, { headers: getHeaders() }),
+        fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/paragraphs`, {
+          headers: getHeaders(),
+        }),
+        fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/entities`, {
+          headers: getHeaders(),
+        }),
         kbId
-          ? fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${doc.id}/views`, { headers: getHeaders() })
-          : fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/views`, { headers: getHeaders() }),
+          ? fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${doc.id}/views`, {
+              headers: getHeaders(),
+            })
+          : fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}/views`, {
+              headers: getHeaders(),
+            }),
         kbId
-          ? fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${doc.id}`, { headers: getHeaders() })
+          ? fetch(`${BACKEND_URL}/api/knowledge/bases/${kbId}/documents/${doc.id}`, {
+              headers: getHeaders(),
+            })
           : fetch(`${BACKEND_URL}/api/v3/knowledge/documents/${doc.id}`, { headers: getHeaders() }),
       ]);
       if (pRes && pRes.ok) {
@@ -766,7 +870,15 @@ export default function KnowledgeBasesTab({
         const vData = await vRes.json();
         setEkpViewsData(vData);
       } else {
-        setEkpViewsData(doc.metadata_json?.views ? { views: doc.metadata_json.views, comparison_report: doc.metadata_json.comparison_report, extracted_json: doc.extracted_json } : null);
+        setEkpViewsData(
+          doc.metadata_json?.views
+            ? {
+                views: doc.metadata_json.views,
+                comparison_report: doc.metadata_json.comparison_report,
+                extracted_json: doc.extracted_json,
+              }
+            : null,
+        );
       }
 
       let entities: any[] = [];
@@ -778,7 +890,10 @@ export default function KnowledgeBasesTab({
       if ((!entities || entities.length === 0) && doc.metadata_json?.domain_info) {
         const domainInfo = doc.metadata_json.domain_info;
         const domainTag = domainInfo.domain_key || domainInfo.domain_name || 'domain';
-        const allFields = { ...(domainInfo.extracted_fields || {}), ...(domainInfo.extra_fields || {}) };
+        const allFields = {
+          ...(domainInfo.extracted_fields || {}),
+          ...(domainInfo.extra_fields || {}),
+        };
         const synthesized: any[] = [];
         let counter = 0;
 
@@ -865,7 +980,7 @@ export default function KnowledgeBasesTab({
         if (editEntityForm.value.startsWith('{') || editEntityForm.value.startsWith('[')) {
           parsedValue = JSON.parse(editEntityForm.value);
         }
-      } catch (_) { }
+      } catch (_) {}
 
       const res = await fetch(`${BACKEND_URL}/api/v3/knowledge/entities/${entityId}`, {
         method: 'PUT',
@@ -896,7 +1011,8 @@ export default function KnowledgeBasesTab({
 
   const fetchDocTypes = async () => {
     try {
-      const targetCustId = isSystemAdmin && selectedCustomerFilter !== 'all' ? selectedCustomerFilter : undefined;
+      const targetCustId =
+        isSystemAdmin && selectedCustomerFilter !== 'all' ? selectedCustomerFilter : undefined;
       const url = new URL(`${BACKEND_URL}/api/knowledge/document-types`);
       if (targetCustId) {
         url.searchParams.append('customer_id', targetCustId);
@@ -922,9 +1038,7 @@ export default function KnowledgeBasesTab({
     setReprocessingDocIds((prev) => ({ ...prev, [docId]: true }));
     try {
       await api.reprocessDocument(String(selectedKb.id), String(docId));
-      setDocList((prev) =>
-        prev.map((d) => (d.id === docId ? { ...d, status: 'processing' } : d))
-      );
+      setDocList((prev) => prev.map((d) => (d.id === docId ? { ...d, status: 'processing' } : d)));
     } catch (err: any) {
       console.error('Failed to reprocess document', err);
       alert(err.message || 'Failed to queue document for reprocessing.');
@@ -944,7 +1058,8 @@ export default function KnowledgeBasesTab({
     e.preventDefault();
     setSavingDocTypes(true);
     try {
-      const targetCustId = isSystemAdmin && selectedCustomerFilter !== 'all' ? selectedCustomerFilter : undefined;
+      const targetCustId =
+        isSystemAdmin && selectedCustomerFilter !== 'all' ? selectedCustomerFilter : undefined;
       const url = new URL(`${BACKEND_URL}/api/knowledge/document-types`);
       if (targetCustId) {
         url.searchParams.append('customer_id', targetCustId);
@@ -1084,7 +1199,8 @@ export default function KnowledgeBasesTab({
 
   const targetCustomerProfiles = useMemo(() => {
     if (!isSystemAdmin) return llmProfiles;
-    const targetCust = createKbTargetCustomer || (selectedCustomerFilter !== 'all' ? selectedCustomerFilter : null);
+    const targetCust =
+      createKbTargetCustomer || (selectedCustomerFilter !== 'all' ? selectedCustomerFilter : null);
     if (targetCust) {
       return llmProfiles.filter((p) => String(p.customer_id) === String(targetCust));
     }
@@ -1101,7 +1217,8 @@ export default function KnowledgeBasesTab({
 
   useEffect(() => {
     if (isSystemAdmin) {
-      api.getCustomers()
+      api
+        .getCustomers()
         .then((list: any[]) => {
           setCustomers(list || []);
           const map: Record<number, string> = {};
@@ -1115,7 +1232,8 @@ export default function KnowledgeBasesTab({
     fetchKBs(selectedCustomerFilter);
     fetchLlmProfiles(selectedCustomerFilter);
     fetchDocTypes();
-    api.getUsers()
+    api
+      .getUsers()
       .then((users: any[]) => {
         const map: Record<number, string> = {};
         (users || []).forEach((u: any) => {
@@ -1123,7 +1241,7 @@ export default function KnowledgeBasesTab({
         });
         setUsersMap(map);
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [userRole]);
 
   useEffect(() => {
@@ -1166,11 +1284,7 @@ export default function KnowledgeBasesTab({
     const emb = s.embedding || {};
 
     const provider =
-      emb.provider ||
-      s.embedding_provider ||
-      s.provider ||
-      profile.provider ||
-      'ollama';
+      emb.provider || s.embedding_provider || s.provider || profile.provider || 'ollama';
 
     const model =
       emb.model ||
@@ -1188,15 +1302,9 @@ export default function KnowledgeBasesTab({
       profile.vector_dimension ||
       768;
 
-    const chunkSize =
-      s.chunk_size ||
-      profile.chunk_size ||
-      1000;
+    const chunkSize = s.chunk_size || profile.chunk_size || 1000;
 
-    const chunkOverlap =
-      s.chunk_overlap ||
-      profile.chunk_overlap ||
-      200;
+    const chunkOverlap = s.chunk_overlap || profile.chunk_overlap || 200;
 
     return {
       provider,
@@ -1236,7 +1344,14 @@ export default function KnowledgeBasesTab({
       chunk_size: editKbChunkSize || selectedKb?.settings?.chunk_size || 1000,
       chunk_overlap: editKbChunkOverlap || selectedKb?.settings?.chunk_overlap || 200,
     };
-  }, [activeEditProfile, selectedKb, editKbEmbeddingModel, editKbVectorDimension, editKbChunkSize, editKbChunkOverlap]);
+  }, [
+    activeEditProfile,
+    selectedKb,
+    editKbEmbeddingModel,
+    editKbVectorDimension,
+    editKbChunkSize,
+    editKbChunkOverlap,
+  ]);
 
   // =====================================================================
   // BLOCK COMMENT: KB PROFILE & VECTOR DIMENSION CHANGE GUARDRAILS
@@ -1286,7 +1401,12 @@ export default function KnowledgeBasesTab({
         enable_docling: newKbEnableDocling,
         enable_opendataloader: newKbEnableOpenDataLoader,
         enable_dedup: newKbEnableDedup,
-        parser_strategy: (newKbEnableDocling && newKbEnableOpenDataLoader) ? 'dual' : (newKbEnableDocling ? 'docling_only' : 'opendataloader_only'),
+        parser_strategy:
+          newKbEnableDocling && newKbEnableOpenDataLoader
+            ? 'dual'
+            : newKbEnableDocling
+              ? 'docling_only'
+              : 'opendataloader_only',
         extraction_prompt: newKbExtractionPrompt.trim() || undefined,
       };
 
@@ -1498,11 +1618,20 @@ export default function KnowledgeBasesTab({
     setIsBulkDeleting(false);
 
     if (successCount > 0 && failCount === 0) {
-      triggerSnackbar(`Successfully deleted ${successCount} document${successCount > 1 ? 's' : ''}.`, 'success');
+      triggerSnackbar(
+        `Successfully deleted ${successCount} document${successCount > 1 ? 's' : ''}.`,
+        'success',
+      );
     } else if (successCount > 0 && failCount > 0) {
-      triggerSnackbar(`Deleted ${successCount} document${successCount > 1 ? 's' : ''}. Failed to delete ${failCount} document${failCount > 1 ? 's' : ''}.`, 'error');
+      triggerSnackbar(
+        `Deleted ${successCount} document${successCount > 1 ? 's' : ''}. Failed to delete ${failCount} document${failCount > 1 ? 's' : ''}.`,
+        'error',
+      );
     } else if (failCount > 0) {
-      triggerSnackbar(`Failed to delete ${failCount} document${failCount > 1 ? 's' : ''}.`, 'error');
+      triggerSnackbar(
+        `Failed to delete ${failCount} document${failCount > 1 ? 's' : ''}.`,
+        'error',
+      );
     }
   };
 
@@ -1521,7 +1650,11 @@ export default function KnowledgeBasesTab({
     setEditKbName(toSentenceCase(kb.name));
     setEditKbDesc(kb.description || '');
     setEditKbPurpose(kb.settings?.purpose || '');
-    setEditKbTags(Array.isArray(kb.settings?.tags) ? kb.settings.tags.map((t: string) => (t || '').trim().toUpperCase()).filter(Boolean) : []);
+    setEditKbTags(
+      Array.isArray(kb.settings?.tags)
+        ? kb.settings.tags.map((t: string) => (t || '').trim().toUpperCase()).filter(Boolean)
+        : [],
+    );
     setEditKbEmbeddingModel(kb.settings?.embedding_model || 'nomic-embed-text');
     setEditKbVectorDimension(kb.settings?.vector_dimension || 768);
     setEditKbChunkSize(kb.settings?.chunk_size || 1000);
@@ -1530,12 +1663,12 @@ export default function KnowledgeBasesTab({
     setEditKbEnableDocling(
       kb.settings?.enable_docling !== undefined
         ? Boolean(kb.settings.enable_docling)
-        : kb.settings?.parser_strategy !== 'opendataloader_only'
+        : kb.settings?.parser_strategy !== 'opendataloader_only',
     );
     setEditKbEnableOpenDataLoader(
       kb.settings?.enable_opendataloader !== undefined
         ? Boolean(kb.settings.enable_opendataloader)
-        : kb.settings?.parser_strategy !== 'docling_only'
+        : kb.settings?.parser_strategy !== 'docling_only',
     );
     setEditKbEnableDedup(Boolean(kb.settings?.enable_dedup));
     setEditKbExtractionPrompt(kb.settings?.extraction_prompt || kb.settings?.system_prompt || '');
@@ -1572,7 +1705,12 @@ export default function KnowledgeBasesTab({
           enable_docling: editKbEnableDocling,
           enable_opendataloader: editKbEnableOpenDataLoader,
           enable_dedup: editKbEnableDedup,
-          parser_strategy: (editKbEnableDocling && editKbEnableOpenDataLoader) ? 'dual' : (editKbEnableDocling ? 'docling_only' : 'opendataloader_only'),
+          parser_strategy:
+            editKbEnableDocling && editKbEnableOpenDataLoader
+              ? 'dual'
+              : editKbEnableDocling
+                ? 'docling_only'
+                : 'opendataloader_only',
           extraction_prompt: editKbExtractionPrompt.trim() || undefined,
         },
       });
@@ -1593,9 +1731,14 @@ export default function KnowledgeBasesTab({
     setEditDoc(doc);
     setEditDocName(doc.name);
     setEditDocDesc(doc.metadata_json?.description || '');
-    const initialTags = Array.isArray(doc.tags) && doc.tags.length > 0
-      ? doc.tags.map((t: any) => typeof t === 'string' ? t : (t.value || t.canonical_name || '')).filter(Boolean)
-      : (Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags : []);
+    const initialTags =
+      Array.isArray(doc.tags) && doc.tags.length > 0
+        ? doc.tags
+            .map((t: any) => (typeof t === 'string' ? t : t.value || t.canonical_name || ''))
+            .filter(Boolean)
+        : Array.isArray(doc.metadata_json?.tags)
+          ? doc.metadata_json.tags
+          : [];
     setEditDocTags(initialTags.map((t: string) => (t || '').trim().toUpperCase()).filter(Boolean));
     setEditDocType(doc.metadata_json?.type || doc.metadata_json?.doc_type || '');
     setShowEditDocModal(true);
@@ -1680,10 +1823,11 @@ export default function KnowledgeBasesTab({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveMainTab('kb')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeMainTab === 'kb'
-                ? 'bg-white text-indigo-700 shadow-xs border border-gray-200'
-                : 'text-gray-600 hover:bg-slate-200/60'
-                }`}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeMainTab === 'kb'
+                  ? 'bg-white text-indigo-700 shadow-xs border border-gray-200'
+                  : 'text-gray-600 hover:bg-slate-200/60'
+              }`}
             >
               <BookOpen className="w-4 h-4" />
               <span>Knowledge Bases</span>
@@ -1694,10 +1838,11 @@ export default function KnowledgeBasesTab({
 
             <button
               onClick={() => setActiveMainTab('domains')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeMainTab === 'domains'
-                ? 'bg-white text-indigo-700 shadow-xs border border-gray-200'
-                : 'text-gray-600 hover:bg-slate-200/60'
-                }`}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeMainTab === 'domains'
+                  ? 'bg-white text-indigo-700 shadow-xs border border-gray-200'
+                  : 'text-gray-600 hover:bg-slate-200/60'
+              }`}
             >
               <SlidersHorizontal className="w-4 h-4" />
               <span>Domain Schemas</span>
@@ -1763,7 +1908,6 @@ export default function KnowledgeBasesTab({
         {activeMainTab === 'kb' && (
           <div className="flex-1 flex overflow-hidden">
             <div className="w-1/4 border-r border-gray-200 flex flex-col h-full bg-slate-50/20">
-
               {/* BLOCK: Customer Filter Dropdown for System Admin */}
               {isSystemAdmin && (
                 <div className="p-3 bg-slate-100 border-b border-gray-200 space-y-1">
@@ -1804,20 +1948,20 @@ export default function KnowledgeBasesTab({
                     const uploaderName = usersMap[kb.created_by] || `User #${kb.created_by}`;
                     const createdDate = kb.created_at
                       ? new Date(kb.created_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
                       : '-';
                     return (
                       <div
                         key={kb.id}
                         onClick={() => {
                           setSelectedKb(kb);
-
                         }}
-                        className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${isSelected ? 'bg-blue-50/40 border-l-4 border-l-primary' : ''
-                          }`}
+                        className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
+                          isSelected ? 'bg-blue-50/40 border-l-4 border-l-primary' : ''
+                        }`}
                       >
                         <div className="space-y-1.5 pr-2 min-w-0 flex-1">
                           <h4
@@ -1834,7 +1978,8 @@ export default function KnowledgeBasesTab({
                           {isSystemAdmin && kb.customer_id && (
                             <div className="pt-0.5">
                               <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold">
-                                Tenant: {customersMap[kb.customer_id] || `Tenant #${kb.customer_id}`}
+                                Tenant:{' '}
+                                {customersMap[kb.customer_id] || `Tenant #${kb.customer_id}`}
                               </span>
                             </div>
                           )}
@@ -1844,19 +1989,21 @@ export default function KnowledgeBasesTab({
                           {kb.domain_id && domainSchemasMap[kb.domain_id] && (
                             <div className="pt-0.5">
                               <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold inline-flex items-center gap-1">
-                                🏷️ {domainSchemasMap[kb.domain_id].name} ({domainSchemasMap[kb.domain_id].scope})
+                                🏷️ {domainSchemasMap[kb.domain_id].name} (
+                                {domainSchemasMap[kb.domain_id].scope})
                               </span>
                             </div>
                           )}
 
                           {/* Linked LLM Profile Badge */}
-                          {kb.settings?.llm_profile_id && llmProfilesMap[kb.settings.llm_profile_id] && (
-                            <div className="pt-0.5">
-                              <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1">
-                                {llmProfilesMap[kb.settings.llm_profile_id].name}
-                              </span>
-                            </div>
-                          )}
+                          {kb.settings?.llm_profile_id &&
+                            llmProfilesMap[kb.settings.llm_profile_id] && (
+                              <div className="pt-0.5">
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1">
+                                  {llmProfilesMap[kb.settings.llm_profile_id].name}
+                                </span>
+                              </div>
+                            )}
                           <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-gray-400">
                             <span className="inline-flex items-center gap-1">
                               <svg
@@ -2032,10 +2179,30 @@ export default function KnowledgeBasesTab({
                       Status:
                     </span>
                     {[
-                      { key: 'all', label: 'All', count: statusCounts.all, activeClass: 'bg-indigo-600 text-white' },
-                      { key: 'ready', label: 'Ready', count: statusCounts.ready, activeClass: 'bg-emerald-600 text-white' },
-                      { key: 'processing', label: 'Processing', count: statusCounts.processing, activeClass: 'bg-amber-600 text-white' },
-                      { key: 'failed', label: 'Failed', count: statusCounts.failed, activeClass: 'bg-rose-600 text-white' },
+                      {
+                        key: 'all',
+                        label: 'All',
+                        count: statusCounts.all,
+                        activeClass: 'bg-indigo-600 text-white',
+                      },
+                      {
+                        key: 'ready',
+                        label: 'Ready',
+                        count: statusCounts.ready,
+                        activeClass: 'bg-emerald-600 text-white',
+                      },
+                      {
+                        key: 'processing',
+                        label: 'Processing',
+                        count: statusCounts.processing,
+                        activeClass: 'bg-amber-600 text-white',
+                      },
+                      {
+                        key: 'failed',
+                        label: 'Failed',
+                        count: statusCounts.failed,
+                        activeClass: 'bg-rose-600 text-white',
+                      },
                     ].map((tab) => {
                       const isActive = docStatusFilter === tab.key;
                       return (
@@ -2043,17 +2210,17 @@ export default function KnowledgeBasesTab({
                           key={tab.key}
                           type="button"
                           onClick={() => setDocStatusFilter(tab.key as any)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${isActive
-                            ? `${tab.activeClass} border-transparent shadow-xs`
-                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900'
-                            }`}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                            isActive
+                              ? `${tab.activeClass} border-transparent shadow-xs`
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900'
+                          }`}
                         >
                           <span>{tab.label}</span>
                           <span
-                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${isActive
-                              ? 'bg-white/25 text-white'
-                              : 'bg-gray-100 text-gray-600'
-                              }`}
+                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                              isActive ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-600'
+                            }`}
                           >
                             {tab.count}
                           </span>
@@ -2146,7 +2313,8 @@ export default function KnowledgeBasesTab({
                         No documents uploaded in this knowledge base.
                       </p>
                       <p className="text-xs text-gray-400 mt-1 max-w-xs text-center">
-                        Click the "Upload Document" button above to ingest your text, PDF, or Word files.
+                        Click the "Upload Document" button above to ingest your text, PDF, or Word
+                        files.
                       </p>
                     </div>
                   ) : filteredDocList.length === 0 ? (
@@ -2175,24 +2343,38 @@ export default function KnowledgeBasesTab({
                         const isSelected = selectedDocIds.includes(String(doc.id));
                         const isDeleting = Boolean(deletingDocIds[String(doc.id)]);
                         const status = doc.status?.toLowerCase();
-                        const isProcessing = ['processing', 'pending', 'chunking', 'embedding', 'queued'].includes(
+                        const isProcessing = [
+                          'processing',
+                          'pending',
+                          'chunking',
+                          'embedding',
+                          'queued',
+                        ].includes(status);
+                        const isError = ['error', 'failed'].includes(status);
+                        const isSuccess = ['ready', 'completed', 'active', 'indexed'].includes(
                           status,
                         );
-                        const isError = ['error', 'failed'].includes(status);
-                        const isSuccess = ['ready', 'completed', 'active', 'indexed'].includes(status);
-                        const docTags = Array.isArray(doc.tags) && doc.tags.length > 0
-                          ? doc.tags.map((t: any) => typeof t === 'string' ? t : (t.value || t.canonical_name || '')).filter(Boolean)
-                          : (Array.isArray(doc.metadata_json?.tags) ? doc.metadata_json.tags : []);
+                        const docTags =
+                          Array.isArray(doc.tags) && doc.tags.length > 0
+                            ? doc.tags
+                                .map((t: any) =>
+                                  typeof t === 'string' ? t : t.value || t.canonical_name || '',
+                                )
+                                .filter(Boolean)
+                            : Array.isArray(doc.metadata_json?.tags)
+                              ? doc.metadata_json.tags
+                              : [];
                         const docDescription = doc.metadata_json?.description || '';
                         const docType =
                           doc.metadata_json?.type || doc.metadata_json?.doc_type || 'general';
                         return (
                           <div
                             key={doc.id}
-                            className={`border rounded-xl p-4 transition-all shadow-xs ${isSelected
-                              ? 'border-indigo-300 bg-indigo-50/25 ring-1 ring-indigo-200'
-                              : 'border-gray-150 hover:bg-slate-50/30 bg-white'
-                              } ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
+                            className={`border rounded-xl p-4 transition-all shadow-xs ${
+                              isSelected
+                                ? 'border-indigo-300 bg-indigo-50/25 ring-1 ring-indigo-200'
+                                : 'border-gray-150 hover:bg-slate-50/30 bg-white'
+                            } ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
                           >
                             {/* Top Row: Checkbox, Title/Badges/Meta on Left, Operations on Right */}
                             <div className="flex items-start justify-between gap-3">
@@ -2243,14 +2425,21 @@ export default function KnowledgeBasesTab({
                                       </span>
                                     </div>
                                     <span
-                                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${isSuccess
-                                        ? 'bg-green-100 text-green-800 border border-green-200'
-                                        : isProcessing
-                                          ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
-                                          : 'bg-red-100 text-red-800 border border-red-200'
-                                        }`}
+                                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                                        isSuccess
+                                          ? 'bg-green-100 text-green-800 border border-green-200'
+                                          : isProcessing
+                                            ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                                            : 'bg-red-100 text-red-800 border border-red-200'
+                                      }`}
                                     >
-                                      {isProcessing ? 'PROCESSING' : isSuccess ? (doc.status === 'ready' ? 'READY' : doc.status.toUpperCase()) : (doc.status || 'UNKNOWN').toUpperCase()}
+                                      {isProcessing
+                                        ? 'PROCESSING'
+                                        : isSuccess
+                                          ? doc.status === 'ready'
+                                            ? 'READY'
+                                            : doc.status.toUpperCase()
+                                          : (doc.status || 'UNKNOWN').toUpperCase()}
                                     </span>
                                   </div>
 
@@ -2263,7 +2452,8 @@ export default function KnowledgeBasesTab({
                                           {doc.job_message || 'Processing document...'}
                                         </span>
                                         <span className="font-bold font-mono">
-                                          {doc.job_progress !== undefined && doc.job_progress !== null
+                                          {doc.job_progress !== undefined &&
+                                          doc.job_progress !== null
                                             ? `${doc.job_progress}%`
                                             : '10%'}
                                         </span>
@@ -2310,11 +2500,11 @@ export default function KnowledgeBasesTab({
                                       Created:{' '}
                                       {doc.created_at
                                         ? new Date(doc.created_at).toLocaleString('en-US', {
-                                          month: 'short',
-                                          day: 'numeric',
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })
+                                            month: 'short',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                          })
                                         : '-'}
                                     </span>
                                   </div>
@@ -2332,18 +2522,33 @@ export default function KnowledgeBasesTab({
                                   <span>Inspect</span>
                                 </button>
                                 {(() => {
-                                  const isReprocessable = ['completed', 'active', 'ready', 'failed', 'error'].includes(status);
-                                  const isProcessingDoc = ['processing', 'pending', 'chunking', 'embedding'].includes(status) || reprocessingDocIds[doc.id];
+                                  const isReprocessable = [
+                                    'completed',
+                                    'active',
+                                    'ready',
+                                    'failed',
+                                    'error',
+                                  ].includes(status);
+                                  const isProcessingDoc =
+                                    ['processing', 'pending', 'chunking', 'embedding'].includes(
+                                      status,
+                                    ) || reprocessingDocIds[doc.id];
                                   return (
                                     <button
                                       onClick={() => handleReprocessDocument(doc.id)}
-                                      disabled={!isReprocessable || isProcessingDoc || isDeleting || isBulkDeleting}
-                                      className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 border ${isProcessingDoc
-                                        ? 'bg-amber-50 text-amber-800 border-amber-200 cursor-not-allowed opacity-75'
-                                        : isReprocessable
-                                          ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs'
-                                          : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                        }`}
+                                      disabled={
+                                        !isReprocessable ||
+                                        isProcessingDoc ||
+                                        isDeleting ||
+                                        isBulkDeleting
+                                      }
+                                      className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 border ${
+                                        isProcessingDoc
+                                          ? 'bg-amber-50 text-amber-800 border-amber-200 cursor-not-allowed opacity-75'
+                                          : isReprocessable
+                                            ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs'
+                                            : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                      }`}
                                       title={
                                         isProcessingDoc
                                           ? 'Document processing currently in progress...'
@@ -2391,7 +2596,11 @@ export default function KnowledgeBasesTab({
                             </div>
 
                             {/* Second Row / Extended Extracted JSON Box (Full Width) */}
-                            {renderDynamicExtractedJson(doc.extracted_json || doc.metadata_json?.extracted_json || doc.metadata_json?.domain_info)}
+                            {renderDynamicExtractedJson(
+                              doc.extracted_json ||
+                                doc.metadata_json?.extracted_json ||
+                                doc.metadata_json?.domain_info,
+                            )}
                           </div>
                         );
                       })}
@@ -2402,9 +2611,12 @@ export default function KnowledgeBasesTab({
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/10">
                 <BookOpen className="w-12 h-12 text-gray-300 mb-3" />
-                <h3 className="font-semibold text-gray-700 text-sm mb-1">No Knowledge Base Selected</h3>
+                <h3 className="font-semibold text-gray-700 text-sm mb-1">
+                  No Knowledge Base Selected
+                </h3>
                 <p className="text-xs text-gray-400 text-center max-w-sm">
-                  Select or create a knowledge base on the left to start uploading and managing documents.
+                  Select or create a knowledge base on the left to start uploading and managing
+                  documents.
                 </p>
                 <button
                   onClick={() => setShowCreateModal(true)}
@@ -2436,16 +2648,19 @@ export default function KnowledgeBasesTab({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Scope:</span>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    Scope:
+                  </span>
                   {(['ALL', 'SYSTEM', 'TENANT'] as const).map((sc) => (
                     <button
                       key={sc}
                       type="button"
                       onClick={() => setDomainScopeFilter(sc)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${domainScopeFilter === sc
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
-                        }`}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                        domainScopeFilter === sc
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                      }`}
                     >
                       {sc}
                     </button>
@@ -2476,16 +2691,20 @@ export default function KnowledgeBasesTab({
                           setSelectedDomainId(d.id);
                           handleOpenEditDomain(d);
                         }}
-                        className={`p-3 rounded-xl cursor-pointer transition-all border ${isSelected
-                          ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-200 shadow-xs'
-                          : 'bg-white border-gray-200 hover:border-indigo-200 hover:bg-slate-50'
-                          }`}
+                        className={`p-3 rounded-xl cursor-pointer transition-all border ${
+                          isSelected
+                            ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-200 shadow-xs'
+                            : 'bg-white border-gray-200 hover:border-indigo-200 hover:bg-slate-50'
+                        }`}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-bold text-xs text-gray-900 truncate">{d.name}</span>
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase ${d.scope === 'SYSTEM' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                              }`}
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                              d.scope === 'SYSTEM'
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}
                           >
                             {d.scope}
                           </span>
@@ -2510,8 +2729,11 @@ export default function KnowledgeBasesTab({
                         {domainName || 'Domain Schema Details'}
                       </h3>
                       <span
-                        className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${domainScope === 'SYSTEM' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                          }`}
+                        className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                          domainScope === 'SYSTEM'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
                       >
                         {domainScope} Scope
                       </span>
@@ -2546,7 +2768,9 @@ export default function KnowledgeBasesTab({
 
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-gray-700">Schema Name *</label>
+                      <label className="block text-xs font-semibold text-gray-700">
+                        Schema Name *
+                      </label>
                       <input
                         type="text"
                         required
@@ -2558,13 +2782,17 @@ export default function KnowledgeBasesTab({
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-gray-700">Domain Key *</label>
+                      <label className="block text-xs font-semibold text-gray-700">
+                        Domain Key *
+                      </label>
                       <input
                         type="text"
                         required
                         value={domainKey}
                         disabled={!isSystemAdmin && domainScope === 'SYSTEM'}
-                        onChange={(e) => setDomainKey(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
+                        onChange={(e) =>
+                          setDomainKey(e.target.value.toLowerCase().replace(/\s+/g, '_'))
+                        }
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono bg-white text-gray-900 focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
                       />
                     </div>
@@ -2622,7 +2850,11 @@ export default function KnowledgeBasesTab({
                                 placeholder="Key"
                                 value={field.key}
                                 onChange={(e) =>
-                                  handleUpdateField(idx, 'key', e.target.value.toLowerCase().replace(/\s+/g, '_'))
+                                  handleUpdateField(
+                                    idx,
+                                    'key',
+                                    e.target.value.toLowerCase().replace(/\s+/g, '_'),
+                                  )
                                 }
                                 className="w-full border border-gray-300 rounded px-2 py-1 font-mono text-xs bg-white disabled:bg-gray-100"
                               />
@@ -2645,7 +2877,9 @@ export default function KnowledgeBasesTab({
                                 disabled={isSystemField}
                                 placeholder="Directive (e.g. Extract name & role)"
                                 value={field.description || ''}
-                                onChange={(e) => handleUpdateField(idx, 'description', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateField(idx, 'description', e.target.value)
+                                }
                                 className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white disabled:bg-gray-100"
                               />
                             </div>
@@ -2654,7 +2888,9 @@ export default function KnowledgeBasesTab({
                               <select
                                 value={field.importance}
                                 disabled={isSystemField}
-                                onChange={(e) => handleUpdateField(idx, 'importance', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateField(idx, 'importance', e.target.value)
+                                }
                                 className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white disabled:bg-gray-100"
                               >
                                 <option value="low">low (1.0x)</option>
@@ -2688,7 +2924,9 @@ export default function KnowledgeBasesTab({
                   {/* Extraction Prompts Panel */}
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-gray-700">Domain System Prompt</label>
+                      <label className="block text-xs font-semibold text-gray-700">
+                        Domain System Prompt
+                      </label>
                       <textarea
                         rows={4}
                         value={domainSystemPrompt}
@@ -2699,7 +2937,9 @@ export default function KnowledgeBasesTab({
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-gray-700">Domain User Prompt Template</label>
+                      <label className="block text-xs font-semibold text-gray-700">
+                        Domain User Prompt Template
+                      </label>
                       <textarea
                         rows={4}
                         value={domainUserPrompt}
@@ -2713,7 +2953,9 @@ export default function KnowledgeBasesTab({
               ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                   <SlidersHorizontal className="w-10 h-10 mb-2 text-gray-300" />
-                  <p className="text-sm font-semibold">Select a Domain Schema on the left to edit or define fields.</p>
+                  <p className="text-sm font-semibold">
+                    Select a Domain Schema on the left to edit or define fields.
+                  </p>
                 </div>
               )}
             </div>
@@ -2849,7 +3091,9 @@ export default function KnowledgeBasesTab({
                     {targetCustomerProfiles.map((prof) => (
                       <option key={prof.id} value={String(prof.id)}>
                         {prof.name || prof.profile_name || `Profile #${prof.id}`}
-                        {prof.provider || prof.provider_name ? ` (${prof.provider || prof.provider_name})` : ''}
+                        {prof.provider || prof.provider_name
+                          ? ` (${prof.provider || prof.provider_name})`
+                          : ''}
                         {prof.is_default ? ' ★ Default' : ''}
                       </option>
                     ))}
@@ -2874,7 +3118,8 @@ export default function KnowledgeBasesTab({
                       {activeCreateEmbeddingSettings.model}
                     </span>
                     <span className="px-2 py-0.5 bg-blue-100/90 border border-blue-200 rounded text-xs font-mono font-semibold text-blue-800 shrink-0">
-                      {activeCreateEmbeddingSettings.dimension} dims ({activeCreateEmbeddingSettings.provider})
+                      {activeCreateEmbeddingSettings.dimension} dims (
+                      {activeCreateEmbeddingSettings.provider})
                     </span>
                   </div>
                 </div>
@@ -2888,13 +3133,20 @@ export default function KnowledgeBasesTab({
                     PDF Parser Engines & Deduplication
                   </span>
                   <span className="text-[10px] text-gray-500 font-medium">
-                    {newKbEnableDocling && newKbEnableOpenDataLoader ? 'Dual Sequential + Compare' : 'Single Parser Mode'}
+                    {newKbEnableDocling && newKbEnableOpenDataLoader
+                      ? 'Dual Sequential + Compare'
+                      : 'Single Parser Mode'}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${newKbEnableDocling ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}>
+                  <label
+                    className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                      newKbEnableDocling
+                        ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-xs'
+                        : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       checked={newKbEnableDocling}
@@ -2909,13 +3161,20 @@ export default function KnowledgeBasesTab({
                       className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer h-4 w-4"
                     />
                     <div className="flex-1">
-                      <strong className="block text-gray-900 text-xs font-semibold">1. IBM Docling</strong>
+                      <strong className="block text-gray-900 text-xs font-semibold">
+                        1. IBM Docling
+                      </strong>
                       <span className="text-[10px] text-gray-500">Primary structural parser</span>
                     </div>
                   </label>
 
-                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${newKbEnableOpenDataLoader ? 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}>
+                  <label
+                    className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                      newKbEnableOpenDataLoader
+                        ? 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-xs'
+                        : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       checked={newKbEnableOpenDataLoader}
@@ -2930,14 +3189,19 @@ export default function KnowledgeBasesTab({
                       className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
                     />
                     <div className="flex-1">
-                      <strong className="block text-gray-900 text-xs font-semibold">2. OpenDataLoader</strong>
+                      <strong className="block text-gray-900 text-xs font-semibold">
+                        2. OpenDataLoader
+                      </strong>
                       <span className="text-[10px] text-gray-500">Layout & PyMuPDF engine</span>
                     </div>
                   </label>
                 </div>
 
-                <div className={`flex items-center justify-between pt-2 border-t border-slate-200/80 transition-opacity ${newKbEnableDocling && newKbEnableOpenDataLoader ? 'opacity-100' : 'opacity-50'
-                  }`}>
+                <div
+                  className={`flex items-center justify-between pt-2 border-t border-slate-200/80 transition-opacity ${
+                    newKbEnableDocling && newKbEnableOpenDataLoader ? 'opacity-100' : 'opacity-50'
+                  }`}
+                >
                   <div>
                     <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                       Enable Paragraph & Boilerplate Deduplication
@@ -2948,11 +3212,17 @@ export default function KnowledgeBasesTab({
                       )}
                     </span>
                     <span className="block text-[10px] text-gray-400">
-                      Filters duplicate boilerplate & cross-parser redundant blocks (disabled by default)
+                      Filters duplicate boilerplate & cross-parser redundant blocks (disabled by
+                      default)
                     </span>
                   </div>
-                  <label className={`relative inline-flex items-center ${newKbEnableDocling && newKbEnableOpenDataLoader ? 'cursor-pointer' : 'cursor-not-allowed'
-                    }`}>
+                  <label
+                    className={`relative inline-flex items-center ${
+                      newKbEnableDocling && newKbEnableOpenDataLoader
+                        ? 'cursor-pointer'
+                        : 'cursor-not-allowed'
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       disabled={!(newKbEnableDocling && newKbEnableOpenDataLoader)}
@@ -2968,7 +3238,8 @@ export default function KnowledgeBasesTab({
               {/* ROW 5: METADATA EXTRACTION PROMPT */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Metadata Extraction Prompt <span className="text-[10px] text-gray-400 font-normal">(Optional Override)</span>
+                  Metadata Extraction Prompt{' '}
+                  <span className="text-[10px] text-gray-400 font-normal">(Optional Override)</span>
                 </label>
                 <textarea
                   value={newKbExtractionPrompt}
@@ -2978,7 +3249,8 @@ export default function KnowledgeBasesTab({
                   className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-900 bg-white font-mono placeholder:text-gray-400"
                 />
                 <p className="mt-1 text-[10px] text-gray-400">
-                  Used when Knowledge Base is linked to a Domain to customize or override JSON metadata extraction instructions.
+                  Used when Knowledge Base is linked to a Domain to customize or override JSON
+                  metadata extraction instructions.
                 </p>
               </div>
 
@@ -3081,14 +3353,15 @@ export default function KnowledgeBasesTab({
 
                           <div className="flex items-center gap-2 shrink-0">
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${item.status === 'completed'
-                                ? 'bg-green-100 text-green-700'
-                                : item.status === 'uploading'
-                                  ? 'bg-amber-100 text-amber-700 animate-pulse'
-                                  : item.status === 'failed'
-                                    ? 'bg-red-100 text-red-700'
-                                    : 'bg-gray-100 text-gray-600'
-                                }`}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                item.status === 'completed'
+                                  ? 'bg-green-100 text-green-700'
+                                  : item.status === 'uploading'
+                                    ? 'bg-amber-100 text-amber-700 animate-pulse'
+                                    : item.status === 'failed'
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-gray-100 text-gray-600'
+                              }`}
                             >
                               {item.status}
                             </span>
@@ -3160,7 +3433,9 @@ export default function KnowledgeBasesTab({
                 <div className="space-y-1">
                   <label className="block text-xs font-semibold text-gray-700 flex items-center justify-between">
                     <span>PDF Parser Strategy</span>
-                    <span className="text-[10px] text-gray-400 font-normal">Choose parsing pipeline</span>
+                    <span className="text-[10px] text-gray-400 font-normal">
+                      Choose parsing pipeline
+                    </span>
                   </label>
                   <select
                     value={docParserStrategy}
@@ -3173,14 +3448,24 @@ export default function KnowledgeBasesTab({
                     }}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
                   >
-                    <option value="dual">Dual Parser (Docling + OpenDataLoader Reconciliation - High Assurance)</option>
-                    <option value="docling_only">Docling Only (Fast Primary Structural Extraction)</option>
-                    <option value="opendataloader_only">OpenDataLoader Only (Fast Secondary Layout Parser - Recommended for Books & Textbooks)</option>
+                    <option value="dual">
+                      Dual Parser (Docling + OpenDataLoader Reconciliation - High Assurance)
+                    </option>
+                    <option value="docling_only">
+                      Docling Only (Fast Primary Structural Extraction)
+                    </option>
+                    <option value="opendataloader_only">
+                      OpenDataLoader Only (Fast Secondary Layout Parser - Recommended for Books &
+                      Textbooks)
+                    </option>
                   </select>
                 </div>
 
-                <div className={`flex items-center justify-between pt-1 border-t border-slate-200/80 transition-opacity ${docParserStrategy === 'dual' ? 'opacity-100' : 'opacity-50'
-                  }`}>
+                <div
+                  className={`flex items-center justify-between pt-1 border-t border-slate-200/80 transition-opacity ${
+                    docParserStrategy === 'dual' ? 'opacity-100' : 'opacity-50'
+                  }`}
+                >
                   <div>
                     <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                       Enable Paragraph & Boilerplate Deduplication
@@ -3190,10 +3475,16 @@ export default function KnowledgeBasesTab({
                         </span>
                       )}
                     </span>
-                    <span className="block text-[10px] text-gray-400">Filters duplicate boilerplate & cross-parser redundant blocks (disabled by default)</span>
+                    <span className="block text-[10px] text-gray-400">
+                      Filters duplicate boilerplate & cross-parser redundant blocks (disabled by
+                      default)
+                    </span>
                   </div>
-                  <label className={`relative inline-flex items-center ${docParserStrategy === 'dual' ? 'cursor-pointer' : 'cursor-not-allowed'
-                    }`}>
+                  <label
+                    className={`relative inline-flex items-center ${
+                      docParserStrategy === 'dual' ? 'cursor-pointer' : 'cursor-not-allowed'
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       disabled={docParserStrategy !== 'dual'}
@@ -3351,7 +3642,9 @@ export default function KnowledgeBasesTab({
               {/* ROW 1: NAME & PURPOSE */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-gray-700">Name <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     required
@@ -3415,7 +3708,9 @@ export default function KnowledgeBasesTab({
                     {targetCustomerProfiles.map((prof) => (
                       <option key={prof.id} value={String(prof.id)}>
                         {prof.name || prof.profile_name || `Profile #${prof.id}`}
-                        {prof.provider || prof.provider_name ? ` (${prof.provider || prof.provider_name})` : ''}
+                        {prof.provider || prof.provider_name
+                          ? ` (${prof.provider || prof.provider_name})`
+                          : ''}
                         {prof.is_default ? ' ★ Default' : ''}
                       </option>
                     ))}
@@ -3440,7 +3735,8 @@ export default function KnowledgeBasesTab({
                       {activeEditEmbeddingSettings.model}
                     </span>
                     <span className="px-2 py-0.5 bg-blue-100/90 border border-blue-200 rounded text-xs font-mono font-semibold text-blue-800 shrink-0">
-                      {activeEditEmbeddingSettings.dimension} dims ({activeEditEmbeddingSettings.provider})
+                      {activeEditEmbeddingSettings.dimension} dims (
+                      {activeEditEmbeddingSettings.provider})
                     </span>
                   </div>
                 </div>
@@ -3456,7 +3752,12 @@ export default function KnowledgeBasesTab({
                     <span>Vector Dimension Conflict ({docList.length} documents indexed)</span>
                   </div>
                   <p className="text-red-700 text-xs leading-relaxed">
-                    Selected profile uses <strong>{activeEditEmbeddingSettings.dimension} dimensions</strong> ({activeEditEmbeddingSettings.model}), but this Knowledge Base has {docList.length} documents indexed with <strong>{selectedKb?.settings?.vector_dimension} dimensions</strong>. Changing dimension is restricted to prevent Qdrant vector index corruption.
+                    Selected profile uses{' '}
+                    <strong>{activeEditEmbeddingSettings.dimension} dimensions</strong> (
+                    {activeEditEmbeddingSettings.model}), but this Knowledge Base has{' '}
+                    {docList.length} documents indexed with{' '}
+                    <strong>{selectedKb?.settings?.vector_dimension} dimensions</strong>. Changing
+                    dimension is restricted to prevent Qdrant vector index corruption.
                   </p>
                 </div>
               )}
@@ -3468,7 +3769,9 @@ export default function KnowledgeBasesTab({
                     <span>Profile Change Notice</span>
                   </div>
                   <p className="text-amber-700 text-xs leading-relaxed">
-                    Switching LLM profile will apply to future document ingestion. To update metadata extractions for existing documents ({docList.length} docs), please re-process them after saving.
+                    Switching LLM profile will apply to future document ingestion. To update
+                    metadata extractions for existing documents ({docList.length} docs), please
+                    re-process them after saving.
                   </p>
                 </div>
               )}
@@ -3481,13 +3784,20 @@ export default function KnowledgeBasesTab({
                     PDF Parser Engines & Deduplication
                   </span>
                   <span className="text-[10px] text-gray-500 font-medium">
-                    {editKbEnableDocling && editKbEnableOpenDataLoader ? 'Dual Sequential + Compare' : 'Single Parser Mode'}
+                    {editKbEnableDocling && editKbEnableOpenDataLoader
+                      ? 'Dual Sequential + Compare'
+                      : 'Single Parser Mode'}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${editKbEnableDocling ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}>
+                  <label
+                    className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                      editKbEnableDocling
+                        ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 shadow-xs'
+                        : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       checked={editKbEnableDocling}
@@ -3502,13 +3812,20 @@ export default function KnowledgeBasesTab({
                       className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer h-4 w-4"
                     />
                     <div className="flex-1">
-                      <strong className="block text-gray-900 text-xs font-semibold">1. IBM Docling</strong>
+                      <strong className="block text-gray-900 text-xs font-semibold">
+                        1. IBM Docling
+                      </strong>
                       <span className="text-[10px] text-gray-500">Primary structural parser</span>
                     </div>
                   </label>
 
-                  <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${editKbEnableOpenDataLoader ? 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}>
+                  <label
+                    className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                      editKbEnableOpenDataLoader
+                        ? 'bg-blue-50/70 border-blue-300 text-blue-950 shadow-xs'
+                        : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       checked={editKbEnableOpenDataLoader}
@@ -3523,14 +3840,19 @@ export default function KnowledgeBasesTab({
                       className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer h-4 w-4"
                     />
                     <div className="flex-1">
-                      <strong className="block text-gray-900 text-xs font-semibold">2. OpenDataLoader</strong>
+                      <strong className="block text-gray-900 text-xs font-semibold">
+                        2. OpenDataLoader
+                      </strong>
                       <span className="text-[10px] text-gray-500">Layout & PyMuPDF engine</span>
                     </div>
                   </label>
                 </div>
 
-                <div className={`flex items-center justify-between pt-2 border-t border-slate-200/80 transition-opacity ${editKbEnableDocling && editKbEnableOpenDataLoader ? 'opacity-100' : 'opacity-50'
-                  }`}>
+                <div
+                  className={`flex items-center justify-between pt-2 border-t border-slate-200/80 transition-opacity ${
+                    editKbEnableDocling && editKbEnableOpenDataLoader ? 'opacity-100' : 'opacity-50'
+                  }`}
+                >
                   <div>
                     <span className="block text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                       Enable Paragraph & Boilerplate Deduplication
@@ -3541,15 +3863,23 @@ export default function KnowledgeBasesTab({
                       )}
                     </span>
                     <span className="block text-[10px] text-gray-400">
-                      Filters duplicate boilerplate & cross-parser redundant blocks (disabled by default)
+                      Filters duplicate boilerplate & cross-parser redundant blocks (disabled by
+                      default)
                     </span>
                   </div>
-                  <label className={`relative inline-flex items-center ${editKbEnableDocling && editKbEnableOpenDataLoader ? 'cursor-pointer' : 'cursor-not-allowed'
-                    }`}>
+                  <label
+                    className={`relative inline-flex items-center ${
+                      editKbEnableDocling && editKbEnableOpenDataLoader
+                        ? 'cursor-pointer'
+                        : 'cursor-not-allowed'
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       disabled={!(editKbEnableDocling && editKbEnableOpenDataLoader)}
-                      checked={editKbEnableDocling && editKbEnableOpenDataLoader && editKbEnableDedup}
+                      checked={
+                        editKbEnableDocling && editKbEnableOpenDataLoader && editKbEnableDedup
+                      }
                       onChange={(e) => setEditKbEnableDedup(e.target.checked)}
                       className="sr-only peer"
                     />
@@ -3561,7 +3891,8 @@ export default function KnowledgeBasesTab({
               {/* METADATA EXTRACTION PROMPT */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Metadata Extraction Prompt <span className="text-[10px] text-gray-400 font-normal">(Optional Override)</span>
+                  Metadata Extraction Prompt{' '}
+                  <span className="text-[10px] text-gray-400 font-normal">(Optional Override)</span>
                 </label>
                 <textarea
                   value={editKbExtractionPrompt}
@@ -3571,7 +3902,8 @@ export default function KnowledgeBasesTab({
                   className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-900 bg-white font-mono placeholder:text-gray-400"
                 />
                 <p className="mt-1 text-[10px] text-gray-400">
-                  Used when Knowledge Base is linked to a Domain to customize or override JSON metadata extraction instructions.
+                  Used when Knowledge Base is linked to a Domain to customize or override JSON
+                  metadata extraction instructions.
                 </p>
               </div>
 
@@ -3717,12 +4049,16 @@ export default function KnowledgeBasesTab({
                     </span>
                     {ekpViewsData?.comparison_report && (
                       <span className="text-[10px] font-mono bg-blue-950 text-blue-300 px-2 py-0.5 rounded border border-blue-800 font-semibold">
-                        {((ekpViewsData.comparison_report.jaccard_overlap_ratio || 0.95) * 100).toFixed(1)}% Cross-Match
+                        {(
+                          (ekpViewsData.comparison_report.jaccard_overlap_ratio || 0.95) * 100
+                        ).toFixed(1)}
+                        % Cross-Match
                       </span>
                     )}
                   </div>
                   <p className="text-[11px] text-slate-400 font-mono truncate mt-0.5">
-                    ID: {selectedEkpDoc.id} · Size: {formatBytes(selectedEkpDoc.file_size)} · Chunks: {selectedEkpDoc.chunk_count ?? 0}
+                    ID: {selectedEkpDoc.id} · Size: {formatBytes(selectedEkpDoc.file_size)} ·
+                    Chunks: {selectedEkpDoc.chunk_count ?? 0}
                   </p>
                 </div>
               </div>
@@ -3754,7 +4090,8 @@ export default function KnowledgeBasesTab({
                 {/* COLUMN 1: TEXT EXTRACTED (Both Parsers or Single) */}
                 {/* ========================================================================= */}
                 {(() => {
-                  const currentParserData = activeTextParser === 'docling' ? doclingData : openDataLoaderData;
+                  const currentParserData =
+                    activeTextParser === 'docling' ? doclingData : openDataLoaderData;
                   const currentRawText = currentParserData.rawText;
                   const currentSpans = currentParserData.spans || [];
                   const filteredSpans = currentSpans.filter((s: any) => {
@@ -3773,7 +4110,9 @@ export default function KnowledgeBasesTab({
                           </div>
                           <div>
                             <h4 className="font-bold text-xs text-slate-900">1. Text Extracted</h4>
-                            <p className="text-[10px] text-emerald-800 font-medium">Dual/Single Parser Text Stream</p>
+                            <p className="text-[10px] text-emerald-800 font-medium">
+                              Dual/Single Parser Text Stream
+                            </p>
                           </div>
                         </div>
 
@@ -3782,20 +4121,22 @@ export default function KnowledgeBasesTab({
                           <div className="flex items-center bg-white p-0.5 rounded-lg border border-emerald-200 text-[10px] font-semibold shadow-2xs">
                             <button
                               onClick={() => setActiveTextParser('docling')}
-                              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${activeTextParser === 'docling'
-                                ? 'bg-emerald-600 text-white font-bold shadow-2xs'
-                                : 'text-gray-600 hover:text-emerald-800'
-                                }`}
+                              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                                activeTextParser === 'docling'
+                                  ? 'bg-emerald-600 text-white font-bold shadow-2xs'
+                                  : 'text-gray-600 hover:text-emerald-800'
+                              }`}
                               title="IBM Docling Parser"
                             >
                               Docling ({doclingData.spans.length})
                             </button>
                             <button
                               onClick={() => setActiveTextParser('opendataloader')}
-                              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${activeTextParser === 'opendataloader'
-                                ? 'bg-blue-600 text-white font-bold shadow-2xs'
-                                : 'text-gray-600 hover:text-blue-800'
-                                }`}
+                              className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                                activeTextParser === 'opendataloader'
+                                  ? 'bg-blue-600 text-white font-bold shadow-2xs'
+                                  : 'text-gray-600 hover:text-blue-800'
+                              }`}
                               title="OpenDataLoader / PyMuPDF Secondary Parser"
                             >
                               OpenDataLoader ({openDataLoaderData.spans.length})
@@ -3811,7 +4152,11 @@ export default function KnowledgeBasesTab({
                             className="p-1.5 rounded text-slate-400 hover:text-emerald-700 hover:bg-white transition-colors cursor-pointer"
                             title="Copy Extracted Text"
                           >
-                            {copiedText ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            {copiedText ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
                           </button>
                         </div>
                       </div>
@@ -3831,15 +4176,21 @@ export default function KnowledgeBasesTab({
                         <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-gray-200 text-[10px] font-semibold shrink-0">
                           <button
                             onClick={() => setTextSubView('spans')}
-                            className={`px-2 py-0.5 rounded cursor-pointer ${textSubView === 'spans' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
-                              }`}
+                            className={`px-2 py-0.5 rounded cursor-pointer ${
+                              textSubView === 'spans'
+                                ? 'bg-white text-emerald-700 font-bold shadow-2xs'
+                                : 'text-gray-500'
+                            }`}
                           >
                             Spans ({currentSpans.length})
                           </button>
                           <button
                             onClick={() => setTextSubView('text')}
-                            className={`px-2 py-0.5 rounded cursor-pointer ${textSubView === 'text' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-gray-500'
-                              }`}
+                            className={`px-2 py-0.5 rounded cursor-pointer ${
+                              textSubView === 'text'
+                                ? 'bg-white text-emerald-700 font-bold shadow-2xs'
+                                : 'text-gray-500'
+                            }`}
                           >
                             Raw Text
                           </button>
@@ -3850,53 +4201,54 @@ export default function KnowledgeBasesTab({
                       <div className="flex-1 overflow-y-auto p-3 space-y-2">
                         {textSubView === 'text' ? (
                           <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-slate-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
-                            {currentRawText || `No raw text stream recorded from ${activeTextParser === 'docling' ? 'Docling' : 'OpenDataLoader'}.`}
+                            {currentRawText ||
+                              `No raw text stream recorded from ${activeTextParser === 'docling' ? 'Docling' : 'OpenDataLoader'}.`}
+                          </div>
+                        ) : filteredSpans.length === 0 ? (
+                          <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
+                            {currentSpans.length === 0
+                              ? `No spans recorded for ${activeTextParser === 'docling' ? 'Docling' : 'OpenDataLoader'} parser.`
+                              : 'No spans matched your search.'}
                           </div>
                         ) : (
-                          filteredSpans.length === 0 ? (
-                            <div className="p-8 text-center text-xs border border-dashed border-gray-300 rounded-xl text-gray-400">
-                              {currentSpans.length === 0
-                                ? `No spans recorded for ${activeTextParser === 'docling' ? 'Docling' : 'OpenDataLoader'} parser.`
-                                : 'No spans matched your search.'}
-                            </div>
-                          ) : (
-                            filteredSpans.map((s: any, idx: number) => {
-                              const isRecovered = s.source_parser?.includes('recovered');
-                              return (
-                                <div
-                                  key={s.span_id || `span_${activeTextParser}_${idx}`}
-                                  className={`p-2.5 rounded-lg border transition-colors text-xs space-y-1 shadow-2xs ${isRecovered
+                          filteredSpans.map((s: any, idx: number) => {
+                            const isRecovered = s.source_parser?.includes('recovered');
+                            return (
+                              <div
+                                key={s.span_id || `span_${activeTextParser}_${idx}`}
+                                className={`p-2.5 rounded-lg border transition-colors text-xs space-y-1 shadow-2xs ${
+                                  isRecovered
                                     ? 'border-amber-300 bg-amber-50/50'
                                     : 'border-gray-200 bg-white hover:border-emerald-300'
-                                    }`}
-                                >
-                                  <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="font-mono text-emerald-700 font-bold">
-                                        {s.span_id || `P${s.page_number || 1}-S${s.paragraph_index || idx}`}
+                                }`}
+                              >
+                                <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono text-emerald-700 font-bold">
+                                      {s.span_id ||
+                                        `P${s.page_number || 1}-S${s.paragraph_index || idx}`}
+                                    </span>
+                                    {isRecovered && (
+                                      <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-bold text-[9px] uppercase">
+                                        Recovered
                                       </span>
-                                      {isRecovered && (
-                                        <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-bold text-[9px] uppercase">
-                                          Recovered
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span>
-                                      Page {s.page_number || 1} {s.block_type && `· ${s.block_type}`}
-                                    </span>
+                                    )}
                                   </div>
-                                  <p className="text-gray-800 leading-relaxed font-sans text-xs">
-                                    {s.text || s.text_content}
-                                  </p>
-                                  {s.bbox && (
-                                    <span className="text-[9px] font-mono text-gray-400 block pt-0.5">
-                                      bbox: [{s.bbox.map((n: number) => n.toFixed(1)).join(', ')}]
-                                    </span>
-                                  )}
+                                  <span>
+                                    Page {s.page_number || 1} {s.block_type && `· ${s.block_type}`}
+                                  </span>
                                 </div>
-                              );
-                            })
-                          )
+                                <p className="text-gray-800 leading-relaxed font-sans text-xs">
+                                  {s.text || s.text_content}
+                                </p>
+                                {s.bbox && (
+                                  <span className="text-[9px] font-mono text-gray-400 block pt-0.5">
+                                    bbox: [{s.bbox.map((n: number) => n.toFixed(1)).join(', ')}]
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </div>
@@ -3915,14 +4267,19 @@ export default function KnowledgeBasesTab({
                       </div>
                       <div>
                         <h4 className="font-bold text-xs text-slate-900">2. JSON Metadata</h4>
-                        <p className="text-[10px] text-purple-800 font-medium">Structured Schema & Domain Data</p>
+                        <p className="text-[10px] text-purple-800 font-medium">
+                          Structured Schema & Domain Data
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border font-mono ${jsonExtractedData.isExtracted
-                        ? 'bg-purple-100 text-purple-800 border-purple-200'
-                        : 'bg-gray-100 text-gray-500 border-gray-200'
-                        }`}>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold border font-mono ${
+                          jsonExtractedData.isExtracted
+                            ? 'bg-purple-100 text-purple-800 border-purple-200'
+                            : 'bg-gray-100 text-gray-500 border-gray-200'
+                        }`}
+                      >
                         {jsonExtractedData.isExtracted ? 'JSON Extracted' : 'Not Extracted'}
                       </span>
                       {jsonExtractedData.isExtracted && (
@@ -3935,7 +4292,11 @@ export default function KnowledgeBasesTab({
                           className="p-1 rounded text-slate-400 hover:text-purple-700 hover:bg-white transition-colors cursor-pointer"
                           title="Copy JSON Metadata"
                         >
-                          {copiedJson ? <Check className="w-3.5 h-3.5 text-purple-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copiedJson ? (
+                            <Check className="w-3.5 h-3.5 text-purple-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
                         </button>
                       )}
                     </div>
@@ -3949,7 +4310,9 @@ export default function KnowledgeBasesTab({
                           <FileJson className="w-5 h-5" />
                         </div>
                         <div>
-                          <h5 className="font-bold text-xs text-slate-800">No Structured JSON Metadata</h5>
+                          <h5 className="font-bold text-xs text-slate-800">
+                            No Structured JSON Metadata
+                          </h5>
                           <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto leading-relaxed">
                             Domain JSON extraction has not been executed yet for this document.
                           </p>
@@ -3968,16 +4331,20 @@ export default function KnowledgeBasesTab({
                         {/* BLOCK COMMENT: MODAL EXTRACTED DOMAIN BADGE */}
                         {/* Only renders when a linked domain with valid domain_name is present */}
                         {/* ===================================================================== */}
-                        {jsonExtractedData.domainInfo && jsonExtractedData.domainInfo.domain_name && (
-                          <div className="p-2 rounded-lg bg-indigo-50 border border-indigo-200 text-xs flex items-center justify-between">
-                            <span className="font-bold text-indigo-900 text-xs">
-                              🏷️ Domain: {jsonExtractedData.domainInfo.domain_name} ({jsonExtractedData.domainInfo.domain_key || ''})
-                            </span>
-                            {jsonExtractedData.domainInfo.status_note && (
-                              <span className="text-xs text-amber-700 font-semibold">⚠️ {jsonExtractedData.domainInfo.status_note}</span>
-                            )}
-                          </div>
-                        )}
+                        {jsonExtractedData.domainInfo &&
+                          jsonExtractedData.domainInfo.domain_name && (
+                            <div className="p-2 rounded-lg bg-indigo-50 border border-indigo-200 text-xs flex items-center justify-between">
+                              <span className="font-bold text-indigo-900 text-xs">
+                                🏷️ Domain: {jsonExtractedData.domainInfo.domain_name} (
+                                {jsonExtractedData.domainInfo.domain_key || ''})
+                              </span>
+                              {jsonExtractedData.domainInfo.status_note && (
+                                <span className="text-xs text-amber-700 font-semibold">
+                                  ⚠️ {jsonExtractedData.domainInfo.status_note}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-emerald-400 font-mono text-xs whitespace-pre-wrap leading-relaxed">
                           {prettifiedEntitiesJson}
                         </div>
@@ -3995,7 +4362,11 @@ export default function KnowledgeBasesTab({
                     const q = entitySearch.toLowerCase();
                     const k = (ent.entity_key || '').toLowerCase();
                     const t = (ent.entity_type || '').toLowerCase();
-                    const v = (typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value || '')).toLowerCase();
+                    const v = (
+                      typeof ent.value === 'object'
+                        ? JSON.stringify(ent.value)
+                        : String(ent.value || '')
+                    ).toLowerCase();
                     return k.includes(q) || t.includes(q) || v.includes(q);
                   });
 
@@ -4008,8 +4379,12 @@ export default function KnowledgeBasesTab({
                             <Sparkles className="w-3.5 h-3.5" />
                           </div>
                           <div>
-                            <h4 className="font-bold text-xs text-slate-900">3. Entities Extracted</h4>
-                            <p className="text-[10px] text-indigo-800 font-medium">Domain Entities & Field Values</p>
+                            <h4 className="font-bold text-xs text-slate-900">
+                              3. Entities Extracted
+                            </h4>
+                            <p className="text-[10px] text-indigo-800 font-medium">
+                              Domain Entities & Field Values
+                            </p>
                           </div>
                         </div>
 
@@ -4020,14 +4395,20 @@ export default function KnowledgeBasesTab({
                           {jsonExtractedData.entities.length > 0 && (
                             <button
                               onClick={() => {
-                                navigator.clipboard.writeText(JSON.stringify(jsonExtractedData.entities, null, 2));
+                                navigator.clipboard.writeText(
+                                  JSON.stringify(jsonExtractedData.entities, null, 2),
+                                );
                                 setCopiedEntitiesJson(true);
                                 setTimeout(() => setCopiedEntitiesJson(false), 2000);
                               }}
                               className="p-1 rounded text-slate-400 hover:text-indigo-700 hover:bg-white transition-colors cursor-pointer"
                               title="Copy Entities JSON"
                             >
-                              {copiedEntitiesJson ? <Check className="w-3.5 h-3.5 text-indigo-600" /> : <Copy className="w-3.5 h-3.5" />}
+                              {copiedEntitiesJson ? (
+                                <Check className="w-3.5 h-3.5 text-indigo-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           )}
                         </div>
@@ -4066,7 +4447,9 @@ export default function KnowledgeBasesTab({
                                 {isEditing ? (
                                   <div className="space-y-2 p-1">
                                     <div className="flex items-center justify-between">
-                                      <span className="text-xs font-bold text-indigo-700">Editing Entity</span>
+                                      <span className="text-xs font-bold text-indigo-700">
+                                        Editing Entity
+                                      </span>
                                       <button
                                         onClick={() => setEditingEntityId(null)}
                                         className="text-xs text-slate-400 hover:text-slate-600 font-bold"
@@ -4077,14 +4460,24 @@ export default function KnowledgeBasesTab({
                                     <input
                                       type="text"
                                       value={editEntityForm.entity_key}
-                                      onChange={(e) => setEditEntityForm((prev) => ({ ...prev, entity_key: e.target.value }))}
+                                      onChange={(e) =>
+                                        setEditEntityForm((prev) => ({
+                                          ...prev,
+                                          entity_key: e.target.value,
+                                        }))
+                                      }
                                       className="w-full border rounded px-2 py-1 text-xs bg-white text-black"
                                       placeholder="Entity Key"
                                     />
                                     <textarea
                                       rows={2}
                                       value={editEntityForm.value}
-                                      onChange={(e) => setEditEntityForm((prev) => ({ ...prev, value: e.target.value }))}
+                                      onChange={(e) =>
+                                        setEditEntityForm((prev) => ({
+                                          ...prev,
+                                          value: e.target.value,
+                                        }))
+                                      }
                                       className="w-full border rounded px-2 py-1 text-xs bg-white text-black resize-none"
                                     />
                                     <button
@@ -4115,12 +4508,24 @@ export default function KnowledgeBasesTab({
                                       </button>
                                     </div>
                                     <p className="text-xs text-slate-800 font-medium leading-relaxed bg-slate-50/70 p-2 rounded border border-slate-150 break-words">
-                                      {typeof ent.value === 'object' ? JSON.stringify(ent.value) : String(ent.value)}
+                                      {typeof ent.value === 'object'
+                                        ? JSON.stringify(ent.value)
+                                        : String(ent.value)}
                                     </p>
                                     <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
-                                      <span>Confidence: <strong>{((ent.confidence ?? 1.0) * 100).toFixed(0)}%</strong></span>
-                                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${ent.basis === 'FACT' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-                                        }`}>
+                                      <span>
+                                        Confidence:{' '}
+                                        <strong>
+                                          {((ent.confidence ?? 1.0) * 100).toFixed(0)}%
+                                        </strong>
+                                      </span>
+                                      <span
+                                        className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
+                                          ent.basis === 'FACT'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-amber-100 text-amber-800'
+                                        }`}
+                                      >
                                         {ent.basis || 'FACT'}
                                       </span>
                                     </div>
@@ -4140,7 +4545,9 @@ export default function KnowledgeBasesTab({
             {/* DRAWER FOOTER */}
             <div className="p-3.5 border-t border-gray-200 flex items-center justify-between shrink-0 bg-slate-50">
               <span className="text-xs font-medium text-slate-500">
-                Dockling: {doclingData.spans.length} Spans · OpenDataLoader: {openDataLoaderData.spans.length} Spans · Entities: {jsonExtractedData.entities.length}
+                Dockling: {doclingData.spans.length} Spans · OpenDataLoader:{' '}
+                {openDataLoaderData.spans.length} Spans · Entities:{' '}
+                {jsonExtractedData.entities.length}
               </span>
               <button
                 onClick={() => {

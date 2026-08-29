@@ -70,7 +70,7 @@ export default function AgentSidebar({
           ? categoryData
           : categoryData.categories || [];
         const mappedCategories: CategoryItem[] = fetchedCats.map((cat: any, index: number) => {
-          const id = typeof cat === 'object' ? (cat.id || index + 1) : index + 1;
+          const id = typeof cat === 'object' ? cat.id || index + 1 : index + 1;
           const label = typeof cat === 'object' ? cat.label || cat.name || 'default' : String(cat);
 
           return {
@@ -136,9 +136,7 @@ export default function AgentSidebar({
   const triggerNodes = triggers.filter(searchFilter);
   const logicNodes = logic.filter(searchFilter);
 
-  const actionNodes = categoryNodes.filter(
-    (n) => (n.category) === activeGroup && searchFilter(n),
-  );
+  const actionNodes = categoryNodes.filter((n) => n.category === activeGroup && searchFilter(n));
 
   const onDragStart = (event: DragEvent<HTMLDivElement>, agent: any) => {
     event.dataTransfer.setData('application/reactflow-agent', JSON.stringify(agent));
@@ -293,10 +291,11 @@ export default function AgentSidebar({
                     title={category.label}
                     aria-label={category.label}
                     onClick={() => handleCategoryClick(category.id)}
-                    className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all hover:scale-[1.05] cursor-pointer ${isActive
-                      ? 'border-indigo-400 bg-indigo-50 shadow-sm ring-1 ring-indigo-300'
-                      : 'border-slate-200 bg-white hover:border-slate-350 hover:bg-slate-50'
-                      }`}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all hover:scale-[1.05] cursor-pointer ${
+                      isActive
+                        ? 'border-indigo-400 bg-indigo-50 shadow-sm ring-1 ring-indigo-300'
+                        : 'border-slate-200 bg-white hover:border-slate-350 hover:bg-slate-50'
+                    }`}
                   >
                     <Icon className="h-4.5 w-4.5" style={{ color: category.color }} />
                   </button>

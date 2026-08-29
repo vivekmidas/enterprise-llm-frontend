@@ -124,7 +124,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
 
   // Modal / Drawer state for Editing Domain Config
   const [showConfigModal, setShowConfigModal] = useState(false);
-  const [activeConfigTab, setActiveConfigTab] = useState<'general' | 'schema' | 'prompts' | 'advanced'>('general');
+  const [activeConfigTab, setActiveConfigTab] = useState<
+    'general' | 'schema' | 'prompts' | 'advanced'
+  >('general');
   const [editingDomain, setEditingDomain] = useState<DomainSchemaItem | null>(null);
 
   // Form State
@@ -146,7 +148,10 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
 
   // Operations state
   const [saving, setSaving] = useState(false);
-  const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [alertMessage, setAlertMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   const fetchDomains = async () => {
     setLoading(true);
@@ -170,9 +175,15 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
     setFormName(domain.name || '');
     setFormDomainKey(domain.domain_key || '');
     setFormDescription(domain.description || '');
-    
+
     const schemaData = domain.schema_json || {};
-    const defaultPath = schemaData.default_path || (domain.domain_key === 'legal' ? '/legal' : domain.domain_key === 'general' ? '/admin/knowledge' : `/${domain.domain_key}`);
+    const defaultPath =
+      schemaData.default_path ||
+      (domain.domain_key === 'legal'
+        ? '/legal'
+        : domain.domain_key === 'general'
+          ? '/admin/knowledge'
+          : `/${domain.domain_key}`);
     setFormDefaultPath(defaultPath);
     setFormScope(domain.scope === 'SYSTEM' ? 'SYSTEM' : 'TENANT');
     setFormStatus(schemaData.status || 'active');
@@ -181,7 +192,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
     setFormFields(schemaData.fields || []);
     setFormSystemPrompt(domain.system_prompt || DEFAULT_SYSTEM_PROMPT);
     setFormUserPrompt(domain.user_prompt || DEFAULT_USER_PROMPT);
-    
+
     const customConfig = schemaData.config || {};
     setFormConfigJson(JSON.stringify(customConfig, null, 2));
 
@@ -200,12 +211,30 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
     setFormIcon('Globe');
     setFormThemeColor('#4f46e5');
     setFormFields([
-      { key: 'title', label: 'Title', type: 'string', weight: 1.5, importance: 'high', required: false, description: 'Document title' },
-      { key: 'summary', label: 'Summary', type: 'string', weight: 2.0, importance: 'high', required: false, description: 'Content summary' },
+      {
+        key: 'title',
+        label: 'Title',
+        type: 'string',
+        weight: 1.5,
+        importance: 'high',
+        required: false,
+        description: 'Document title',
+      },
+      {
+        key: 'summary',
+        label: 'Summary',
+        type: 'string',
+        weight: 2.0,
+        importance: 'high',
+        required: false,
+        description: 'Content summary',
+      },
     ]);
     setFormSystemPrompt(DEFAULT_SYSTEM_PROMPT);
     setFormUserPrompt(DEFAULT_USER_PROMPT);
-    setFormConfigJson('{\n  "capabilities": ["vector_search", "metadata_extraction"],\n  "search_reranking": true\n}');
+    setFormConfigJson(
+      '{\n  "capabilities": ["vector_search", "metadata_extraction"],\n  "search_reranking": true\n}',
+    );
 
     setActiveConfigTab('general');
     setShowAddModal(true);
@@ -254,7 +283,10 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
     try {
       parsedConfig = formConfigJson.trim() ? JSON.parse(formConfigJson) : {};
     } catch (jsonErr) {
-      setAlertMessage({ type: 'error', text: 'Advanced Config JSON is invalid. Please check syntax.' });
+      setAlertMessage({
+        type: 'error',
+        text: 'Advanced Config JSON is invalid. Please check syntax.',
+      });
       setSaving(false);
       return;
     }
@@ -264,7 +296,8 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
       domain_key: formDomainKey.toLowerCase().trim().replace(/\s+/g, '_'),
       description: formDescription.trim(),
       scope: formScope,
-      default_path: formDefaultPath.trim() || `/${formDomainKey.toLowerCase().trim().replace(/\s+/g, '_')}`,
+      default_path:
+        formDefaultPath.trim() || `/${formDomainKey.toLowerCase().trim().replace(/\s+/g, '_')}`,
       icon: formIcon,
       theme_color: formThemeColor,
       status: formStatus,
@@ -285,11 +318,17 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
     try {
       if (editingDomain) {
         await api.updateDomainSchema(editingDomain.id, payload);
-        setAlertMessage({ type: 'success', text: `Domain "${payload.name}" updated successfully.` });
+        setAlertMessage({
+          type: 'success',
+          text: `Domain "${payload.name}" updated successfully.`,
+        });
         setShowConfigModal(false);
       } else {
         await api.createDomainSchema(payload);
-        setAlertMessage({ type: 'success', text: `New Domain "${payload.name}" created successfully.` });
+        setAlertMessage({
+          type: 'success',
+          text: `New Domain "${payload.name}" created successfully.`,
+        });
         setShowAddModal(false);
       }
       await fetchDomains();
@@ -302,7 +341,11 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
   };
 
   const handleDeleteDomain = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete domain schema "${name}"? This action cannot be undone.`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete domain schema "${name}"? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
     setSaving(true);
@@ -350,7 +393,8 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
             <div>
               <h2 className="text-lg font-bold text-gray-900">Domain Registry & Routing Config</h2>
               <p className="text-xs text-gray-500 font-medium">
-                Manage configured vertical domains, default landing routes, AI extraction schemas, and capabilities
+                Manage configured vertical domains, default landing routes, AI extraction schemas,
+                and capabilities
               </p>
             </div>
           </div>
@@ -380,7 +424,11 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
       </div>
 
       {alertMessage && (
-        <Alert severity={alertMessage.type} onClose={() => setAlertMessage(null)} className="shadow-xs rounded-xl">
+        <Alert
+          severity={alertMessage.type}
+          onClose={() => setAlertMessage(null)}
+          className="shadow-xs rounded-xl"
+        >
           {alertMessage.text}
         </Alert>
       )}
@@ -461,7 +509,11 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
             const schemaData = domain.schema_json || {};
             const defaultPath =
               schemaData.default_path ||
-              (domain.domain_key === 'legal' ? '/legal' : domain.domain_key === 'general' ? '/admin/knowledge' : `/${domain.domain_key}`);
+              (domain.domain_key === 'legal'
+                ? '/legal'
+                : domain.domain_key === 'general'
+                  ? '/admin/knowledge'
+                  : `/${domain.domain_key}`);
             const themeColor = schemaData.theme_color || '#4f46e5';
             const iconName = schemaData.icon || 'Globe';
             const IconComponent = AVAILABLE_ICONS[iconName] || Globe;
@@ -499,14 +551,18 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                     <div className="flex items-center gap-1.5">
                       <span
                         className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
-                          isSystem ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-blue-100 text-blue-800 border border-blue-200'
+                          isSystem
+                            ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                            : 'bg-blue-100 text-blue-800 border border-blue-200'
                         }`}
                       >
                         {domain.scope}
                       </span>
                       <span
                         className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
-                          status === 'active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-gray-100 text-gray-600 border border-gray-200'
+                          status === 'active'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : 'bg-gray-100 text-gray-600 border border-gray-200'
                         }`}
                       >
                         {status}
@@ -591,11 +647,15 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                   className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xs"
                   style={{ backgroundColor: formThemeColor }}
                 >
-                  {React.createElement(AVAILABLE_ICONS[formIcon] || Globe, { className: 'w-5 h-5' })}
+                  {React.createElement(AVAILABLE_ICONS[formIcon] || Globe, {
+                    className: 'w-5 h-5',
+                  })}
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-gray-900">
-                    {editingDomain ? `Configure Domain: ${editingDomain.name}` : 'Register New Domain'}
+                    {editingDomain
+                      ? `Configure Domain: ${editingDomain.name}`
+                      : 'Register New Domain'}
                   </h3>
                   <p className="text-xs text-gray-500">
                     {editingDomain
@@ -698,11 +758,15 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-gray-700">Domain Key / Slug (ID) *</label>
+                      <label className="block text-xs font-bold text-gray-700">
+                        Domain Key / Slug (ID) *
+                      </label>
                       <input
                         type="text"
                         required
-                        disabled={Boolean(editingDomain) && formScope === 'SYSTEM' && !isSystemAdmin}
+                        disabled={
+                          Boolean(editingDomain) && formScope === 'SYSTEM' && !isSystemAdmin
+                        }
                         value={formDomainKey}
                         onChange={(e) => setFormDomainKey(toIdCase(e.target.value))}
                         onBlur={() => setFormDomainKey(toIdCase(formDomainKey))}
@@ -716,7 +780,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                   <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <label className="block text-xs font-bold text-indigo-950">Default Routing Path *</label>
+                        <label className="block text-xs font-bold text-indigo-950">
+                          Default Routing Path *
+                        </label>
                         <p className="text-[11px] text-indigo-800/80">
                           Destination path for users assigned to this domain or navigation links
                         </p>
@@ -786,7 +852,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                               type="button"
                               onClick={() => setFormThemeColor(p.value)}
                               className={`w-5 h-5 rounded-md transition-transform cursor-pointer ${
-                                formThemeColor === p.value ? 'ring-2 ring-indigo-500 scale-110' : 'opacity-80 hover:opacity-100'
+                                formThemeColor === p.value
+                                  ? 'ring-2 ring-indigo-500 scale-110'
+                                  : 'opacity-80 hover:opacity-100'
                               }`}
                               style={{ backgroundColor: p.value }}
                               title={p.label}
@@ -797,7 +865,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-gray-700">Icon Identifier</label>
+                      <label className="block text-xs font-bold text-gray-700">
+                        Icon Identifier
+                      </label>
                       <select
                         value={formIcon}
                         onChange={(e) => setFormIcon(e.target.value)}
@@ -844,9 +914,12 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-gray-200">
                     <div>
-                      <h4 className="text-xs font-bold text-gray-800">Dynamic Extraction Fields ({formFields.length})</h4>
+                      <h4 className="text-xs font-bold text-gray-800">
+                        Dynamic Extraction Fields ({formFields.length})
+                      </h4>
                       <p className="text-[11px] text-gray-500">
-                        Fields that the AI pipeline will extract and structure from uploaded documents
+                        Fields that the AI pipeline will extract and structure from uploaded
+                        documents
                       </p>
                     </div>
                     <button
@@ -879,13 +952,19 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                         >
                           <div className="grid grid-cols-12 gap-2 items-center">
                             <div className="col-span-3">
-                              <label className="block text-[10px] font-bold text-gray-500 uppercase">Field Key *</label>
+                              <label className="block text-[10px] font-bold text-gray-500 uppercase">
+                                Field Key *
+                              </label>
                               <input
                                 type="text"
                                 required
                                 value={field.key}
                                 onChange={(e) =>
-                                  handleUpdateField(idx, 'key', e.target.value.toLowerCase().replace(/\s+/g, '_'))
+                                  handleUpdateField(
+                                    idx,
+                                    'key',
+                                    e.target.value.toLowerCase().replace(/\s+/g, '_'),
+                                  )
                                 }
                                 placeholder="e.g. policy_number"
                                 className="w-full border border-gray-300 rounded px-2.5 py-1 font-mono text-xs bg-white text-gray-900"
@@ -893,7 +972,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                             </div>
 
                             <div className="col-span-3">
-                              <label className="block text-[10px] font-bold text-gray-500 uppercase">Display Label *</label>
+                              <label className="block text-[10px] font-bold text-gray-500 uppercase">
+                                Display Label *
+                              </label>
                               <input
                                 type="text"
                                 required
@@ -905,7 +986,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                             </div>
 
                             <div className="col-span-2">
-                              <label className="block text-[10px] font-bold text-gray-500 uppercase">Type</label>
+                              <label className="block text-[10px] font-bold text-gray-500 uppercase">
+                                Type
+                              </label>
                               <select
                                 value={field.type || 'string'}
                                 onChange={(e) => handleUpdateField(idx, 'type', e.target.value)}
@@ -920,10 +1003,14 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                             </div>
 
                             <div className="col-span-2">
-                              <label className="block text-[10px] font-bold text-gray-500 uppercase">Importance</label>
+                              <label className="block text-[10px] font-bold text-gray-500 uppercase">
+                                Importance
+                              </label>
                               <select
                                 value={field.importance || 'medium'}
-                                onChange={(e) => handleUpdateField(idx, 'importance', e.target.value)}
+                                onChange={(e) =>
+                                  handleUpdateField(idx, 'importance', e.target.value)
+                                }
                                 className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white text-gray-900"
                               >
                                 <option value="low">Low (1.0x)</option>
@@ -938,7 +1025,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                                 <input
                                   type="checkbox"
                                   checked={Boolean(field.required)}
-                                  onChange={(e) => handleUpdateField(idx, 'required', e.target.checked)}
+                                  onChange={(e) =>
+                                    handleUpdateField(idx, 'required', e.target.checked)
+                                  }
                                   className="rounded text-indigo-600"
                                 />
                                 <span>Req.</span>
@@ -958,7 +1047,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                             <input
                               type="text"
                               value={field.description || ''}
-                              onChange={(e) => handleUpdateField(idx, 'description', e.target.value)}
+                              onChange={(e) =>
+                                handleUpdateField(idx, 'description', e.target.value)
+                              }
                               placeholder="Extraction directive for AI (e.g. Extract exact policy identifier code or null)..."
                               className="w-full border border-gray-200 rounded px-2.5 py-1 text-[11px] bg-slate-50 text-gray-700"
                             />
@@ -979,7 +1070,8 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                         Domain Schema Base Extraction Prompts
                       </h4>
                       <p className="text-xs text-gray-500">
-                        Baseline system and user prompt templates used for extracting structured entity metadata during document ingestion into this domain.
+                        Baseline system and user prompt templates used for extracting structured
+                        entity metadata during document ingestion into this domain.
                       </p>
                     </div>
                     <button
@@ -1013,10 +1105,18 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                       </label>
                       <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-mono">
                         <span>Variables:</span>
-                        <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{filename}'}</span>
-                        <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{fields_summary}'}</span>
-                        <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{fields_json_schema}'}</span>
-                        <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">{'{content}'}</span>
+                        <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">
+                          {'{filename}'}
+                        </span>
+                        <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">
+                          {'{fields_summary}'}
+                        </span>
+                        <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">
+                          {'{fields_json_schema}'}
+                        </span>
+                        <span className="bg-gray-100 px-1 py-0.5 rounded text-gray-600">
+                          {'{content}'}
+                        </span>
                       </div>
                     </div>
                     <textarea
@@ -1034,9 +1134,12 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-xs font-bold text-gray-800">Advanced Capabilities & Feature Settings</h4>
+                      <h4 className="text-xs font-bold text-gray-800">
+                        Advanced Capabilities & Feature Settings
+                      </h4>
                       <p className="text-[11px] text-gray-500">
-                        Dynamic JSON defining workflows, search schemas, and custom domain configurations
+                        Dynamic JSON defining workflows, search schemas, and custom domain
+                        configurations
                       </p>
                     </div>
                     <button
@@ -1060,7 +1163,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                     value={formConfigJson}
                     onChange={(e) => setFormConfigJson(e.target.value)}
                     className="w-full border border-gray-300 rounded-lg p-3 text-xs font-mono bg-slate-950 text-emerald-400 focus:outline-none focus:border-indigo-500"
-                    placeholder="{\n  &quot;capabilities&quot;: [&quot;vector_search&quot;]\n}"
+                    placeholder='{\n  "capabilities": ["vector_search"]\n}'
                   />
                 </div>
               )}

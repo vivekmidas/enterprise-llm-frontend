@@ -14,6 +14,7 @@ import {
   ChevronDown,
   BookOpen,
   Scale,
+  Sword,
   Users as UsersIcon,
   ShieldCheck,
   Building2,
@@ -40,26 +41,26 @@ import {
   getRequiredPermissionForPath,
   hasPermissionScope,
   loadRoutePermissionsFromDB,
-  RoutePermissionRule
+  RoutePermissionRule,
 } from '@/lib/config/route_permissions';
 
 function buildDynamicNavSections(routes: RoutePermissionRule[]): NavSection[] {
   const sections: Record<string, NavItem[]> = {
-    'Navigation': [
-      { label: 'Dashboard', href: '/admin', icon: <Home className="w-4 h-4" /> },
-    ],
-    'Management': [],
-    'Admin': [],
+    Navigation: [{ label: 'Dashboard', href: '/admin', icon: <Home className="w-4 h-4" /> }],
+    Management: [],
+    Admin: [],
   };
 
   const getIconForRoute = (pattern: string) => {
+    if (pattern.includes('autopilot')) return <Sword className="w-4 h-4" />;
     if (pattern.includes('legal')) return <Scale className="w-4 h-4" />;
     if (pattern.includes('workflow')) return <Workflow className="w-4 h-4" />;
     if (pattern.includes('users')) return <UsersIcon className="w-4 h-4" />;
     if (pattern.includes('roles')) return <ShieldCheck className="w-4 h-4" />;
     if (pattern.includes('customers')) return <Building2 className="w-4 h-4" />;
     if (pattern.includes('knowledge')) return <BookOpen className="w-4 h-4" />;
-    if (pattern.includes('nodes') || pattern.includes('playground')) return <Database className="w-4 h-4" />;
+    if (pattern.includes('nodes') || pattern.includes('playground'))
+      return <Database className="w-4 h-4" />;
     if (pattern.includes('metrics')) return <BarChart3 className="w-4 h-4" />;
     return <Settings className="w-4 h-4" />;
   };
@@ -72,11 +73,21 @@ function buildDynamicNavSections(routes: RoutePermissionRule[]): NavSection[] {
     if (registeredHrefs.has(href)) return;
     registeredHrefs.add(href);
 
-    const formattedLabel = rule.label || (rule.submodule ? rule.submodule.replace(/_/g, ' ') : rule.pattern.split('/').pop() || rule.pattern);
+    const formattedLabel =
+      rule.label ||
+      (rule.submodule
+        ? rule.submodule.replace(/_/g, ' ')
+        : rule.pattern.split('/').pop() || rule.pattern);
     const capitalizedLabel = formattedLabel.charAt(0).toUpperCase() + formattedLabel.slice(1);
 
-    const groupKey = rule.module === 'legal' || rule.module === 'workflow' ? 'Navigation' :
-                     (rule.module === 'admin' ? 'Management' : (rule.module ? rule.module.toUpperCase() + ' Module' : 'Admin'));
+    const groupKey =
+      rule.module === 'legal' || rule.module === 'workflow'
+        ? 'Navigation'
+        : rule.module === 'admin'
+          ? 'Management'
+          : rule.module
+            ? rule.module.toUpperCase() + ' Module'
+            : 'Admin';
 
     if (!sections[groupKey]) {
       sections[groupKey] = [];

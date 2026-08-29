@@ -16,11 +16,10 @@ import {
   ChevronDown,
   RefreshCw,
   Info,
-  Database
+  Database,
 } from 'lucide-react';
 import { Tooltip } from '@/app/components/Tooltip';
 import { PARAM_TOOLTIPS } from '@/lib/paramTooltips';
-
 
 export interface PlaygroundTabProps {
   initialKbId?: string | null;
@@ -62,11 +61,13 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
         const s = linkedProf.settings || {};
         const cfg = s.generation || s.search || s.llm_config || {};
         const providerKey = cfg.provider || linkedProf.provider || 'ollama';
-        return [{
-          id: String(linkedProf.id),
-          name: `${linkedProf.name} (Linked KB Profile)`,
-          provider: providerKey,
-        }];
+        return [
+          {
+            id: String(linkedProf.id),
+            name: `${linkedProf.name} (Linked KB Profile)`,
+            provider: providerKey,
+          },
+        ];
       }
     }
 
@@ -76,7 +77,11 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
       ? llmProfiles.filter((p) => String(p.customer_id) === String(kbCustomerId))
       : llmProfiles;
 
-    const defaultProf = targetProfiles.find((p) => p.is_default) || targetProfiles[0] || llmProfiles.find((p) => p.is_default) || llmProfiles[0];
+    const defaultProf =
+      targetProfiles.find((p) => p.is_default) ||
+      targetProfiles[0] ||
+      llmProfiles.find((p) => p.is_default) ||
+      llmProfiles[0];
     if (defaultProf) {
       const s = defaultProf.settings || {};
       const cfg = s.generation || s.search || s.llm_config || {};
@@ -91,7 +96,8 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
     if (companySettings && list.length === 0) {
       list.push({
         id: 'company',
-        name: companySettings.active_config_name || companySettings.company_name || 'Tenant Settings',
+        name:
+          companySettings.active_config_name || companySettings.company_name || 'Tenant Settings',
         provider: companySettings.llm_provider || 'ollama',
       });
     }
@@ -118,8 +124,12 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
       const modelName = gen.model || searchSec.model || foundProf.model_name || 'llama3.2';
 
       // Resolve system base_url from System Admin Provider Preset
-      const matchingPreset = providerPresets.find((p) => p.provider_key === providerKey.toLowerCase());
-      const baseUrl = matchingPreset ? matchingPreset.base_url : (s.base_url || foundProf.url || 'http://localhost:11434');
+      const matchingPreset = providerPresets.find(
+        (p) => p.provider_key === providerKey.toLowerCase(),
+      );
+      const baseUrl = matchingPreset
+        ? matchingPreset.base_url
+        : s.base_url || foundProf.url || 'http://localhost:11434';
 
       return {
         id: foundProf.id,
@@ -132,13 +142,19 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
     }
 
     if (companySettings) {
-      const providerKey = companySettings.search?.provider || companySettings.llm_provider || 'ollama';
-      const matchingPreset = providerPresets.find((p) => p.provider_key === providerKey.toLowerCase());
-      const baseUrl = matchingPreset ? matchingPreset.base_url : (companySettings.llm_base_url || 'http://localhost:11434');
+      const providerKey =
+        companySettings.search?.provider || companySettings.llm_provider || 'ollama';
+      const matchingPreset = providerPresets.find(
+        (p) => p.provider_key === providerKey.toLowerCase(),
+      );
+      const baseUrl = matchingPreset
+        ? matchingPreset.base_url
+        : companySettings.llm_base_url || 'http://localhost:11434';
 
       return {
         id: 'company',
-        name: companySettings.active_config_name || companySettings.company_name || 'Tenant Settings',
+        name:
+          companySettings.active_config_name || companySettings.company_name || 'Tenant Settings',
         llm_provider: providerKey,
         llm_model: companySettings.search?.model || companySettings.llm_model || 'llama3.2',
         llm_base_url: baseUrl,
@@ -224,7 +240,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
         setCompanySettings(settings);
         setProviderPresets(presets || []);
 
-        const firstProfId = (profiles && profiles.length > 0) ? String(profiles[0].id) : 'company';
+        const firstProfId = profiles && profiles.length > 0 ? String(profiles[0].id) : 'company';
         setLlmProfileIdA(firstProfId);
         setLlmProfileIdB(firstProfId);
       } catch (err) {
@@ -236,7 +252,6 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
     }
     loadData();
   }, [initialKbId]);
-
 
   useEffect(() => {
     if (initialKbId) {
@@ -260,15 +275,17 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
         const targetProfiles = kbCustomerId
           ? llmProfiles.filter((p) => String(p.customer_id) === String(kbCustomerId))
           : llmProfiles;
-        const defaultProf = targetProfiles.find((p) => p.is_default) || targetProfiles[0] || llmProfiles.find((p) => p.is_default) || llmProfiles[0];
-        const pid = defaultProf ? String(defaultProf.id) : (companySettings ? 'company' : 'default');
+        const defaultProf =
+          targetProfiles.find((p) => p.is_default) ||
+          targetProfiles[0] ||
+          llmProfiles.find((p) => p.is_default) ||
+          llmProfiles[0];
+        const pid = defaultProf ? String(defaultProf.id) : companySettings ? 'company' : 'default';
         setLlmProfileIdA(pid);
         setLlmProfileIdB(pid);
       }
     }
   }, [selectedKbId, kbList, llmProfiles, companySettings]);
-
-
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -335,39 +352,46 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
       // Trigger LLM Generation for Config A
       if (resA && resA.context) {
         setGeneratingA(true);
-        api.generateResponse({
-          query: searchQuery,
-          context: resA.context,
-          temperature: temperatureA,
-          profile_id: llmProfileIdA !== 'active' ? String(llmProfileIdA) : undefined,
-          llm_config_id: llmProfileIdA !== 'active' ? String(llmProfileIdA) : undefined,
-        }).then((gen) => {
-          setAnswerA(gen.answer || '');
-        }).catch((err) => {
-          setAnswerA(`Error generating response: ${err.message}`);
-        }).finally(() => {
-          setGeneratingA(false);
-        });
+        api
+          .generateResponse({
+            query: searchQuery,
+            context: resA.context,
+            temperature: temperatureA,
+            profile_id: llmProfileIdA !== 'active' ? String(llmProfileIdA) : undefined,
+            llm_config_id: llmProfileIdA !== 'active' ? String(llmProfileIdA) : undefined,
+          })
+          .then((gen) => {
+            setAnswerA(gen.answer || '');
+          })
+          .catch((err) => {
+            setAnswerA(`Error generating response: ${err.message}`);
+          })
+          .finally(() => {
+            setGeneratingA(false);
+          });
       }
 
       // Trigger LLM Generation for Config B
       if (resB && resB.context) {
         setGeneratingB(true);
-        api.generateResponse({
-          query: searchQuery,
-          context: resB.context,
-          temperature: temperatureB,
-          profile_id: llmProfileIdB !== 'active' ? String(llmProfileIdB) : undefined,
-          llm_config_id: llmProfileIdB !== 'active' ? String(llmProfileIdB) : undefined,
-        }).then((gen) => {
-          setAnswerB(gen.answer || '');
-        }).catch((err) => {
-          setAnswerB(`Error generating response: ${err.message}`);
-        }).finally(() => {
-          setGeneratingB(false);
-        });
+        api
+          .generateResponse({
+            query: searchQuery,
+            context: resB.context,
+            temperature: temperatureB,
+            profile_id: llmProfileIdB !== 'active' ? String(llmProfileIdB) : undefined,
+            llm_config_id: llmProfileIdB !== 'active' ? String(llmProfileIdB) : undefined,
+          })
+          .then((gen) => {
+            setAnswerB(gen.answer || '');
+          })
+          .catch((err) => {
+            setAnswerB(`Error generating response: ${err.message}`);
+          })
+          .finally(() => {
+            setGeneratingB(false);
+          });
       }
-
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'RAG Search execution failed.');
@@ -378,9 +402,7 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
 
   if (loadingKbs) {
     return (
-      <div className="p-8 text-center text-gray-500 text-sm">
-        Loading Playground registry...
-      </div>
+      <div className="p-8 text-center text-gray-500 text-sm">Loading Playground registry...</div>
     );
   }
 
@@ -408,15 +430,19 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
 
       {/* Main Layout Grid */}
       <div className="grid grid-cols-4 gap-6 items-start">
-
         {/* Sidebar inputs */}
-        <form onSubmit={handleSearch} className="col-span-1 bg-white border border-gray-250 p-5 rounded-xl shadow-xs space-y-4">
+        <form
+          onSubmit={handleSearch}
+          className="col-span-1 bg-white border border-gray-250 p-5 rounded-xl shadow-xs space-y-4"
+        >
           <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b pb-1.5 border-gray-150">
             Query & Target Settings
           </h3>
 
           <div className="space-y-1">
-            <label className="block text-black text-xs font-bold text-gray-655 uppercase">Target KB</label>
+            <label className="block text-black text-xs font-bold text-gray-655 uppercase">
+              Target KB
+            </label>
             <select
               value={selectedKbId}
               onChange={(e) => setSelectedKbId(e.target.value)}
@@ -436,14 +462,18 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
               return (
                 <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50/80 border border-blue-100 rounded text-[10px] text-blue-800 font-mono mt-1">
                   <Database className="w-3 h-3 text-blue-600 shrink-0" />
-                  <span className="truncate">Index: {model} ({dim}d)</span>
+                  <span className="truncate">
+                    Index: {model} ({dim}d)
+                  </span>
                 </div>
               );
             })()}
           </div>
 
           <div className="space-y-1">
-            <label className="block text-black text-xs font-bold text-gray-655 uppercase">Search Query</label>
+            <label className="block text-black text-xs font-bold text-gray-655 uppercase">
+              Search Query
+            </label>
             <textarea
               required
               rows={3}
@@ -460,7 +490,9 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
             </h4>
             <div className="space-y-2">
               <div>
-                <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">Doc Type</label>
+                <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">
+                  Doc Type
+                </label>
                 <input
                   type="text"
                   placeholder="e.g. policy, faq"
@@ -470,7 +502,9 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">Tags</label>
+                <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">
+                  Tags
+                </label>
                 <input
                   type="text"
                   placeholder="e.g. Q3, POLICY"
@@ -494,7 +528,6 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
 
         {/* Side-by-side comparison workspace */}
         <div className="col-span-3 grid grid-cols-2 gap-6">
-
           {/* Config A Box */}
           <div className="bg-white border border-gray-250 rounded-xl overflow-hidden shadow-xs flex flex-col min-h-[500px]">
             <div className="bg-slate-50 border-b border-gray-200 p-4 space-y-3">
@@ -508,8 +541,12 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <div className="flex items-center gap-1 mb-0.5">
-                    <label className="block text-xs text-gray-400 font-bold uppercase">LLM Profile</label>
-                    <Tooltip content={`${PARAM_TOOLTIPS.system_prompt?.title}\n• Configured LLM endpoint & model preset.`}>
+                    <label className="block text-xs text-gray-400 font-bold uppercase">
+                      LLM Profile
+                    </label>
+                    <Tooltip
+                      content={`${PARAM_TOOLTIPS.system_prompt?.title}\n• Configured LLM endpoint & model preset.`}
+                    >
                       <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
                     </Tooltip>
                   </div>
@@ -529,7 +566,9 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                 </div>
                 <div>
                   <div className="flex items-center gap-1 mb-0.5">
-                    <label className="block text-xs text-gray-400 font-bold uppercase">Approach</label>
+                    <label className="block text-xs text-gray-400 font-bold uppercase">
+                      Approach
+                    </label>
                     <Tooltip content={PARAM_TOOLTIPS.approach?.description || ''}>
                       <Info className="w-3 h-3 text-gray-400 cursor-pointer" />
                     </Tooltip>
@@ -573,11 +612,21 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                 return (
                   <div className="bg-violet-50/70 border border-violet-100 rounded-lg p-2 text-[11px] space-y-0.5 text-gray-700">
                     <div className="flex justify-between items-center font-semibold text-violet-900">
-                      <span className="truncate">URL: <span className="font-mono text-gray-800">{profA.llm_base_url || 'Default'}</span></span>
-                      <span className="bg-violet-100 text-violet-800 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold">{profA.llm_provider || 'vllm'}</span>
+                      <span className="truncate">
+                        URL:{' '}
+                        <span className="font-mono text-gray-800">
+                          {profA.llm_base_url || 'Default'}
+                        </span>
+                      </span>
+                      <span className="bg-violet-100 text-violet-800 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold">
+                        {profA.llm_provider || 'vllm'}
+                      </span>
                     </div>
                     <div className="text-gray-600">
-                      Model: <span className="font-mono font-semibold text-gray-900">{profA.llm_model || 'Default'}</span>
+                      Model:{' '}
+                      <span className="font-mono font-semibold text-gray-900">
+                        {profA.llm_model || 'Default'}
+                      </span>
                     </div>
                   </div>
                 );
@@ -630,7 +679,6 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                   />
                 </div>
               </div>
-
             </div>
 
             {/* Results list A */}
@@ -660,26 +708,39 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-slate-50 hover:bg-slate-100/80 px-3 py-2 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[9px]">1</span>
+                        <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[9px]">
+                          1
+                        </span>
                         Raw Matches Retrieved
                       </span>
                       <span className="flex items-center gap-2 text-gray-400">
                         <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono font-normal">
                           {(responseA.raw_candidates || []).length} items
                         </span>
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsA.raw ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsA.raw ? 'rotate-180' : ''}`}
+                        />
                       </span>
                     </button>
                     {expandedPanelsA.raw && (
                       <div className="p-3 bg-white border-t border-gray-150 space-y-2 max-h-60 overflow-y-auto">
                         {(responseA.raw_candidates || []).length === 0 ? (
-                          <p className="text-[10px] text-gray-400 text-center py-2">No raw candidates found.</p>
+                          <p className="text-[10px] text-gray-400 text-center py-2">
+                            No raw candidates found.
+                          </p>
                         ) : (
                           (responseA.raw_candidates || []).map((c: any, idx: number) => (
-                            <div key={idx} className="text-[11px] p-2 bg-slate-50 rounded border border-slate-100 space-y-1">
+                            <div
+                              key={idx}
+                              className="text-[11px] p-2 bg-slate-50 rounded border border-slate-100 space-y-1"
+                            >
                               <div className="flex justify-between font-semibold text-gray-600">
-                                <span>{c.document_name} (chunk {c.chunk_index})</span>
-                                <span className="text-bg-primary font-mono">Score: {c.score?.toFixed(4)}</span>
+                                <span>
+                                  {c.document_name} (chunk {c.chunk_index})
+                                </span>
+                                <span className="text-bg-primary font-mono">
+                                  Score: {c.score?.toFixed(4)}
+                                </span>
                               </div>
                               <p className="text-gray-500 font-normal line-clamp-2">{c.content}</p>
                             </div>
@@ -697,28 +758,43 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-slate-50 hover:bg-slate-100/80 px-3 py-2 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[9px]">2</span>
+                        <span className="w-4 h-4 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[9px]">
+                          2
+                        </span>
                         Content Deduplication
                       </span>
                       <span className="flex items-center gap-2 text-gray-400">
                         <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-mono font-normal">
                           -{(responseA.discarded_duplicates || []).length} duplicate
                         </span>
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsA.dedup ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsA.dedup ? 'rotate-180' : ''}`}
+                        />
                       </span>
                     </button>
                     {expandedPanelsA.dedup && (
                       <div className="p-3 bg-white border-t border-gray-150 space-y-2 max-h-60 overflow-y-auto">
                         {(responseA.discarded_duplicates || []).length === 0 ? (
-                          <p className="text-[10px] text-gray-400 text-center py-2">No duplicates removed in this run.</p>
+                          <p className="text-[10px] text-gray-400 text-center py-2">
+                            No duplicates removed in this run.
+                          </p>
                         ) : (
                           (responseA.discarded_duplicates || []).map((c: any, idx: number) => (
-                            <div key={idx} className="text-[11px] p-2 bg-red-50/50 rounded border border-red-100 space-y-1 opacity-70">
+                            <div
+                              key={idx}
+                              className="text-[11px] p-2 bg-red-50/50 rounded border border-red-100 space-y-1 opacity-70"
+                            >
                               <div className="flex justify-between font-semibold text-red-800">
-                                <span>{c.document_name} (chunk {c.chunk_index})</span>
-                                <span className="bg-red-100 text-red-700 text-[9px] px-1 rounded">Duplicate - Removed</span>
+                                <span>
+                                  {c.document_name} (chunk {c.chunk_index})
+                                </span>
+                                <span className="bg-red-100 text-red-700 text-[9px] px-1 rounded">
+                                  Duplicate - Removed
+                                </span>
                               </div>
-                              <p className="text-gray-500 font-normal line-through line-clamp-1">{c.content}</p>
+                              <p className="text-gray-500 font-normal line-through line-clamp-1">
+                                {c.content}
+                              </p>
                             </div>
                           ))
                         )}
@@ -734,36 +810,54 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-slate-50 hover:bg-slate-100/80 px-3 py-2 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[9px]">3</span>
+                        <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[9px]">
+                          3
+                        </span>
                         Reranker Stage
                       </span>
                       <span className="flex items-center gap-2 text-gray-400">
                         <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono font-normal">
                           {responseA.rerank_info ? `${responseA.rerank_info.technique}` : 'Skipped'}
                         </span>
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsA.rerank ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsA.rerank ? 'rotate-180' : ''}`}
+                        />
                       </span>
                     </button>
                     {expandedPanelsA.rerank && (
                       <div className="p-3 bg-white border-t border-gray-150 space-y-2 max-h-60 overflow-y-auto">
                         {!responseA.rerank_info ? (
-                          <p className="text-[10px] text-gray-400 text-center py-2">Reranker not enabled. Candidates bypassed this stage.</p>
+                          <p className="text-[10px] text-gray-400 text-center py-2">
+                            Reranker not enabled. Candidates bypassed this stage.
+                          </p>
                         ) : (
                           <>
                             <div className="text-[10px] text-gray-500 bg-amber-50/50 p-2 rounded border border-amber-100 mb-2 font-mono">
-                              Model: {responseA.rerank_info.model}<br />
+                              Model: {responseA.rerank_info.model}
+                              <br />
                               Candidate Limit: {responseA.rerank_info.candidate_limit}
                             </div>
                             {(responseA.discarded_reranked || []).length === 0 ? (
-                              <p className="text-[10px] text-gray-400 text-center py-2">No candidates filtered out by reranker.</p>
+                              <p className="text-[10px] text-gray-400 text-center py-2">
+                                No candidates filtered out by reranker.
+                              </p>
                             ) : (
                               (responseA.discarded_reranked || []).map((c: any, idx: number) => (
-                                <div key={idx} className="text-[11px] p-2 bg-orange-50/30 rounded border border-orange-100 space-y-1 opacity-70">
+                                <div
+                                  key={idx}
+                                  className="text-[11px] p-2 bg-orange-50/30 rounded border border-orange-100 space-y-1 opacity-70"
+                                >
                                   <div className="flex justify-between font-semibold text-orange-800">
-                                    <span>{c.document_name} (chunk {c.chunk_index})</span>
-                                    <span className="bg-orange-100 text-orange-700 text-[9px] px-1 rounded">Filtered (Score / limit)</span>
+                                    <span>
+                                      {c.document_name} (chunk {c.chunk_index})
+                                    </span>
+                                    <span className="bg-orange-100 text-orange-700 text-[9px] px-1 rounded">
+                                      Filtered (Score / limit)
+                                    </span>
                                   </div>
-                                  <p className="text-gray-500 font-normal line-clamp-1">{c.content}</p>
+                                  <p className="text-gray-500 font-normal line-clamp-1">
+                                    {c.content}
+                                  </p>
                                 </div>
                               ))
                             )}
@@ -781,14 +875,18 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-violet-50 hover:bg-violet-100/50 px-3 py-2.5 flex items-center justify-between text-xs font-extrabold text-violet-900 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-violet-600 text-white flex items-center justify-center text-[9px]">4</span>
+                        <span className="w-4 h-4 rounded-full bg-violet-600 text-white flex items-center justify-center text-[9px]">
+                          4
+                        </span>
                         Final Context Chunks
                       </span>
                       <span className="flex items-center gap-2 text-violet-500">
                         <span className="text-[10px] bg-violet-650 text-white px-1.5 py-0.5 rounded font-mono font-normal">
                           {resultsA.length} selected
                         </span>
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsA.final ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsA.final ? 'rotate-180' : ''}`}
+                        />
                       </span>
                     </button>
                     {expandedPanelsA.final && (
@@ -799,11 +897,16 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                           </div>
                         ) : (
                           resultsA.map((chunk, idx) => (
-                            <div key={idx} className="border border-gray-150 p-3 rounded-lg bg-gray-50/50 hover:bg-slate-50 transition-all space-y-2 shadow-3xs">
+                            <div
+                              key={idx}
+                              className="border border-gray-150 p-3 rounded-lg bg-gray-50/50 hover:bg-slate-50 transition-all space-y-2 shadow-3xs"
+                            >
                               <div className="flex justify-between items-center">
                                 <span className="text-[11px] font-bold text-gray-600 flex items-center gap-1">
                                   <FileText className="w-3.5 h-3.5 text-violet-550" />
-                                  {chunk.metadata?.document_name || `Doc #${chunk.document_id}`} (chunk {chunk.chunk_index})
+                                  {chunk.metadata?.document_name ||
+                                    `Doc #${chunk.document_id}`}{' '}
+                                  (chunk {chunk.chunk_index})
                                 </span>
                                 <span className="text-xs font-extrabold text-violet-750 bg-violet-50 border border-violet-150 rounded px-1.5 py-0.5 font-mono">
                                   Score: {chunk.score?.toFixed(4)}
@@ -821,13 +924,19 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                                 <span className="bg-slate-100 px-1 py-0.5 rounded text-gray-600 font-mono">
                                   {chunk.content.split(/\s+/).filter(Boolean).length} words
                                 </span>
-                                {chunk.metadata && Object.keys(chunk.metadata).filter(k => k !== 'document_name').length > 0 && (
-                                  Object.entries(chunk.metadata).filter(([k]) => k !== 'document_name').map(([k, v]) => (
-                                    <span key={k} className="bg-slate-150 text-slate-750 px-1 py-0.2 rounded font-mono">
-                                      {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                                    </span>
-                                  ))
-                                )}
+                                {chunk.metadata &&
+                                  Object.keys(chunk.metadata).filter((k) => k !== 'document_name')
+                                    .length > 0 &&
+                                  Object.entries(chunk.metadata)
+                                    .filter(([k]) => k !== 'document_name')
+                                    .map(([k, v]) => (
+                                      <span
+                                        key={k}
+                                        className="bg-slate-150 text-slate-750 px-1 py-0.2 rounded font-mono"
+                                      >
+                                        {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                      </span>
+                                    ))}
                               </div>
                             </div>
                           ))
@@ -844,12 +953,20 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-indigo-50 hover:bg-indigo-100/50 px-3 py-2.5 flex items-center justify-between text-xs font-extrabold text-indigo-900 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center text-[9px]">5</span>
+                        <span className="w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center text-[9px]">
+                          5
+                        </span>
                         LLM Synthesis Response
                       </span>
                       <span className="flex items-center gap-2 text-indigo-500">
-                        {generatingA && <span className="text-[10px] text-indigo-650 flex items-center gap-1 font-normal"><RefreshCw className="w-3 h-3 animate-spin" /> Generating...</span>}
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsA.llm ? 'rotate-180' : ''}`} />
+                        {generatingA && (
+                          <span className="text-[10px] text-indigo-650 flex items-center gap-1 font-normal">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> Generating...
+                          </span>
+                        )}
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsA.llm ? 'rotate-180' : ''}`}
+                        />
                       </span>
                     </button>
                     {expandedPanelsA.llm && (
@@ -873,7 +990,6 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       </div>
                     )}
                   </div>
-
                 </div>
               )}
             </div>
@@ -891,7 +1007,9 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
-                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">LLM Profile</label>
+                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">
+                    LLM Profile
+                  </label>
                   <select
                     value={llmProfileIdB}
                     onChange={(e) => {
@@ -907,7 +1025,9 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">Approach</label>
+                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">
+                    Approach
+                  </label>
                   <select
                     value={approachB}
                     onChange={(e) => {
@@ -921,7 +1041,9 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">Temp</label>
+                  <label className="block text-xs text-gray-400 font-bold uppercase mb-0.5">
+                    Temp
+                  </label>
                   <input
                     type="number"
                     min="0.0"
@@ -942,11 +1064,21 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                 return (
                   <div className="bg-teal-50/70 border border-teal-100 rounded-lg p-2 text-[11px] space-y-0.5 text-gray-700">
                     <div className="flex justify-between items-center font-semibold text-teal-900">
-                      <span className="truncate">URL: <span className="font-mono text-gray-800">{profB.llm_base_url || 'Default'}</span></span>
-                      <span className="bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold">{profB.llm_provider || 'vllm'}</span>
+                      <span className="truncate">
+                        URL:{' '}
+                        <span className="font-mono text-gray-800">
+                          {profB.llm_base_url || 'Default'}
+                        </span>
+                      </span>
+                      <span className="bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold">
+                        {profB.llm_provider || 'vllm'}
+                      </span>
                     </div>
                     <div className="text-gray-600">
-                      Model: <span className="font-mono font-semibold text-gray-900">{profB.llm_model || 'Default'}</span>
+                      Model:{' '}
+                      <span className="font-mono font-semibold text-gray-900">
+                        {profB.llm_model || 'Default'}
+                      </span>
                     </div>
                   </div>
                 );
@@ -1019,26 +1151,39 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-slate-50 hover:bg-slate-100/80 px-3 py-2 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[9px]">1</span>
+                        <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[9px]">
+                          1
+                        </span>
                         Raw Matches Retrieved
                       </span>
                       <span className="flex items-center gap-2 text-gray-400">
                         <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono font-normal">
                           {(responseB.raw_candidates || []).length} items
                         </span>
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsB.raw ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsB.raw ? 'rotate-180' : ''}`}
+                        />
                       </span>
                     </button>
                     {expandedPanelsB.raw && (
                       <div className="p-3 bg-white border-t border-gray-150 space-y-2 max-h-60 overflow-y-auto">
                         {(responseB.raw_candidates || []).length === 0 ? (
-                          <p className="text-[10px] text-gray-400 text-center py-2">No raw candidates found.</p>
+                          <p className="text-[10px] text-gray-400 text-center py-2">
+                            No raw candidates found.
+                          </p>
                         ) : (
                           (responseB.raw_candidates || []).map((c: any, idx: number) => (
-                            <div key={idx} className="text-[11px] p-2 bg-slate-50 rounded border border-slate-100 space-y-1">
+                            <div
+                              key={idx}
+                              className="text-[11px] p-2 bg-slate-50 rounded border border-slate-100 space-y-1"
+                            >
                               <div className="flex justify-between font-semibold text-gray-600">
-                                <span>{c.document_name} (chunk {c.chunk_index})</span>
-                                <span className="text-bg-primary font-mono">Score: {c.score?.toFixed(4)}</span>
+                                <span>
+                                  {c.document_name} (chunk {c.chunk_index})
+                                </span>
+                                <span className="text-bg-primary font-mono">
+                                  Score: {c.score?.toFixed(4)}
+                                </span>
                               </div>
                               <p className="text-gray-500 font-normal line-clamp-2">{c.content}</p>
                             </div>
@@ -1056,28 +1201,43 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-slate-50 hover:bg-slate-100/80 px-3 py-2 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[9px]">2</span>
+                        <span className="w-4 h-4 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[9px]">
+                          2
+                        </span>
                         Content Deduplication
                       </span>
                       <span className="flex items-center gap-2 text-gray-400">
                         <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-mono font-normal">
                           -{(responseB.discarded_duplicates || []).length} duplicate
                         </span>
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsB.dedup ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsB.dedup ? 'rotate-180' : ''}`}
+                        />
                       </span>
                     </button>
                     {expandedPanelsB.dedup && (
                       <div className="p-3 bg-white border-t border-gray-150 space-y-2 max-h-60 overflow-y-auto">
                         {(responseB.discarded_duplicates || []).length === 0 ? (
-                          <p className="text-[10px] text-gray-400 text-center py-2">No duplicates removed in this run.</p>
+                          <p className="text-[10px] text-gray-400 text-center py-2">
+                            No duplicates removed in this run.
+                          </p>
                         ) : (
                           (responseB.discarded_duplicates || []).map((c: any, idx: number) => (
-                            <div key={idx} className="text-[11px] p-2 bg-red-50/50 rounded border border-red-100 space-y-1 opacity-70">
+                            <div
+                              key={idx}
+                              className="text-[11px] p-2 bg-red-50/50 rounded border border-red-100 space-y-1 opacity-70"
+                            >
                               <div className="flex justify-between font-semibold text-red-800">
-                                <span>{c.document_name} (chunk {c.chunk_index})</span>
-                                <span className="bg-red-100 text-red-700 text-[9px] px-1 rounded">Duplicate - Removed</span>
+                                <span>
+                                  {c.document_name} (chunk {c.chunk_index})
+                                </span>
+                                <span className="bg-red-100 text-red-700 text-[9px] px-1 rounded">
+                                  Duplicate - Removed
+                                </span>
                               </div>
-                              <p className="text-gray-500 font-normal line-through line-clamp-1">{c.content}</p>
+                              <p className="text-gray-500 font-normal line-through line-clamp-1">
+                                {c.content}
+                              </p>
                             </div>
                           ))
                         )}
@@ -1093,36 +1253,54 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-slate-50 hover:bg-slate-100/80 px-3 py-2 flex items-center justify-between text-xs font-bold text-gray-700 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[9px]">3</span>
+                        <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[9px]">
+                          3
+                        </span>
                         Reranker Stage
                       </span>
                       <span className="flex items-center gap-2 text-gray-400">
                         <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono font-normal">
                           {responseB.rerank_info ? `${responseB.rerank_info.technique}` : 'Skipped'}
                         </span>
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsB.rerank ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsB.rerank ? 'rotate-180' : ''}`}
+                        />
                       </span>
                     </button>
                     {expandedPanelsB.rerank && (
                       <div className="p-3 bg-white border-t border-gray-150 space-y-2 max-h-60 overflow-y-auto">
                         {!responseB.rerank_info ? (
-                          <p className="text-[10px] text-gray-400 text-center py-2">Reranker not enabled. Candidates bypassed this stage.</p>
+                          <p className="text-[10px] text-gray-400 text-center py-2">
+                            Reranker not enabled. Candidates bypassed this stage.
+                          </p>
                         ) : (
                           <>
                             <div className="text-[10px] text-gray-500 bg-amber-50/50 p-2 rounded border border-amber-100 mb-2 font-mono">
-                              Model: {responseB.rerank_info.model}<br />
+                              Model: {responseB.rerank_info.model}
+                              <br />
                               Candidate Limit: {responseB.rerank_info.candidate_limit}
                             </div>
                             {(responseB.discarded_reranked || []).length === 0 ? (
-                              <p className="text-[10px] text-gray-400 text-center py-2">No candidates filtered out by reranker.</p>
+                              <p className="text-[10px] text-gray-400 text-center py-2">
+                                No candidates filtered out by reranker.
+                              </p>
                             ) : (
                               (responseB.discarded_reranked || []).map((c: any, idx: number) => (
-                                <div key={idx} className="text-[11px] p-2 bg-orange-50/30 rounded border border-orange-100 space-y-1 opacity-70">
+                                <div
+                                  key={idx}
+                                  className="text-[11px] p-2 bg-orange-50/30 rounded border border-orange-100 space-y-1 opacity-70"
+                                >
                                   <div className="flex justify-between font-semibold text-orange-800">
-                                    <span>{c.document_name} (chunk {c.chunk_index})</span>
-                                    <span className="bg-orange-100 text-orange-700 text-[9px] px-1 rounded">Filtered (Score / limit)</span>
+                                    <span>
+                                      {c.document_name} (chunk {c.chunk_index})
+                                    </span>
+                                    <span className="bg-orange-100 text-orange-700 text-[9px] px-1 rounded">
+                                      Filtered (Score / limit)
+                                    </span>
                                   </div>
-                                  <p className="text-gray-500 font-normal line-clamp-1">{c.content}</p>
+                                  <p className="text-gray-500 font-normal line-clamp-1">
+                                    {c.content}
+                                  </p>
                                 </div>
                               ))
                             )}
@@ -1140,14 +1318,18 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-teal-50 hover:bg-teal-100/50 px-3 py-2.5 flex items-center justify-between text-xs font-extrabold text-teal-900 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-teal-600 text-white flex items-center justify-center text-[9px]">4</span>
+                        <span className="w-4 h-4 rounded-full bg-teal-600 text-white flex items-center justify-center text-[9px]">
+                          4
+                        </span>
                         Final Context Chunks
                       </span>
                       <span className="flex items-center gap-2 text-teal-500">
                         <span className="text-[10px] bg-teal-600 text-white px-1.5 py-0.5 rounded font-mono font-normal">
                           {resultsB.length} selected
                         </span>
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsB.final ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsB.final ? 'rotate-180' : ''}`}
+                        />
                       </span>
                     </button>
                     {expandedPanelsB.final && (
@@ -1158,11 +1340,16 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                           </div>
                         ) : (
                           resultsB.map((chunk, idx) => (
-                            <div key={idx} className="border border-gray-150 p-3 rounded-lg bg-gray-50/50 hover:bg-slate-50 transition-all space-y-2 shadow-3xs">
+                            <div
+                              key={idx}
+                              className="border border-gray-150 p-3 rounded-lg bg-gray-50/50 hover:bg-slate-50 transition-all space-y-2 shadow-3xs"
+                            >
                               <div className="flex justify-between items-center">
                                 <span className="text-[11px] font-bold text-gray-600 flex items-center gap-1">
                                   <FileText className="w-3.5 h-3.5 text-teal-550" />
-                                  {chunk.metadata?.document_name || `Doc #${chunk.document_id}`} (chunk {chunk.chunk_index})
+                                  {chunk.metadata?.document_name ||
+                                    `Doc #${chunk.document_id}`}{' '}
+                                  (chunk {chunk.chunk_index})
                                 </span>
                                 <span className="text-xs font-extrabold text-teal-750 bg-teal-50 border border-teal-150 rounded px-1.5 py-0.5 font-mono">
                                   Score: {chunk.score?.toFixed(4)}
@@ -1180,13 +1367,19 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                                 <span className="bg-slate-100 px-1 py-0.5 rounded text-gray-600 font-mono">
                                   {chunk.content.split(/\s+/).filter(Boolean).length} words
                                 </span>
-                                {chunk.metadata && Object.keys(chunk.metadata).filter(k => k !== 'document_name').length > 0 && (
-                                  Object.entries(chunk.metadata).filter(([k]) => k !== 'document_name').map(([k, v]) => (
-                                    <span key={k} className="bg-slate-150 text-slate-750 px-1 py-0.2 rounded font-mono">
-                                      {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                                    </span>
-                                  ))
-                                )}
+                                {chunk.metadata &&
+                                  Object.keys(chunk.metadata).filter((k) => k !== 'document_name')
+                                    .length > 0 &&
+                                  Object.entries(chunk.metadata)
+                                    .filter(([k]) => k !== 'document_name')
+                                    .map(([k, v]) => (
+                                      <span
+                                        key={k}
+                                        className="bg-slate-150 text-slate-750 px-1 py-0.2 rounded font-mono"
+                                      >
+                                        {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                      </span>
+                                    ))}
                               </div>
                             </div>
                           ))
@@ -1203,12 +1396,20 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       className="w-full bg-teal-50 hover:bg-teal-100/50 px-3 py-2.5 flex items-center justify-between text-xs font-extrabold text-teal-900 transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-teal-600 text-white flex items-center justify-center text-[9px]">5</span>
+                        <span className="w-4 h-4 rounded-full bg-teal-600 text-white flex items-center justify-center text-[9px]">
+                          5
+                        </span>
                         LLM Synthesis Response
                       </span>
                       <span className="flex items-center gap-2 text-teal-500">
-                        {generatingB && <span className="text-[10px] text-teal-650 flex items-center gap-1 font-normal"><RefreshCw className="w-3 h-3 animate-spin" /> Generating...</span>}
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsB.llm ? 'rotate-180' : ''}`} />
+                        {generatingB && (
+                          <span className="text-[10px] text-teal-650 flex items-center gap-1 font-normal">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> Generating...
+                          </span>
+                        )}
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedPanelsB.llm ? 'rotate-180' : ''}`}
+                        />
                       </span>
                     </button>
                     {expandedPanelsB.llm && (
@@ -1232,17 +1433,12 @@ export default function PlaygroundTab({ initialKbId }: PlaygroundTabProps = {}) 
                       </div>
                     )}
                   </div>
-
                 </div>
               )}
             </div>
           </div>
-
         </div>
-
       </div>
-
-
     </div>
   );
 }

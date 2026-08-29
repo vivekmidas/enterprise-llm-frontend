@@ -86,7 +86,8 @@ export const legalNodes: Node<WorkflowNodeData>[] = [
     data: {
       name: 'lawyer_alert',
       label: 'Lawyer Alert',
-      description: 'Sends Slack + email to assigned attorney with risk summary and flagged clauses.',
+      description:
+        'Sends Slack + email to assigned attorney with risk summary and flagged clauses.',
       node_type: 'Output',
       category: 'Output',
       icon: 'alert-triangle',
@@ -103,7 +104,8 @@ export const legalNodes: Node<WorkflowNodeData>[] = [
     data: {
       name: 'contract_register',
       label: 'Contract Register',
-      description: 'Adds standard contract to the contract register database with extracted metadata.',
+      description:
+        'Adds standard contract to the contract register database with extracted metadata.',
       node_type: 'Data',
       category: 'Data',
       icon: 'database',

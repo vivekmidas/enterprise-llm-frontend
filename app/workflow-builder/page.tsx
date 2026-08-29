@@ -551,7 +551,7 @@ function AgentBuilderContent() {
   const onGet = useCallback(async () => {
     try {
       const data = await api.getSavedAgents();
-      const workflows = Array.isArray(data) ? data : ((data as any)?.workflows || []);
+      const workflows = Array.isArray(data) ? data : (data as any)?.workflows || [];
       const latestWorkflow =
         workflows.find((workflow: { id: string }) => workflow.id === agentId) || workflows[0];
 
@@ -1007,7 +1007,13 @@ function AgentBuilderContent() {
 export default function AgentBuilder() {
   return (
     <ReactFlowProvider>
-      <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white">Loading workflow builder...</div>}>
+      <Suspense
+        fallback={
+          <div className="flex h-screen w-screen items-center justify-center bg-slate-900 text-white">
+            Loading workflow builder...
+          </div>
+        }
+      >
         <AgentBuilderContent />
       </Suspense>
     </ReactFlowProvider>

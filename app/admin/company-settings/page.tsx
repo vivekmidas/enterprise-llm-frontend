@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { Tooltip } from '@/app/components/Tooltip';
 
-
 export interface CompanySettingsTabProps {
   userRole?: string | null;
   customerId?: string;
@@ -316,7 +315,7 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
       } else {
         // Update existing LLMProfile
         await api.updateLlmProfile(
-          (selectedConfigId),
+          selectedConfigId,
           {
             name: configName.trim(),
             description: configDesc.trim() || undefined,
@@ -349,7 +348,7 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
     if (!selectedConfigId || selectedConfigId === 'new') return;
     setSaving(true);
     try {
-      await api.activateLlmProfile((selectedConfigId), selectedCustomerId || undefined);
+      await api.activateLlmProfile(selectedConfigId, selectedCustomerId || undefined);
       setActiveConfigId(selectedConfigId);
       setSaveResult({
         status: 'success',
@@ -373,7 +372,7 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
 
     setSaving(true);
     try {
-      await api.deleteLlmProfile((selectedConfigId), selectedCustomerId || undefined);
+      await api.deleteLlmProfile(selectedConfigId, selectedCustomerId || undefined);
 
       if (activeConfigId === selectedConfigId) {
         setActiveConfigId(null);
@@ -418,7 +417,7 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
     const testPayload: any = {
       customer_id: selectedCustomerId || undefined,
       tenant_id: selectedCustomerId || undefined,
-      config_id: selectedConfigId !== 'new' ? (selectedConfigId) : undefined,
+      config_id: selectedConfigId !== 'new' ? selectedConfigId : undefined,
       llm_provider: settings.llm_provider,
       llm_model: settings.llm_model,
       llm_base_url: settings.llm_base_url,
@@ -572,7 +571,7 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
           <span className="text-xs font-bold text-gray-700 uppercase">Target Tenant:</span>
           <select
             value={selectedCustomerId || ''}
-            onChange={(e) => setSelectedCustomerId(e.target.value ? (e.target.value) : '')}
+            onChange={(e) => setSelectedCustomerId(e.target.value ? e.target.value : '')}
             className="border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-black focus:outline-none focus:border-blue-500 cursor-pointer min-w-[240px]"
           >
             <option value="">Select a company tenant...</option>
@@ -929,10 +928,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
           <div className="flex items-center justify-between border-t pt-4 border-gray-100">
             {saveResult.status && (
               <div
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${saveResult.status === 'success'
-                  ? 'bg-green-50 text-green-700 border border-green-200'
-                  : 'bg-red-50 text-red-700 border border-red-200'
-                  }`}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${
+                  saveResult.status === 'success'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}
               >
                 {saveResult.status === 'success' ? (
                   <CheckCircle className="w-4 h-4 text-green-600" />
@@ -979,10 +979,11 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
 
             {testResult.status && (
               <div
-                className={`p-3 rounded-lg border text-xs leading-relaxed flex items-start gap-2 ${testResult.status === 'success'
-                  ? 'bg-green-50/50 border-green-200 text-green-800'
-                  : 'bg-red-50/50 border-red-200 text-red-800'
-                  }`}
+                className={`p-3 rounded-lg border text-xs leading-relaxed flex items-start gap-2 ${
+                  testResult.status === 'success'
+                    ? 'bg-green-50/50 border-green-200 text-green-800'
+                    : 'bg-red-50/50 border-red-200 text-red-800'
+                }`}
               >
                 {testResult.status === 'success' ? (
                   <CheckCircle className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
@@ -1035,14 +1036,15 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                     return (
                       <div
                         key={step.step}
-                        className={`flex flex-col p-2.5 rounded-lg border transition-all duration-200 select-none cursor-pointer ${step.status === 'success'
-                          ? 'bg-green-50/30 border-green-100 hover:bg-green-50/60 text-green-900'
-                          : step.status === 'error'
-                            ? 'bg-red-50/30 border-red-100 hover:bg-red-50/60 text-red-900'
-                            : step.status === 'loading'
-                              ? 'bg-blue-50/30 border-blue-100 text-blue-900 font-semibold'
-                              : 'bg-gray-50/50 border-gray-100 text-gray-400'
-                          }`}
+                        className={`flex flex-col p-2.5 rounded-lg border transition-all duration-200 select-none cursor-pointer ${
+                          step.status === 'success'
+                            ? 'bg-green-50/30 border-green-100 hover:bg-green-50/60 text-green-900'
+                            : step.status === 'error'
+                              ? 'bg-red-50/30 border-red-100 hover:bg-red-50/60 text-red-900'
+                              : step.status === 'loading'
+                                ? 'bg-blue-50/30 border-blue-100 text-blue-900 font-semibold'
+                                : 'bg-gray-50/50 border-gray-100 text-gray-400'
+                        }`}
                         onClick={() => toggleStepExpand(step.step)}
                       >
                         <div className="flex gap-2 items-start justify-between">
@@ -1126,11 +1128,12 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
                         isAvailable && setTempFileConfig((c) => ({ ...c, storage_type: t }))
                       }
                       className={`flex-1 py-2 rounded-lg border text-xs font-semibold transition-all
-                        ${tempFileConfig.storage_type === t
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : isAvailable
-                            ? 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 cursor-pointer'
-                            : 'border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed'
+                        ${
+                          tempFileConfig.storage_type === t
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : isAvailable
+                              ? 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 cursor-pointer'
+                              : 'border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed'
                         }`}
                     >
                       {labels[t]}
@@ -1249,8 +1252,9 @@ export default function CompanySettingsTab({ userRole, customerId }: CompanySett
               <div>
                 {tempFileSaveResult.status && (
                   <span
-                    className={`text-xs font-semibold ${tempFileSaveResult.status === 'success' ? 'text-green-600' : 'text-red-600'
-                      }`}
+                    className={`text-xs font-semibold ${
+                      tempFileSaveResult.status === 'success' ? 'text-green-600' : 'text-red-600'
+                    }`}
                   >
                     {tempFileSaveResult.status === 'success' ? '✓ ' : '✗ '}
                     {tempFileSaveResult.message}

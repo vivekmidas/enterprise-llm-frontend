@@ -362,11 +362,7 @@ const EmbeddingEditor = ({
       />
       <div className="grid grid-cols-2 gap-4">
         <Field label="Provider">
-          <Select
-            value={data.provider}
-            onChange={handleProviderChange}
-            options={providerOptions}
-          />
+          <Select value={data.provider} onChange={handleProviderChange} options={providerOptions} />
         </Field>
         <Field label="Model">
           {currentPreset?.embedding_models && currentPreset.embedding_models.length > 0 ? (
@@ -388,10 +384,7 @@ const EmbeddingEditor = ({
         </Field>
       </div>
       {/* BLOCK COMMENT: READ-ONLY PROVIDER BASE URL */}
-      <Field
-        label="Endpoint URL"
-        hint="Configured by System Admin (Provider Preset Base URL)"
-      >
+      <Field label="Endpoint URL" hint="Configured by System Admin (Provider Preset Base URL)">
         <div className="relative flex items-center">
           <TextInput
             value={
@@ -449,7 +442,9 @@ const SearchEditor = ({
       <div className="flex items-start gap-2.5 p-3 bg-blue-50/80 border border-blue-100 rounded-lg text-blue-900 text-xs leading-relaxed">
         <Database className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
         <div>
-          <span className="font-semibold">Retrieval Mechanism:</span> Dense vector search automatically uses the query embedding model &amp; vector dimension configured in the <strong>Embedding</strong> tab. Keyword search operates via MySQL BM25.
+          <span className="font-semibold">Retrieval Mechanism:</span> Dense vector search
+          automatically uses the query embedding model &amp; vector dimension configured in the{' '}
+          <strong>Embedding</strong> tab. Keyword search operates via MySQL BM25.
         </div>
       </div>
       <Field label="Search Approach" hint="Hybrid combines vector + keyword (BM25) with RRF fusion">
@@ -585,7 +580,10 @@ const RerankEditor = ({
           </Field>
         </div>
         {/* BLOCK COMMENT: READ-ONLY PROVIDER BASE URL */}
-        <Field label="Reranker Endpoint URL" hint="Configured by System Admin (Provider Preset Base URL)">
+        <Field
+          label="Reranker Endpoint URL"
+          hint="Configured by System Admin (Provider Preset Base URL)"
+        >
           <div className="relative flex items-center">
             <TextInput
               value={
@@ -669,11 +667,7 @@ const GenerationEditor = ({
       />
       <div className="grid grid-cols-2 gap-4">
         <Field label="Provider">
-          <Select
-            value={data.provider}
-            onChange={handleProviderChange}
-            options={providerOptions}
-          />
+          <Select value={data.provider} onChange={handleProviderChange} options={providerOptions} />
         </Field>
         <Field label="Model">
           {currentPreset?.chat_models && currentPreset.chat_models.length > 0 ? (
@@ -764,9 +758,7 @@ const ProfileEditor = ({
   onDeleted: (id: string | number) => void;
 }) => {
   const [activeSection, setActiveSection] = useState<SectionTab>('embedding');
-  const [settings, setSettings] = useState<ProfileSettings>(
-    normalizeSettings(profile.settings),
-  );
+  const [settings, setSettings] = useState<ProfileSettings>(normalizeSettings(profile.settings));
   const [saving, setSaving] = useState(false);
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -946,7 +938,12 @@ const ProfileEditor = ({
       { step: 2, name: 'Network Reachability Check', status: 'pending', message: 'Pending...' },
       { step: 3, name: 'Credential Validation', status: 'pending', message: 'Pending...' },
       { step: 4, name: 'API Client Initialization', status: 'pending', message: 'Pending...' },
-      { step: 5, name: 'Provider Model Availability Check', status: 'pending', message: 'Pending...' },
+      {
+        step: 5,
+        name: 'Provider Model Availability Check',
+        status: 'pending',
+        message: 'Pending...',
+      },
       { step: 6, name: 'Model Verification', status: 'pending', message: 'Pending...' },
       { step: 7, name: 'Prompt Preparation', status: 'pending', message: 'Pending...' },
       { step: 8, name: 'Endpoint Connection', status: 'pending', message: 'Pending...' },
@@ -1045,7 +1042,11 @@ const ProfileEditor = ({
               text-white hover:bg-blue-700 disabled:opacity-50 transition cursor-pointer"
               title="Save name"
             >
-              {savingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              {savingName ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Check className="w-3.5 h-3.5" />
+              )}
             </button>
             <button
               onClick={() => {
@@ -1225,7 +1226,9 @@ const ProfileEditor = ({
                   <span>
                     Execution Steps ({testSteps.filter((s) => s.status === 'success').length}/11)
                   </span>
-                  {testingConnection && <span className="text-blue-500 animate-pulse">Running...</span>}
+                  {testingConnection && (
+                    <span className="text-blue-500 animate-pulse">Running...</span>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -1238,7 +1241,9 @@ const ProfileEditor = ({
                         case 'error':
                           return <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />;
                         case 'loading':
-                          return <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />;
+                          return (
+                            <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />
+                          );
                         case 'skipped':
                           return (
                             <div className="w-3.5 h-3.5 rounded-full border border-gray-300 flex items-center justify-center shrink-0">
@@ -1247,7 +1252,9 @@ const ProfileEditor = ({
                           );
                         case 'pending':
                         default:
-                          return <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200 shrink-0" />;
+                          return (
+                            <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200 shrink-0" />
+                          );
                       }
                     };
 
@@ -1273,7 +1280,11 @@ const ProfileEditor = ({
                             </span>
                           </div>
                           <div className="text-gray-400 shrink-0">
-                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            {isExpanded ? (
+                              <ChevronUp className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
                           </div>
                         </div>
 
@@ -1316,7 +1327,7 @@ const CreateProfileModal = ({
   const [description, setDescription] = useState('');
   const [isDefault, setIsDefault] = useState(false);
   const [selectedCustId, setSelectedCustId] = useState<string | number | null>(
-    defaultCustomerId || (customers.length > 0 ? customers[0].id : null)
+    defaultCustomerId || (customers.length > 0 ? customers[0].id : null),
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1422,7 +1433,11 @@ const CreateProfileModal = ({
               disabled={saving || !name.trim()}
               className="flex-1 py-2.5 bg-primary hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
             >
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5 bg-primary" />}
+              {saving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Plus className="w-3.5 h-3.5 bg-primary" />
+              )}
               Create Profile
             </button>
           </div>
@@ -1451,12 +1466,13 @@ export default function ProfilesPage({
 
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerFilter, setCustomerFilter] = useState<string>(
-    customerId ? String(customerId) : 'all'
+    customerId ? String(customerId) : 'all',
   );
 
   useEffect(() => {
     if (userRole === 'system_admin') {
-      api.getCustomers()
+      api
+        .getCustomers()
         .then((list) => setCustomers(list || []))
         .catch((err) => console.error('Failed to load customers list', err));
     }
@@ -1494,7 +1510,11 @@ export default function ProfilesPage({
       }));
       setProfiles(normalized);
       if (data.length > 0) {
-        setSelectedId((prev) => (prev && data.some((p) => String(p.id) === String(prev)) ? prev : (data.find((p) => p.is_default)?.id ?? data[0].id)));
+        setSelectedId((prev) =>
+          prev && data.some((p) => String(p.id) === String(prev))
+            ? prev
+            : (data.find((p) => p.is_default)?.id ?? data[0].id),
+        );
       } else {
         setSelectedId(null);
       }
@@ -1515,8 +1535,8 @@ export default function ProfilesPage({
         String(p.id) === String(updated.id)
           ? updated
           : updated.is_default
-          ? { ...p, is_default: false }
-          : p,
+            ? { ...p, is_default: false }
+            : p,
       ),
     );
   };
@@ -1536,7 +1556,7 @@ export default function ProfilesPage({
   const getCustomerName = (cid?: string | number) => {
     if (!cid) return null;
     const found = customers.find((c) => String(c.id) === String(cid));
-    return found ? (found.name || `Customer #${cid}`) : `Customer #${cid}`;
+    return found ? found.name || `Customer #${cid}` : `Customer #${cid}`;
   };
 
   return (
@@ -1544,9 +1564,7 @@ export default function ProfilesPage({
       {/* Left Profile Sidebar */}
       <div className="w-1/4 border-r border-gray-200 flex flex-col h-full bg-slate-50/20">
         <div className="p-4 border-b border-gray-250 bg-gray-50/50 flex items-center justify-between">
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-            LLM Profiles
-          </h3>
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">LLM Profiles</h3>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowCreate(true)}
@@ -1655,7 +1673,8 @@ export default function ProfilesPage({
           <Zap className="w-12 h-12 text-gray-300 mb-3" />
           <h3 className="font-semibold text-gray-700 text-sm mb-1">No LLM Profile Selected</h3>
           <p className="text-xs text-gray-400 text-center max-w-sm">
-            Select or create an LLM profile on the left to configure embedding, search, reranking, and generation settings.
+            Select or create an LLM profile on the left to configure embedding, search, reranking,
+            and generation settings.
           </p>
           <button
             onClick={() => setShowCreate(true)}

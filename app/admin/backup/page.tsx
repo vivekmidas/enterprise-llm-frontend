@@ -221,7 +221,9 @@ export default function BackupTab() {
             <FileCode className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Backups</div>
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+              Total Backups
+            </div>
             <div className="text-xl font-black text-gray-900">{totalBackups}</div>
           </div>
         </div>
@@ -231,7 +233,9 @@ export default function BackupTab() {
             <HardDrive className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Storage</div>
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+              Total Storage
+            </div>
             <div className="text-xl font-black text-gray-900">{formatBytes(totalSizeBytes)}</div>
           </div>
         </div>
@@ -241,7 +245,9 @@ export default function BackupTab() {
             <Clock className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Latest Backup</div>
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+              Latest Backup
+            </div>
             <div className="text-sm font-bold text-gray-900 truncate">
               {latestBackupTime ? formatDateTime(latestBackupTime) : 'Never'}
             </div>
@@ -269,7 +275,8 @@ export default function BackupTab() {
             />
           </div>
           <div className="text-xs font-medium text-gray-500">
-            Showing <span className="font-bold text-gray-800">{filteredBackups.length}</span> of {totalBackups} backups
+            Showing <span className="font-bold text-gray-800">{filteredBackups.length}</span> of{' '}
+            {totalBackups} backups
           </div>
         </div>
 
@@ -326,10 +333,7 @@ export default function BackupTab() {
                 </tr>
               ) : (
                 filteredBackups.map((item) => (
-                  <tr
-                    key={item.filename}
-                    className="hover:bg-blue-50/40 transition-colors group"
-                  >
+                  <tr key={item.filename} className="hover:bg-blue-50/40 transition-colors group">
                     {/* Filename */}
                     <td className="py-3.5 px-5">
                       <div className="flex items-center gap-2.5">

@@ -96,8 +96,10 @@ const parseChoiceOptions = (rawOptions: any): string[] => {
     if (Array.isArray(rawOptions.options)) return parseChoiceOptions(rawOptions.options);
     if (Array.isArray(rawOptions.choices)) return parseChoiceOptions(rawOptions.choices);
     if (Array.isArray(rawOptions.values)) return parseChoiceOptions(rawOptions.values);
-    if (Array.isArray(rawOptions.allowed_values)) return parseChoiceOptions(rawOptions.allowed_values);
-    if (Array.isArray(rawOptions.allowedValues)) return parseChoiceOptions(rawOptions.allowedValues);
+    if (Array.isArray(rawOptions.allowed_values))
+      return parseChoiceOptions(rawOptions.allowed_values);
+    if (Array.isArray(rawOptions.allowedValues))
+      return parseChoiceOptions(rawOptions.allowedValues);
     if (Array.isArray(rawOptions.enum)) return parseChoiceOptions(rawOptions.enum);
     const keys = Object.keys(rawOptions);
     if (keys.length > 0) {
@@ -239,9 +241,9 @@ const normalizeContractRule = (rule: any): ContractRule => {
     nullable: boolFromValue(rule.nullable ?? false),
     items: rule.items
       ? {
-        field_type: rule.items.field_type || 'string',
-        ...rule.items,
-      }
+          field_type: rule.items.field_type || 'string',
+          ...rule.items,
+        }
       : undefined,
   };
 };
@@ -410,14 +412,16 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
       userProps.forEach((prop: any) => {
         if (prop && prop.key) {
           // If prop.value equals its own source URL, treat as unset
-          const rawVal = prop.value !== undefined ? prop.value : prop.default !== undefined ? prop.default : '';
+          const rawVal =
+            prop.value !== undefined ? prop.value : prop.default !== undefined ? prop.default : '';
           const isSourceUrl = prop.source && typeof rawVal === 'string' && rawVal === prop.source;
           initialConfig[prop.key] = isSourceUrl ? '' : rawVal;
         }
       });
       sysProps.forEach((prop: any) => {
         if (prop && prop.key) {
-          const rawVal = prop.value !== undefined ? prop.value : prop.default !== undefined ? prop.default : '';
+          const rawVal =
+            prop.value !== undefined ? prop.value : prop.default !== undefined ? prop.default : '';
           const isSourceUrl = prop.source && typeof rawVal === 'string' && rawVal === prop.source;
           initialConfig[prop.key] = isSourceUrl ? '' : rawVal;
         }
@@ -463,8 +467,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
           }
 
           try {
-            const BACKEND_URL =
-              process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+            const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
             const fullUrl = effectiveSource.startsWith('http')
               ? effectiveSource
               : `${BACKEND_URL}${effectiveSource.startsWith('/') ? '' : '/'}${effectiveSource}`;
@@ -482,12 +485,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
             // Normalize: handle arrays or envelope objects
             const raw: any[] = Array.isArray(json)
               ? json
-              : json.items ??
-              json.profiles ??
-              json.bases ??
-              json.results ??
-              json.data ??
-              [];
+              : (json.items ?? json.profiles ?? json.bases ?? json.results ?? json.data ?? []);
 
             const options = raw.map((item: any) => {
               if (item !== null && typeof item === 'object') {
@@ -588,7 +586,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
           const parsed = JSON.parse(testingInputData);
           if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
             const matchingKey = Object.keys(parsed).find(
-              (k) => k === propKey || k.toLowerCase() === propKey.toLowerCase()
+              (k) => k === propKey || k.toLowerCase() === propKey.toLowerCase(),
             );
             if (matchingKey) {
               parsed[matchingKey] = newValue;
@@ -930,7 +928,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
           ) {
             finalOutputContract = editingAgent.output_contract;
           }
-        } catch (e) { }
+        } catch (e) {}
 
         await api.configureCustomerNode(
           editingAgent.name,
@@ -1432,10 +1430,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase ${agent.node_type.toLowerCase() === 'trigger'
+                        className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase ${
+                          agent.node_type.toLowerCase() === 'trigger'
                             ? 'bg-green-50 text-green-700 border border-green-100'
                             : 'bg-amber-50 text-amber-700 border border-amber-100'
-                          }`}
+                        }`}
                       >
                         {agent.node_type}
                       </span>
@@ -1449,10 +1448,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         {jsonExpandedState[agentKey] ? 'Hide Definition' : 'Show Definition'}
                       </button>
                       <div
-                        className={`w-full max-w-xs overflow-hidden rounded-lg bg-gray-950 font-mono text-emerald-400 shadow-inner transition-all duration-300 ${jsonExpandedState[agentKey]
+                        className={`w-full max-w-xs overflow-hidden rounded-lg bg-gray-950 font-mono text-emerald-400 shadow-inner transition-all duration-300 ${
+                          jsonExpandedState[agentKey]
                             ? 'max-h-64 p-3 mt-2 overflow-auto opacity-100'
                             : 'max-h-0 p-0 opacity-0'
-                          }`}
+                        }`}
                       >
                         <pre className="text-[10px]">
                           {JSON.stringify(
@@ -1484,14 +1484,17 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               alert('Failed to toggle node testing: ' + err.message);
                             }
                           }}
-                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${agent.allow_node_testing === true
+                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                            agent.allow_node_testing === true
                               ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
                               : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                            }`}
+                          }`}
                           title="Toggle Isolated Node Testing (Debug Mode)"
                         >
                           <FlaskRound className="h-3 w-3" />
-                          <span>{agent.allow_node_testing === true ? 'Testing ON' : 'Testing OFF'}</span>
+                          <span>
+                            {agent.allow_node_testing === true ? 'Testing ON' : 'Testing OFF'}
+                          </span>
                         </button>
                         {customerId &&
                           (agent.is_enabled === false ? (
@@ -1525,10 +1528,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                             setTestingAgent({ ...agent });
                           }}
                           disabled={agent.is_enabled === false}
-                          className={`p-1 rounded transition-colors ${agent.is_enabled === false
+                          className={`p-1 rounded transition-colors ${
+                            agent.is_enabled === false
                               ? 'text-gray-300 cursor-not-allowed'
                               : 'text-purple-600 hover:bg-purple-50 cursor-pointer'
-                            }`}
+                          }`}
                           title="Test Node directly"
                         >
                           <FlaskRound className="h-4 w-4" />
@@ -1539,10 +1543,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                             setEditingAgent({ ...agent });
                           }}
                           disabled={agent.is_enabled === false}
-                          className={`p-1 rounded transition-colors ${agent.is_enabled === false
+                          className={`p-1 rounded transition-colors ${
+                            agent.is_enabled === false
                               ? 'text-gray-300 cursor-not-allowed'
                               : 'text-bg-primary hover:bg-blue-50 cursor-pointer'
-                            }`}
+                          }`}
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
@@ -1550,13 +1555,13 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                           agent.customer_id &&
                           agent.customer_id === customerId) ||
                           userRole === 'system_admin') && (
-                            <button
-                              onClick={() => handleDeleteNode(agent.name)}
-                              className="p-1 bg-red-900 text-red-850 hover:bg-white-900 hover:text-red-900  rounded cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleDeleteNode(agent.name)}
+                            className="p-1 bg-red-900 text-red-850 hover:bg-white-900 hover:text-red-900  rounded cursor-pointer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1761,10 +1766,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                           >
                             <td className="px-4 py-3">
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${row.category === 'user'
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                                  row.category === 'user'
                                     ? 'bg-blue-50 text-blue-700 border-blue-100'
                                     : 'bg-gray-100 text-gray-600 border-gray-200'
-                                  }`}
+                                }`}
                               >
                                 {row.category}
                               </span>
@@ -1964,19 +1970,21 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               <div className="flex bg-gray-100 p-1 rounded-lg">
                 <button
                   onClick={() => setPropModal({ ...propModal, target: 'user' })}
-                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${propModal.target === 'user'
+                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${
+                    propModal.target === 'user'
                       ? 'bg-white text-bg-primary shadow-sm'
                       : 'text-gray-500'
-                    }`}
+                  }`}
                 >
                   User Property
                 </button>
                 <button
                   onClick={() => setPropModal({ ...propModal, target: 'system' })}
-                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${propModal.target === 'system'
+                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${
+                    propModal.target === 'system'
                       ? 'bg-white text-bg-primary shadow-sm'
                       : 'text-gray-500'
-                    }`}
+                  }`}
                 >
                   System Property
                 </button>
@@ -2164,7 +2172,10 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Info className="h-4 w-4 text-amber-600 shrink-0" />
-                      <span>Isolated node testing is currently <strong>disabled</strong> for this node. Flip the switch above to enable testing.</span>
+                      <span>
+                        Isolated node testing is currently <strong>disabled</strong> for this node.
+                        Flip the switch above to enable testing.
+                      </span>
                     </div>
                     <button
                       onClick={async () => {
@@ -2245,9 +2256,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               ? value
                               : value !== '' && value !== undefined && value !== null
                                 ? String(value)
-                                  .split(',')
-                                  .map((v: string) => v.trim())
-                                  .filter(Boolean)
+                                    .split(',')
+                                    .map((v: string) => v.trim())
+                                    .filter(Boolean)
                                 : [];
 
                             const toggleId = (id: any) => {
@@ -2263,17 +2274,27 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               <div key={prop.key} className="space-y-1">
                                 <label className="block text-[11px] font-bold text-gray-500 uppercase">
                                   {label}{' '}
-                                  <span className="font-mono text-gray-400 font-normal">({prop.key})</span>
-                                  <span className="ml-1 text-purple-500 font-mono">multi-select</span>
+                                  <span className="font-mono text-gray-400 font-normal">
+                                    ({prop.key})
+                                  </span>
+                                  <span className="ml-1 text-purple-500 font-mono">
+                                    multi-select
+                                  </span>
                                 </label>
                                 {isLoadingSrc ? (
-                                  <p className="text-[11px] text-gray-400 italic animate-pulse">Loading options...</p>
+                                  <p className="text-[11px] text-gray-400 italic animate-pulse">
+                                    Loading options...
+                                  </p>
                                 ) : opts.length === 0 ? (
-                                  <p className="text-[11px] text-red-400 italic">No options available from source.</p>
+                                  <p className="text-[11px] text-red-400 italic">
+                                    No options available from source.
+                                  </p>
                                 ) : (
                                   <div className="rounded-lg border border-gray-200 bg-white divide-y divide-gray-100 max-h-40 overflow-y-auto">
                                     {opts.map((opt) => {
-                                      const checked = selectedIds.map(String).includes(String(opt.id));
+                                      const checked = selectedIds
+                                        .map(String)
+                                        .includes(String(opt.id));
                                       return (
                                         <label
                                           key={String(opt.id)}
@@ -2287,7 +2308,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                           />
                                           <span className="text-xs text-black">{opt.name}</span>
                                           {opt.name !== String(opt.id) && (
-                                            <span className="text-[10px] text-gray-400 font-mono ml-auto">#{opt.id}</span>
+                                            <span className="text-[10px] text-gray-400 font-mono ml-auto">
+                                              #{opt.id}
+                                            </span>
                                           )}
                                         </label>
                                       );
@@ -2300,7 +2323,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                   </p>
                                 )}
                                 {prop.description && (
-                                  <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
+                                  <p className="text-[10px] text-gray-400 italic mt-0.5">
+                                    {prop.description}
+                                  </p>
                                 )}
                               </div>
                             );
@@ -2310,29 +2335,44 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               <div key={prop.key} className="space-y-1">
                                 <label className="block text-[11px] font-bold text-gray-500 uppercase">
                                   {label}{' '}
-                                  <span className="font-mono text-gray-400 font-normal">({prop.key})</span>
+                                  <span className="font-mono text-gray-400 font-normal">
+                                    ({prop.key})
+                                  </span>
                                 </label>
                                 {isLoadingSrc ? (
-                                  <p className="text-[11px] text-gray-400 italic animate-pulse">Loading options...</p>
+                                  <p className="text-[11px] text-gray-400 italic animate-pulse">
+                                    Loading options...
+                                  </p>
                                 ) : (
                                   <select
                                     className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
-                                    value={value !== '' && value !== undefined && value !== null ? String(value) : ''}
-                                    onChange={(e) => handlePropConfigChange(prop.key, e.target.value)}
+                                    value={
+                                      value !== '' && value !== undefined && value !== null
+                                        ? String(value)
+                                        : ''
+                                    }
+                                    onChange={(e) =>
+                                      handlePropConfigChange(prop.key, e.target.value)
+                                    }
                                   >
                                     <option value="">— Select —</option>
                                     {opts.map((opt) => (
                                       <option key={String(opt.id)} value={String(opt.id)}>
-                                        {opt.name} {opt.name !== String(opt.id) ? `(#${opt.id})` : ''}
+                                        {opt.name}{' '}
+                                        {opt.name !== String(opt.id) ? `(#${opt.id})` : ''}
                                       </option>
                                     ))}
                                   </select>
                                 )}
                                 {opts.length === 0 && !isLoadingSrc && (
-                                  <p className="text-[11px] text-red-400 italic">No options available from source.</p>
+                                  <p className="text-[11px] text-red-400 italic">
+                                    No options available from source.
+                                  </p>
                                 )}
                                 {prop.description && (
-                                  <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
+                                  <p className="text-[10px] text-gray-400 italic mt-0.5">
+                                    {prop.description}
+                                  </p>
                                 )}
                               </div>
                             );
@@ -2349,15 +2389,30 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                           prop.configured_values ||
                           prop.configuredValues ||
                           prop.enum ||
-                          (prop.items ? (prop.items.options || prop.items.values || prop.items.allowed_values || prop.items) : undefined) ||
+                          (prop.items
+                            ? prop.items.options ||
+                              prop.items.values ||
+                              prop.items.allowed_values ||
+                              prop.items
+                            : undefined) ||
                           (Array.isArray(prop.value) ? prop.value : undefined) ||
-                          (typeof prop.value === 'string' && (prop.value.includes(',') || prop.value.startsWith('[')) ? prop.value : undefined) ||
+                          (typeof prop.value === 'string' &&
+                          (prop.value.includes(',') || prop.value.startsWith('['))
+                            ? prop.value
+                            : undefined) ||
                           (Array.isArray(prop.default) ? prop.default : undefined) ||
-                          (typeof prop.default === 'string' && (prop.default.includes(',') || prop.default.startsWith('[')) ? prop.default : undefined);
+                          (typeof prop.default === 'string' &&
+                          (prop.default.includes(',') || prop.default.startsWith('['))
+                            ? prop.default
+                            : undefined);
 
                         const parsedOpts = parseChoiceOptions(rawOpts);
                         const propType = String(prop.type || prop.field_type || '').toLowerCase();
-                        const isChoiceType = propType === 'choice' || propType === 'select' || propType === 'dropdown' || parsedOpts.length > 0;
+                        const isChoiceType =
+                          propType === 'choice' ||
+                          propType === 'select' ||
+                          propType === 'dropdown' ||
+                          parsedOpts.length > 0;
 
                         if (isChoiceType) {
                           const isMultiple = !!prop.multiple;
@@ -2366,9 +2421,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               ? value.map(String)
                               : value !== '' && value !== undefined && value !== null
                                 ? String(value)
-                                  .split(',')
-                                  .map((v: string) => v.trim())
-                                  .filter(Boolean)
+                                    .split(',')
+                                    .map((v: string) => v.trim())
+                                    .filter(Boolean)
                                 : [];
 
                             const toggleVal = (optVal: string) => {
@@ -2383,8 +2438,12 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               <div key={prop.key} className="space-y-1">
                                 <label className="block text-[11px] font-bold text-gray-500 uppercase">
                                   {label}{' '}
-                                  <span className="font-mono text-gray-400 font-normal">({prop.key})</span>
-                                  <span className="ml-1 text-purple-500 font-mono">multi-select</span>
+                                  <span className="font-mono text-gray-400 font-normal">
+                                    ({prop.key})
+                                  </span>
+                                  <span className="ml-1 text-purple-500 font-mono">
+                                    multi-select
+                                  </span>
                                 </label>
                                 {parsedOpts.length === 0 ? (
                                   <input
@@ -2398,7 +2457,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                         e.target.value
                                           .split(',')
                                           .map((v) => v.trim())
-                                          .filter(Boolean)
+                                          .filter(Boolean),
                                       )
                                     }
                                   />
@@ -2429,7 +2488,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                   </p>
                                 )}
                                 {prop.description && (
-                                  <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
+                                  <p className="text-[10px] text-gray-400 italic mt-0.5">
+                                    {prop.description}
+                                  </p>
                                 )}
                               </div>
                             );
@@ -2439,7 +2500,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               <div key={prop.key} className="space-y-1">
                                 <label className="block text-[11px] font-bold text-gray-500 uppercase">
                                   {label}{' '}
-                                  <span className="font-mono text-gray-400 font-normal">({prop.key})</span>
+                                  <span className="font-mono text-gray-400 font-normal">
+                                    ({prop.key})
+                                  </span>
                                 </label>
                                 <select
                                   className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
@@ -2454,7 +2517,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                                   ))}
                                 </select>
                                 {prop.description && (
-                                  <p className="text-[10px] text-gray-400 italic mt-0.5">{prop.description}</p>
+                                  <p className="text-[10px] text-gray-400 italic mt-0.5">
+                                    {prop.description}
+                                  </p>
                                 )}
                               </div>
                             );
@@ -2480,7 +2545,9 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               <select
                                 className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-black bg-white focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer"
                                 value={value === true ? 'true' : 'false'}
-                                onChange={(e) => handlePropConfigChange(prop.key, e.target.value === 'true')}
+                                onChange={(e) =>
+                                  handlePropConfigChange(prop.key, e.target.value === 'true')
+                                }
                               >
                                 <option value="false">False</option>
                                 <option value="true">True</option>
@@ -2536,20 +2603,23 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         Run-Time Input (JSON or Plaintext)
                       </label>
                       <textarea
-                        className={`w-full flex-1 min-h-[220px] rounded-lg border p-3 text-xs font-mono text-black outline-none overflow-auto transition-colors ${!getJsonValidationStatus(testingInputData).isValid && testingInputData.trim()
+                        className={`w-full flex-1 min-h-[220px] rounded-lg border p-3 text-xs font-mono text-black outline-none overflow-auto transition-colors ${
+                          !getJsonValidationStatus(testingInputData).isValid &&
+                          testingInputData.trim()
                             ? 'border-red-400 bg-red-50/20 focus:ring-2 focus:ring-red-400'
                             : 'border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500'
-                          }`}
+                        }`}
                         value={testingInputData}
                         onChange={(e) => setTestingInputData(e.target.value)}
                         placeholder='e.g. { "text": "value" } or "raw string"'
                         style={{ fontFamily: "'Consolas', 'Courier New', monospace" }}
                       />
-                      {!getJsonValidationStatus(testingInputData).isValid && testingInputData.trim() && (
-                        <p className="text-[10px] text-red-600 font-mono italic">
-                          JSON Syntax Error: {getJsonValidationStatus(testingInputData).message}
-                        </p>
-                      )}
+                      {!getJsonValidationStatus(testingInputData).isValid &&
+                        testingInputData.trim() && (
+                          <p className="text-[10px] text-red-600 font-mono italic">
+                            JSON Syntax Error: {getJsonValidationStatus(testingInputData).message}
+                          </p>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -2597,7 +2667,11 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               </button>
               <button
                 onClick={handleExecuteTest}
-                disabled={testingLoading || (!getJsonValidationStatus(testingInputData).isValid && testingInputData.trim().length > 0)}
+                disabled={
+                  testingLoading ||
+                  (!getJsonValidationStatus(testingInputData).isValid &&
+                    testingInputData.trim().length > 0)
+                }
                 className="flex items-center gap-1.5 rounded-lg bg-purple-900 px-6 py-1.5 text-xs font-bold text-white hover:bg-purple-700 shadow-md disabled:bg-purple-300 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
                 {testingLoading ? (

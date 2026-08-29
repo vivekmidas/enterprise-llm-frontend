@@ -36,7 +36,7 @@ import {
   FileEdit,
   Trash,
   ArrowRightLeft,
-  Check
+  Check,
 } from 'lucide-react';
 
 interface ModuleAction {
@@ -87,10 +87,34 @@ export default function PermissionsTab() {
   const [newModRoutes, setNewModRoutes] = useState('');
   const [newModTenant, setNewModTenant] = useState<string>('system');
   const [newModActions, setNewModActions] = useState<ModuleAction[]>([
-    { action: 'view', is_route_guard: true, label: 'View / Access', api_path: '', http_methods: ['GET'] },
-    { action: 'create', is_route_guard: false, label: 'Create New', api_path: '', http_methods: ['POST'] },
-    { action: 'edit', is_route_guard: false, label: 'Edit / Update', api_path: '', http_methods: ['PUT'] },
-    { action: 'delete', is_route_guard: false, label: 'Delete / Remove', api_path: '', http_methods: ['DELETE'] }
+    {
+      action: 'view',
+      is_route_guard: true,
+      label: 'View / Access',
+      api_path: '',
+      http_methods: ['GET'],
+    },
+    {
+      action: 'create',
+      is_route_guard: false,
+      label: 'Create New',
+      api_path: '',
+      http_methods: ['POST'],
+    },
+    {
+      action: 'edit',
+      is_route_guard: false,
+      label: 'Edit / Update',
+      api_path: '',
+      http_methods: ['PUT'],
+    },
+    {
+      action: 'delete',
+      is_route_guard: false,
+      label: 'Delete / Remove',
+      api_path: '',
+      http_methods: ['DELETE'],
+    },
   ]);
   const [saving, setSaving] = useState(false);
 
@@ -114,8 +138,10 @@ export default function PermissionsTab() {
     setLoading(true);
     try {
       const [modsRes, custsRes] = await Promise.all([
-        api.getModules(selectedTenant === 'all' || selectedTenant === 'system' ? undefined : selectedTenant),
-        api.getCustomers().catch(() => [])
+        api.getModules(
+          selectedTenant === 'all' || selectedTenant === 'system' ? undefined : selectedTenant,
+        ),
+        api.getCustomers().catch(() => []),
       ]);
       setModules(Array.isArray(modsRes) ? modsRes : []);
       setCustomers(Array.isArray(custsRes) ? custsRes : []);
@@ -133,7 +159,7 @@ export default function PermissionsTab() {
   const toggleActionMethod = (
     setter: React.Dispatch<React.SetStateAction<ModuleAction[]>>,
     idx: number,
-    verb: string
+    verb: string,
   ) => {
     setter((prev) =>
       prev.map((act, i) => {
@@ -143,7 +169,7 @@ export default function PermissionsTab() {
           ? curMethods.filter((m) => m !== verb)
           : [...curMethods, verb];
         return { ...act, http_methods: updated };
-      })
+      }),
     );
   };
 
@@ -156,10 +182,34 @@ export default function PermissionsTab() {
     setNewModRoutes('');
     setNewModTenant(selectedTenant === 'all' ? 'system' : selectedTenant);
     setNewModActions([
-      { action: 'view', is_route_guard: true, label: 'View / Access', api_path: '', http_methods: ['GET'] },
-      { action: 'create', is_route_guard: false, label: 'Create New', api_path: '', http_methods: ['POST'] },
-      { action: 'edit', is_route_guard: false, label: 'Edit / Update', api_path: '', http_methods: ['PUT'] },
-      { action: 'delete', is_route_guard: false, label: 'Delete / Remove', api_path: '', http_methods: ['DELETE'] }
+      {
+        action: 'view',
+        is_route_guard: true,
+        label: 'View / Access',
+        api_path: '',
+        http_methods: ['GET'],
+      },
+      {
+        action: 'create',
+        is_route_guard: false,
+        label: 'Create New',
+        api_path: '',
+        http_methods: ['POST'],
+      },
+      {
+        action: 'edit',
+        is_route_guard: false,
+        label: 'Edit / Update',
+        api_path: '',
+        http_methods: ['PUT'],
+      },
+      {
+        action: 'delete',
+        is_route_guard: false,
+        label: 'Delete / Remove',
+        api_path: '',
+        http_methods: ['DELETE'],
+      },
     ]);
     setShowAddModal(true);
   };
@@ -167,7 +217,13 @@ export default function PermissionsTab() {
   const handleAddActionToNewMod = () => {
     setNewModActions((prev) => [
       ...prev,
-      { action: 'manage', is_route_guard: false, label: 'Manage / Configure', api_path: '', http_methods: ['GET', 'POST', 'PUT', 'DELETE'] }
+      {
+        action: 'manage',
+        is_route_guard: false,
+        label: 'Manage / Configure',
+        api_path: '',
+        http_methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      },
     ]);
   };
 
@@ -199,8 +255,8 @@ export default function PermissionsTab() {
           api_path: a.api_path ? a.api_path.trim() : undefined,
           http_methods: a.http_methods && a.http_methods.length > 0 ? a.http_methods : undefined,
           label: a.label.trim(),
-          description: a.description
-        }))
+          description: a.description,
+        })),
       });
 
       setShowAddModal(false);
@@ -224,9 +280,17 @@ export default function PermissionsTab() {
         ? m.actions.map((a) => ({
             ...a,
             api_path: a.api_path || '',
-            http_methods: a.http_methods || []
+            http_methods: a.http_methods || [],
           }))
-        : [{ action: 'view', is_route_guard: true, label: `View ${m.label}`, api_path: '', http_methods: ['GET'] }]
+        : [
+            {
+              action: 'view',
+              is_route_guard: true,
+              label: `View ${m.label}`,
+              api_path: '',
+              http_methods: ['GET'],
+            },
+          ],
     );
     setShowEditModal(true);
   };
@@ -234,7 +298,13 @@ export default function PermissionsTab() {
   const handleAddActionToEditMod = () => {
     setEditModActions((prev) => [
       ...prev,
-      { action: 'manage', is_route_guard: false, label: `Manage ${editModLabel}`, api_path: '', http_methods: ['GET', 'POST', 'PUT', 'DELETE'] }
+      {
+        action: 'manage',
+        is_route_guard: false,
+        label: `Manage ${editModLabel}`,
+        api_path: '',
+        http_methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      },
     ]);
   };
 
@@ -266,8 +336,8 @@ export default function PermissionsTab() {
           api_path: a.api_path ? a.api_path.trim() : undefined,
           http_methods: a.http_methods && a.http_methods.length > 0 ? a.http_methods : undefined,
           label: a.label.trim(),
-          description: a.description
-        }))
+          description: a.description,
+        })),
       });
 
       setShowEditModal(false);
@@ -294,7 +364,12 @@ export default function PermissionsTab() {
   };
 
   const handleSyncDefaults = async () => {
-    if (!window.confirm('Sync canonical default modules and permissions to database? This will update system default routes.')) return;
+    if (
+      !window.confirm(
+        'Sync canonical default modules and permissions to database? This will update system default routes.',
+      )
+    )
+      return;
     try {
       const res = await api.syncDefaultRoutePermissions();
       triggerToast(res.message || 'Modules synchronized successfully!');
@@ -307,8 +382,7 @@ export default function PermissionsTab() {
 
   const filteredModules = modules.filter((m) => {
     const matchesGroup =
-      selectedModuleGroup === 'all' ||
-      m.module.toLowerCase() === selectedModuleGroup.toLowerCase();
+      selectedModuleGroup === 'all' || m.module.toLowerCase() === selectedModuleGroup.toLowerCase();
 
     const matchesTenant =
       selectedTenant === 'all' ||
@@ -320,14 +394,15 @@ export default function PermissionsTab() {
       m.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
       m.module.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.submodule && m.submodule.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (m.route_patterns && m.route_patterns.some((r) => r.toLowerCase().includes(searchQuery.toLowerCase()))) ||
+      (m.route_patterns &&
+        m.route_patterns.some((r) => r.toLowerCase().includes(searchQuery.toLowerCase()))) ||
       (m.actions &&
         m.actions.some(
           (a) =>
             a.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
             a.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (a.id && a.id.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (a.api_path && a.api_path.toLowerCase().includes(searchQuery.toLowerCase()))
+            (a.api_path && a.api_path.toLowerCase().includes(searchQuery.toLowerCase())),
         ));
 
     return matchesGroup && matchesTenant && matchesSearch;
@@ -344,7 +419,8 @@ export default function PermissionsTab() {
             <Route className="w-5 h-5 text-indigo-700" /> Canonical Module SOT & API Route Registry
           </h2>
           <p className="text-xs text-slate-600 mt-1">
-            Dynamic UI-driven route & API verb matrix. Changes take effect across frontend proxy and backend gateway without code restarts.
+            Dynamic UI-driven route & API verb matrix. Changes take effect across frontend proxy and
+            backend gateway without code restarts.
           </p>
         </div>
 
@@ -368,10 +444,34 @@ export default function PermissionsTab() {
               setNewModRoutes('');
               setNewModTenant('system');
               setNewModActions([
-                { action: 'view', is_route_guard: true, label: 'View / Access', api_path: '', http_methods: ['GET'] },
-                { action: 'create', is_route_guard: false, label: 'Create New', api_path: '', http_methods: ['POST'] },
-                { action: 'edit', is_route_guard: false, label: 'Edit / Update', api_path: '', http_methods: ['PUT'] },
-                { action: 'delete', is_route_guard: false, label: 'Delete / Remove', api_path: '', http_methods: ['DELETE'] }
+                {
+                  action: 'view',
+                  is_route_guard: true,
+                  label: 'View / Access',
+                  api_path: '',
+                  http_methods: ['GET'],
+                },
+                {
+                  action: 'create',
+                  is_route_guard: false,
+                  label: 'Create New',
+                  api_path: '',
+                  http_methods: ['POST'],
+                },
+                {
+                  action: 'edit',
+                  is_route_guard: false,
+                  label: 'Edit / Update',
+                  api_path: '',
+                  http_methods: ['PUT'],
+                },
+                {
+                  action: 'delete',
+                  is_route_guard: false,
+                  label: 'Delete / Remove',
+                  api_path: '',
+                  http_methods: ['DELETE'],
+                },
               ]);
               setShowAddModal(true);
             }}
@@ -471,7 +571,9 @@ export default function PermissionsTab() {
                             )}
                           </div>
                           {m.description && (
-                            <span className="text-[11px] text-slate-500 mt-1 max-w-xs">{m.description}</span>
+                            <span className="text-[11px] text-slate-500 mt-1 max-w-xs">
+                              {m.description}
+                            </span>
                           )}
                         </div>
                       </td>
@@ -504,11 +606,13 @@ export default function PermissionsTab() {
                                 className="flex flex-wrap items-center gap-2 p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px]"
                               >
                                 <div className="flex items-center gap-1">
-                                  <span className={`px-2 py-0.5 rounded font-extrabold text-[10px] border ${
-                                    act.is_route_guard
-                                      ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
-                                      : 'bg-indigo-50 text-indigo-900 border-indigo-200'
-                                  }`}>
+                                  <span
+                                    className={`px-2 py-0.5 rounded font-extrabold text-[10px] border ${
+                                      act.is_route_guard
+                                        ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                                        : 'bg-indigo-50 text-indigo-900 border-indigo-200'
+                                    }`}
+                                  >
                                     {act.action.toUpperCase()}
                                   </span>
                                   <span className="font-semibold text-slate-900">{act.label}</span>
@@ -522,12 +626,15 @@ export default function PermissionsTab() {
                                           meth === 'GET'
                                             ? 'bg-sky-50 text-sky-900 border-sky-300'
                                             : meth === 'POST'
-                                            ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
-                                            : meth === 'PUT'
-                                            ? 'bg-amber-50 text-amber-900 border-amber-300'
-                                            : 'bg-rose-50 text-rose-900 border-rose-300';
+                                              ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                                              : meth === 'PUT'
+                                                ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                                : 'bg-rose-50 text-rose-900 border-rose-300';
                                         return (
-                                          <span key={meth} className={`px-1 py-0.2 rounded text-[9px] font-extrabold border ${mClass}`}>
+                                          <span
+                                            key={meth}
+                                            className={`px-1 py-0.2 rounded text-[9px] font-extrabold border ${mClass}`}
+                                          >
                                             {meth}
                                           </span>
                                         );
@@ -541,7 +648,9 @@ export default function PermissionsTab() {
                               </div>
                             ))
                           ) : (
-                            <span className="text-slate-400 italic text-[11px]">No atomic actions</span>
+                            <span className="text-slate-400 italic text-[11px]">
+                              No atomic actions
+                            </span>
                           )}
                         </div>
                       </td>
@@ -595,9 +704,13 @@ export default function PermissionsTab() {
           <div className="bg-white border border-slate-300 p-6 rounded-2xl w-full max-w-5xl flex flex-col gap-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
-                <Plus className="w-4 h-4 text-indigo-700" /> Register Custom Module, Routes & Capabilities
+                <Plus className="w-4 h-4 text-indigo-700" /> Register Custom Module, Routes &
+                Capabilities
               </h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -653,7 +766,9 @@ export default function PermissionsTab() {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Route Patterns (comma-separated URL paths)</label>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Route Patterns (comma-separated URL paths)
+                </label>
                 <input
                   type="text"
                   value={newModRoutes}
@@ -678,8 +793,13 @@ export default function PermissionsTab() {
               <div className="border-t border-slate-200 pt-3">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <span className="font-extrabold text-slate-900 block">Capability Actions, API Paths & Route Guards</span>
-                    <span className="text-[10px] text-slate-500">Configure Action Key, Label, API Endpoint, HTTP Verbs, and Guard Checkbox in one tier</span>
+                    <span className="font-extrabold text-slate-900 block">
+                      Capability Actions, API Paths & Route Guards
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Configure Action Key, Label, API Endpoint, HTTP Verbs, and Guard Checkbox in
+                      one tier
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -692,13 +812,18 @@ export default function PermissionsTab() {
 
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                   {newModActions.map((act, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200"
+                    >
                       <input
                         type="text"
                         value={act.action}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setNewModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, action: val } : a)));
+                          setNewModActions((prev) =>
+                            prev.map((a, i) => (i === idx ? { ...a, action: val } : a)),
+                          );
                         }}
                         placeholder="action (e.g. view)"
                         className="w-24 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900"
@@ -708,7 +833,9 @@ export default function PermissionsTab() {
                         value={act.label}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setNewModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, label: val } : a)));
+                          setNewModActions((prev) =>
+                            prev.map((a, i) => (i === idx ? { ...a, label: val } : a)),
+                          );
                         }}
                         placeholder="Capability Label"
                         className="w-48 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-900"
@@ -718,7 +845,9 @@ export default function PermissionsTab() {
                         value={act.api_path || ''}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setNewModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, api_path: val } : a)));
+                          setNewModActions((prev) =>
+                            prev.map((a, i) => (i === idx ? { ...a, api_path: val } : a)),
+                          );
                         }}
                         placeholder="/api/endpoint/path"
                         className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-900"
@@ -730,11 +859,12 @@ export default function PermissionsTab() {
                             verb === 'GET'
                               ? 'bg-sky-100 text-sky-900 border-sky-300 font-extrabold'
                               : verb === 'POST'
-                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold'
-                              : verb === 'PUT'
-                              ? 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold'
-                              : 'bg-rose-100 text-rose-900 border-rose-300 font-extrabold';
-                          const inactiveClass = 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100';
+                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold'
+                                : verb === 'PUT'
+                                  ? 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold'
+                                  : 'bg-rose-100 text-rose-900 border-rose-300 font-extrabold';
+                          const inactiveClass =
+                            'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100';
 
                           return (
                             <button
@@ -751,15 +881,23 @@ export default function PermissionsTab() {
                           );
                         })}
                       </div>
-                      <label className={`flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-lg border cursor-pointer shrink-0 ${
-                        act.is_route_guard ? 'bg-emerald-50 text-emerald-900 border-emerald-300' : 'bg-white text-slate-500 border-slate-200'
-                      }`}>
+                      <label
+                        className={`flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-lg border cursor-pointer shrink-0 ${
+                          act.is_route_guard
+                            ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                            : 'bg-white text-slate-500 border-slate-200'
+                        }`}
+                      >
                         <input
                           type="checkbox"
                           checked={act.is_route_guard}
                           onChange={(e) => {
                             const checked = e.target.checked;
-                            setNewModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, is_route_guard: checked } : a)));
+                            setNewModActions((prev) =>
+                              prev.map((a, i) =>
+                                i === idx ? { ...a, is_route_guard: checked } : a,
+                              ),
+                            );
                           }}
                           className="w-3.5 h-3.5 accent-emerald-700 cursor-pointer"
                         />
@@ -807,9 +945,14 @@ export default function PermissionsTab() {
                 <h3 className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
                   <Edit2 className="w-4 h-4 text-indigo-700" /> Edit Module, Routes & Capabilities
                 </h3>
-                <p className="text-[11px] font-mono text-indigo-800 font-bold mt-0.5">{editingModule.id}</p>
+                <p className="text-[11px] font-mono text-indigo-800 font-bold mt-0.5">
+                  {editingModule.id}
+                </p>
               </div>
-              <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -827,7 +970,9 @@ export default function PermissionsTab() {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Route Patterns (comma-separated URL paths)</label>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Route Patterns (comma-separated URL paths)
+                </label>
                 <input
                   type="text"
                   value={editModRoutes}
@@ -852,8 +997,13 @@ export default function PermissionsTab() {
               <div className="border-t border-slate-200 pt-3">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <span className="font-extrabold text-slate-900 block">Capability Actions, API Paths & Route Guards</span>
-                    <span className="text-[10px] text-slate-500">Configure Action Key, Label, API Endpoint, HTTP Verbs, and Guard Checkbox in one tier</span>
+                    <span className="font-extrabold text-slate-900 block">
+                      Capability Actions, API Paths & Route Guards
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Configure Action Key, Label, API Endpoint, HTTP Verbs, and Guard Checkbox in
+                      one tier
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -866,13 +1016,18 @@ export default function PermissionsTab() {
 
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                   {editModActions.map((act, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200"
+                    >
                       <input
                         type="text"
                         value={act.action}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setEditModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, action: val } : a)));
+                          setEditModActions((prev) =>
+                            prev.map((a, i) => (i === idx ? { ...a, action: val } : a)),
+                          );
                         }}
                         placeholder="action"
                         className="w-24 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900"
@@ -882,7 +1037,9 @@ export default function PermissionsTab() {
                         value={act.label}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setEditModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, label: val } : a)));
+                          setEditModActions((prev) =>
+                            prev.map((a, i) => (i === idx ? { ...a, label: val } : a)),
+                          );
                         }}
                         placeholder="Label"
                         className="w-48 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-900"
@@ -892,7 +1049,9 @@ export default function PermissionsTab() {
                         value={act.api_path || ''}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setEditModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, api_path: val } : a)));
+                          setEditModActions((prev) =>
+                            prev.map((a, i) => (i === idx ? { ...a, api_path: val } : a)),
+                          );
                         }}
                         placeholder="/api/endpoint/path"
                         className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-900"
@@ -904,11 +1063,12 @@ export default function PermissionsTab() {
                             verb === 'GET'
                               ? 'bg-sky-100 text-sky-900 border-sky-300 font-extrabold'
                               : verb === 'POST'
-                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold'
-                              : verb === 'PUT'
-                              ? 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold'
-                              : 'bg-rose-100 text-rose-900 border-rose-300 font-extrabold';
-                          const inactiveClass = 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100';
+                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold'
+                                : verb === 'PUT'
+                                  ? 'bg-amber-100 text-amber-900 border-amber-300 font-extrabold'
+                                  : 'bg-rose-100 text-rose-900 border-rose-300 font-extrabold';
+                          const inactiveClass =
+                            'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100';
 
                           return (
                             <button
@@ -925,15 +1085,23 @@ export default function PermissionsTab() {
                           );
                         })}
                       </div>
-                      <label className={`flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-lg border cursor-pointer shrink-0 ${
-                        act.is_route_guard ? 'bg-emerald-50 text-emerald-900 border-emerald-300' : 'bg-white text-slate-500 border-slate-200'
-                      }`}>
+                      <label
+                        className={`flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-lg border cursor-pointer shrink-0 ${
+                          act.is_route_guard
+                            ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                            : 'bg-white text-slate-500 border-slate-200'
+                        }`}
+                      >
                         <input
                           type="checkbox"
                           checked={act.is_route_guard}
                           onChange={(e) => {
                             const checked = e.target.checked;
-                            setEditModActions((prev) => prev.map((a, i) => (i === idx ? { ...a, is_route_guard: checked } : a)));
+                            setEditModActions((prev) =>
+                              prev.map((a, i) =>
+                                i === idx ? { ...a, is_route_guard: checked } : a,
+                              ),
+                            );
                           }}
                           className="w-3.5 h-3.5 accent-emerald-700 cursor-pointer"
                         />

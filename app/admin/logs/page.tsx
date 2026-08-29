@@ -7,7 +7,6 @@ import { JsonTreeView } from '@components/JsonTreeView';
 import RunVisualizerModal from '@components/RunVisualizerModal';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 
-
 interface LogsTabProps {
   userRole: string | null;
 }

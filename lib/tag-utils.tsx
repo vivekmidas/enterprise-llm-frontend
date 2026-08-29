@@ -64,7 +64,15 @@ export function TagInput({
   category?: string;
 }) {
   const [input, setInput] = useState('');
-  const [suggestions, setSuggestions] = useState<Array<{ id: string; category: string; canonical_name: string; usage_count: number; is_auto_discovered: boolean }>>([]);
+  const [suggestions, setSuggestions] = useState<
+    Array<{
+      id: string;
+      category: string;
+      canonical_name: string;
+      usage_count: number;
+      is_auto_discovered: boolean;
+    }>
+  >([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -157,7 +165,9 @@ export function TagInput({
               {upperTag}
               <button
                 type="button"
-                onClick={() => onChange(tags.filter((t) => (t || '').trim().toUpperCase() !== upperTag))}
+                onClick={() =>
+                  onChange(tags.filter((t) => (t || '').trim().toUpperCase() !== upperTag))
+                }
                 className="ml-0.5 hover:opacity-70 cursor-pointer"
               >
                 <X className="w-2.5 h-2.5" />
@@ -208,7 +218,9 @@ export function TagInput({
                 onClick={() => addTag(item.canonical_name)}
                 onMouseEnter={() => setSelectedIndex(idx)}
                 className={`px-3 py-2 text-xs flex items-center justify-between cursor-pointer transition-colors ${
-                  selectedIndex === idx ? 'bg-indigo-50/80 text-indigo-900 font-semibold' : 'hover:bg-slate-50 text-gray-800'
+                  selectedIndex === idx
+                    ? 'bg-indigo-50/80 text-indigo-900 font-semibold'
+                    : 'hover:bg-slate-50 text-gray-800'
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -233,4 +245,3 @@ export function TagInput({
     </div>
   );
 }
-

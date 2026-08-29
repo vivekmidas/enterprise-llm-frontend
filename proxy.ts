@@ -18,7 +18,7 @@ function parseJwtPayload(token: string) {
       atob(base64)
         .split('')
         .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
+        .join(''),
     );
     return JSON.parse(jsonPayload);
   } catch (e) {
@@ -28,7 +28,7 @@ function parseJwtPayload(token: string) {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const publicPaths = ['/login', '/signup', '/', '/autopilot'];
+  const publicPaths = ['/login', '/signup', '/'];
   const isPublicPath = publicPaths.includes(pathname);
   const token = request.cookies.get('token')?.value;
 
@@ -77,7 +77,8 @@ export function proxy(request: NextRequest) {
       hasPermissionScope(userPermissions, 'system:admin:*') ||
       hasPermissionScope(userPermissions, 'admin:*:*') ||
       hasPermissionScope(userPermissions, '*:*:*');
-    const isAuthorized = isSystemSuperAdmin || hasPermissionScope(userPermissions, requiredPermission);
+    const isAuthorized =
+      isSystemSuperAdmin || hasPermissionScope(userPermissions, requiredPermission);
 
     if (!isAuthorized) {
       const fallbackRoute =

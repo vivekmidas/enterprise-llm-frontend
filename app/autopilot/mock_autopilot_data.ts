@@ -9,8 +9,8 @@ Description:
 */
 
 export interface SourceRef {
-  title: string;
-  doc_name: string;
+  title?: string;
+  doc_name?: string;
   page_or_clause?: string;
   date?: string;
 }
@@ -29,18 +29,37 @@ export interface TimelineEvent {
   date: string;
   title: string;
   description: string;
-  source: SourceRef;
-  event_type?: 'Hearing' | 'Order' | 'Filing' | 'Evidence' | 'Notice';
+  source?: SourceRef;
+  event_type?:
+    | 'Hearing'
+    | 'Order'
+    | 'Filing'
+    | 'Evidence'
+    | 'Notice'
+    | 'Client Discussion'
+    | 'Counsel Strategy'
+    | 'Court Hearing'
+    | 'Settlement'
+    | 'General Note'
+    | 'Others';
   impact_badge?: string;
   next_date?: string;
   bench_direction?: string;
+  key_action?: string;
+  people_involved?: string[];
 }
 
 export interface HearingRecord {
   id: string;
   hearing_date: string;
   court_bench: string;
-  proceeding_stage: 'Notice Returnable' | 'Interim Arguments' | 'Framing of Issues' | 'Evidence / Cross' | 'Final Hearing' | 'Order Reserved';
+  proceeding_stage:
+    | 'Notice Returnable'
+    | 'Interim Arguments'
+    | 'Framing of Issues'
+    | 'Evidence / Cross'
+    | 'Final Hearing'
+    | 'Order Reserved';
   order_summary: string;
   directions_given: string;
   next_hearing_date?: string;
@@ -66,12 +85,28 @@ export interface UploadedDoc {
   extracted_clauses?: ExtractedDocClause[];
   raw_ocr_snippet?: string;
   associated_gaps?: string[];
+  description?: string;
+  tags?: string[];
+  provenance?:
+    | 'Client Direct Submission'
+    | 'Opposing Party Production'
+    | 'Court Certified Record'
+    | 'Third Party / Subpoena'
+    | 'Field Investigation'
+    | 'Forensic / Expert Report'
+    | string;
+  file_ext?: 'pdf' | 'png' | 'jpg' | 'md' | 'txt' | 'docx' | string;
 }
 
 export interface CaseParty {
   id: string;
   name: string;
-  role: 'Claimant / Creditor' | 'Respondent / Debtor' | 'Guarantor / Director' | 'Witness / Site Engineer' | 'Arbitrator / Mediator';
+  role:
+    | 'Claimant / Creditor'
+    | 'Respondent / Debtor'
+    | 'Guarantor / Director'
+    | 'Witness / Site Engineer'
+    | 'Arbitrator / Mediator';
   entity_type: 'Private Limited Company' | 'LLP' | 'Individual Partner' | 'Proprietorship';
   address: string;
   contact_person?: string;
@@ -203,7 +238,8 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
         'Settlement arrived at has the status of an Arbitral Award under Section 30(4) of Arbitration Act.',
         'Non-compliance warrants rejection of plaint under Order VII Rule 11 CPC.',
       ],
-      statutory_limitation: '3 months period spent in mediation is excluded from limitation calculation per Sec 12A(3).',
+      statutory_limitation:
+        '3 months period spent in mediation is excluded from limitation calculation per Sec 12A(3).',
       landmark_sc_ruling:
         'Patil Automation Pvt Ltd v. Rakheja Engineers Pvt Ltd, (2022) 10 SCC 1 — Supreme Court held Section 12A is mandatory and absolute.',
       counsel_checklist: [
@@ -234,7 +270,8 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
         'Commencement date stops the clock on statutory limitation under Section 43.',
         'Mandatory statutory prerequisite prior to filing Section 11(6) appointment petition before High Court.',
       ],
-      statutory_limitation: 'Section 21 notice must be served within 3 years of the accrual of the cause of action.',
+      statutory_limitation:
+        'Section 21 notice must be served within 3 years of the accrual of the cause of action.',
       landmark_sc_ruling:
         'State of Goa v. Praveen Enterprises, (2012) 12 SCC 581 & BSNL v. Nortel Networks, (2021) 5 SCC 738.',
       counsel_checklist: [
@@ -264,7 +301,8 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
         'Dishonestly inducing the person so deceived to deliver any property or valuable security.',
         'Mens rea at the time of making the promise (distinguishing civil breach from criminal cheating).',
       ],
-      statutory_limitation: 'Offence is cognizable and non-bailable; no limitation bar under Section 468 CrPC / 514 BNSS.',
+      statutory_limitation:
+        'Offence is cognizable and non-bailable; no limitation bar under Section 468 CrPC / 514 BNSS.',
       landmark_sc_ruling:
         'Hridaya Ranjan Prasad Verma v. State of Bihar, (2000) 4 SCC 168 & Vijay Kumar Ghai v. State of WB, (2022) 7 SCC 124.',
       counsel_checklist: [
@@ -304,7 +342,9 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
       official_heading: 'Section 316. Criminal breach of trust. [Sub-section (2)]',
       verbatim_text:
         '(2) Whoever commits criminal breach of trust shall be punished with imprisonment of either description for a term which may extend to five years, or with fine, or with both.\n\n(5) Whoever, being a clerk or servant or employed as a clerk or servant, and being in any manner entrusted in such capacity with property... commits criminal breach of trust, shall be punished with imprisonment for a term which may extend to seven years, and shall also be liable to fine.',
-      provisos_and_explanations: ['Corresponds to Sections 405, 406 and 409 of the Indian Penal Code, 1860.'],
+      provisos_and_explanations: [
+        'Corresponds to Sections 405, 406 and 409 of the Indian Penal Code, 1860.',
+      ],
     },
   },
   sec35_bnss: {
@@ -331,7 +371,9 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
       official_heading: 'Section 35. Notice of appearance before police officer. [Sub-section (3)]',
       verbatim_text:
         '(3) The police officer shall, in all cases where the arrest of a person is not required under sub-section (1) of section 35, issue a notice directing the person against whom a reasonable complaint has been made... to appear before him or at such other place as may be specified in the notice.\n\n(4) Where such person complies and continues to comply with the notice, he shall not be arrested in respect of the offence... unless, for reasons to be recorded, the police officer is of the opinion that he ought to be arrested.',
-      provisos_and_explanations: ['Corresponds to Section 41A of the Code of Criminal Procedure, 1973.'],
+      provisos_and_explanations: [
+        'Corresponds to Section 41A of the Code of Criminal Procedure, 1973.',
+      ],
     },
   },
   sec528_bnss: {
@@ -346,7 +388,8 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
         'Parameters: If uncontroverted FIR allegations do not disclose cognizable offence (*Bhajan Lal* principles).',
         'Distinction between pure civil breach of contract and criminal cheating.',
       ],
-      statutory_limitation: 'Can be invoked at FIR stage, post-charge-sheet stage, or post-summoning order stage.',
+      statutory_limitation:
+        'Can be invoked at FIR stage, post-charge-sheet stage, or post-summoning order stage.',
       landmark_sc_ruling:
         'State of Haryana v. Bhajan Lal, 1992 Supp (1) SCC 335 & Neeharika Infrastructure v. State of Maharashtra, (2021) 19 SCC 401.',
       counsel_checklist: [
@@ -358,7 +401,9 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
       official_heading: 'Section 528. Saving of inherent powers of High Court.',
       verbatim_text:
         'Nothing in this Sanhita shall be deemed to limit or affect the inherent powers of the High Court to make such orders as may be necessary to give effect to any order under this Sanhita, or to prevent abuse of the process of any Court or otherwise to secure the ends of justice.',
-      provisos_and_explanations: ['Corresponds to Section 482 of the Code of Criminal Procedure, 1973.'],
+      provisos_and_explanations: [
+        'Corresponds to Section 482 of the Code of Criminal Procedure, 1973.',
+      ],
     },
   },
   sec138_ni_act: {
@@ -374,7 +419,8 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
         'Drawer fails to pay within 15 days of notice receipt.',
         'Criminal Complaint filed before Judicial Magistrate within 1 month thereafter.',
       ],
-      statutory_limitation: 'Strict statutory windows: 30 days to send notice, 15 days to pay, 30 days to file complaint.',
+      statutory_limitation:
+        'Strict statutory windows: 30 days to send notice, 15 days to pay, 30 days to file complaint.',
       landmark_sc_ruling:
         'Bir Singh v. Mukesh Kumar, (2019) 4 SCC 197 & Dashrath Rupsingh Rathod v. State of Maharashtra, (2014) 9 SCC 129.',
       counsel_checklist: [
@@ -383,10 +429,13 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
       ],
     },
     details_view_bare_act: {
-      official_heading: 'Section 138. Dishonour of cheque for insufficiency, etc., of funds in the account.',
+      official_heading:
+        'Section 138. Dishonour of cheque for insufficiency, etc., of funds in the account.',
       verbatim_text:
         'Where any cheque drawn by a person on an account maintained by him with a banker for payment of any amount of money to another person... is returned by the bank unpaid... such person shall be deemed to have committed an offence and shall... be punished with imprisonment for a term which may extend to two years, or with fine which may extend to twice the amount of the cheque, or with both:\n\nProvided that nothing contained in this section shall apply unless—\n(a) the cheque has been presented within three months;\n(b) payee makes a demand within thirty days of information;\n(c) drawer fails to make payment within fifteen days of receipt.',
-      provisos_and_explanations: ['Read with Section 139 (Presumption in favour of holder) and Section 141 (Company offences).'],
+      provisos_and_explanations: [
+        'Read with Section 139 (Presumption in favour of holder) and Section 141 (Company offences).',
+      ],
     },
   },
   sec63_bsa: {
@@ -401,7 +450,8 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
         'Description of the device producing the output and regular lawful operation.',
         'Signed by a person occupying a responsible official position in relation to operation of device.',
       ],
-      statutory_limitation: 'Must be produced at the time of filing documents / affidavits in evidence.',
+      statutory_limitation:
+        'Must be produced at the time of filing documents / affidavits in evidence.',
       landmark_sc_ruling:
         'Arjun Panditrao Khotkar v. Kailash Kushanrao Gorantyal, (2020) 7 SCC 1 — Supreme Court held Section 65B certificate mandatory for electronic evidence admissibility.',
       counsel_checklist: [
@@ -431,7 +481,8 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
         'Alternative efficacious remedy must either be inadequate, non-existent, or fundamentally breached principles of natural justice.',
         'Strict scrutiny of doctrine of proportionality and Wednesbury unreasonableness.',
       ],
-      statutory_limitation: 'No rigid limitation, but doctrine of laches applies if unexplained delay occurs.',
+      statutory_limitation:
+        'No rigid limitation, but doctrine of laches applies if unexplained delay occurs.',
       landmark_sc_ruling:
         'Whirlpool Corporation v. Registrar of Trade Marks, (1998) 8 SCC 1 & Radha Krishan Industries v. State of HP, (2021) 6 SCC 771.',
       counsel_checklist: [
@@ -484,10 +535,12 @@ export const CASE_ORION_V_DELTA: MatterCase = {
   id: 'case_01',
   case_code: 'orion_v_delta',
   case_title: 'Orion Components v. Delta Systems',
-  case_subtitle: 'Commercial recovery matter · Delhi District Court · Internal preparation workspace',
+  case_subtitle:
+    'Commercial recovery matter · Delhi District Court · Internal preparation workspace',
   court_forum: 'Commercial Court, Patiala House Courts, New Delhi',
   claim_amount: '₹1,85,00,000 (Principal ₹1.50 Cr + 18% p.a. Interest)',
-  dispute_description: 'Recovery of unpaid structural steel invoices (₹1.85 Cr) with counter-allegations of latent defective fabrication raised by respondent after contractual 15-day inspection window.',
+  dispute_description:
+    'Recovery of unpaid structural steel invoices (₹1.85 Cr) with counter-allegations of latent defective fabrication raised by respondent after contractual 15-day inspection window.',
   matter_status: 'Initial assessment',
   evidence_completeness: 82,
   open_gaps_count: 4,
@@ -539,24 +592,33 @@ export const CASE_ORION_V_DELTA: MatterCase = {
         {
           clause_number: 'Clause 7.2',
           clause_title: 'Payment Terms & Credit Window',
-          extracted_snippet: 'Buyer shall remit 100% invoice amount within thirty (30) calendar days from receipt of goods.',
+          extracted_snippet:
+            'Buyer shall remit 100% invoice amount within thirty (30) calendar days from receipt of goods.',
           legal_impact: 'Establishes 30-day default date and triggers commercial interest clock.',
         },
         {
           clause_number: 'Clause 14.1',
           clause_title: 'Defect Notification Window',
-          extracted_snippet: 'Any quality objection must be lodged within 15 days of delivery; failure deems goods accepted unconditionally.',
+          extracted_snippet:
+            'Any quality objection must be lodged within 15 days of delivery; failure deems goods accepted unconditionally.',
           legal_impact: 'Fatal to Buyer late defect claim dispatched on Day 19.',
         },
         {
           clause_number: 'Clause 19.1',
           clause_title: 'Dispute Resolution (DIAC)',
-          extracted_snippet: 'Disputes shall be referred to Sole Arbitrator appointed under Delhi International Arbitration Centre (DIAC) Rules.',
-          legal_impact: 'Mandates Section 21 notice and DIAC institutional arbitration in New Delhi.',
+          extracted_snippet:
+            'Disputes shall be referred to Sole Arbitrator appointed under Delhi International Arbitration Centre (DIAC) Rules.',
+          legal_impact:
+            'Mandates Section 21 notice and DIAC institutional arbitration in New Delhi.',
         },
       ],
-      raw_ocr_snippet: 'MASTER SUPPLY AGREEMENT executed on 10th February 2024 between Orion Components Pvt Ltd and Delta Systems LLP...',
-      associated_gaps: ['Missing Joint Inspection Report', 'Defect Notice Window Exceeded', 'Arbitration Uninvoked'],
+      raw_ocr_snippet:
+        'MASTER SUPPLY AGREEMENT executed on 10th February 2024 between Orion Components Pvt Ltd and Delta Systems LLP...',
+      associated_gaps: [
+        'Missing Joint Inspection Report',
+        'Defect Notice Window Exceeded',
+        'Arbitration Uninvoked',
+      ],
     },
     {
       id: 'doc_2',
@@ -570,11 +632,13 @@ export const CASE_ORION_V_DELTA: MatterCase = {
         {
           clause_number: 'Tax Invoices',
           clause_title: 'GST E-Way Bills & Tax Invoices',
-          extracted_snippet: 'Invoices INV-1041 to INV-1046 totaling ₹1,85,00,000 with corresponding GST E-Way bills 491028491028.',
+          extracted_snippet:
+            'Invoices INV-1041 to INV-1046 totaling ₹1,85,00,000 with corresponding GST E-Way bills 491028491028.',
           legal_impact: 'Unassailable proof of supply for Order 37 summary debt recovery.',
         },
       ],
-      raw_ocr_snippet: 'DELIVERY CHALLAN DC-1044 dated 14/01/2026. Goods received in good condition. Stamped by Site Engineer Sanjay Rawat.',
+      raw_ocr_snippet:
+        'DELIVERY CHALLAN DC-1044 dated 14/01/2026. Goods received in good condition. Stamped by Site Engineer Sanjay Rawat.',
       associated_gaps: ['Missing Joint Inspection Report'],
     },
     {
@@ -589,11 +653,14 @@ export const CASE_ORION_V_DELTA: MatterCase = {
         {
           clause_number: 'Demand Notice',
           clause_title: '15-Day Cure Notice for ₹1.50 Cr',
-          extracted_snippet: 'Demand notice dispatched via Speed Post ED984128912IN giving 15 days to remit ₹1.50 Cr.',
-          legal_impact: 'Crystallizes cause of action upon expiry of 15-day cure window on 08 March 2026.',
+          extracted_snippet:
+            'Demand notice dispatched via Speed Post ED984128912IN giving 15 days to remit ₹1.50 Cr.',
+          legal_impact:
+            'Crystallizes cause of action upon expiry of 15-day cure window on 08 March 2026.',
         },
       ],
-      raw_ocr_snippet: 'INDIA POST TRACKING: Consignment ED984128912IN delivered to Delta Systems Cyber Hub on 21/02/2026.',
+      raw_ocr_snippet:
+        'INDIA POST TRACKING: Consignment ED984128912IN delivered to Delta Systems Cyber Hub on 21/02/2026.',
       associated_gaps: ['Section 12A Pre-Institution Mediation Mandate'],
     },
   ],
@@ -602,7 +669,8 @@ export const CASE_ORION_V_DELTA: MatterCase = {
       id: 'tl_1',
       date: '10 Feb 2024',
       title: 'Master Supply Agreement Executed',
-      description: 'Parties agree to 30-day payment terms, 15-day defect notice clause, and DIAC arbitration.',
+      description:
+        'Parties agree to 30-day payment terms, 15-day defect notice clause, and DIAC arbitration.',
       source: {
         title: 'Master Supply Agreement',
         doc_name: 'Master_Supply_Agreement_2024.pdf',
@@ -613,7 +681,8 @@ export const CASE_ORION_V_DELTA: MatterCase = {
       id: 'tl_2',
       date: '14 Jan 2026',
       title: 'Consignment Delivered at Site',
-      description: 'Orion delivered 600 MT structural steel; delivery challans DC-1041 to 1046 countersigned by site engineer.',
+      description:
+        'Orion delivered 600 MT structural steel; delivery challans DC-1041 to 1046 countersigned by site engineer.',
       source: {
         title: 'Challan DC-1044',
         doc_name: 'Invoices_INV_1041_to_1046_and_Challans.pdf',
@@ -624,7 +693,8 @@ export const CASE_ORION_V_DELTA: MatterCase = {
       id: 'tl_3',
       date: '02 Feb 2026',
       title: 'Delta Dispatches Defect Objection (Day 19)',
-      description: 'Delta raises debit notes citing quality issues 19 days after delivery (exceeding contractual 15-day window).',
+      description:
+        'Delta raises debit notes citing quality issues 19 days after delivery (exceeding contractual 15-day window).',
       source: {
         title: 'Email Correspondence',
         doc_name: 'Invoices_INV_1041_to_1046_and_Challans.pdf',
@@ -635,7 +705,8 @@ export const CASE_ORION_V_DELTA: MatterCase = {
       id: 'tl_4',
       date: '18 Feb 2026',
       title: 'Orion Serves Statutory Demand Notice',
-      description: 'Demand notice served for ₹1.50 Cr principal balance; India Post delivery confirmed on 21 Feb 2026.',
+      description:
+        'Demand notice served for ₹1.50 Cr principal balance; India Post delivery confirmed on 21 Feb 2026.',
       source: {
         title: 'Demand Notice',
         doc_name: 'Statutory_Demand_Notice_SpeedPost_POD.pdf',
@@ -708,8 +779,9 @@ export const CASE_ORION_V_DELTA: MatterCase = {
         doc_name: 'Master_Supply_Agreement_2024.pdf',
         page_or_clause: 'Clause 14.2',
       },
-      suggested_fix: 'Serve formal letter demanding production of NABL certified test report or joint inspection logs.',
-      remedial_cta_label: '+ Upload Joint Inspection Report',
+      suggested_fix:
+        'Serve formal letter demanding production of NABL certified test report or joint inspection logs.',
+      remedial_cta_label: 'Upload Joint Inspection Report',
       remedial_cta_action_type: 'upload_doc',
     },
     {
@@ -720,13 +792,15 @@ export const CASE_ORION_V_DELTA: MatterCase = {
       status: 'Open',
       plain_english_explanation:
         'Consignment delivered on 14 Jan 2026. Delta sent quality objection on 02 Feb 2026 (Day 19). Under Clause 14.1, goods are deemed accepted on Day 15.',
-      statutory_or_clause_ref: 'Clause 14.1 MSA & Section 42 Sale of Goods Act (r/w Sec 318 BNS / Sec 420 IPC)',
+      statutory_or_clause_ref:
+        'Clause 14.1 MSA & Section 42 Sale of Goods Act (r/w Sec 318 BNS / Sec 420 IPC)',
       source: {
         title: 'Delivery Challan vs Email Date',
         doc_name: 'Invoices_INV_1041_to_1046_and_Challans.pdf',
         page_or_clause: 'Challan Date 14 Jan',
       },
-      suggested_fix: 'Issue rebuttal notice asserting waiver of defect objection under Clause 14.1.',
+      suggested_fix:
+        'Issue rebuttal notice asserting waiver of defect objection under Clause 14.1.',
       remedial_cta_label: 'Draft Rebuttal & Waiver Notice',
       remedial_cta_action_type: 'draft_notice',
       remedial_target_template: 'draft_sec21_arbitration',
@@ -745,7 +819,8 @@ export const CASE_ORION_V_DELTA: MatterCase = {
         doc_name: 'Master_Supply_Agreement_2024.pdf',
         page_or_clause: 'Clause 19.1',
       },
-      suggested_fix: 'Issue notice proposing 3 retired High Court judges as Sole Arbitrator under DIAC rules.',
+      suggested_fix:
+        'Issue notice proposing 3 retired High Court judges as Sole Arbitrator under DIAC rules.',
       remedial_cta_label: 'Generate Section 21 DIAC Notice',
       remedial_cta_action_type: 'draft_notice',
       remedial_target_template: 'draft_sec21_arbitration',
@@ -764,7 +839,8 @@ export const CASE_ORION_V_DELTA: MatterCase = {
         doc_name: 'Commercial Courts Act 2015',
         page_or_clause: 'Section 12A',
       },
-      suggested_fix: 'File Form 1 before DSLSA or apply for Section 9 High Court interim asset freeze.',
+      suggested_fix:
+        'File Form 1 before DSLSA or apply for Section 9 High Court interim asset freeze.',
       remedial_cta_label: 'Generate Section 12A Form 1',
       remedial_cta_action_type: 'draft_notice',
       remedial_target_template: 'draft_sec12a_form1',
@@ -775,10 +851,13 @@ export const CASE_ORION_V_DELTA: MatterCase = {
       id: 'act_1',
       title: 'Issue Rebuttal & Section 21 Notice of Invocation of Arbitration (DIAC)',
       category: 'Pre-Litigation',
-      short_description: 'Reject unilateral debit notes citing Clause 14.1 defect notice expiry and invoke DIAC arbitration.',
+      short_description:
+        'Reject unilateral debit notes citing Clause 14.1 defect notice expiry and invoke DIAC arbitration.',
       prerequisites: ['Certified interest ledger', 'Speed post proof of delivery'],
       statutory_ref: 'Section 21, Arbitration & Conciliation Act 1996 & Clause 19.1 MSA',
-      next_procedural_steps: ['Issue notice nominating 3 independent retired judges as Sole Arbitrator.'],
+      next_procedural_steps: [
+        'Issue notice nominating 3 independent retired judges as Sole Arbitrator.',
+      ],
       feasibility_score: 88,
       recommended_tag: 'Recommended Primary Route',
       draft_template_id: 'draft_sec21_arbitration',
@@ -787,10 +866,13 @@ export const CASE_ORION_V_DELTA: MatterCase = {
       id: 'act_2',
       title: 'Seek Section 9 Interim Asset Freeze / Bank Deposit in High Court',
       category: 'Interim Relief',
-      short_description: 'Seek interim order directing Delta to deposit ₹1.50 Cr in fixed deposit pending arbitration.',
+      short_description:
+        'Seek interim order directing Delta to deposit ₹1.50 Cr in fixed deposit pending arbitration.',
       prerequisites: ['Proof of Delta asset transfer or liquidation risk'],
       statutory_ref: 'Section 9, Arbitration & Conciliation Act 1996',
-      next_procedural_steps: ['Draft Section 9 Petition before Commercial Division of Delhi High Court.'],
+      next_procedural_steps: [
+        'Draft Section 9 Petition before Commercial Division of Delhi High Court.',
+      ],
       feasibility_score: 84,
       draft_template_id: 'draft_sec9_hc',
     },
@@ -798,7 +880,8 @@ export const CASE_ORION_V_DELTA: MatterCase = {
       id: 'act_3',
       title: 'Initiate Section 12A Pre-Institution Mediation (DSLSA / SAMADHAN)',
       category: 'Settlement & ADR',
-      short_description: 'File Form 1 before Delhi State Legal Services Authority for rapid settlement.',
+      short_description:
+        'File Form 1 before Delhi State Legal Services Authority for rapid settlement.',
       prerequisites: ['Payment of nominal ₹1,000 fee', 'Form 1 schedule'],
       statutory_ref: 'Section 12A, Commercial Courts Act 2015',
       next_procedural_steps: ['Submit Form 1 before Commercial Court Mediation Centre.'],
@@ -836,7 +919,8 @@ export const CASE_ORION_V_DELTA: MatterCase = {
         'Commercial recovery suit filed without prior mediation. Supreme Court declared Section 12A mandatory from date of judgment.',
       petitioner_arguments: ['Word "shall" in Section 12A creates absolute statutory obligation.'],
       respondent_arguments: ['Section 12A is directory; non-compliance is curable.'],
-      judge_findings: 'Commercial court decongestion requires strict enforcement of mediation mandate.',
+      judge_findings:
+        'Commercial court decongestion requires strict enforcement of mediation mandate.',
     },
   ],
   sample_enrichment_text:
@@ -851,10 +935,12 @@ export const CASE_CLOUDNET_V_STARLIGHT: MatterCase = {
   id: 'case_02',
   case_code: 'cloudnet_v_starlight',
   case_title: 'CloudNet Tech v. Starlight Analytics',
-  case_subtitle: 'Service SLA termination dispute · Bengaluru Commercial Court · Internal preparation',
+  case_subtitle:
+    'Service SLA termination dispute · Bengaluru Commercial Court · Internal preparation',
   court_forum: 'Commercial Court, Bengaluru City Civil Court',
   claim_amount: '₹65,00,000 (Final Invoices + Wrongful Termination Notice Pay)',
-  dispute_description: 'Wrongful unilateral termination of multi-year enterprise SaaS agreement, disputed milestone acceptance, and non-payment of final transition deliverables and lock-in period fees.',
+  dispute_description:
+    'Wrongful unilateral termination of multi-year enterprise SaaS agreement, disputed milestone acceptance, and non-payment of final transition deliverables and lock-in period fees.',
   matter_status: 'Active assessment',
   evidence_completeness: 74,
   open_gaps_count: 2,
@@ -891,7 +977,8 @@ export const CASE_CLOUDNET_V_STARLIGHT: MatterCase = {
         {
           clause_number: 'Clause 11.3',
           clause_title: 'Termination for Cause & 30-Day Cure',
-          extracted_snippet: 'Either party may terminate for material breach only after serving thirty (30) days written notice to cure.',
+          extracted_snippet:
+            'Either party may terminate for material breach only after serving thirty (30) days written notice to cure.',
           legal_impact: 'Immediate termination without cure notice constitutes repudiatory breach.',
         },
       ],
@@ -910,7 +997,8 @@ export const CASE_CLOUDNET_V_STARLIGHT: MatterCase = {
         {
           clause_number: 'Termination Paragraph 2',
           clause_title: 'Immediate Termination Notice',
-          extracted_snippet: 'Notice is hereby given terminating services with immediate effect due to 98.2% uptime in Dec 2025.',
+          extracted_snippet:
+            'Notice is hereby given terminating services with immediate effect due to 98.2% uptime in Dec 2025.',
           legal_impact: 'Direct documentary admission of bypassing 30-day cure window.',
         },
       ],
@@ -929,7 +1017,8 @@ export const CASE_CLOUDNET_V_STARLIGHT: MatterCase = {
         {
           clause_number: 'Annexure B',
           clause_title: 'Scheduled Maintenance Exclusion',
-          extracted_snippet: 'Uptime was 99.4% when scheduled power maintenance by Starlight is excluded.',
+          extracted_snippet:
+            'Uptime was 99.4% when scheduled power maintenance by Starlight is excluded.',
           legal_impact: 'Disproves alleged SLA breach.',
         },
       ],
@@ -953,7 +1042,8 @@ export const CASE_CLOUDNET_V_STARLIGHT: MatterCase = {
       id: 'tl_b2',
       date: '05 Jan 2026',
       title: 'Starlight Terminates with Immediate Effect',
-      description: 'Starlight terminates contract citing 98.2% server uptime without giving 30-day cure window.',
+      description:
+        'Starlight terminates contract citing 98.2% server uptime without giving 30-day cure window.',
       source: {
         title: 'Termination Letter',
         doc_name: 'Termination_Letter_Immediate_Effect.pdf',
@@ -1034,7 +1124,7 @@ export const CASE_CLOUDNET_V_STARLIGHT: MatterCase = {
         page_or_clause: 'Exhibit B',
       },
       suggested_fix: 'Export automated server telemetry signed under Section 63 BSA.',
-      remedial_cta_label: '+ Upload Server Log Telemetry',
+      remedial_cta_label: 'Upload Server Log Telemetry',
       remedial_cta_action_type: 'upload_doc',
     },
   ],
@@ -1066,7 +1156,8 @@ export const CASE_CLOUDNET_V_STARLIGHT: MatterCase = {
       matched_sections: ['Section 73 & 74, Contract Act'],
       ratio_decidendi:
         'Proof of actual loss is a sine qua non for claiming damages. Termination without established loss does not forfeit earned dues.',
-      facts_summary: 'DDA forfeited earnest money without establishing damages. Supreme Court held forfeiture illegal.',
+      facts_summary:
+        'DDA forfeited earnest money without establishing damages. Supreme Court held forfeiture illegal.',
       petitioner_arguments: ['Forfeiture without proving loss violates Section 74.'],
       respondent_arguments: ['Contract provided unconditional right to forfeit.'],
       judge_findings: 'Proof of actual loss must be established.',
@@ -1087,7 +1178,8 @@ export const CASE_PRECISION_V_VANGUARD: MatterCase = {
   case_subtitle: 'Summary debt recovery · Delhi Commercial Court · Ready for filing',
   court_forum: 'Commercial Court, Saket Courts, New Delhi',
   claim_amount: '₹42,00,000 (Admitted Trade Debt)',
-  dispute_description: 'Default on admitted trade debt arising from industrial pumps consignment supply, supported by signed delivery challans and formal written balance confirmation letter from debtor CFO.',
+  dispute_description:
+    'Default on admitted trade debt arising from industrial pumps consignment supply, supported by signed delivery challans and formal written balance confirmation letter from debtor CFO.',
   matter_status: 'Ready for action',
   evidence_completeness: 94,
   open_gaps_count: 1,
@@ -1143,11 +1235,13 @@ export const CASE_PRECISION_V_VANGUARD: MatterCase = {
         {
           clause_number: 'Balance Letter',
           clause_title: 'Unconditional Acknowledgment',
-          extracted_snippet: 'We hereby confirm that the balance of ₹42,00,000 is due and payable in our books.',
+          extracted_snippet:
+            'We hereby confirm that the balance of ₹42,00,000 is due and payable in our books.',
           legal_impact: 'Written acknowledgment under Section 18 Limitation Act and Order 37 CPC.',
         },
       ],
-      raw_ocr_snippet: 'AUDITOR CONFIRMATION: Vanguard Engineering acknowledges balance of ₹42,00,000/-',
+      raw_ocr_snippet:
+        'AUDITOR CONFIRMATION: Vanguard Engineering acknowledges balance of ₹42,00,000/-',
       associated_gaps: ['Section 12A Commercial Courts Pre-Institution Mediation Required'],
     },
   ],
@@ -1262,7 +1356,8 @@ export const CASE_PRECISION_V_VANGUARD: MatterCase = {
       matched_sections: ['Order XXXVII Rule 3 CPC'],
       ratio_decidendi:
         'When written admissions exist on record, moonshine defenses do not entitle the defendant to unconditional leave to defend.',
-      facts_summary: 'Debtor admitted debt in writing. Supreme Court held summary decree justified.',
+      facts_summary:
+        'Debtor admitted debt in writing. Supreme Court held summary decree justified.',
       petitioner_arguments: ['Written confirmation estops debtor.'],
       respondent_arguments: ['Defendant is entitled to full trial.'],
       judge_findings: 'Summary suits are designed for speedy disposal where admissions exist.',
@@ -1277,10 +1372,13 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
   id: 'case_04',
   case_code: 'shivam_v_bansal' as any,
   case_title: 'State (Shivam Polymers) v. Rajesh Bansal & Anr.',
-  case_subtitle: 'Commercial Cheating, Criminal Breach of Trust & Sec 138 NI Act · Tis Hazari Courts, Delhi',
-  court_forum: 'Court of Chief Metropolitan Magistrate (CMM), Central District, Tis Hazari Courts, Delhi',
+  case_subtitle:
+    'Commercial Cheating, Criminal Breach of Trust & Sec 138 NI Act · Tis Hazari Courts, Delhi',
+  court_forum:
+    'Court of Chief Metropolitan Magistrate (CMM), Central District, Tis Hazari Courts, Delhi',
   claim_amount: '₹92,00,000 (Dishonoured Cheques + Inducement)',
-  dispute_description: 'Commercial cheating and dishonour of multiple post-dated settlement cheques totaling ₹92 Lakhs, accompanied by fraudulent diversion of hypothecated inventory and false solvency declarations.',
+  dispute_description:
+    'Commercial cheating and dishonour of multiple post-dated settlement cheques totaling ₹92 Lakhs, accompanied by fraudulent diversion of hypothecated inventory and false solvency declarations.',
   matter_status: 'Pre-Trial & Bail Stage',
   evidence_completeness: 78,
   open_gaps_count: 3,
@@ -1342,12 +1440,17 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
         {
           clause_number: 'FIR Allegations',
           clause_title: 'Sections 318(4), 316(2), 336(3) BNS (Sec 420, 406, 468 IPC)',
-          extracted_snippet: 'Accused dishonestly induced complainant to supply 80 MT Polymer Granules on assurance of timely clearance and issued post-dated cheques from an account known to be dormant/closed.',
+          extracted_snippet:
+            'Accused dishonestly induced complainant to supply 80 MT Polymer Granules on assurance of timely clearance and issued post-dated cheques from an account known to be dormant/closed.',
           legal_impact: 'Discloses cognizable cheating and dishonest inducement at inception.',
         },
       ],
-      raw_ocr_snippet: 'PS EOW CENTRAL: FIR No. 142/2026 registered under Section 318(4), 316(2) BNS against Rajesh Bansal...',
-      associated_gaps: ['Section 35(3) BNSS Police Notice Non-Compliance', 'Quashing Petition Filed under Sec 528 BNSS'],
+      raw_ocr_snippet:
+        'PS EOW CENTRAL: FIR No. 142/2026 registered under Section 318(4), 316(2) BNS against Rajesh Bansal...',
+      associated_gaps: [
+        'Section 35(3) BNSS Police Notice Non-Compliance',
+        'Quashing Petition Filed under Sec 528 BNSS',
+      ],
     },
     {
       id: 'doc_d2',
@@ -1361,11 +1464,14 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
         {
           clause_number: 'Return Memos',
           clause_title: 'Cheque Nos. 004811-004814 (Total ₹92,00,000)',
-          extracted_snippet: 'HDFC Bank return memo dated 04 Jan 2026: Reason for return: "Account Closed / Funds Insufficient".',
-          legal_impact: 'Statutory basis for Section 138 NI Act and corroborative proof of fraudulent intent at inception.',
+          extracted_snippet:
+            'HDFC Bank return memo dated 04 Jan 2026: Reason for return: "Account Closed / Funds Insufficient".',
+          legal_impact:
+            'Statutory basis for Section 138 NI Act and corroborative proof of fraudulent intent at inception.',
         },
       ],
-      raw_ocr_snippet: 'HDFC BANK RETURN MEMO: Cheque 004811 for ₹23,00,000 returned unpaid with remark: ACCOUNT CLOSED.',
+      raw_ocr_snippet:
+        'HDFC BANK RETURN MEMO: Cheque 004811 for ₹23,00,000 returned unpaid with remark: ACCOUNT CLOSED.',
       associated_gaps: ['Strict 30-Day Limitation for Section 138 NI Complaint'],
     },
     {
@@ -1380,11 +1486,14 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
         {
           clause_number: 'Section 138(b) Notice',
           clause_title: '15-Day Demand Notice Served',
-          extracted_snippet: 'Notice delivered on 18 Jan 2026 per India Post Consignment #ED771928110IN. 15 days expired on 02 Feb 2026.',
-          legal_impact: 'Cause of action for filing NI Act 138 complaint crystallized on 03 Feb 2026.',
+          extracted_snippet:
+            'Notice delivered on 18 Jan 2026 per India Post Consignment #ED771928110IN. 15 days expired on 02 Feb 2026.',
+          legal_impact:
+            'Cause of action for filing NI Act 138 complaint crystallized on 03 Feb 2026.',
         },
       ],
-      raw_ocr_snippet: 'INDIA POST TRACKING: Consignment delivered to Lawrence Road address on 18/01/2026.',
+      raw_ocr_snippet:
+        'INDIA POST TRACKING: Consignment delivered to Lawrence Road address on 18/01/2026.',
       associated_gaps: ['Strict 30-Day Limitation for Section 138 NI Complaint'],
     },
   ],
@@ -1393,7 +1502,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
       id: 'tl_d1',
       date: '02 Nov 2025',
       title: 'Commercial Representation & Order Booking',
-      description: 'Rajesh Bansal represented Bansal Packaging has ₹50 Cr annual turnover and induced supply of polymer granules.',
+      description:
+        'Rajesh Bansal represented Bansal Packaging has ₹50 Cr annual turnover and induced supply of polymer granules.',
       source: {
         title: 'Email & WhatsApp Trail',
         doc_name: 'FIR_142_2026_EOW_Cheating_CBT.pdf',
@@ -1404,7 +1514,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
       id: 'tl_d2',
       date: '15 Nov 2025',
       title: 'Consignments Delivered & 4 Post-Dated Cheques Handed Over',
-      description: 'Goods worth ₹92 Lakhs delivered; Accused handed over 4 cheques drawn on HDFC Bank Lawrence Road.',
+      description:
+        'Goods worth ₹92 Lakhs delivered; Accused handed over 4 cheques drawn on HDFC Bank Lawrence Road.',
       source: {
         title: 'Tax Invoices & Challans',
         doc_name: 'FIR_142_2026_EOW_Cheating_CBT.pdf',
@@ -1415,7 +1526,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
       id: 'tl_d3',
       date: '04 Jan 2026',
       title: 'Cheques Bounced with "Account Closed"',
-      description: 'Cheques presented upon due dates returned dishonoured with bank remark "Account Closed on 10 Oct 2025".',
+      description:
+        'Cheques presented upon due dates returned dishonoured with bank remark "Account Closed on 10 Oct 2025".',
       source: {
         title: 'Bank Return Memo',
         doc_name: 'Dishonoured_Cheques_Bank_Memos.pdf',
@@ -1426,7 +1538,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
       id: 'tl_d4',
       date: '12 Jan 2026',
       title: 'EOW Registers FIR & Dispatches Section 35(3) BNSS Notice',
-      description: 'FIR No. 142/2026 registered. IO issued Section 35(3) BNSS notice to Rajesh Bansal to join probe.',
+      description:
+        'FIR No. 142/2026 registered. IO issued Section 35(3) BNSS notice to Rajesh Bansal to join probe.',
       source: {
         title: 'Police FIR',
         doc_name: 'FIR_142_2026_EOW_Cheating_CBT.pdf',
@@ -1438,7 +1551,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
     {
       id: 'fact_d1',
       label: 'Accused Fraudulent Representation',
-      value: 'Induced goods delivery by issuing post-dated cheques from account already closed prior to transaction date',
+      value:
+        'Induced goods delivery by issuing post-dated cheques from account already closed prior to transaction date',
       category: 'Procedural',
       source: {
         title: 'Bank Return Memo',
@@ -1462,7 +1576,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
     {
       id: 'fact_d3',
       label: 'Vicarious Liability of Partners',
-      value: 'Sangeeta Bansal is designated partner with joint banking authority under Section 141 NI Act',
+      value:
+        'Sangeeta Bansal is designated partner with joint banking authority under Section 141 NI Act',
       category: 'Parties',
       source: {
         title: 'MCA LLP Master Data',
@@ -1487,7 +1602,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
         doc_name: 'FIR_142_2026_EOW_Cheating_CBT.pdf',
         page_or_clause: 'Notice #35-B',
       },
-      suggested_fix: 'Move application before CMM seeking Non-Bailable Warrants and oppose Anticipatory Bail.',
+      suggested_fix:
+        'Move application before CMM seeking Non-Bailable Warrants and oppose Anticipatory Bail.',
       remedial_cta_label: 'Draft NBW & Bail Opposition Application',
       remedial_cta_action_type: 'draft_notice',
       remedial_target_template: 'draft_reply_quashing_528',
@@ -1506,7 +1622,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
         doc_name: 'Statutory_Notice_138_NI_Act_POD.pdf',
         page_or_clause: 'POD Delivery Date 18 Jan',
       },
-      suggested_fix: 'Draft and file formal Section 138 complaint with pre-summoning evidence affidavit.',
+      suggested_fix:
+        'Draft and file formal Section 138 complaint with pre-summoning evidence affidavit.',
       remedial_cta_label: 'Generate Section 138 NI Criminal Complaint',
       remedial_cta_action_type: 'draft_notice',
       remedial_target_template: 'draft_sec138_ni_complaint',
@@ -1519,14 +1636,15 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
       status: 'Open',
       plain_english_explanation:
         'WhatsApp chat messages and audio voice notes showing accused promising immediate clearance require Section 63 BSA certificate to be admissible in trial.',
-      statutory_or_clause_ref: 'Section 63, Bharatiya Sakshya Adhiniyam 2023 & Arjun Khotkar (SC 2020)',
+      statutory_or_clause_ref:
+        'Section 63, Bharatiya Sakshya Adhiniyam 2023 & Arjun Khotkar (SC 2020)',
       source: {
         title: 'Electronic Chat Log',
         doc_name: 'FIR_142_2026_EOW_Cheating_CBT.pdf',
         page_or_clause: 'Annexure D',
       },
       suggested_fix: 'Execute Section 63 BSA certificate signed by IT system administrator.',
-      remedial_cta_label: '+ Upload Signed BSA Hash Certificate',
+      remedial_cta_label: 'Upload Signed BSA Hash Certificate',
       remedial_cta_action_type: 'upload_doc',
     },
   ],
@@ -1535,10 +1653,13 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
       id: 'act_d1',
       title: 'File Criminal Complaint under Section 138 / 141 NI Act before Judicial Magistrate',
       category: 'Formal Proceedings',
-      short_description: 'Institute private criminal complaint against company and both directors with statutory presumption.',
+      short_description:
+        'Institute private criminal complaint against company and both directors with statutory presumption.',
       prerequisites: ['Original cheques & bank return memos', 'Speed Post tracking certificate'],
       statutory_ref: 'Section 138, 141, 142 NI Act 1881',
-      next_procedural_steps: ['File complaint with pre-summoning evidence affidavit under Section 145 NI Act.'],
+      next_procedural_steps: [
+        'File complaint with pre-summoning evidence affidavit under Section 145 NI Act.',
+      ],
       feasibility_score: 95,
       recommended_tag: 'Recommended Primary Criminal Route',
       draft_template_id: 'draft_sec138_ni_complaint',
@@ -1547,7 +1668,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
       id: 'act_d2',
       title: 'Oppose Anticipatory Bail / Seek Custodial Interrogation under Section 482 BNSS',
       category: 'Formal Proceedings',
-      short_description: 'Oppose accused bail application by showing pre-planned fraud and closed bank accounts.',
+      short_description:
+        'Oppose accused bail application by showing pre-planned fraud and closed bank accounts.',
       prerequisites: ['Bank account closure statement from HDFC Bank'],
       statutory_ref: 'Section 482 BNSS 2023 (formerly Section 438 CrPC)',
       next_procedural_steps: ['File detailed Reply / Status Report before Sessions Court.'],
@@ -1559,7 +1681,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
       id: 'act_d3',
       title: 'Obtain Section 63 BSA 2023 Electronic Evidence Certificate',
       category: 'Evidence Preservation',
-      short_description: 'Preserve WhatsApp chat exports and bank server SMS alerts with cryptographic hash.',
+      short_description:
+        'Preserve WhatsApp chat exports and bank server SMS alerts with cryptographic hash.',
       prerequisites: ['Exported chat transcript with phone IMEI details'],
       statutory_ref: 'Section 63, Bharatiya Sakshya Adhiniyam 2023',
       next_procedural_steps: ['Sign Section 63 BSA certificate with Director IT.'],
@@ -1582,9 +1705,12 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
       matched_sections: ['Section 420 IPC / Section 318(4) BNS', 'Section 482 CrPC / 528 BNSS'],
       ratio_decidendi:
         'To establish cheating under Section 420 IPC / 318(4) BNS, fraudulent intention must exist at the very inception of transaction. If goods are procured by issuing cheques from an already closed account, dishonest intention at inception is established and proceedings cannot be quashed as a pure civil breach.',
-      facts_summary: 'Supreme Court laid down test distinguishing mere breach of contract from criminal cheating.',
+      facts_summary:
+        'Supreme Court laid down test distinguishing mere breach of contract from criminal cheating.',
       petitioner_arguments: ['Transaction is commercial; dispute belongs to civil court.'],
-      respondent_arguments: ['Issuance of cheques from closed account shows dishonest intent from day one.'],
+      respondent_arguments: [
+        'Issuance of cheques from closed account shows dishonest intent from day one.',
+      ],
       judge_findings: 'Pre-existing account closure establishes mens rea at inception.',
     },
     {
@@ -1600,7 +1726,8 @@ export const CASE_SHIVAM_V_BANSAL: MatterCase = {
       matched_sections: ['Section 138 & 139 NI Act'],
       ratio_decidendi:
         'A meaningful reading of Section 139 of the Act makes it clear that the presumption is in favour of the holder of the cheque. Factual admission of signature mandates statutory presumption of legally enforceable debt.',
-      facts_summary: 'Accused admitted cheque signature. Supreme Court held conviction under Section 138 mandatory.',
+      facts_summary:
+        'Accused admitted cheque signature. Supreme Court held conviction under Section 138 mandatory.',
       petitioner_arguments: ['Statutory presumption operates once signature is admitted.'],
       respondent_arguments: ['Cheque was issued as security only.'],
       judge_findings: 'Security cheques also attract liability under Section 138.',
@@ -1623,7 +1750,7 @@ export const ALL_MATTERS: Record<string, MatterCase> = {
 // -----------------------------------------------------------------------------
 export function generateDraftDocument(
   templateId: string,
-  matter: MatterCase
+  matter: MatterCase,
 ): { title: string; content: string } {
   const disclaimer = `/*
 ===============================================================================

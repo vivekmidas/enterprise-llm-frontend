@@ -257,8 +257,9 @@ export default function LandingPage() {
           {/* Sub */}
           <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
             Enterprise Knowledge base (EKB) is workflow automation platform and knowledge extraction
-            platform that lets small &amp; mid-size enterprises connect internal systems, launch custom
-            nodes, extract knowledge from documents and orchestrate AI-powered processes — with full RBAC and observability built in.
+            platform that lets small &amp; mid-size enterprises connect internal systems, launch
+            custom nodes, extract knowledge from documents and orchestrate AI-powered processes —
+            with full RBAC and observability built in.
           </p>
 
           {/* CTAs */}

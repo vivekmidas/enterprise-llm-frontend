@@ -4,7 +4,8 @@
    ============================================================================== */
 import crypto from 'crypto';
 
-const OAUTH_SECRET = process.env.AUTH_SECRET || process.env.SECRET_KEY || 'default-oauth-secure-secret-key-salt';
+const OAUTH_SECRET =
+  process.env.AUTH_SECRET || process.env.SECRET_KEY || 'default-oauth-secure-secret-key-salt';
 
 export interface OAuthStatePayload {
   workflow_id: string;
@@ -30,7 +31,10 @@ export function generateSignedOAuthState(workflowId: string, nodeId: string): st
   return `${payloadStr}.${signature}`;
 }
 
-export function verifySignedOAuthState(state: string, maxAgeMs: number = 15 * 60 * 1000): OAuthStatePayload | null {
+export function verifySignedOAuthState(
+  state: string,
+  maxAgeMs: number = 15 * 60 * 1000,
+): OAuthStatePayload | null {
   if (!state || !state.includes('.')) {
     // Handle fallback for legacy format workflow_id|node_id if needed, or reject
     const parts = state.split('|');
@@ -58,7 +62,10 @@ export function verifySignedOAuthState(state: string, maxAgeMs: number = 15 * 60
   // Constant-time buffer comparison to prevent timing attacks
   const sigBuffer = Buffer.from(signature);
   const expectedBuffer = Buffer.from(expectedSignature);
-  if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+  if (
+    sigBuffer.length !== expectedBuffer.length ||
+    !crypto.timingSafeEqual(sigBuffer, expectedBuffer)
+  ) {
     return null;
   }
 

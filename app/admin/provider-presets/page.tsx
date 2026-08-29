@@ -19,7 +19,7 @@ import {
   Check,
   AlertCircle,
   Loader2,
-  Filter
+  Filter,
 } from 'lucide-react';
 
 export interface EmbeddingModelItem {
@@ -82,7 +82,10 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
   const [editingPreset, setEditingPreset] = useState<Partial<ProviderPreset> | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   // Form helper strings for textareas
   const [chatModelsInput, setChatModelsInput] = useState<string>('');
@@ -115,7 +118,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
     setEditingPreset({ ...EMPTY_PRESET });
     setChatModelsInput(EMPTY_PRESET.chat_models.join('\n'));
     setEmbeddingModelsInput(
-      EMPTY_PRESET.embedding_models.map((e) => `${e.model}:${e.dimension}`).join('\n')
+      EMPTY_PRESET.embedding_models.map((e) => `${e.model}:${e.dimension}`).join('\n'),
     );
     setRerankModelsInput(EMPTY_PRESET.rerank_models.join('\n'));
     setIsModalOpen(true);
@@ -125,7 +128,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
     setEditingPreset({ ...preset });
     setChatModelsInput((preset.chat_models || []).join('\n'));
     setEmbeddingModelsInput(
-      (preset.embedding_models || []).map((e) => `${e.model}:${e.dimension}`).join('\n')
+      (preset.embedding_models || []).map((e) => `${e.model}:${e.dimension}`).join('\n'),
     );
     setRerankModelsInput((preset.rerank_models || []).join('\n'));
     setIsModalOpen(true);
@@ -166,8 +169,10 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
         chat_models: chatModels,
         default_chat_model: editingPreset.default_chat_model || chatModels[0] || '',
         embedding_models: embeddingModels,
-        default_embedding_model: editingPreset.default_embedding_model || embeddingModels[0]?.model || '',
-        default_embedding_dimension: embeddingModels[0]?.dimension || editingPreset.default_embedding_dimension || 768,
+        default_embedding_model:
+          editingPreset.default_embedding_model || embeddingModels[0]?.model || '',
+        default_embedding_dimension:
+          embeddingModels[0]?.dimension || editingPreset.default_embedding_dimension || 768,
         rerank_models: rerankModels,
         default_rerank_model: editingPreset.default_rerank_model || rerankModels[0] || '',
       };
@@ -202,11 +207,19 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
   };
 
   const handleSeedPresets = async () => {
-    if (!confirm('Re-seed standard default presets for Ollama, vLLM, OpenAI, Grok, Azure, Anthropic, Gemini?')) return;
+    if (
+      !confirm(
+        'Re-seed standard default presets for Ollama, vLLM, OpenAI, Grok, Azure, Anthropic, Gemini?',
+      )
+    )
+      return;
     setSeeding(true);
     try {
       const res = await api.seedProviderPresets();
-      showNotification('success', res.message || 'Standard provider presets re-seeded successfully.');
+      showNotification(
+        'success',
+        res.message || 'Standard provider presets re-seeded successfully.',
+      );
       fetchPresets();
     } catch (err: any) {
       showNotification('error', err.message || 'Failed to seed provider presets.');
@@ -219,7 +232,7 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
     (p) =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.provider_key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   return (
@@ -232,8 +245,9 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
             <h1 className="text-xl font-bold text-gray-900">Provider Presets & Sample Configs</h1>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            System Admin repository of standard LLM, Embedding, and Search model presets (Ollama, vLLM, OpenAI, Grok, Gemini, etc.).
-            Node & Profile properties will pre-fill from these presets without breaking existing workflows when updated.
+            System Admin repository of standard LLM, Embedding, and Search model presets (Ollama,
+            vLLM, OpenAI, Grok, Gemini, etc.). Node & Profile properties will pre-fill from these
+            presets without breaking existing workflows when updated.
           </p>
         </div>
         {isSystemAdmin && (
@@ -261,17 +275,21 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
       {!isSystemAdmin && (
         <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-medium">
           <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-          <span>Read-Only View: System Admin permission is required to create, edit, or re-seed provider presets.</span>
+          <span>
+            Read-Only View: System Admin permission is required to create, edit, or re-seed provider
+            presets.
+          </span>
         </div>
       )}
 
       {/* Alert Notification */}
       {notification && (
         <div
-          className={`flex items-center gap-3 p-4 rounded-lg text-xs font-medium border ${notification.type === 'success'
-            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-            : 'bg-rose-50 text-rose-800 border-rose-200'
-            }`}
+          className={`flex items-center gap-3 p-4 rounded-lg text-xs font-medium border ${
+            notification.type === 'success'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border-rose-200'
+          }`}
         >
           {notification.type === 'success' ? (
             <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
@@ -304,7 +322,8 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
           <Server className="h-10 w-10 text-gray-300 mx-auto mb-3" />
           <h3 className="text-sm font-semibold text-gray-700">No Provider Presets Found</h3>
           <p className="text-xs text-gray-400 mt-1 max-w-md mx-auto">
-            Click "Seed Standard Defaults" to automatically populate Ollama, vLLM, OpenAI, Grok, Azure, Anthropic, and Gemini standard configs.
+            Click "Seed Standard Defaults" to automatically populate Ollama, vLLM, OpenAI, Grok,
+            Azure, Anthropic, and Gemini standard configs.
           </p>
         </div>
       ) : (
@@ -312,8 +331,9 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
           {filteredPresets.map((preset) => (
             <div
               key={preset.id}
-              className={`bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between ${preset.is_active ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-75'
-                }`}
+              className={`bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between ${
+                preset.is_active ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-75'
+              }`}
             >
               <div>
                 {/* Card Top */}
@@ -364,9 +384,13 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                       <Database className="h-3.5 w-3.5 text-emerald-500" /> Embed Models
                     </span>
                     <div className="text-right">
-                      <span className="font-semibold text-gray-900">{preset.embedding_models?.length || 0} available</span>
+                      <span className="font-semibold text-gray-900">
+                        {preset.embedding_models?.length || 0} available
+                      </span>
                       <p className="text-[10px] text-gray-500 font-mono">
-                        {preset.default_embedding_model ? `${preset.default_embedding_model} (${preset.default_embedding_dimension}d)` : 'None'}
+                        {preset.default_embedding_model
+                          ? `${preset.default_embedding_model} (${preset.default_embedding_dimension}d)`
+                          : 'None'}
                       </p>
                     </div>
                   </div>
@@ -376,8 +400,12 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                       <Filter className="h-3.5 w-3.5 text-amber-500" /> Rerank Models
                     </span>
                     <div className="text-right">
-                      <span className="font-semibold text-gray-900">{preset.rerank_models?.length || 0} available</span>
-                      <p className="text-[10px] text-gray-500 font-mono">Default: {preset.default_rerank_model || 'None'}</p>
+                      <span className="font-semibold text-gray-900">
+                        {preset.rerank_models?.length || 0} available
+                      </span>
+                      <p className="text-[10px] text-gray-500 font-mono">
+                        Default: {preset.default_rerank_model || 'None'}
+                      </p>
                     </div>
                   </div>
 
@@ -386,8 +414,12 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                       <Cpu className="h-3.5 w-3.5 text-indigo-500" /> Generation Models
                     </span>
                     <div className="text-right">
-                      <span className="font-semibold text-gray-900">{preset.chat_models?.length || 0} available</span>
-                      <p className="text-[10px] text-gray-500 font-mono">Default: {preset.default_chat_model || 'None'}</p>
+                      <span className="font-semibold text-gray-900">
+                        {preset.chat_models?.length || 0} available
+                      </span>
+                      <p className="text-[10px] text-gray-500 font-mono">
+                        Default: {preset.default_chat_model || 'None'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -395,9 +427,17 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
 
               {/* Card Footer */}
               <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
-                <span>Temp: {preset.default_temperature} | MaxTokens: {preset.default_max_tokens}</span>
-                <span className={`flex items-center gap-1 font-medium ${preset.is_active ? 'text-emerald-600' : 'text-gray-400'}`}>
-                  {preset.is_active ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                <span>
+                  Temp: {preset.default_temperature} | MaxTokens: {preset.default_max_tokens}
+                </span>
+                <span
+                  className={`flex items-center gap-1 font-medium ${preset.is_active ? 'text-emerald-600' : 'text-gray-400'}`}
+                >
+                  {preset.is_active ? (
+                    <CheckCircle2 className="h-3 w-3" />
+                  ) : (
+                    <XCircle className="h-3 w-3" />
+                  )}
                   {preset.is_active ? 'Active' : 'Disabled'}
                 </span>
               </div>
@@ -413,7 +453,9 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
                 <Sliders className="h-4 w-4 text-bg-primary" />
-                {editingPreset.id ? `Edit Provider Preset: ${editingPreset.display_name || editingPreset.name}` : 'Create Provider Preset'}
+                {editingPreset.id
+                  ? `Edit Provider Preset: ${editingPreset.display_name || editingPreset.name}`
+                  : 'Create Provider Preset'}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -432,7 +474,9 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                     placeholder="e.g. ollama, openai, azure"
                     value={editingPreset.provider_key || ''}
                     disabled={!!editingPreset.id}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, provider_key: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPreset({ ...editingPreset, provider_key: e.target.value })
+                    }
                     className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md focus:ring-1 focus:ring-blue-500 font-mono"
                   />
                 </div>
@@ -442,7 +486,13 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                     type="text"
                     placeholder="e.g. Ollama (Local), OpenAI Official"
                     value={editingPreset.display_name || editingPreset.name || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, display_name: e.target.value, name: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPreset({
+                        ...editingPreset,
+                        display_name: e.target.value,
+                        name: e.target.value,
+                      })
+                    }
                     className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
@@ -465,14 +515,18 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                   type="text"
                   placeholder="Brief summary of provider endpoint"
                   value={editingPreset.description || ''}
-                  onChange={(e) => setEditingPreset({ ...editingPreset, description: e.target.value })}
+                  onChange={(e) =>
+                    setEditingPreset({ ...editingPreset, description: e.target.value })
+                  }
                   className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md focus:ring-1 focus:ring-blue-500"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">1. Embed Models (model:dim)</label>
+                  <label className="block font-semibold text-gray-700 mb-1">
+                    1. Embed Models (model:dim)
+                  </label>
                   <textarea
                     rows={4}
                     placeholder="nomic-embed-text:768&#10;bge-m3:1024&#10;text-embedding-3-small:1536"
@@ -484,14 +538,21 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                     type="text"
                     placeholder="Default Embedding Model"
                     value={editingPreset.default_embedding_model || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, default_embedding_model: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPreset({
+                        ...editingPreset,
+                        default_embedding_model: e.target.value,
+                      })
+                    }
                     className="w-full mt-2 p-1.5 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded text-[11px] font-mono"
                   />
                   <input
                     type="text"
                     placeholder="Embed Endpoint Path (e.g. /embeddings)"
                     value={editingPreset.embedding_endpoint || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, embedding_endpoint: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPreset({ ...editingPreset, embedding_endpoint: e.target.value })
+                    }
                     className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-emerald-700 bg-emerald-50/80 placeholder-gray-400"
                   />
                 </div>
@@ -509,20 +570,26 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                     type="text"
                     placeholder="Default Rerank Model"
                     value={editingPreset.default_rerank_model || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, default_rerank_model: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPreset({ ...editingPreset, default_rerank_model: e.target.value })
+                    }
                     className="w-full mt-2 p-1.5 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded text-[11px] font-mono"
                   />
                   <input
                     type="text"
                     placeholder="Rerank Endpoint Path (e.g. /rerank)"
                     value={editingPreset.rerank_endpoint || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, rerank_endpoint: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPreset({ ...editingPreset, rerank_endpoint: e.target.value })
+                    }
                     className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-amber-700 bg-amber-50/80 placeholder-gray-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">3. Generation Models</label>
+                  <label className="block font-semibold text-gray-700 mb-1">
+                    3. Generation Models
+                  </label>
                   <textarea
                     rows={4}
                     placeholder="gpt-4o&#10;gpt-4o-mini&#10;llama3.2"
@@ -534,14 +601,18 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                     type="text"
                     placeholder="Default Generation Model"
                     value={editingPreset.default_chat_model || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, default_chat_model: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPreset({ ...editingPreset, default_chat_model: e.target.value })
+                    }
                     className="w-full mt-2 p-1.5 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded text-[11px] font-mono"
                   />
                   <input
                     type="text"
                     placeholder="Chat Endpoint Path (e.g. /chat/completions)"
                     value={editingPreset.search_endpoint || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, search_endpoint: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPreset({ ...editingPreset, search_endpoint: e.target.value })
+                    }
                     className="w-full mt-1.5 p-1.5 border border-gray-300 rounded text-[11px] font-mono text-blue-700 bg-blue-50/80 placeholder-gray-400"
                   />
                 </div>
@@ -554,7 +625,12 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                     type="number"
                     step="0.1"
                     value={editingPreset.default_temperature ?? 0.7}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, default_temperature: parseFloat(e.target.value) })}
+                    onChange={(e) =>
+                      setEditingPreset({
+                        ...editingPreset,
+                        default_temperature: parseFloat(e.target.value),
+                      })
+                    }
                     className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md"
                   />
                 </div>
@@ -563,7 +639,12 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                   <input
                     type="number"
                     value={editingPreset.default_max_tokens ?? 1024}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, default_max_tokens: parseInt(e.target.value, 10) })}
+                    onChange={(e) =>
+                      setEditingPreset({
+                        ...editingPreset,
+                        default_max_tokens: parseInt(e.target.value, 10),
+                      })
+                    }
                     className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md"
                   />
                 </div>
@@ -573,7 +654,9 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                     type="text"
                     placeholder="Authorization or api-key"
                     value={editingPreset.api_key_header || ''}
-                    onChange={(e) => setEditingPreset({ ...editingPreset, api_key_header: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPreset({ ...editingPreset, api_key_header: e.target.value })
+                    }
                     className="w-full p-2 border border-gray-300 bg-white text-gray-900 placeholder-gray-400 rounded-md font-mono"
                   />
                 </div>
@@ -584,7 +667,9 @@ export default function ProviderPresetsAdminTab({ userRole }: { userRole?: strin
                   type="checkbox"
                   id="is_active"
                   checked={editingPreset.is_active ?? true}
-                  onChange={(e) => setEditingPreset({ ...editingPreset, is_active: e.target.checked })}
+                  onChange={(e) =>
+                    setEditingPreset({ ...editingPreset, is_active: e.target.checked })
+                  }
                   className="rounded border-gray-300 text-bg-primary focus:ring-blue-500"
                 />
                 <label htmlFor="is_active" className="font-semibold text-gray-700">

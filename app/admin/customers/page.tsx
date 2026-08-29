@@ -164,31 +164,73 @@ const SourceValueSelector = ({
   );
 };
 
-const DOMAIN_ROLES_MAP: Record<string, { role_type: string; role_name: string; description?: string }[]> = {
+const DOMAIN_ROLES_MAP: Record<
+  string,
+  { role_type: string; role_name: string; description?: string }[]
+> = {
   legal: [
-    { role_type: 'para_legal', role_name: 'Paralegal (para_legal)', description: 'Legal search & case bookmarking' },
-    { role_type: 'legal_analyst', role_name: 'Legal Analyst (legal_analyst)', description: 'Full legal research & ingestion' },
+    {
+      role_type: 'para_legal',
+      role_name: 'Paralegal (para_legal)',
+      description: 'Legal search & case bookmarking',
+    },
+    {
+      role_type: 'legal_analyst',
+      role_name: 'Legal Analyst (legal_analyst)',
+      description: 'Full legal research & ingestion',
+    },
   ],
   finance: [
-    { role_type: 'finance_analyst', role_name: 'Finance Analyst (finance_analyst)', description: 'Financial analytics & reporting' },
-    { role_type: 'auditor', role_name: 'Financial Auditor (auditor)', description: 'Compliance & audit log review' },
+    {
+      role_type: 'finance_analyst',
+      role_name: 'Finance Analyst (finance_analyst)',
+      description: 'Financial analytics & reporting',
+    },
+    {
+      role_type: 'auditor',
+      role_name: 'Financial Auditor (auditor)',
+      description: 'Compliance & audit log review',
+    },
   ],
   healthcare: [
-    { role_type: 'health_analyst', role_name: 'Healthcare Analyst (health_analyst)', description: 'Medical records & health data' },
-    { role_type: 'medical_reviewer', role_name: 'Medical Reviewer (medical_reviewer)', description: 'Clinical review & compliance' },
+    {
+      role_type: 'health_analyst',
+      role_name: 'Healthcare Analyst (health_analyst)',
+      description: 'Medical records & health data',
+    },
+    {
+      role_type: 'medical_reviewer',
+      role_name: 'Medical Reviewer (medical_reviewer)',
+      description: 'Clinical review & compliance',
+    },
   ],
   hr: [
-    { role_type: 'hr_specialist', role_name: 'HR Specialist (hr_specialist)', description: 'Employee records & onboarding' },
+    {
+      role_type: 'hr_specialist',
+      role_name: 'HR Specialist (hr_specialist)',
+      description: 'Employee records & onboarding',
+    },
   ],
 };
 
 const BASE_TENANT_ROLES = [
-  { role_type: 'tenant_user', role_name: 'Standard User (tenant_user)', description: 'Default user access' },
-  { role_type: 'tenant_admin', role_name: 'Tenant Admin (tenant_admin)', description: 'Full tenant administration' },
+  {
+    role_type: 'tenant_user',
+    role_name: 'Standard User (tenant_user)',
+    description: 'Default user access',
+  },
+  {
+    role_type: 'tenant_admin',
+    role_name: 'Tenant Admin (tenant_admin)',
+    description: 'Full tenant administration',
+  },
 ];
 
 const getRelevantRolesForDomains = (allowedDomains: string[] = [], domainSchemas: any[] = []) => {
-  const rolesMap = new Map<string, { role_type: string; role_name: string; description?: string }>();
+  const rolesMap = new Map<
+    string,
+    { role_type: string; role_name: string; description?: string }
+  >();
 
   BASE_TENANT_ROLES.forEach((r) => rolesMap.set(r.role_type, r));
 
@@ -283,7 +325,7 @@ export default function CustomersTab() {
   /* BLOCK COMMENT: DOMAIN LABEL RESOLVER FROM DOMAIN_SCHEMAS */
   const getDomainLabel = (domId: string) => {
     const schema = domainSchemas.find((s: any) => s.id === domId || s.domain_key === domId);
-    return schema ? (schema.name || schema.domain_key) : domId;
+    return schema ? schema.name || schema.domain_key : domId;
   };
 
   const fetchInitialData = async () => {
@@ -410,10 +452,14 @@ export default function CustomersTab() {
     if (!selectedCustomer) return;
     try {
       const promptsPayload: any = {};
-      if (editCustomerSearchSystemPrompt.trim()) promptsPayload.search_system_prompt = editCustomerSearchSystemPrompt.trim();
-      if (editCustomerSearchUserPrompt.trim()) promptsPayload.search_user_prompt = editCustomerSearchUserPrompt.trim();
-      if (editCustomerDraftingSystemPrompt.trim()) promptsPayload.drafting_system_prompt = editCustomerDraftingSystemPrompt.trim();
-      if (editCustomerDraftingUserPrompt.trim()) promptsPayload.drafting_user_prompt = editCustomerDraftingUserPrompt.trim();
+      if (editCustomerSearchSystemPrompt.trim())
+        promptsPayload.search_system_prompt = editCustomerSearchSystemPrompt.trim();
+      if (editCustomerSearchUserPrompt.trim())
+        promptsPayload.search_user_prompt = editCustomerSearchUserPrompt.trim();
+      if (editCustomerDraftingSystemPrompt.trim())
+        promptsPayload.drafting_system_prompt = editCustomerDraftingSystemPrompt.trim();
+      if (editCustomerDraftingUserPrompt.trim())
+        promptsPayload.drafting_user_prompt = editCustomerDraftingUserPrompt.trim();
 
       const existingSettings = selectedCustomer.settings || {};
       const updatedSettings = {
@@ -448,10 +494,14 @@ export default function CustomersTab() {
     e.preventDefault();
     try {
       const promptsPayload: any = {};
-      if (newCustomerSearchSystemPrompt.trim()) promptsPayload.search_system_prompt = newCustomerSearchSystemPrompt.trim();
-      if (newCustomerSearchUserPrompt.trim()) promptsPayload.search_user_prompt = newCustomerSearchUserPrompt.trim();
-      if (newCustomerDraftingSystemPrompt.trim()) promptsPayload.drafting_system_prompt = newCustomerDraftingSystemPrompt.trim();
-      if (newCustomerDraftingUserPrompt.trim()) promptsPayload.drafting_user_prompt = newCustomerDraftingUserPrompt.trim();
+      if (newCustomerSearchSystemPrompt.trim())
+        promptsPayload.search_system_prompt = newCustomerSearchSystemPrompt.trim();
+      if (newCustomerSearchUserPrompt.trim())
+        promptsPayload.search_user_prompt = newCustomerSearchUserPrompt.trim();
+      if (newCustomerDraftingSystemPrompt.trim())
+        promptsPayload.drafting_system_prompt = newCustomerDraftingSystemPrompt.trim();
+      if (newCustomerDraftingUserPrompt.trim())
+        promptsPayload.drafting_user_prompt = newCustomerDraftingUserPrompt.trim();
 
       await api.createCustomer({
         name: newCustomerName,
@@ -739,8 +789,6 @@ export default function CustomersTab() {
                   ></span>
                   {selectedCustomer.name}
                 </h3>
-
-
               </div>
               {selectedCustomer.id} | {selectedCustomer.domain}
             </div>
@@ -757,10 +805,28 @@ export default function CustomersTab() {
                   setEditCustomerStoragePath(selectedCustomer.plugin_storage_path || '');
                   setEditCustomerAllowedDomains(selectedCustomer.allowed_domains || []);
                   const existingPrompts = selectedCustomer.settings?.prompts || {};
-                  setEditCustomerSearchSystemPrompt(existingPrompts.search_system_prompt || selectedCustomer.settings?.search_system_prompt || '');
-                  setEditCustomerSearchUserPrompt(existingPrompts.search_user_prompt || selectedCustomer.settings?.search_user_prompt || '');
-                  setEditCustomerDraftingSystemPrompt(existingPrompts.drafting_system_prompt || existingPrompts.synthesize_system_prompt || selectedCustomer.settings?.drafting_system_prompt || '');
-                  setEditCustomerDraftingUserPrompt(existingPrompts.drafting_user_prompt || existingPrompts.synthesize_user_prompt || selectedCustomer.settings?.drafting_user_prompt || '');
+                  setEditCustomerSearchSystemPrompt(
+                    existingPrompts.search_system_prompt ||
+                      selectedCustomer.settings?.search_system_prompt ||
+                      '',
+                  );
+                  setEditCustomerSearchUserPrompt(
+                    existingPrompts.search_user_prompt ||
+                      selectedCustomer.settings?.search_user_prompt ||
+                      '',
+                  );
+                  setEditCustomerDraftingSystemPrompt(
+                    existingPrompts.drafting_system_prompt ||
+                      existingPrompts.synthesize_system_prompt ||
+                      selectedCustomer.settings?.drafting_system_prompt ||
+                      '',
+                  );
+                  setEditCustomerDraftingUserPrompt(
+                    existingPrompts.drafting_user_prompt ||
+                      existingPrompts.synthesize_user_prompt ||
+                      selectedCustomer.settings?.drafting_user_prompt ||
+                      '',
+                  );
                   setIsEditingCustomer(true);
                 }}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm cursor-pointer"
@@ -802,10 +868,11 @@ export default function CustomersTab() {
                     loadCustomerTraces(selectedCustomer.id);
                   }
                 }}
-                className={`pb-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${customerDetailTab === tab.id
-                  ? 'border-bg-primary text-bg-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                className={`pb-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+                  customerDetailTab === tab.id
+                    ? 'border-bg-primary text-bg-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
               >
                 {tab.label}
               </button>
@@ -959,10 +1026,11 @@ export default function CustomersTab() {
                                 ]);
                               }
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${isSelected
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                              : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                              }`}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                            }`}
                           >
                             {d.name || d.domain_key} {isSelected ? '✓' : '+'}
                           </button>
@@ -979,7 +1047,8 @@ export default function CustomersTab() {
                           Client AI Prompts (Search & Response Drafting)
                         </h4>
                         <p className="text-[11px] text-gray-500">
-                          Configure default search summary and response drafting prompts automatically applied to all users in this tenant.
+                          Configure default search summary and response drafting prompts
+                          automatically applied to all users in this tenant.
                         </p>
                       </div>
                     </div>
@@ -1013,7 +1082,8 @@ export default function CustomersTab() {
 
                       <div className="space-y-1">
                         <label className="block text-[11px] font-bold text-gray-700">
-                          Drafting System Prompt this is required to instruct system when drafting a response (drafting_system_prompt)
+                          Drafting System Prompt this is required to instruct system when drafting a
+                          response (drafting_system_prompt)
                         </label>
                         <textarea
                           rows={3}
@@ -1026,7 +1096,8 @@ export default function CustomersTab() {
 
                       <div className="space-y-1">
                         <label className="block text-[11px] font-bold text-gray-700">
-                          Drafting User Prompt this is required to instruct system when drafting a response(drafting_user_prompt)
+                          Drafting User Prompt this is required to instruct system when drafting a
+                          response(drafting_user_prompt)
                         </label>
                         <textarea
                           rows={3}
@@ -1089,10 +1160,11 @@ export default function CustomersTab() {
                           Status
                         </span>
                         <span
-                          className={`px-2.5 py-1 rounded text-xs font-bold uppercase inline-block mt-1 ${selectedCustomer.status === 'active'
-                            ? 'bg-green-50 text-green-700 border border-green-200'
-                            : 'bg-red-50 text-red-700 border border-red-200'
-                            }`}
+                          className={`px-2.5 py-1 rounded text-xs font-bold uppercase inline-block mt-1 ${
+                            selectedCustomer.status === 'active'
+                              ? 'bg-green-50 text-green-700 border border-green-200'
+                              : 'bg-red-50 text-red-700 border border-red-200'
+                          }`}
                         >
                           {selectedCustomer.status}
                         </span>
@@ -1105,7 +1177,8 @@ export default function CustomersTab() {
                           Allowed Knowledge Domains
                         </span>
                         <div className="flex flex-wrap gap-1.5 mt-1">
-                          {selectedCustomer.allowed_domains && selectedCustomer.allowed_domains.length > 0 ? (
+                          {selectedCustomer.allowed_domains &&
+                          selectedCustomer.allowed_domains.length > 0 ? (
                             selectedCustomer.allowed_domains.map((dom: string) => (
                               <span
                                 key={dom}
@@ -1160,17 +1233,29 @@ export default function CustomersTab() {
                           Client AI Prompts (Search & Response Drafting)
                         </h4>
                         <p className="text-[11px] text-gray-500">
-                          Tenant-default prompt configurations applied to search summaries and long-form drafted briefs.
+                          Tenant-default prompt configurations applied to search summaries and
+                          long-form drafted briefs.
                         </p>
                       </div>
                     </div>
 
                     {(() => {
                       const prompts = selectedCustomer.settings?.prompts || {};
-                      const searchSys = prompts.search_system_prompt || selectedCustomer.settings?.search_system_prompt;
-                      const searchUser = prompts.search_user_prompt || selectedCustomer.settings?.search_user_prompt;
-                      const draftSys = prompts.drafting_system_prompt || prompts.synthesize_system_prompt || selectedCustomer.settings?.drafting_system_prompt || selectedCustomer.settings?.synthesize_system_prompt;
-                      const draftUser = prompts.drafting_user_prompt || prompts.synthesize_user_prompt || selectedCustomer.settings?.drafting_user_prompt || selectedCustomer.settings?.synthesize_user_prompt;
+                      const searchSys =
+                        prompts.search_system_prompt ||
+                        selectedCustomer.settings?.search_system_prompt;
+                      const searchUser =
+                        prompts.search_user_prompt || selectedCustomer.settings?.search_user_prompt;
+                      const draftSys =
+                        prompts.drafting_system_prompt ||
+                        prompts.synthesize_system_prompt ||
+                        selectedCustomer.settings?.drafting_system_prompt ||
+                        selectedCustomer.settings?.synthesize_system_prompt;
+                      const draftUser =
+                        prompts.drafting_user_prompt ||
+                        prompts.synthesize_user_prompt ||
+                        selectedCustomer.settings?.drafting_user_prompt ||
+                        selectedCustomer.settings?.synthesize_user_prompt;
 
                       return (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1183,7 +1268,9 @@ export default function CustomersTab() {
                                 {searchSys}
                               </pre>
                             ) : (
-                              <span className="text-xs text-gray-400 italic">Default system prompt active (Multi-case JSON summary)</span>
+                              <span className="text-xs text-gray-400 italic">
+                                Default system prompt active (Multi-case JSON summary)
+                              </span>
                             )}
                           </div>
 
@@ -1196,7 +1283,9 @@ export default function CustomersTab() {
                                 {searchUser}
                               </pre>
                             ) : (
-                              <span className="text-xs text-gray-400 italic">Default template active ({'{context}'}, {'{query}'})</span>
+                              <span className="text-xs text-gray-400 italic">
+                                Default template active ({'{context}'}, {'{query}'})
+                              </span>
                             )}
                           </div>
 
@@ -1209,7 +1298,9 @@ export default function CustomersTab() {
                                 {draftSys}
                               </pre>
                             ) : (
-                              <span className="text-xs text-gray-400 italic">Default system prompt active (Grounded Research Drafter)</span>
+                              <span className="text-xs text-gray-400 italic">
+                                Default system prompt active (Grounded Research Drafter)
+                              </span>
                             )}
                           </div>
 
@@ -1222,7 +1313,10 @@ export default function CustomersTab() {
                                 {draftUser}
                               </pre>
                             ) : (
-                              <span className="text-xs text-gray-400 italic">Default template active ({'{context}'}, {'{user_notes}'}, {'{instruction}'})</span>
+                              <span className="text-xs text-gray-400 italic">
+                                Default template active ({'{context}'}, {'{user_notes}'},{' '}
+                                {'{instruction}'})
+                              </span>
                             )}
                           </div>
                         </div>
@@ -1247,7 +1341,10 @@ export default function CustomersTab() {
                   onClick={() => {
                     setSelectedCustomerIdForUser(selectedCustomer.id);
                     const targetCust = selectedCustomer;
-                    const roles = getRelevantRolesForDomains(targetCust?.allowed_domains, domainSchemas);
+                    const roles = getRelevantRolesForDomains(
+                      targetCust?.allowed_domains,
+                      domainSchemas,
+                    );
                     setCustomerUserRole(roles[0]?.role_type || 'tenant_user');
                     setShowAddCustomerUserModal(true);
                   }}
@@ -1284,10 +1381,11 @@ export default function CustomersTab() {
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.status === 'active'
-                              ? 'bg-green-50 text-green-700'
-                              : 'bg-red-50 text-red-700'
-                              }`}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              u.status === 'active'
+                                ? 'bg-green-50 text-green-700'
+                                : 'bg-red-50 text-red-700'
+                            }`}
                           >
                             {u.status}
                           </span>
@@ -1364,7 +1462,9 @@ export default function CustomersTab() {
                               type="checkbox"
                               checked={n.is_enabled}
                               onChange={(e) => {
-                                const updated = [...(Array.isArray(customerNodes) ? customerNodes : [])];
+                                const updated = [
+                                  ...(Array.isArray(customerNodes) ? customerNodes : []),
+                                ];
                                 updated[idx] = { ...updated[idx], is_enabled: e.target.checked };
                                 setCustomerNodes(updated);
                               }}
@@ -1385,7 +1485,9 @@ export default function CustomersTab() {
                                 : JSON.stringify(n.properties || {})
                             }
                             onChange={(e) => {
-                              const updated = [...(Array.isArray(customerNodes) ? customerNodes : [])];
+                              const updated = [
+                                ...(Array.isArray(customerNodes) ? customerNodes : []),
+                              ];
                               updated[idx] = { ...updated[idx], properties: e.target.value };
                               setCustomerNodes(updated);
                             }}
@@ -1486,10 +1588,11 @@ export default function CustomersTab() {
                             </td>
                             <td className="px-4 py-3">
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${m.status === 'success' || m.status === 'completed'
-                                  ? 'bg-green-50 text-green-700'
-                                  : 'bg-red-50 text-red-700'
-                                  }`}
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                  m.status === 'success' || m.status === 'completed'
+                                    ? 'bg-green-50 text-green-700'
+                                    : 'bg-red-50 text-red-700'
+                                }`}
                               >
                                 {m.status}
                               </span>
@@ -1615,10 +1718,11 @@ export default function CustomersTab() {
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <span
-                        className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${c.status === 'active'
-                          ? 'bg-green-50 text-green-700'
-                          : 'bg-red-50 text-red-700'
-                          }`}
+                        className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                          c.status === 'active'
+                            ? 'bg-green-50 text-green-700'
+                            : 'bg-red-50 text-red-700'
+                        }`}
                       >
                         {c.status}
                       </span>
@@ -1630,7 +1734,10 @@ export default function CustomersTab() {
                       <button
                         onClick={() => {
                           setSelectedCustomerIdForUser(c.id);
-                          const roles = getRelevantRolesForDomains(c?.allowed_domains, domainSchemas);
+                          const roles = getRelevantRolesForDomains(
+                            c?.allowed_domains,
+                            domainSchemas,
+                          );
                           setCustomerUserRole(roles[0]?.role_type || 'tenant_user');
                           setShowAddCustomerUserModal(true);
                         }}
@@ -1788,10 +1895,11 @@ export default function CustomersTab() {
                               setNewCustomerAllowedDomains([...newCustomerAllowedDomains, d.id]);
                             }
                           }}
-                          className={`px-3 py-1 rounded text-xs font-bold transition-all border cursor-pointer ${isSelected
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
-                            }`}
+                          className={`px-3 py-1 rounded text-xs font-bold transition-all border cursor-pointer ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
+                          }`}
                         >
                           {d.name || d.domain_key} {isSelected ? '✓' : '+'}
                         </button>
@@ -1838,7 +1946,8 @@ export default function CustomersTab() {
                     Client AI Prompts (Search & Response Drafting)
                   </h4>
                   <p className="text-[11px] text-gray-500">
-                    Optional tenant-default prompts for search result formatting and long-form response drafting.
+                    Optional tenant-default prompts for search result formatting and long-form
+                    response drafting.
                   </p>
                 </div>
 
@@ -1972,19 +2081,31 @@ export default function CustomersTab() {
                   className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
                 >
                   {getRelevantRolesForDomains(
-                    (customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) || selectedCustomer)?.allowed_domains,
-                    domainSchemas
+                    (
+                      customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) ||
+                      selectedCustomer
+                    )?.allowed_domains,
+                    domainSchemas,
                   ).map((r) => (
                     <option key={r.role_type} value={r.role_type}>
                       {r.role_name}
                     </option>
                   ))}
                 </select>
-                {((customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) || selectedCustomer)?.allowed_domains) && (
+                {(
+                  customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) ||
+                  selectedCustomer
+                )?.allowed_domains && (
                   <p className="text-[11px] text-gray-400 mt-1">
                     Roles available for allowed domain(s):{' '}
                     <span className="font-semibold text-gray-600 uppercase">
-                      {((customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) || selectedCustomer).allowed_domains || [])
+                      {(
+                        (
+                          customers.find(
+                            (c) => String(c.id) === String(selectedCustomerIdForUser),
+                          ) || selectedCustomer
+                        ).allowed_domains || []
+                      )
                         .map((dom: string) => getDomainLabel(dom))
                         .join(', ')}
                     </span>
@@ -2105,13 +2226,17 @@ export default function CustomersTab() {
                             Isolated Node Testing (Debug Mode)
                           </h5>
                           <p className="text-[11px] text-purple-700 mt-0.5">
-                            Allow administrators & developers to execute single-node playground tests in isolation for this tenant.
+                            Allow administrators & developers to execute single-node playground
+                            tests in isolation for this tenant.
                           </p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer shrink-0">
                           <input
                             type="checkbox"
-                            checked={(customerNodeProperties[configuringNode.name] || {}).allow_node_testing === true}
+                            checked={
+                              (customerNodeProperties[configuringNode.name] || {})
+                                .allow_node_testing === true
+                            }
                             onChange={() => handleToggleTestingAllowed(configuringNode.name)}
                             className="sr-only peer"
                           />
@@ -2185,23 +2310,23 @@ export default function CustomersTab() {
                       {/* Bulk Controls */}
                       {Object.keys(selectedNodesForBulk).filter((k) => selectedNodesForBulk[k])
                         .length > 0 && (
-                          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-lg p-0.5 animate-fade-in">
-                            <button
-                              type="button"
-                              onClick={() => handleBulkToggle(true)}
-                              className="px-2 py-1 text-[10px] font-bold text-blue-700 hover:bg-white rounded transition-all cursor-pointer"
-                            >
-                              Enable
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleBulkToggle(false)}
-                              className="px-2 py-1 text-[10px] font-bold text-red-750 hover:bg-white rounded transition-all cursor-pointer"
-                            >
-                              Disable
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-lg p-0.5 animate-fade-in">
+                          <button
+                            type="button"
+                            onClick={() => handleBulkToggle(true)}
+                            className="px-2 py-1 text-[10px] font-bold text-blue-700 hover:bg-white rounded transition-all cursor-pointer"
+                          >
+                            Enable
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleBulkToggle(false)}
+                            className="px-2 py-1 text-[10px] font-bold text-red-750 hover:bg-white rounded transition-all cursor-pointer"
+                          >
+                            Disable
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -2246,20 +2371,22 @@ export default function CustomersTab() {
                         <button
                           type="button"
                           onClick={() => setNodeViewMode('grid')}
-                          className={`p-1 rounded cursor-pointer ${nodeViewMode === 'grid'
-                            ? 'bg-white shadow-xs text-bg-primary'
-                            : 'text-gray-400 hover:text-gray-655'
-                            }`}
+                          className={`p-1 rounded cursor-pointer ${
+                            nodeViewMode === 'grid'
+                              ? 'bg-white shadow-xs text-bg-primary'
+                              : 'text-gray-400 hover:text-gray-655'
+                          }`}
                         >
                           <IconMap.workflow className="h-3.5 w-3.5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => setNodeViewMode('list')}
-                          className={`p-1 rounded cursor-pointer ${nodeViewMode === 'list'
-                            ? 'bg-white shadow-xs text-bg-primary'
-                            : 'text-gray-400 hover:text-gray-655'
-                            }`}
+                          className={`p-1 rounded cursor-pointer ${
+                            nodeViewMode === 'list'
+                              ? 'bg-white shadow-xs text-bg-primary'
+                              : 'text-gray-400 hover:text-gray-655'
+                          }`}
                         >
                           <IconMap.list className="h-3.5 w-3.5" />
                         </button>
@@ -2284,8 +2411,9 @@ export default function CustomersTab() {
                             return (
                               <div
                                 key={node.name}
-                                className={`border rounded-xl p-4 bg-white flex flex-col justify-between shadow-xs transition-all relative ${isChecked ? 'border-blue-200' : 'border-gray-200 opacity-75'
-                                  }`}
+                                className={`border rounded-xl p-4 bg-white flex flex-col justify-between shadow-xs transition-all relative ${
+                                  isChecked ? 'border-blue-200' : 'border-gray-200 opacity-75'
+                                }`}
                               >
                                 <div className="flex items-start justify-between gap-4">
                                   <div className="flex gap-3">
@@ -2338,18 +2466,25 @@ export default function CustomersTab() {
                                 <div className="border-t mt-4 pt-3 flex justify-between items-center gap-2">
                                   <div className="flex items-center gap-2">
                                     <span
-                                      className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border ${isChecked
-                                        ? 'bg-green-50 text-green-700 border-green-100'
-                                        : 'bg-red-50 text-red-700 border-red-100'
-                                        }`}
+                                      className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border ${
+                                        isChecked
+                                          ? 'bg-green-50 text-green-700 border-green-100'
+                                          : 'bg-red-50 text-red-700 border-red-100'
+                                      }`}
                                     >
                                       {isChecked ? 'Allowed' : 'Disallowed'}
                                     </span>
                                     {/* BLOCK COMMENT: Testing Allowed toggle badge in Grid View */}
-                                    <label className="flex items-center gap-1 cursor-pointer text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100" title="Toggle isolated node testing (debug mode)">
+                                    <label
+                                      className="flex items-center gap-1 cursor-pointer text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100"
+                                      title="Toggle isolated node testing (debug mode)"
+                                    >
                                       <input
                                         type="checkbox"
-                                        checked={(customerNodeProperties[node.name] || {}).allow_node_testing === true}
+                                        checked={
+                                          (customerNodeProperties[node.name] || {})
+                                            .allow_node_testing === true
+                                        }
                                         onChange={() => handleToggleTestingAllowed(node.name)}
                                         className="accent-purple-600 h-3 w-3 cursor-pointer"
                                       />
@@ -2456,7 +2591,8 @@ export default function CustomersTab() {
                                       <input
                                         type="checkbox"
                                         checked={
-                                          (customerNodeProperties[node.name] || {}).allow_node_testing === true
+                                          (customerNodeProperties[node.name] || {})
+                                            .allow_node_testing === true
                                         }
                                         onChange={() => handleToggleTestingAllowed(node.name)}
                                         className="rounded border-gray-300 text-purple-600 w-4 h-4 cursor-pointer"

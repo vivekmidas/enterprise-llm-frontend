@@ -405,8 +405,9 @@ export default function JsonSchemaGeneratorModal({
       <div key={path} className="flex flex-col w-full">
         {/* Node selector row */}
         <div
-          className={`flex items-center justify-between py-1 px-3 hover:bg-slate-50 border-b border-slate-100 gap-4 transition-colors ${isSelected ? 'bg-slate-50/30' : 'opacity-60'
-            }`}
+          className={`flex items-center justify-between py-1 px-3 hover:bg-slate-50 border-b border-slate-100 gap-4 transition-colors ${
+            isSelected ? 'bg-slate-50/30' : 'opacity-60'
+          }`}
           style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">

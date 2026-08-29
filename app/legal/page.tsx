@@ -37,6 +37,7 @@ import {
   Shield,
   ShieldCheck,
   Sparkles,
+  Sword,
   Upload,
   Users,
   Workflow,
@@ -57,7 +58,11 @@ Description:
 */
 
 import { useSearchParams } from 'next/navigation';
-import { hasPermissionScope, loadRoutePermissionsFromDB } from '@/lib/config/route_permissions';
+import {
+  hasPermissionScope,
+  loadRoutePermissionsFromDB,
+  getEffectivePermissions,
+} from '@/lib/config/route_permissions';
 import ProfilesTab from '@/app/admin/profiles/page';
 import KnowledgeBasesTab from '@/app/admin/knowledge/page';
 import UsersTab from '@/app/admin/users/page';
@@ -66,8 +71,9 @@ import WorkflowsTab from '@/app/admin/workflows/page';
 import PlaygroundTab from '@/app/admin/playground/page';
 
 type View =
-  | 'cases'
   | 'search'
+  | 'autopilot'
+  | 'cases'
   | 'briefs'
   | 'profiles'
   | 'knowledge'
@@ -86,16 +92,78 @@ interface TabDefinition {
 }
 
 const ALL_LEGAL_TABS: TabDefinition[] = [
-  { id: 'search', label: 'Precedent Search', icon: <Library className="w-4 h-4" />, permission: 'legal:research:query' },
-  { id: 'cases', label: 'Case Workspaces', icon: <FolderKanban className="w-4 h-4" />, permission: 'legal:research:view' },
-  { id: 'briefs', label: 'Saved Briefs', icon: <FileSearch className="w-4 h-4" />, permission: 'legal:research:bookmark' },
-  { id: 'profiles', label: 'LLM Profiles', icon: <Cpu className="w-4 h-4" />, permission: 'admin:profiles:view', fallbackAdmin: true },
-  { id: 'knowledge', label: 'Knowledge Bases', icon: <Database className="w-4 h-4" />, permission: 'admin:knowledge:view', fallbackAdmin: true },
-  { id: 'playground', label: 'Playground', icon: <Sparkles className="w-4 h-4" />, permission: 'admin:playground:view', fallbackAdmin: true },
-  { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" />, permission: 'admin:user_management:read', fallbackAdmin: true },
-  { id: 'roles', label: 'Roles', icon: <Shield className="w-4 h-4" />, permission: 'admin:role_management:view', fallbackAdmin: true },
-  { id: 'workflows', label: 'Workflows', icon: <Workflow className="w-4 h-4" />, permission: 'admin:workflows:view', fallbackAdmin: true },
-  { id: 'audit', label: 'Audit Trail', icon: <ShieldCheck className="w-4 h-4" />, permission: 'legal:research:query' },
+  {
+    id: 'search',
+    label: 'Precedent Search',
+    icon: <Library className="w-4 h-4" />,
+    permission: 'legal:research:query',
+  },
+  {
+    id: 'autopilot',
+    label: 'Litigation Autopilot',
+    icon: <Sword className="w-4 h-4" />,
+    permission: 'legal:autopilot:view',
+  },
+  {
+    id: 'cases',
+    label: 'Case Workspaces',
+    icon: <FolderKanban className="w-4 h-4" />,
+    permission: 'legal:research:view',
+  },
+  {
+    id: 'briefs',
+    label: 'Saved Briefs',
+    icon: <FileSearch className="w-4 h-4" />,
+    permission: 'legal:research:bookmark',
+  },
+  {
+    id: 'profiles',
+    label: 'LLM Profiles',
+    icon: <Cpu className="w-4 h-4" />,
+    permission: 'admin:profiles:view',
+    fallbackAdmin: true,
+  },
+  {
+    id: 'knowledge',
+    label: 'Knowledge Bases',
+    icon: <Database className="w-4 h-4" />,
+    permission: 'admin:knowledge:view',
+    fallbackAdmin: true,
+  },
+  {
+    id: 'playground',
+    label: 'Playground',
+    icon: <Sparkles className="w-4 h-4" />,
+    permission: 'admin:playground:view',
+    fallbackAdmin: true,
+  },
+  {
+    id: 'users',
+    label: 'Users',
+    icon: <Users className="w-4 h-4" />,
+    permission: 'admin:user_management:read',
+    fallbackAdmin: true,
+  },
+  {
+    id: 'roles',
+    label: 'Roles',
+    icon: <Shield className="w-4 h-4" />,
+    permission: 'admin:role_management:view',
+    fallbackAdmin: true,
+  },
+  {
+    id: 'workflows',
+    label: 'Workflows',
+    icon: <Workflow className="w-4 h-4" />,
+    permission: 'admin:workflows:view',
+    fallbackAdmin: true,
+  },
+  {
+    id: 'audit',
+    label: 'Audit Trail',
+    icon: <ShieldCheck className="w-4 h-4" />,
+    permission: 'legal:research:query',
+  },
 ];
 
 function LegalPlatformContent() {
@@ -113,7 +181,7 @@ function LegalPlatformContent() {
   useEffect(() => {
     async function loadUser() {
       try {
-        await loadRoutePermissionsFromDB().catch(() => { });
+        await loadRoutePermissionsFromDB().catch(() => {});
         const user = await api.getCurrentUser();
         if (user) {
           setCurrentUser(user);
@@ -158,6 +226,8 @@ function LegalPlatformContent() {
 
   const switchRole = (next: string) => {
     setActiveRole(next);
+    const newPerms = getEffectivePermissions([], next);
+    setUserPermissions(newPerms);
     show(`${next.replace(/_/g, ' ')} perspective active`);
   };
 
@@ -177,7 +247,11 @@ function LegalPlatformContent() {
       return true;
     }
     if (hasPermissionScope(userPermissions, '*:*:*')) return true;
-    if (tab.fallbackAdmin && (hasPermissionScope(userPermissions, 'admin:*:*') || hasPermissionScope(userPermissions, 'tenant:admin:*'))) {
+    if (
+      tab.fallbackAdmin &&
+      (hasPermissionScope(userPermissions, 'admin:*:*') ||
+        hasPermissionScope(userPermissions, 'tenant:admin:*'))
+    ) {
       return true;
     }
     if (tab.permission && hasPermissionScope(userPermissions, tab.permission)) {
@@ -186,13 +260,27 @@ function LegalPlatformContent() {
     if (tab.id === 'search' || tab.id === 'cases' || tab.id === 'briefs') {
       return true;
     }
-    if (tab.id === 'knowledge' && (hasPermissionScope(userPermissions, 'kb:*:*') || hasPermissionScope(userPermissions, 'kb:base:view') || hasPermissionScope(userPermissions, 'admin:knowledge:*'))) {
+    if (
+      tab.id === 'knowledge' &&
+      (hasPermissionScope(userPermissions, 'kb:*:*') ||
+        hasPermissionScope(userPermissions, 'kb:base:view') ||
+        hasPermissionScope(userPermissions, 'admin:knowledge:*'))
+    ) {
       return true;
     }
-    if (tab.id === 'workflows' && (hasPermissionScope(userPermissions, 'workflow:*:*') || hasPermissionScope(userPermissions, 'workflow:view') || hasPermissionScope(userPermissions, 'workflow:builder:view'))) {
+    if (
+      tab.id === 'workflows' &&
+      (hasPermissionScope(userPermissions, 'workflow:*:*') ||
+        hasPermissionScope(userPermissions, 'workflow:view') ||
+        hasPermissionScope(userPermissions, 'workflow:builder:view'))
+    ) {
       return true;
     }
-    if (tab.id === 'audit' && (hasPermissionScope(userPermissions, 'admin:logs:view') || hasPermissionScope(userPermissions, 'legal:*:*'))) {
+    if (
+      tab.id === 'audit' &&
+      (hasPermissionScope(userPermissions, 'admin:logs:view') ||
+        hasPermissionScope(userPermissions, 'legal:*:*'))
+    ) {
       return true;
     }
     return false;
@@ -204,7 +292,8 @@ function LegalPlatformContent() {
     if (!roleStr) return 'User';
     if (roleStr.toLowerCase() === 'tenant_admin') return 'Tenant Admin';
     if (roleStr.toLowerCase() === 'system_admin') return 'System Admin';
-    if (roleStr.toLowerCase() === 'para_legal' || roleStr.toLowerCase() === 'paralegal') return 'Paralegal';
+    if (roleStr.toLowerCase() === 'para_legal' || roleStr.toLowerCase() === 'paralegal')
+      return 'Paralegal';
     if (roleStr.toLowerCase() === 'legal_analyst') return 'Legal Analyst';
     return roleStr.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   };
@@ -222,7 +311,9 @@ function LegalPlatformContent() {
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-extrabold text-gray-900">Legal AI Platform</h1>
                 <span className="px-2.5 py-0.5 rounded-full bg-violet-100 text-violet-800 text-[10px] font-bold uppercase tracking-wider">
-                  {currentUser?.customer_id ? `Tenant: ${currentUser.customer_id}` : 'Firm Workspace'}
+                  {currentUser?.customer_id
+                    ? `Tenant: ${currentUser.customer_id}`
+                    : 'Firm Workspace'}
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -239,10 +330,11 @@ function LegalPlatformContent() {
                   <button
                     key={r}
                     onClick={() => switchRole(r)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${activeRole === r
-                      ? 'bg-white text-gray-900 shadow-xs'
-                      : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      activeRole === r
+                        ? 'bg-white text-gray-900 shadow-xs'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
                   >
                     {r.toLowerCase().includes('admin') ? (
                       <ShieldCheck className="w-3.5 h-3.5 text-violet-700" />
@@ -281,10 +373,58 @@ function LegalPlatformContent() {
 
         {/* TAB CONTENTS */}
         <div className="pt-2">
-          {activeTab === 'cases' && (
-            <CasesTab setActiveTab={handleTabChange} show={show} />
+          {activeTab === 'search' && (
+            <LegalResearchHub userPermissions={userPermissions} userRole={activeRole} />
           )}
-          {activeTab === 'search' && <LegalResearchHub />}
+          {activeTab === 'autopilot' && (
+            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-8 max-w-4xl mx-auto text-center space-y-6 animate-in fade-in zoom-in-95 duration-150">
+              <div className="w-16 h-16 rounded-3xl bg-rose-100 text-rose-700 flex items-center justify-center mx-auto shadow-sm">
+                <Sword className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-slate-900">
+                  Litigation Autopilot & Matter Cockpit
+                </h2>
+                <p className="text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
+                  Interactive legal intelligence engine with 5-stage case workflow, multi-doc evidence vault, signature gap analysis, and one-click statutory court pleading generator.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-left">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="text-xs font-black text-indigo-950">1. Case Activity & Timeline</div>
+                  <div className="text-[11px] text-slate-500">
+                    Track client calls, hearings, attendee people, and bench directions.
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="text-xs font-black text-indigo-950">2. Evidence Vault</div>
+                  <div className="text-[11px] text-slate-500">
+                    Ingest PDFs, Markdown notes, and images with source provenance and tags.
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="text-xs font-black text-indigo-950">3. Remedial Gap Analysis</div>
+                  <div className="text-[11px] text-slate-500">
+                    One-click remedial CTAs and auto-generated notices under Indian law.
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="button"
+                  onClick={() => router.push('/autopilot')}
+                  className="px-6 py-3.5 rounded-2xl bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-sm shadow-lg shadow-indigo-900/25 transition cursor-pointer flex items-center gap-2 mx-auto"
+                >
+                  <Sparkles className="w-4 h-4 text-indigo-300" />
+                  <span>Launch Litigation Autopilot Workspace</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+          {activeTab === 'cases' && <CasesTab setActiveTab={handleTabChange} show={show} />}
           {activeTab === 'briefs' && <SavedBriefsTab show={show} />}
 
           {/* Embedded Admin Management Tabs */}
@@ -304,9 +444,7 @@ function LegalPlatformContent() {
               }}
             />
           )}
-          {activeTab === 'playground' && (
-            <PlaygroundTab initialKbId={playgroundKbId} />
-          )}
+          {activeTab === 'playground' && <PlaygroundTab initialKbId={playgroundKbId} />}
           {activeTab === 'users' && (
             <UsersTab
               userId={currentUser?.id}
@@ -322,10 +460,7 @@ function LegalPlatformContent() {
             />
           )}
           {activeTab === 'workflows' && (
-            <WorkflowsTab
-              userRole={activeRole}
-              customerId={currentUser?.customer_id}
-            />
+            <WorkflowsTab userRole={activeRole} customerId={currentUser?.customer_id} />
           )}
 
           {activeTab === 'audit' && <AuditLogsTab />}
@@ -345,7 +480,13 @@ function LegalPlatformContent() {
 
 export default function LegalPlatformPage() {
   return (
-    <React.Suspense fallback={<div className="flex h-screen items-center justify-center text-xs font-bold uppercase tracking-wider text-gray-500">Loading Legal Platform...</div>}>
+    <React.Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center text-xs font-bold uppercase tracking-wider text-gray-500">
+          Loading Legal Platform...
+        </div>
+      }
+    >
       <LegalPlatformContent />
     </React.Suspense>
   );
@@ -383,8 +524,12 @@ function OverviewTab({
                 Tenant Admin Management Consoles
               </strong>
               <p className="text-[11px] text-gray-600">
-                Configure firm LLM system prompts, vector knowledge bases, and retrieval benchmarks for tenant:{' '}
-                <span className="font-mono font-bold text-violet-800">{currentUser?.customer_id || 'active'}</span>.
+                Configure firm LLM system prompts, vector knowledge bases, and retrieval benchmarks
+                for tenant:{' '}
+                <span className="font-mono font-bold text-violet-800">
+                  {currentUser?.customer_id || 'active'}
+                </span>
+                .
               </p>
             </div>
           </div>
@@ -392,10 +537,11 @@ function OverviewTab({
             {isAllowedTab('profiles') && (
               <button
                 onClick={() => setActiveTab('profiles')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'profiles'
-                  ? 'bg-violet-700 text-white border border-violet-700'
-                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
-                  }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${
+                  activeTab === 'profiles'
+                    ? 'bg-violet-700 text-white border border-violet-700'
+                    : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                }`}
               >
                 <Cpu className="w-3.5 h-3.5" /> LLM Profiles
               </button>
@@ -403,10 +549,11 @@ function OverviewTab({
             {isAllowedTab('knowledge') && (
               <button
                 onClick={() => setActiveTab('knowledge')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'knowledge'
-                  ? 'bg-violet-700 text-white border border-violet-700'
-                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
-                  }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${
+                  activeTab === 'knowledge'
+                    ? 'bg-violet-700 text-white border border-violet-700'
+                    : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                }`}
               >
                 <Database className="w-3.5 h-3.5" /> Knowledge Bases
               </button>
@@ -414,10 +561,11 @@ function OverviewTab({
             {isAllowedTab('playground') && (
               <button
                 onClick={() => setActiveTab('playground')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'playground'
-                  ? 'bg-violet-700 text-white border border-violet-700'
-                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
-                  }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${
+                  activeTab === 'playground'
+                    ? 'bg-violet-700 text-white border border-violet-700'
+                    : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                }`}
               >
                 <Sparkles className="w-3.5 h-3.5" /> Playground
               </button>
@@ -425,10 +573,11 @@ function OverviewTab({
             {isAllowedTab('users') && (
               <button
                 onClick={() => setActiveTab('users')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'users'
-                  ? 'bg-violet-700 text-white border border-violet-700'
-                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
-                  }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${
+                  activeTab === 'users'
+                    ? 'bg-violet-700 text-white border border-violet-700'
+                    : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                }`}
               >
                 <Users className="w-3.5 h-3.5" /> Users
               </button>
@@ -436,10 +585,11 @@ function OverviewTab({
             {isAllowedTab('roles') && (
               <button
                 onClick={() => setActiveTab('roles')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'roles'
-                  ? 'bg-violet-700 text-white border border-violet-700'
-                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
-                  }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${
+                  activeTab === 'roles'
+                    ? 'bg-violet-700 text-white border border-violet-700'
+                    : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                }`}
               >
                 <Shield className="w-3.5 h-3.5" /> Roles
               </button>
@@ -447,10 +597,11 @@ function OverviewTab({
             {isAllowedTab('workflows') && (
               <button
                 onClick={() => setActiveTab('workflows')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'workflows'
-                  ? 'bg-violet-700 text-white border border-violet-700'
-                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
-                  }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${
+                  activeTab === 'workflows'
+                    ? 'bg-violet-700 text-white border border-violet-700'
+                    : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                }`}
               >
                 <Workflow className="w-3.5 h-3.5" /> Workflows
               </button>
@@ -458,10 +609,11 @@ function OverviewTab({
             {isAllowedTab('audit') && (
               <button
                 onClick={() => setActiveTab('audit')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${activeTab === 'audit'
-                  ? 'bg-violet-700 text-white border border-violet-700'
-                  : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
-                  }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer ${
+                  activeTab === 'audit'
+                    ? 'bg-violet-700 text-white border border-violet-700'
+                    : 'bg-white border border-violet-300 hover:bg-violet-100 text-violet-900'
+                }`}
               >
                 <ShieldCheck className="w-3.5 h-3.5" /> Audit Trail
               </button>
@@ -569,7 +721,7 @@ function OverviewTab({
 // -----------------------------------------------------------------------------
 function CasesTab({
   setActiveTab,
-  show
+  show,
 }: {
   setActiveTab: (tab: View) => void;
   show: (message: string) => void;
@@ -601,7 +753,7 @@ function CasesTab({
             court: 'High Court of Delhi',
             files: ['Matter_Chronology.docx', 'Bail_Petition_Draft.pdf'],
             precedents: [],
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           },
           {
             id: 'case-2',
@@ -610,8 +762,8 @@ function CasesTab({
             court: 'High Court of Delhi',
             files: ['Assessment_Order.pdf', 'Show_Cause_Reply.docx'],
             precedents: [],
-            updated_at: new Date().toISOString()
-          }
+            updated_at: new Date().toISOString(),
+          },
         ];
         setCaseList(initial);
         setSelectedCase(initial[0]);
@@ -626,7 +778,7 @@ function CasesTab({
     setCaseList(newList);
     try {
       localStorage.setItem('legal_case_workspaces', JSON.stringify(newList));
-    } catch (e) { }
+    } catch (e) {}
   };
 
   const handleCreateCase = () => {
@@ -639,7 +791,7 @@ function CasesTab({
       court: newCourt,
       files: [],
       precedents: [],
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
     const updated = [newCase, ...caseList];
     saveCases(updated);
@@ -668,11 +820,17 @@ function CasesTab({
       const updated = caseList.map((c) =>
         c.id === selectedCase.id
           ? { ...c, files: [...(c.files || []), file.name], updated_at: new Date().toISOString() }
-          : c
+          : c,
       );
       saveCases(updated);
       setSelectedCase((prev: any) =>
-        prev ? { ...prev, files: [...(prev.files || []), file.name], updated_at: new Date().toISOString() } : prev
+        prev
+          ? {
+              ...prev,
+              files: [...(prev.files || []), file.name],
+              updated_at: new Date().toISOString(),
+            }
+          : prev,
       );
     } catch (err: any) {
       show(`Upload failed: ${err.message}`);
@@ -706,7 +864,11 @@ function CasesTab({
             disabled={creating}
             className="w-full py-2 bg-violet-700 hover:bg-violet-800 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            {creating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+            {creating ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
             <span>{creating ? 'Creating Workspace...' : 'Create Case Workspace'}</span>
           </button>
         </div>
@@ -718,10 +880,11 @@ function CasesTab({
               <div
                 key={c.id}
                 onClick={() => setSelectedCase(c)}
-                className={`p-4 rounded-2xl border transition cursor-pointer flex flex-col gap-1.5 ${selectedCase?.id === c.id
-                  ? 'bg-violet-50/70 border-violet-400 shadow-xs'
-                  : 'bg-white border-gray-200 hover:border-gray-300'
-                  }`}
+                className={`p-4 rounded-2xl border transition cursor-pointer flex flex-col gap-1.5 ${
+                  selectedCase?.id === c.id
+                    ? 'bg-violet-50/70 border-violet-400 shadow-xs'
+                    : 'bg-white border-gray-200 hover:border-gray-300'
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-extrabold text-gray-900">{c.title}</h4>
@@ -729,7 +892,9 @@ function CasesTab({
                     {c.updated_at ? new Date(c.updated_at).toLocaleDateString() : 'Active'}
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-500">{c.category || 'Matter'} · {c.court || 'Court'}</p>
+                <p className="text-[11px] text-gray-500">
+                  {c.category || 'Matter'} · {c.court || 'Court'}
+                </p>
                 <div className="flex items-center gap-2 text-[10px] text-violet-700 font-semibold mt-1">
                   <span>{c.files?.length || 0} files</span>
                   <span>·</span>
@@ -754,7 +919,9 @@ function CasesTab({
                 <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700">
                   Active Matter Details
                 </span>
-                <h2 className="text-base font-extrabold text-gray-900 mt-0.5">{selectedCase.title}</h2>
+                <h2 className="text-base font-extrabold text-gray-900 mt-0.5">
+                  {selectedCase.title}
+                </h2>
                 <p className="text-xs text-gray-500">
                   {selectedCase.category} — {selectedCase.court || 'High Court'}
                 </p>
@@ -770,7 +937,9 @@ function CasesTab({
             {/* Upload Case File */}
             <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-between">
               <div>
-                <strong className="block text-xs font-bold text-gray-800">Upload Matter Documents</strong>
+                <strong className="block text-xs font-bold text-gray-800">
+                  Upload Matter Documents
+                </strong>
                 <span className="block text-[11px] text-gray-500">
                   Ingests document into tenant legal workflow /legal/ingest.
                 </span>
@@ -786,7 +955,11 @@ function CasesTab({
                 htmlFor="case-doc-upload"
                 className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
-                {uploadingDoc ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                {uploadingDoc ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
                 <span>{uploadingDoc ? 'Ingesting...' : 'Upload File'}</span>
               </label>
             </div>
@@ -831,13 +1004,18 @@ function CasesTab({
                     key={i}
                     className="p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs flex flex-col gap-1"
                   >
-                    <strong className="text-gray-900 font-bold">{p.title || 'Precedent Record'}</strong>
-                    <p className="text-[11px] text-gray-500">{p.court} · {p.citation || p.cnr}</p>
+                    <strong className="text-gray-900 font-bold">
+                      {p.title || 'Precedent Record'}
+                    </strong>
+                    <p className="text-[11px] text-gray-500">
+                      {p.court} · {p.citation || p.cnr}
+                    </p>
                   </div>
                 ))
               ) : (
                 <div className="text-center py-4 text-xs text-gray-400">
-                  No precedents linked yet. Search judgments in Precedent Search and click &apos;Save Precedent to Case&apos;.
+                  No precedents linked yet. Search judgments in Precedent Search and click
+                  &apos;Save Precedent to Case&apos;.
                 </div>
               )}
             </div>
@@ -878,7 +1056,9 @@ function SavedBriefsTab({ show }: { show: (message: string) => void }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
       {loading ? (
-        <div className="p-8 text-center text-xs text-gray-500">Loading saved research queries...</div>
+        <div className="p-8 text-center text-xs text-gray-500">
+          Loading saved research queries...
+        </div>
       ) : allQueries.length > 0 ? (
         <table className="w-full text-left text-xs border-collapse">
           <thead>
@@ -893,7 +1073,9 @@ function SavedBriefsTab({ show }: { show: (message: string) => void }) {
             {allQueries.map((q) => (
               <tr key={q.id} className="hover:bg-gray-50/60 transition">
                 <td className="p-3.5 font-bold text-gray-900">{q.title}</td>
-                <td className="p-3.5 text-gray-700 max-w-xs truncate">{q.query_text || 'Structured Filters'}</td>
+                <td className="p-3.5 text-gray-700 max-w-xs truncate">
+                  {q.query_text || 'Structured Filters'}
+                </td>
                 <td className="p-3.5">
                   <span className="px-2 py-0.5 rounded-md bg-violet-50 text-violet-800 text-[10px] font-bold">
                     {q.is_public ? 'Firm Public' : 'Private'}
@@ -967,7 +1149,9 @@ function AuditLogsTab() {
                   </span>
                 </td>
                 <td className="p-3.5 text-gray-600">{l.results_count}</td>
-                <td className="p-3.5 text-right text-gray-500 text-[11px]">{l.timestamp || 'Just now'}</td>
+                <td className="p-3.5 text-right text-gray-500 text-[11px]">
+                  {l.timestamp || 'Just now'}
+                </td>
               </tr>
             ))}
           </tbody>

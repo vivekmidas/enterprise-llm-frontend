@@ -14,4 +14,3 @@ export const THEME = {
 
 export const theme = THEME;
 export type Theme = typeof THEME;
-
