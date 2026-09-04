@@ -77,6 +77,10 @@ import {
   HearingRecord,
   TimelineEvent,
   SourceRef,
+  CONFIGURED_DOMAIN_FIELDS_CATALOG,
+  ConfiguredDomainField,
+  extractIntakeDetails,
+  DEFAULT_INTAKE_EXTRACTION_PROFILE,
 } from './mock_autopilot_data';
 
 export type CaseCategory = 'commercial' | 'criminal' | 'constitutional' | 'arbitration' | 'civil';
@@ -288,7 +292,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
   useEffect(() => {
     async function initUser() {
       try {
-        await loadRoutePermissionsFromDB().catch(() => {});
+        await loadRoutePermissionsFromDB().catch(() => { });
         const user = await api.getCurrentUser();
         if (user) {
           setCurrentUser(user);
@@ -453,6 +457,36 @@ export default function LegalPilotInteractiveWorkspacePage() {
   const [isAutoDetecting, setIsAutoDetecting] = useState<boolean>(false);
   const [detectedBadgeText, setDetectedBadgeText] = useState<string | null>(null);
 
+  // STORY-INTAKE-02: Multi-Modal Intelligent Intake Workspace State
+  const [intakeBriefText, setIntakeBriefText] = useState<string>('');
+  const [intakeAttachedFiles, setIntakeAttachedFiles] = useState<
+    Array<{ name: string; size: string; type: string }>
+  >([]);
+  const [selectedSectionCodes, setSelectedSectionCodes] = useState<string[]>(
+    CASE_CATEGORY_CONFIG.commercial.defaultSections,
+  );
+  const [sectionSearchQuery, setSectionSearchQuery] = useState<string>('');
+  const [isSectionDropdownOpen, setIsSectionDropdownOpen] = useState<boolean>(false);
+  const [isExtractionInProgress, setIsExtractionInProgress] = useState<boolean>(false);
+  const [extractionAlert, setExtractionAlert] = useState<{
+    type: 'success' | 'warning' | 'info';
+    message: string;
+  } | null>(null);
+
+  // Section 5: Dynamic Optional Domain Schema Fields Pool
+  const [activeOptionalKeys, setActiveOptionalKeys] = useState<string[]>([
+    'claim_valuation',
+    'coram_presiding',
+    'court_level',
+    'court_complex',
+    'secondary_reference',
+  ]);
+  const [optionalFieldValues, setOptionalFieldValues] = useState<Record<string, string>>({
+    court_level: 'District / Commercial Court',
+  });
+  const [isAddOptionalFieldDropdownOpen, setIsAddOptionalFieldDropdownOpen] =
+    useState<boolean>(false);
+
   const [showDraftModal, setShowDraftModal] = useState<boolean>(false);
   const [currentDraft, setCurrentDraft] = useState<{ title: string; content: string } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -549,6 +583,23 @@ export default function LegalPilotInteractiveWorkspacePage() {
     setNewCaseCourt(cfg.courtDefault);
     setNewCaseClaim(cfg.claimDefault);
     setDetectedBadgeText(null);
+    setSelectedSectionCodes(cfg.defaultSections);
+    // Initialize active optional domain schema fields tailored to category defaults
+    const defaultOptional = CONFIGURED_DOMAIN_FIELDS_CATALOG.filter((f) =>
+      f.defaultForCategories.includes(cat),
+    ).map((f) => f.key);
+    setActiveOptionalKeys(defaultOptional.length > 0 ? defaultOptional : ['court_level', 'court_complex']);
+    setOptionalFieldValues((prev) => ({
+      ...prev,
+      court_level:
+        cat === 'constitutional'
+          ? 'High Court (Single Judge)'
+          : cat === 'criminal'
+            ? 'Sessions Court (Special Judge / ASJ)'
+            : cat === 'arbitration'
+              ? 'Sole Arbitrator Tribunal'
+              : 'District / Commercial Court',
+    }));
   };
 
   // Preset Auto-fill
@@ -562,8 +613,189 @@ export default function LegalPilotInteractiveWorkspacePage() {
     setNewCaseClaim(cfg.presetSample.value);
     setNewCaseSecondaryRef(cfg.presetSample.secondaryRef);
     setNewCaseDisputeDescription(cfg.presetSample.dispute);
+    setIntakeBriefText(
+      `${cfg.presetSample.title} before ${cfg.presetSample.court}. ${cfg.presetSample.dispute} Reference: ${cfg.presetSample.secondaryRef}. Total valuation: ${cfg.presetSample.value}.`,
+    );
+    setSelectedSectionCodes(cfg.defaultSections);
+    const defaultOptional = CONFIGURED_DOMAIN_FIELDS_CATALOG.filter((f) =>
+      f.defaultForCategories.includes(cat),
+    ).map((f) => f.key);
+    setActiveOptionalKeys(defaultOptional);
+    setOptionalFieldValues({
+      claim_valuation: cfg.presetSample.value,
+      secondary_reference: cfg.presetSample.secondaryRef,
+      court_level:
+        cat === 'constitutional'
+          ? 'High Court (Single Judge)'
+          : cat === 'criminal'
+            ? 'Sessions Court (Special Judge / ASJ)'
+            : 'District / Commercial Court',
+      court_complex: cfg.presetSample.court,
+    });
     setDetectedBadgeText(`Loaded ${cfg.badge} Preset`);
     triggerToast(`Applied ${cfg.label} sample brief.`);
+  };
+
+  // Typeahead statutory section autocomplete suggestions
+  const sectionAutocompleteResults = useMemo(() => {
+    const q = sectionSearchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return Object.values(STATUTORY_RECKONER_DB)
+      .filter((sec) => {
+        if (selectedSectionCodes.includes(sec.section_code)) return false;
+        const codeMatch = sec.section_code.toLowerCase().includes(q);
+        const labelMatch = sec.short_label.toLowerCase().includes(q);
+        const actMatch = sec.act_name.toLowerCase().includes(q);
+        const aliasMatch = sec.aliases ? sec.aliases.some((a) => a.toLowerCase().includes(q)) : false;
+        return codeMatch || labelMatch || actMatch || aliasMatch;
+      })
+      .slice(0, 8);
+  }, [sectionSearchQuery, selectedSectionCodes]);
+
+  const handleAddSectionCode = (code: string) => {
+    if (!selectedSectionCodes.includes(code)) {
+      setSelectedSectionCodes((prev) => [...prev, code]);
+      triggerToast(`Added statutory section: ${STATUTORY_RECKONER_DB[code]?.short_label || code}`);
+    }
+    setSectionSearchQuery('');
+    setIsSectionDropdownOpen(false);
+  };
+
+  const handleRemoveSectionCode = (code: string) => {
+    setSelectedSectionCodes((prev) => prev.filter((c) => c !== code));
+    triggerToast('Section removed from case.');
+  };
+
+  // Optional Domain Fields Pool Handlers
+  const handleRemoveOptionalField = (key: string) => {
+    setActiveOptionalKeys((prev) => prev.filter((k) => k !== key));
+    setOptionalFieldValues((prev) => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+    triggerToast('Field removed from intake form');
+  };
+
+  const handleAddOptionalField = (key: string) => {
+    if (!activeOptionalKeys.includes(key)) {
+      setActiveOptionalKeys((prev) => [...prev, key]);
+      triggerToast('Optional field added to form');
+    }
+    setIsAddOptionalFieldDropdownOpen(false);
+  };
+
+  // Multi-file upload handlers for Intake
+  const handleAttachIntakeFile = (file: File) => {
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+    const sizeInKB = (file.size / 1024).toFixed(0);
+    const size = file.size > 1024 * 1024 ? `${sizeInMB} MB` : `${sizeInKB} KB`;
+    const newFile = {
+      name: file.name,
+      size,
+      type: file.type || 'application/pdf',
+    };
+    setIntakeAttachedFiles((prev) => [...prev, newFile]);
+    triggerToast(`Attached ${file.name}`);
+  };
+
+  const handleRemoveIntakeFile = (index: number) => {
+    setIntakeAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+    triggerToast('Attachment removed.');
+  };
+
+  // Magic Intake Extraction Trigger
+  const handleMagicExtractBrief = () => {
+    if (!intakeBriefText.trim() && intakeAttachedFiles.length === 0) {
+      setExtractionAlert({
+        type: 'warning',
+        message: 'No data identified for the form. Please type a matter summary or upload brief documents.',
+      });
+      triggerToast('Please provide brief text or attach files to parse.');
+      return;
+    }
+
+    setIsExtractionInProgress(true);
+    setExtractionAlert(null);
+    triggerToast('Executing AI Extraction Profile on brief context...');
+
+    setTimeout(() => {
+      setIsExtractionInProgress(false);
+      const result = extractIntakeDetails(intakeBriefText, intakeAttachedFiles);
+
+      if (!result || (result.confidenceScore < 0.25 && !result.headline)) {
+        setExtractionAlert({
+          type: 'warning',
+          message: 'No structured legal data identified from provided text. You can add or edit details manually below.',
+        });
+        triggerToast('No structured data identified. Ready for manual entry.');
+        return;
+      }
+
+      // Sync category
+      if (result.caseCategory) {
+        setNewCaseCategory(result.caseCategory);
+      }
+
+      // Sync headline / title
+      if (result.headline) {
+        setNewCaseTitle(result.headline);
+      }
+
+      // Sync parties
+      if (result.initiatingParty) {
+        setNewCaseParty1(result.initiatingParty);
+      }
+      if (result.opposingParty) {
+        setNewCaseParty2(result.opposingParty);
+      }
+
+      // Sync statutory sections
+      if (result.sections && result.sections.length > 0) {
+        setSelectedSectionCodes((prev) => Array.from(new Set([...prev, ...result.sections])));
+      }
+
+      // Sync court / forum
+      if (result.forumOrCourt) {
+        setNewCaseCourt(result.forumOrCourt);
+      }
+
+      // Sync claim value
+      if (result.claimOrDisputedValue) {
+        setNewCaseClaim(result.claimOrDisputedValue);
+      }
+
+      // Sync secondary ref
+      if (result.secondaryReference) {
+        setNewCaseSecondaryRef(result.secondaryReference);
+      }
+
+      // Sync dispute description
+      if (result.disputeDescription) {
+        setNewCaseDisputeDescription(result.disputeDescription);
+      }
+
+      // Sync active optional fields & values
+      if (result.activeOptionalKeys && result.activeOptionalKeys.length > 0) {
+        setActiveOptionalKeys((prev) => Array.from(new Set([...prev, ...result.activeOptionalKeys])));
+      }
+      if (result.optionalFieldValues) {
+        setOptionalFieldValues((prev) => ({
+          ...prev,
+          ...result.optionalFieldValues,
+          ...(result.claimOrDisputedValue ? { claim_valuation: result.claimOrDisputedValue } : {}),
+          ...(result.secondaryReference ? { secondary_reference: result.secondaryReference } : {}),
+          ...(result.forumOrCourt ? { court_complex: result.forumOrCourt } : {}),
+        }));
+      }
+
+      setExtractionAlert({
+        type: 'success',
+        message: `Extracted ${result.sections.length} statutory section(s), parties, and matter headline with ${Math.round(result.confidenceScore * 100)}% confidence.`,
+      });
+      setDetectedBadgeText(`Extracted: ${CASE_CATEGORY_CONFIG[result.caseCategory].badge}`);
+      triggerToast('AI successfully parsed brief and populated fields!');
+    }, 600);
   };
 
   // Simulated Document Drop / Parse
@@ -644,13 +876,13 @@ export default function LegalPilotInteractiveWorkspacePage() {
       updated.parties = updated.parties.map((p) =>
         p.id === editingPartyId
           ? {
-              ...p,
-              name: partyName.trim(),
-              role: partyRole,
-              entity_type: partyType,
-              address: partyAddress.trim(),
-              contact_person: partyContact.trim(),
-            }
+            ...p,
+            name: partyName.trim(),
+            role: partyRole,
+            entity_type: partyType,
+            address: partyAddress.trim(),
+            contact_person: partyContact.trim(),
+          }
           : p,
       );
       triggerToast('Party details updated.');
@@ -807,7 +1039,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
     triggerToast('Document removed from evidence vault.');
   };
 
-  // Create New Case Workspace
+  // Create New Case Workspace (STORY-INTAKE-02: Tenant Scoped ID + User Audit + Dynamic Optional Fields)
   const handleCreateNewCase = () => {
     if (!newCaseTitle.trim()) {
       triggerToast('Please provide a matter title');
@@ -815,7 +1047,10 @@ export default function LegalPilotInteractiveWorkspacePage() {
     }
 
     const cfg = CASE_CATEGORY_CONFIG[newCaseCategory];
-    const targetSections = cfg.defaultSections
+    // Map selected section codes to statutory reckoners
+    const targetSections = (
+      selectedSectionCodes.length > 0 ? selectedSectionCodes : cfg.defaultSections
+    )
       .map((code) => STATUTORY_RECKONER_DB[code])
       .filter(Boolean);
 
@@ -1051,18 +1286,69 @@ export default function LegalPilotInteractiveWorkspacePage() {
       ];
     }
 
+    // Ingest all uploaded intake files directly into the new case Evidence Vault
+    intakeAttachedFiles.forEach((file, idx) => {
+      initialDocs.push({
+        id: `doc_intake_${Date.now()}_${idx}`,
+        filename: file.name,
+        doc_type: file.type.includes('image')
+          ? 'Site Inspection Photo / Visual'
+          : 'Pleadings & Annexures',
+        pages: Math.max(1, Math.round(parseInt(file.size) || 3)),
+        date: 'Today',
+        file_size: file.size,
+        status: 'Parsed',
+        provenance: 'Intake Dossier Submission',
+        tags: ['Intake Filing', cfg.badge],
+        extracted_clauses: [
+          {
+            clause_number: `Doc Ref #${idx + 1}`,
+            clause_title: 'Primary Ingested Pleading / Annexure',
+            extracted_snippet:
+              intakeBriefText.slice(0, 180) ||
+              'Pleading and supporting material ingested during case intake workspace.',
+            legal_impact: 'Substantive evidentiary record in support of claims.',
+          },
+        ],
+      });
+    });
+
+    // Requirement: tenant-name-caseid format, user id, time and date
+    const tenantName =
+      currentUser?.customer_id ||
+      currentUser?.tenant_id ||
+      currentUser?.organization ||
+      'delhi_law_chambers';
+    const caseUniqueId = `case_${Date.now()}`;
+    const formattedCaseId = `${tenantName}-${caseUniqueId}`;
+    const nowISO = new Date().toISOString();
+    const nowDisplay = new Date().toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const currentUserId = currentUser?.id || currentUser?.user_id || 'usr_adv_01';
+
+    const effectiveClaim =
+      optionalFieldValues.claim_valuation || newCaseClaim || cfg.claimDefault;
+    const effectiveForum =
+      optionalFieldValues.court_complex || newCaseCourt || cfg.courtDefault;
+
     const created: MatterCase = {
-      id: `case_${Date.now()}`,
+      id: formattedCaseId,
       case_code: `custom_${Date.now()}` as any,
       case_title: newCaseTitle.trim(),
-      case_subtitle: `${newCaseCourt} · ${cfg.badge} Workspace`,
-      court_forum: newCaseCourt,
-      claim_amount: newCaseClaim || cfg.claimDefault,
+      case_subtitle: `${effectiveForum} · ${cfg.badge} Workspace`,
+      court_forum: effectiveForum,
+      claim_amount: effectiveClaim,
       dispute_description:
         newCaseDisputeDescription.trim() ||
+        intakeBriefText.trim() ||
         `${cfg.label} matter between ${newCaseParty1 || 'Claimant / Petitioner'} and ${newCaseParty2 || 'Respondent'} regarding ${newCaseSecondaryRef || 'contractual and statutory claims'}.`,
       matter_status: 'Initial intake completed',
-      evidence_completeness: 55,
+      evidence_completeness: initialDocs.length > 1 ? 75 : 55,
       open_gaps_count: initialGaps.length,
       last_reviewed: 'Just now',
       case_category: cfg.badge,
@@ -1083,7 +1369,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
         {
           id: `fact_c_1`,
           label: cfg.valueLabel,
-          value: newCaseClaim || cfg.claimDefault,
+          value: effectiveClaim,
           category: 'Financial',
           source: { title: 'Initial Pleadings', doc_name: 'Intake Brief' },
           verified: true,
@@ -1095,6 +1381,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
       sample_enrichment_text:
         'Opposite party sent formal communication acknowledging liability and proposing settlement.',
       sample_enrichment_doc_name: 'Opposite_Party_Letter_Acknowledgment.pdf',
+      created_at: nowISO,
+      created_at_display: nowDisplay,
+      created_by_user_id: currentUserId,
+      tenant_id: tenantName,
+      optional_domain_fields: optionalFieldValues,
     };
 
     setActiveMatter(created);
@@ -1104,9 +1395,12 @@ export default function LegalPilotInteractiveWorkspacePage() {
     setNewCaseParty2('');
     setNewCaseSecondaryRef('');
     setNewCaseDisputeDescription('');
+    setIntakeBriefText('');
+    setIntakeAttachedFiles([]);
     setDetectedBadgeText(null);
+    setExtractionAlert(null);
     setOpenStages({ 1: true, 2: true, 3: true, 4: true, 5: true });
-    triggerToast(`Created new case workspace: ${created.case_title}`);
+    triggerToast(`Created new case workspace: ${created.case_title} (${created.id})`);
   };
 
   // Apply Evidence (Dynamic Ingestion & Enrichment)
@@ -1155,13 +1449,13 @@ export default function LegalPilotInteractiveWorkspacePage() {
       file_ext: fileExt,
       extracted_clauses: evidenceDescription.trim()
         ? [
-            {
-              clause_number: 'Key Finding / Clause',
-              clause_title: evidenceDocType,
-              extracted_snippet: evidenceDescription.trim(),
-              legal_impact: 'Admitted into matter factual repository and linked to case strategy.',
-            },
-          ]
+          {
+            clause_number: 'Key Finding / Clause',
+            clause_title: evidenceDocType,
+            extracted_snippet: evidenceDescription.trim(),
+            legal_impact: 'Admitted into matter factual repository and linked to case strategy.',
+          },
+        ]
         : undefined,
       raw_ocr_snippet: evidenceDescription.trim() || `OCR extract for ${filename}`,
     };
@@ -1387,11 +1681,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
     const sourceObj: SourceRef | undefined =
       updateHasDoc && updateDocName.trim()
         ? {
-            title: updateDocName.trim(),
-            doc_name: updateDocName.trim(),
-            page_or_clause: updateDocClause.trim() || undefined,
-            date: updateDate,
-          }
+          title: updateDocName.trim(),
+          doc_name: updateDocName.trim(),
+          page_or_clause: updateDocClause.trim() || undefined,
+          date: updateDate,
+        }
         : undefined;
 
     const peopleArray = updatePeopleInvolved
@@ -1666,10 +1960,20 @@ export default function LegalPilotInteractiveWorkspacePage() {
           <div className="w-full space-y-3 pb-1 border-b border-slate-200/80">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1 flex-1">
-                <div className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                <div className="text-xs text-slate-500 flex items-center gap-1.5 font-medium flex-wrap">
                   <span>Matters</span>
                   <span>›</span>
                   <span className="text-slate-900 font-bold">{activeMatter.matter_status}</span>
+                  <span className="text-slate-300">·</span>
+                  <span className="font-mono text-[11px] font-bold text-indigo-900 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                    ID: {activeMatter.id}
+                  </span>
+                  {activeMatter.created_by_user_id && (
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      by <strong className="text-slate-700">{activeMatter.created_by_user_id}</strong>
+                      {activeMatter.created_at_display ? ` on ${activeMatter.created_at_display}` : ''}
+                    </span>
+                  )}
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-black text-indigo-950 tracking-tight">
                   {activeMatter.case_title}
@@ -1910,6 +2214,41 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Configured Domain Schema Fields Pool (Requirement 5) */}
+                  {activeMatter.optional_domain_fields &&
+                    Object.keys(activeMatter.optional_domain_fields).filter(
+                      (k) =>
+                        activeMatter.optional_domain_fields?.[k] &&
+                        k !== 'claim_valuation' &&
+                        k !== 'court_complex',
+                    ).length > 0 && (
+                      <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/40 space-y-2 pt-3">
+                        <div className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-900 flex items-center justify-between">
+                          <span>Domain Schema Fields (Configured & Case-Specific)</span>
+                          <span className="text-[9px] text-indigo-700 bg-white px-2 py-0.5 rounded-md border border-indigo-200 font-mono">
+                            ID: {activeMatter.id}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          {Object.entries(activeMatter.optional_domain_fields).map(([k, val]) => {
+                            if (!val || k === 'claim_valuation' || k === 'court_complex') return null;
+                            const fieldDef = CONFIGURED_DOMAIN_FIELDS_CATALOG.find((f) => f.key === k);
+                            return (
+                              <div
+                                key={k}
+                                className="p-2.5 rounded-lg bg-white border border-slate-200 text-xs shadow-2xs"
+                              >
+                                <div className="text-[10px] font-bold text-slate-500 uppercase">
+                                  {fieldDef?.label || k}
+                                </div>
+                                <div className="font-black text-slate-900 mt-0.5 truncate">{val}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                 </div>
               )}
             </div>
@@ -1951,66 +2290,60 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('all')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer ${
-                          timelineFilter === 'all'
+                        className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer ${timelineFilter === 'all'
                             ? 'bg-indigo-900 text-white shadow-2xs'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                        }`}
+                          }`}
                       >
                         All ({sortedTimeline.length})
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('client')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          timelineFilter === 'client'
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'client'
                             ? 'bg-indigo-900 text-white shadow-2xs'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                        }`}
+                          }`}
                       >
                         🗣️ Client Discussion
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('counsel')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          timelineFilter === 'counsel'
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'counsel'
                             ? 'bg-indigo-900 text-white shadow-2xs'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                        }`}
+                          }`}
                       >
                         ⚖️ Counsel Strategy
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('hearing')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          timelineFilter === 'hearing'
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'hearing'
                             ? 'bg-indigo-900 text-white shadow-2xs'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                        }`}
+                          }`}
                       >
                         🏛️ Court Hearing
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('settlement')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          timelineFilter === 'settlement'
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'settlement'
                             ? 'bg-indigo-900 text-white shadow-2xs'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                        }`}
+                          }`}
                       >
                         🤝 Settlement
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('others')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          timelineFilter === 'others'
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'others'
                             ? 'bg-indigo-900 text-white shadow-2xs'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                        }`}
+                          }`}
                       >
                         📁 Others
                       </button>
@@ -2229,13 +2562,12 @@ export default function LegalPilotInteractiveWorkspacePage() {
                             <div className="flex items-center justify-between gap-1.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span
-                                  className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
-                                    isImg
+                                  className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${isImg
                                       ? 'bg-amber-50 text-amber-900 border-amber-200'
                                       : isMd
                                         ? 'bg-blue-50 text-blue-900 border-blue-200'
                                         : 'bg-rose-50 text-rose-900 border-rose-200'
-                                  }`}
+                                    }`}
                                 >
                                   {isImg ? '🖼️ IMG' : isMd ? '📝 MD' : '📄 PDF'}
                                 </span>
@@ -2392,7 +2724,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-black text-sm text-indigo-950">
-                      Signature Gap Analysis & Remedial Action CTAs
+                        Gap Analysis & Remedial Action CTAs
                       </h3>
                       <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-indigo-600 text-white">
                         Star Feature
@@ -2419,23 +2751,21 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     return (
                       <div
                         key={gap.id}
-                        className={`p-5 rounded-2xl border transition shadow-2xs ${
-                          isClosed
+                        className={`p-5 rounded-2xl border transition shadow-2xs ${isClosed
                             ? 'bg-emerald-50/40 border-emerald-200'
                             : gap.severity === 'High'
                               ? 'bg-white border-slate-200 hover:border-indigo-300'
                               : 'bg-white border-slate-200'
-                        }`}
+                          }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                           <div className="space-y-1.5 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                                  isClosed
+                                className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${isClosed
                                     ? 'bg-emerald-100 text-emerald-800'
                                     : 'bg-indigo-100 text-indigo-900'
-                                }`}
+                                  }`}
                               >
                                 {gap.status}
                               </span>
@@ -2444,11 +2774,10 @@ export default function LegalPilotInteractiveWorkspacePage() {
                               </span>
                               {!isClosed && (
                                 <span
-                                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                    gap.severity === 'High'
+                                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${gap.severity === 'High'
                                       ? 'bg-rose-100 text-rose-800'
                                       : 'bg-slate-100 text-slate-600'
-                                  }`}
+                                    }`}
                                 >
                                   {gap.severity} Priority
                                 </span>
@@ -2617,21 +2946,19 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="px-6 pt-3 border-b border-slate-200 bg-slate-50/50 flex gap-2">
               <button
                 onClick={() => setReckonerTab('summary')}
-                className={`pb-2.5 px-3 text-xs font-extrabold border-b-2 transition cursor-pointer ${
-                  reckonerTab === 'summary'
+                className={`pb-2.5 px-3 text-xs font-extrabold border-b-2 transition cursor-pointer ${reckonerTab === 'summary'
                     ? 'border-indigo-900 text-indigo-950 font-black'
                     : 'border-transparent text-slate-500 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 1. Practitioner Summary
               </button>
               <button
                 onClick={() => setReckonerTab('bare_act')}
-                className={`pb-2.5 px-3 text-xs font-extrabold border-b-2 transition cursor-pointer ${
-                  reckonerTab === 'bare_act'
+                className={`pb-2.5 px-3 text-xs font-extrabold border-b-2 transition cursor-pointer ${reckonerTab === 'bare_act'
                     ? 'border-indigo-900 text-indigo-950 font-black'
                     : 'border-transparent text-slate-500 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 2. Details as in the Act (Bare Act)
               </button>
@@ -2742,11 +3069,10 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 ${
-                    isEditingDoc
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 ${isEditingDoc
                       ? 'bg-amber-100 text-amber-900'
                       : 'bg-indigo-100 text-indigo-900'
-                  }`}
+                    }`}
                 >
                   {isEditingDoc ? <Edit3 className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                 </div>
@@ -2945,11 +3271,10 @@ export default function LegalPilotInteractiveWorkspacePage() {
                             key={tag}
                             type="button"
                             onClick={() => handleToggleEditDocTag(tag)}
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${
-                              isSelected
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${isSelected
                                 ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
                                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                            }`}
+                              }`}
                           >
                             <span>{isSelected ? '✓' : '+'}</span>
                             <span>{tag}</span>
@@ -3419,13 +3744,12 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       handleEvidenceFileSelect(e.dataTransfer.files[0]);
                     }
                   }}
-                  className={`border-2 border-dashed rounded-2xl p-5 text-center transition flex flex-col items-center justify-center gap-2 ${
-                    isDraggingEvidence
+                  className={`border-2 border-dashed rounded-2xl p-5 text-center transition flex flex-col items-center justify-center gap-2 ${isDraggingEvidence
                       ? 'border-indigo-500 bg-indigo-50/80 scale-[1.01]'
                       : evidenceFile
                         ? 'border-emerald-300 bg-emerald-50/40'
                         : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/20'
-                  }`}
+                    }`}
                 >
                   {evidenceFile ? (
                     <div className="flex items-center justify-between w-full p-2 bg-white rounded-xl border border-emerald-200 shadow-2xs">
@@ -3607,11 +3931,10 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         key={tag}
                         type="button"
                         onClick={() => handleToggleEvidenceTag(tag)}
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${
-                          isSelected
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${isSelected
                             ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                        }`}
+                          }`}
                       >
                         <span>{isSelected ? '✓' : '+'}</span>
                         <span>{tag}</span>
@@ -3645,269 +3968,570 @@ export default function LegalPilotInteractiveWorkspacePage() {
       )}
 
       {/* --------------------------------------------------------------------- */}
-      {/* MODAL: NEW CASE INTAKE */}
+      {/* MODAL: NEW CASE INTAKE (STORY-INTAKE-02: INTELLIGENT 5-SECTION WORKSPACE) */}
       {/* --------------------------------------------------------------------- */}
       {showNewCaseModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 animate-scaleIn space-y-4 my-8">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6">
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-900">
-                  <FolderKanban className="w-5 h-5" />
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-900 text-white flex items-center justify-center font-black shadow-md shadow-indigo-900/20">
+                  <Scale className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900">
-                    New Legal Case Intake Workspace
-                  </h3>
-                  <p className="text-[11px] text-slate-500 font-medium">
-                    Configure matter domain or upload brief for AI automated classification & field
-                    mapping
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 tracking-tight">
+                      New Legal Case Intake Workspace
+                    </h3>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-900 border border-indigo-200">
+                      {(currentUser?.customer_id || currentUser?.tenant_id || 'delhi_law_chambers')}-case_...
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Fast-track case onboarding with statutory extraction, BNS/BNSS/BSA reckoners & dynamic domain fields.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowNewCaseModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
+                className="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Step 1: Case Domain Classification Pill Selector */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
-                  1. Select Legal Domain / Case Category
-                </label>
-                <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
-                  {CASE_CATEGORY_CONFIG[newCaseCategory].badge}
-                </span>
-              </div>
-              <div className="grid grid-cols-5 gap-2">
-                {(Object.keys(CASE_CATEGORY_CONFIG) as CaseCategory[]).map((catKey) => {
-                  const item = CASE_CATEGORY_CONFIG[catKey];
-                  const Icon = item.icon;
-                  const isSelected = newCaseCategory === catKey;
-                  return (
-                    <button
-                      key={catKey}
-                      type="button"
-                      onClick={() => handleSelectCategory(catKey)}
-                      className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-indigo-950 text-white border-indigo-950 shadow-md ring-2 ring-indigo-300'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
-                      }`}
-                    >
-                      <Icon
-                        className={`w-4 h-4 mb-1 ${isSelected ? 'text-indigo-200' : 'text-slate-600'}`}
-                      />
-                      <span className="text-[11px] font-bold leading-tight">
-                        {item.label.split(' ')[0]}
-                      </span>
-                      <span
-                        className={`text-[9px] mt-0.5 line-clamp-1 ${isSelected ? 'text-indigo-200' : 'text-slate-500'}`}
-                      >
-                        {catKey === 'constitutional'
-                          ? 'Writ/Art 226'
-                          : catKey === 'criminal'
-                            ? 'BNS/FIR'
-                            : catKey === 'commercial'
-                              ? 'Contract'
-                              : catKey === 'arbitration'
-                                ? 'DIAC/Sec 21'
-                                : 'CPC Relief'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Fast-Track AI Document Auto-Detect & Sample Presets */}
-            <div className="bg-gradient-to-r from-slate-50 to-indigo-50/40 p-3 rounded-xl border border-slate-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                  <Wand2 className="w-3.5 h-3.5 text-indigo-700" />
-                  <span>AI Fast-Track: Auto-Fill or Drop Initial Document</span>
-                </div>
-                {detectedBadgeText && (
-                  <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200 animate-pulse">
-                    {detectedBadgeText}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleApplyPreset(newCaseCategory)}
-                  disabled={isAutoDetecting}
-                  className="px-2.5 py-1 text-[11px] font-bold bg-white text-indigo-900 border border-indigo-200 rounded-lg hover:bg-indigo-50 shadow-2xs cursor-pointer flex items-center gap-1"
+            {/* Modal Body - Scrollable */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1 text-xs">
+              {/* Alert Banner for Extraction Result or Fallback */}
+              {extractionAlert && (
+                <div
+                  className={`p-3.5 rounded-2xl border flex items-start gap-2.5 animate-in fade-in duration-200 ${
+                    extractionAlert.type === 'success'
+                      ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                      : extractionAlert.type === 'warning'
+                        ? 'bg-amber-50/80 border-amber-200 text-amber-950'
+                        : 'bg-indigo-50/80 border-indigo-200 text-indigo-950'
+                  }`}
                 >
-                  <Sparkles className="w-3 h-3 text-indigo-600" />
-                  <span>Load {CASE_CATEGORY_CONFIG[newCaseCategory].label} Preset Brief</span>
-                </button>
+                  {extractionAlert.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                  )}
+                  <div className="flex-1 text-xs">
+                    <span className="font-extrabold">
+                      {extractionAlert.type === 'warning'
+                        ? 'Notice: '
+                        : 'Intake Engine: '}
+                    </span>
+                    <span>{extractionAlert.message}</span>
+                  </div>
+                  <button
+                    onClick={() => setExtractionAlert(null)}
+                    className="text-slate-400 hover:text-slate-700 cursor-pointer p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
-                <label className="px-2.5 py-1 text-[11px] font-bold bg-white text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-100 shadow-2xs cursor-pointer flex items-center gap-1">
-                  <FileUp className="w-3 h-3 text-slate-600" />
-                  <span>Drop / Upload Brief PDF</span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.docx,.txt"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        handleSimulatedDocDrop(e.target.files[0].name);
-                      }
-                    }}
-                  />
-                </label>
+              {/* ------------------------------------------------------------- */}
+              {/* SECTION 1: TYPE OF CASE (SELECTOR / RADIO PILLS) */}
+              {/* ------------------------------------------------------------- */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-900 flex items-center justify-center text-[11px] font-black">
+                      1
+                    </span>
+                    <span>Type of Case / Legal Category *</span>
+                  </label>
+                  <span className="text-[10px] text-indigo-800 font-bold bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                    {CASE_CATEGORY_CONFIG[newCaseCategory].badge}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {(Object.keys(CASE_CATEGORY_CONFIG) as CaseCategory[]).map((catKey) => {
+                    const item = CASE_CATEGORY_CONFIG[catKey];
+                    const Icon = item.icon;
+                    const isSelected = newCaseCategory === catKey;
+                    return (
+                      <button
+                        key={catKey}
+                        type="button"
+                        onClick={() => handleSelectCategory(catKey)}
+                        className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-950 text-white border-indigo-950 shadow-md ring-2 ring-indigo-400'
+                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                        }`}
+                      >
+                        <Icon
+                          className={`w-4 h-4 mb-1.5 ${
+                            isSelected ? 'text-indigo-200' : 'text-slate-600'
+                          }`}
+                        />
+                        <span className="text-[11px] font-black leading-tight">
+                          {item.label.split(' ')[0]}
+                        </span>
+                        <span
+                          className={`text-[9px] mt-0.5 line-clamp-1 ${
+                            isSelected ? 'text-indigo-300' : 'text-slate-400 font-medium'
+                          }`}
+                        >
+                          {catKey === 'constitutional'
+                            ? 'Writ / Art 226/32'
+                            : catKey === 'criminal'
+                              ? 'BNS / BNSS / FIR'
+                              : catKey === 'commercial'
+                                ? 'Contract / CCA 12A'
+                                : catKey === 'arbitration'
+                                  ? 'DIAC / Sec 9/34'
+                                  : 'CPC Relief'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            {/* Step 2: Dynamically Tuned Form Fields for Selected Category */}
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
-                  Matter Title & Reference
-                </label>
+              {/* ------------------------------------------------------------- */}
+              {/* SECTION 2: RELEVANT SECTIONS OR ARTICLES ("THE MAGIC") */}
+              {/* ------------------------------------------------------------- */}
+              <div className="p-4 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/40 via-white to-slate-50 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-indigo-900 text-white flex items-center justify-center text-[11px] font-black">
+                      2
+                    </span>
+                    <div>
+                      <h4 className="font-black text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Relevant Sections & Articles (The Statutory Engine)</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Type matter in plain English, paste an extract, or upload brief. BNS, BNSS & BSA baseline.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPreset(newCaseCategory)}
+                    className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-white border border-indigo-200 px-2.5 py-1 rounded-lg shadow-2xs hover:bg-indigo-50 cursor-pointer flex items-center gap-1 shrink-0"
+                  >
+                    <span>Load {CASE_CATEGORY_CONFIG[newCaseCategory].badge} Sample Brief</span>
+                  </button>
+                </div>
+
+                {/* Brief Text / Paste Extract */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-700">
+                      Matter Summary / Pleading Extract / FIR Facts
+                    </label>
+                    <span className="text-[10px] text-slate-400">Natural Language or Legal Extract</span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={intakeBriefText}
+                    onChange={(e) => setIntakeBriefText(e.target.value)}
+                    placeholder="e.g. Accused directors entered into supply contract on behalf of their company, issued dishonored cheques under closed accounts, and submitted forged quality inspection certificates to public servants in Tis Hazari..."
+                    className="w-full text-xs font-medium p-3 rounded-xl border border-slate-300 text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 leading-relaxed placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Multi-Document Attachments Strip & Upload Trigger */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                      <Paperclip className="w-3.5 h-3.5 text-indigo-700" />
+                      <span>Attach Supporting Briefs & Evidence ({intakeAttachedFiles.length} files)</span>
+                    </span>
+                    <label className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition shadow-2xs">
+                      <UploadCloud className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Add File(s)</span>
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        accept=".pdf,.docx,.txt,.png,.jpg,.jpeg"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            Array.from(e.target.files).forEach((file) => handleAttachIntakeFile(file));
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Attached File Chips with Delete [x] */}
+                  {intakeAttachedFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {intakeAttachedFiles.map((file, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-800 px-2.5 py-1 rounded-xl shadow-2xs text-[11px] font-medium group"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                          <span className="font-bold truncate max-w-[180px]">{file.name}</span>
+                          <span className="text-[10px] text-slate-400">({file.size})</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveIntakeFile(idx)}
+                            className="text-slate-400 hover:text-rose-600 cursor-pointer ml-1"
+                            title="Remove attached file"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Magic Parse CTA Button */}
+                <div className="pt-1 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Profile: <strong className="text-slate-600">Standard Indian Jurisprudence Profile</strong> (Editable)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleMagicExtractBrief}
+                    disabled={isExtractionInProgress}
+                    className="px-4 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-xs flex items-center gap-2 transition shadow-md shadow-indigo-900/20 cursor-pointer disabled:opacity-50"
+                  >
+                    <Wand2 className={`w-3.5 h-3.5 text-indigo-300 ${isExtractionInProgress ? 'animate-spin' : ''}`} />
+                    <span>{isExtractionInProgress ? 'Parsing Statutory Context...' : 'Magic Extract & Map Sections'}</span>
+                  </button>
+                </div>
+
+                {/* Statutory Sections Pills Management */}
+                <div className="pt-2 border-t border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                      <span>Applied Statutory Sections & Articles:</span>
+                      <span className="text-slate-400 font-normal">({selectedSectionCodes.length} active)</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400">Click [×] to remove, or search below to add</span>
+                  </div>
+
+                  {/* Active Section Pills with Delete [x] */}
+                  <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 bg-slate-50/80 rounded-xl border border-slate-200">
+                    {selectedSectionCodes.length === 0 ? (
+                      <span className="text-slate-400 text-[11px] italic">
+                        No sections assigned. Search statutory codes below (e.g. &quot;Bns 165&quot;, &quot;Crpc 156&quot;) to add.
+                      </span>
+                    ) : (
+                      selectedSectionCodes.map((code) => {
+                        const reck = STATUTORY_RECKONER_DB[code];
+                        return (
+                          <span
+                            key={code}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-indigo-950 border border-indigo-200 shadow-2xs"
+                          >
+                            <span className="text-indigo-600 font-black">§</span>
+                            <span>{reck?.short_label || code}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSectionCode(code)}
+                              className="w-3.5 h-3.5 rounded-full hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center text-slate-400 transition cursor-pointer"
+                              title="Delete section"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </span>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Section Autocomplete Search Input */}
+                  <div className="relative">
+                    <div className="relative flex items-center">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={sectionSearchQuery}
+                        onChange={(e) => {
+                          setSectionSearchQuery(e.target.value);
+                          setIsSectionDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsSectionDropdownOpen(true)}
+                        placeholder='Type statutory code (e.g. "Bns 165", "Crpc 156", "Sec 138", "Order 37")...'
+                        className="w-full text-xs pl-8 pr-8 py-2 rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                      />
+                      {sectionSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSectionSearchQuery('')}
+                          className="absolute right-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Autocomplete Dropdown List */}
+                    {isSectionDropdownOpen && sectionAutocompleteResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 z-20 bg-white rounded-xl border border-slate-200 shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100">
+                        {sectionAutocompleteResults.map((sec) => (
+                          <div
+                            key={sec.section_code}
+                            onClick={() => handleAddSectionCode(sec.section_code)}
+                            className="p-2.5 hover:bg-indigo-50/70 transition cursor-pointer flex items-center justify-between"
+                          >
+                            <div>
+                              <div className="font-bold text-xs text-indigo-950 flex items-center gap-1.5">
+                                <span className="text-indigo-600 font-black">§</span>
+                                <span>{sec.short_label}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-medium">
+                                {sec.act_name} · {sec.summary_view.core_legal_rule.slice(0, 90)}...
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md shrink-0">
+                              + Add
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ------------------------------------------------------------- */}
+              {/* SECTION 3: RELEVANT PARTIES (AUTO-RECOGNIZED & USER EDITABLE) */}
+              {/* ------------------------------------------------------------- */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-900 flex items-center justify-center text-[11px] font-black">
+                      3
+                    </span>
+                    <span>Relevant Parties (Auto-Recognized & User Editable)</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-medium">Auto-extracted or manual edit</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-600 flex items-center justify-between">
+                      <span>{CASE_CATEGORY_CONFIG[newCaseCategory].party1Label}</span>
+                      <span className="text-[10px] text-indigo-700 font-semibold">Initiating Party</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newCaseParty1}
+                      onChange={(e) => setNewCaseParty1(e.target.value)}
+                      placeholder={CASE_CATEGORY_CONFIG[newCaseCategory].party1Placeholder}
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-indigo-600 font-medium"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-600 flex items-center justify-between">
+                      <span>{CASE_CATEGORY_CONFIG[newCaseCategory].party2Label}</span>
+                      <span className="text-[10px] text-indigo-700 font-semibold">Opposing Party</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newCaseParty2}
+                      onChange={(e) => setNewCaseParty2(e.target.value)}
+                      placeholder={CASE_CATEGORY_CONFIG[newCaseCategory].party2Placeholder}
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-indigo-600 font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ------------------------------------------------------------- */}
+              {/* SECTION 4: MATTER HEADLINE (ADD / EDIT) */}
+              {/* ------------------------------------------------------------- */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-900 flex items-center justify-center text-[11px] font-black">
+                      4
+                    </span>
+                    <span>Matter Headline & Case Title *</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400">Synthesized or custom title</span>
+                </div>
                 <input
                   type="text"
                   value={newCaseTitle}
                   onChange={(e) => setNewCaseTitle(e.target.value)}
                   placeholder={CASE_CATEGORY_CONFIG[newCaseCategory].presetSample.title}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-indigo-600"
+                  className="w-full text-xs font-bold p-3 rounded-xl border border-slate-300 text-slate-900 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                 />
               </div>
 
-              {/* Dynamic Parties */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-600 mb-1 flex items-center justify-between">
-                    <span>{CASE_CATEGORY_CONFIG[newCaseCategory].party1Label}</span>
-                    <span className="text-[9px] text-slate-400 font-normal">Initiating Party</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={newCaseParty1}
-                    onChange={(e) => setNewCaseParty1(e.target.value)}
-                    placeholder={CASE_CATEGORY_CONFIG[newCaseCategory].party1Placeholder}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-indigo-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-600 mb-1 flex items-center justify-between">
-                    <span>{CASE_CATEGORY_CONFIG[newCaseCategory].party2Label}</span>
-                    <span className="text-[9px] text-slate-400 font-normal">Opposing Party</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={newCaseParty2}
-                    onChange={(e) => setNewCaseParty2(e.target.value)}
-                    placeholder={CASE_CATEGORY_CONFIG[newCaseCategory].party2Placeholder}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-indigo-600"
-                  />
-                </div>
-              </div>
+              {/* ------------------------------------------------------------- */}
+              {/* SECTION 5: DYNAMIC OPTIONAL FIELDS POOL (ADD/REMOVE ON DEMAND) */}
+              {/* ------------------------------------------------------------- */}
+              <div className="space-y-3 pt-1 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-900 flex items-center justify-center text-[11px] font-black">
+                        5
+                      </span>
+                      <span>Optional Domain Schema Fields ({activeOptionalKeys.length} active)</span>
+                    </label>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      Fields can be added or removed depending on case relevance (e.g. remove disputed valuation for writs).
+                    </p>
+                  </div>
 
-              {/* Forum & Valuation */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-600 mb-1">
-                    Forum / Adjudicating Authority
-                  </label>
-                  <input
-                    type="text"
-                    value={newCaseCourt}
-                    onChange={(e) => setNewCaseCourt(e.target.value)}
-                    placeholder={CASE_CATEGORY_CONFIG[newCaseCategory].courtDefault}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-indigo-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-extrabold uppercase text-slate-600 mb-1">
-                    {CASE_CATEGORY_CONFIG[newCaseCategory].valueLabel}
-                  </label>
-                  <input
-                    type="text"
-                    value={newCaseClaim}
-                    onChange={(e) => setNewCaseClaim(e.target.value)}
-                    placeholder={CASE_CATEGORY_CONFIG[newCaseCategory].valuePlaceholder}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-indigo-600"
-                  />
-                </div>
-              </div>
-
-              {/* Secondary Reference (Contract / FIR / Notification / Clause) */}
-              <div>
-                <label className="block text-[10px] font-extrabold uppercase text-slate-600 mb-1">
-                  {CASE_CATEGORY_CONFIG[newCaseCategory].secondaryRefLabel}
-                </label>
-                <input
-                  type="text"
-                  value={newCaseSecondaryRef}
-                  onChange={(e) => setNewCaseSecondaryRef(e.target.value)}
-                  placeholder={CASE_CATEGORY_CONFIG[newCaseCategory].secondaryRefPlaceholder}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-indigo-600"
-                />
-              </div>
-
-              {/* Dispute Description */}
-              <div>
-                <label className="block text-[10px] font-extrabold uppercase text-slate-600 mb-1">
-                  {CASE_CATEGORY_CONFIG[newCaseCategory].disputeLabel}
-                </label>
-                <textarea
-                  rows={2}
-                  value={newCaseDisputeDescription}
-                  onChange={(e) => setNewCaseDisputeDescription(e.target.value)}
-                  placeholder={CASE_CATEGORY_CONFIG[newCaseCategory].disputePlaceholder}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50/50 focus:bg-white focus:outline-none focus:border-indigo-600"
-                />
-              </div>
-
-              {/* Ready Reckoner Auto-Provisioning Preview */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <BookOpen className="w-3.5 h-3.5 text-indigo-700" />
-                  <span className="text-[10px] font-bold text-slate-600">
-                    Auto-Provisioned Statutory Reckoners:
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {CASE_CATEGORY_CONFIG[newCaseCategory].defaultSections.map((secCode) => (
-                    <span
-                      key={secCode}
-                      className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200"
+                  {/* Add Optional Field Dropdown Button */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddOptionalFieldDropdownOpen(!isAddOptionalFieldDropdownOpen)}
+                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-indigo-900 font-extrabold text-xs flex items-center gap-1.5 border border-indigo-200 shadow-2xs cursor-pointer transition"
                     >
-                      {STATUTORY_RECKONER_DB[secCode]?.short_label || secCode}
-                    </span>
-                  ))}
+                      <Plus className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Add Optional Field</span>
+                      <ChevronDown className="w-3 h-3 text-slate-400" />
+                    </button>
+
+                    {isAddOptionalFieldDropdownOpen && (
+                      <div className="absolute right-0 top-full mt-1 w-72 bg-white rounded-2xl border border-slate-200 shadow-2xl z-30 p-2 space-y-1">
+                        <div className="text-[10px] font-extrabold uppercase text-slate-400 px-2 py-1">
+                          Available Domain Fields:
+                        </div>
+                        {CONFIGURED_DOMAIN_FIELDS_CATALOG.filter(
+                          (field) => !activeOptionalKeys.includes(field.key),
+                        ).length === 0 ? (
+                          <div className="text-[11px] text-slate-500 p-2 italic text-center">
+                            All catalog fields are currently active.
+                          </div>
+                        ) : (
+                          CONFIGURED_DOMAIN_FIELDS_CATALOG.filter(
+                            (field) => !activeOptionalKeys.includes(field.key),
+                          ).map((field) => (
+                            <button
+                              key={field.key}
+                              type="button"
+                              onClick={() => handleAddOptionalField(field.key)}
+                              className="w-full text-left p-2 rounded-xl hover:bg-indigo-50 text-slate-700 hover:text-indigo-950 transition cursor-pointer flex flex-col"
+                            >
+                              <span className="font-bold text-xs">{field.label}</span>
+                              <span className="text-[10px] text-slate-400 line-clamp-1">
+                                {field.description}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Render Active Optional Fields with Delete [x] */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {activeOptionalKeys.map((key) => {
+                    const fieldDef = CONFIGURED_DOMAIN_FIELDS_CATALOG.find((f) => f.key === key);
+                    if (!fieldDef) return null;
+
+                    return (
+                      <div
+                        key={key}
+                        className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-1.5 relative group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <label className="block text-[11px] font-bold text-slate-700">
+                            {fieldDef.label}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveOptionalField(key)}
+                            className="w-4 h-4 rounded-full hover:bg-rose-100 hover:text-rose-600 text-slate-400 flex items-center justify-center transition cursor-pointer"
+                            title="Remove field from form"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {fieldDef.type === 'select' && fieldDef.options ? (
+                          <select
+                            value={optionalFieldValues[key] || fieldDef.options[0]}
+                            onChange={(e) =>
+                              setOptionalFieldValues({
+                                ...optionalFieldValues,
+                                [key]: e.target.value,
+                              })
+                            }
+                            className="w-full text-xs font-medium p-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 cursor-pointer"
+                          >
+                            {fieldDef.options.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        ) : fieldDef.type === 'date' ? (
+                          <input
+                            type="date"
+                            value={optionalFieldValues[key] || ''}
+                            onChange={(e) =>
+                              setOptionalFieldValues({
+                                ...optionalFieldValues,
+                                [key]: e.target.value,
+                              })
+                            }
+                            className="w-full text-xs font-medium p-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            value={optionalFieldValues[key] || ''}
+                            onChange={(e) =>
+                              setOptionalFieldValues({
+                                ...optionalFieldValues,
+                                [key]: e.target.value,
+                              })
+                            }
+                            placeholder={fieldDef.placeholder}
+                            className="w-full text-xs font-medium p-2 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                          />
+                        )}
+                        <p className="text-[10px] text-slate-400 leading-tight">
+                          {fieldDef.description}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
             {/* Modal Footer Buttons */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[10px] text-slate-400 font-medium">
-                Workspace will load customized evidentiary rules and statutory checklists.
-              </span>
-              <div className="flex items-center gap-2">
+            <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
+              <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                <span>
+                  Audit: <strong className="text-slate-700">{currentUser?.id || 'usr_adv_01'}</strong> · Today {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5">
                 <button
+                  type="button"
                   onClick={() => setShowNewCaseModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleCreateNewCase}
-                  className="px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-900 hover:bg-indigo-950 text-white shadow-xs cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-900 hover:bg-indigo-950 text-white shadow-md shadow-indigo-900/20 cursor-pointer flex items-center gap-2 transition"
                 >
-                  <FolderKanban className="w-3.5 h-3.5" />
+                  <FolderKanban className="w-4 h-4 text-indigo-300" />
                   <span>
-                    Create {CASE_CATEGORY_CONFIG[newCaseCategory].label.split(' ')[0]} Case
+                    Create {CASE_CATEGORY_CONFIG[newCaseCategory].label.split(' ')[0]} Case Workspace
                   </span>
                 </button>
               </div>
@@ -4019,66 +4643,60 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('Client Discussion')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
-                      updateCategory === 'Client Discussion'
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Client Discussion'
                         ? 'border-blue-400 bg-blue-50 text-blue-950 shadow-2xs'
                         : 'border-slate-200 bg-slate-50 hover:bg-blue-50/50 text-slate-700'
-                    }`}
+                      }`}
                   >
                     <span>🗣️</span> <span>Client Discussion</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('Counsel Strategy')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
-                      updateCategory === 'Counsel Strategy'
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Counsel Strategy'
                         ? 'border-purple-400 bg-purple-50 text-purple-950 shadow-2xs'
                         : 'border-slate-200 bg-slate-50 hover:bg-purple-50/50 text-slate-700'
-                    }`}
+                      }`}
                   >
                     <span>⚖️</span> <span>Counsel Strategy</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('Court / Tribunal Hearing')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
-                      updateCategory === 'Court / Tribunal Hearing'
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Court / Tribunal Hearing'
                         ? 'border-amber-400 bg-amber-50 text-amber-950 shadow-2xs'
                         : 'border-slate-200 bg-slate-50 hover:bg-amber-50/50 text-slate-700'
-                    }`}
+                      }`}
                   >
                     <span>🏛️</span> <span>Court Hearing</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('Settlement / Negotiation')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
-                      updateCategory === 'Settlement / Negotiation'
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Settlement / Negotiation'
                         ? 'border-emerald-400 bg-emerald-50 text-emerald-950 shadow-2xs'
                         : 'border-slate-200 bg-slate-50 hover:bg-emerald-50/50 text-slate-700'
-                    }`}
+                      }`}
                   >
                     <span>🤝</span> <span>Settlement</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('General Note')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
-                      updateCategory === 'General Note'
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'General Note'
                         ? 'border-indigo-400 bg-indigo-50 text-indigo-950 shadow-2xs'
                         : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
-                    }`}
+                      }`}
                   >
                     <span>📝</span> <span>General Note</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('Others')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
-                      updateCategory === 'Others'
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Others'
                         ? 'border-slate-400 bg-slate-200 text-slate-900 shadow-2xs'
                         : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
-                    }`}
+                      }`}
                   >
                     <span>📁</span> <span>Others</span>
                   </button>
@@ -4140,11 +4758,10 @@ export default function LegalPilotInteractiveWorkspacePage() {
                           key={person}
                           type="button"
                           onClick={() => handleTogglePersonSuggestion(person)}
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${
-                            isSelected
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${isSelected
                               ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
                               : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                          }`}
+                            }`}
                         >
                           <span>{isSelected ? '✓' : '+'}</span>
                           <span>{person}</span>
@@ -4278,3 +4895,4 @@ export default function LegalPilotInteractiveWorkspacePage() {
     </div>
   );
 }
+

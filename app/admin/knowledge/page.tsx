@@ -2928,7 +2928,7 @@ export default function KnowledgeBasesTab({
                         Domain System Prompt
                       </label>
                       <textarea
-                        rows={4}
+                        rows={15}
                         value={domainSystemPrompt}
                         disabled={!isSystemAdmin && domainScope === 'SYSTEM'}
                         onChange={(e) => setDomainSystemPrompt(e.target.value)}
@@ -2941,7 +2941,7 @@ export default function KnowledgeBasesTab({
                         Domain User Prompt Template
                       </label>
                       <textarea
-                        rows={4}
+                        rows={15}
                         value={domainUserPrompt}
                         disabled={!isSystemAdmin && domainScope === 'SYSTEM'}
                         onChange={(e) => setDomainUserPrompt(e.target.value)}

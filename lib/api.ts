@@ -1192,6 +1192,8 @@ export const api = {
     include_summary?: boolean;
     page?: number;
     limit?: number;
+    llm_profile_id?: string;
+    profile_id?: string;
     search_system_prompt?: string;
     search_user_prompt?: string;
   }) => {

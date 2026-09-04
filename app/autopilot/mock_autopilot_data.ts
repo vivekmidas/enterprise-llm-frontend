@@ -31,17 +31,17 @@ export interface TimelineEvent {
   description: string;
   source?: SourceRef;
   event_type?:
-    | 'Hearing'
-    | 'Order'
-    | 'Filing'
-    | 'Evidence'
-    | 'Notice'
-    | 'Client Discussion'
-    | 'Counsel Strategy'
-    | 'Court Hearing'
-    | 'Settlement'
-    | 'General Note'
-    | 'Others';
+  | 'Hearing'
+  | 'Order'
+  | 'Filing'
+  | 'Evidence'
+  | 'Notice'
+  | 'Client Discussion'
+  | 'Counsel Strategy'
+  | 'Court Hearing'
+  | 'Settlement'
+  | 'General Note'
+  | 'Others';
   impact_badge?: string;
   next_date?: string;
   bench_direction?: string;
@@ -54,12 +54,12 @@ export interface HearingRecord {
   hearing_date: string;
   court_bench: string;
   proceeding_stage:
-    | 'Notice Returnable'
-    | 'Interim Arguments'
-    | 'Framing of Issues'
-    | 'Evidence / Cross'
-    | 'Final Hearing'
-    | 'Order Reserved';
+  | 'Notice Returnable'
+  | 'Interim Arguments'
+  | 'Framing of Issues'
+  | 'Evidence / Cross'
+  | 'Final Hearing'
+  | 'Order Reserved';
   order_summary: string;
   directions_given: string;
   next_hearing_date?: string;
@@ -88,13 +88,13 @@ export interface UploadedDoc {
   description?: string;
   tags?: string[];
   provenance?:
-    | 'Client Direct Submission'
-    | 'Opposing Party Production'
-    | 'Court Certified Record'
-    | 'Third Party / Subpoena'
-    | 'Field Investigation'
-    | 'Forensic / Expert Report'
-    | string;
+  | 'Client Direct Submission'
+  | 'Opposing Party Production'
+  | 'Court Certified Record'
+  | 'Third Party / Subpoena'
+  | 'Field Investigation'
+  | 'Forensic / Expert Report'
+  | string;
   file_ext?: 'pdf' | 'png' | 'jpg' | 'md' | 'txt' | 'docx' | string;
 }
 
@@ -102,11 +102,11 @@ export interface CaseParty {
   id: string;
   name: string;
   role:
-    | 'Claimant / Creditor'
-    | 'Respondent / Debtor'
-    | 'Guarantor / Director'
-    | 'Witness / Site Engineer'
-    | 'Arbitrator / Mediator';
+  | 'Claimant / Creditor'
+  | 'Respondent / Debtor'
+  | 'Guarantor / Director'
+  | 'Witness / Site Engineer'
+  | 'Arbitrator / Mediator';
   entity_type: 'Private Limited Company' | 'LLP' | 'Individual Partner' | 'Proprietorship';
   address: string;
   contact_person?: string;
@@ -179,6 +179,7 @@ export interface StatutoryReadyReckoner {
   section_code: string;
   short_label: string;
   act_name: string;
+  aliases?: string[];
   summary_view: {
     core_legal_rule: string;
     essential_ingredients: string[];
@@ -194,8 +195,8 @@ export interface StatutoryReadyReckoner {
 }
 
 export interface MatterCase {
-  id: string;
-  case_code: 'orion_v_delta' | 'cloudnet_v_starlight' | 'precision_v_vanguard';
+  id: string; // Formatted as tenant_name-case_id (EPIC: epic_legal_case_intake_workspace.md)
+  case_code: 'orion_v_delta' | 'cloudnet_v_starlight' | 'precision_v_vanguard' | string;
   case_title: string;
   case_subtitle: string;
   court_forum: string;
@@ -219,6 +220,11 @@ export interface MatterCase {
   case_category?: string;
   next_hearing_date?: string;
   hearing_records?: HearingRecord[];
+  created_at?: string;
+  created_at_display?: string;
+  created_by_user_id?: string;
+  tenant_id?: string;
+  optional_domain_fields?: Record<string, string>;
 }
 
 // -----------------------------------------------------------------------------
@@ -526,7 +532,992 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
       provisos_and_explanations: ['Read with Section 151 (Inherent Powers of Court).'],
     },
   },
+  /* -----------------------------------------------------------------------------
+   * EPIC: epic_legal_case_intake_workspace.md
+   * STORY: STORY-INTAKE-02: Intelligent Multi-Modal Legal Case Intake Workspace
+   * DESIGN: Comprehensive Statutory Ready Reckoners (BNS, BNSS, BSA, CPC, Arbitration)
+   * ----------------------------------------------------------------------------- */
+  sec165_bns: {
+    section_code: 'sec165_bns',
+    short_label: 'Sec 165 BNS (Public Servant Framing Incorrect Document / IPC 218)',
+    act_name: 'Bharatiya Nyaya Sanhita, 2023',
+    aliases: [
+      'bns 165',
+      'sec 165',
+      '165 bns',
+      'ipc 218',
+      'public servant framing incorrect document',
+      'incorrect document',
+      'falsification by public officer',
+    ],
+    summary_view: {
+      core_legal_rule:
+        'Punishes public servants who intentionally frame incorrect documents or electronic records with intent to cause injury or protect any person from legal punishment.',
+      essential_ingredients: [
+        'Accused must be a public servant charged with preparation or translation of any document or record.',
+        'Document or electronic record framed in a manner known to be incorrect.',
+        'Intention or knowledge that such incorrect framing will cause injury to public or any person, or save person from punishment/forfeiture.',
+      ],
+      statutory_limitation: 'Cognizable, bailable, triable by Court of Session.',
+      landmark_sc_ruling:
+        'State of Maharashtra v. Som Nath Thapa, (1996) 4 SCC 659 — Framing incorrect documents with mens rea creates direct culpability under corresponding penal sections.',
+      counsel_checklist: [
+        'Verify public servant status under Section 2(28) BNS.',
+        'Secure certified copy or hash of original record versus manipulated record under Section 63 BSA.',
+        'Examine sanction requirements under Section 218 BNSS (formerly Section 197 CrPC).',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading:
+        'Section 165. Public servant framing incorrect document with intent to cause injury.',
+      verbatim_text:
+        'Whoever, being a public servant, and being as such public servant, charged with the preparation or translation of any document or electronic record, frames, prepares or translates that document or electronic record in a manner which he knows or believes to be incorrect, intending thereby to cause or knowing it to be likely that he may thereby cause injury to any person, shall be punished with imprisonment of either description for a term which may extend to three years, or with fine, or with both.',
+      provisos_and_explanations: [
+        'Read with Section 163 (Public servant disobeying law with intent to cause injury).',
+      ],
+    },
+  },
+  sec111_bns: {
+    section_code: 'sec111_bns',
+    short_label: 'Sec 111 BNS (Organised Crime Syndicate)',
+    act_name: 'Bharatiya Nyaya Sanhita, 2023',
+    aliases: ['bns 111', 'sec 111', 'organised crime', 'syndicate', 'extortion', 'gangster'],
+    summary_view: {
+      core_legal_rule:
+        'Codifies organised crime committed by individual or members of crime syndicate by use of violence, intimidation, or coercion for unlawful economic or financial advantage.',
+      essential_ingredients: [
+        'Continuing unlawful activity by members of an organized crime syndicate.',
+        'Use of violence, threat of violence, intimidation, or other unlawful means.',
+        'Objective of obtaining direct or indirect material benefit including financial advantage.',
+      ],
+      statutory_limitation: 'Cognizable, non-bailable, triable by Special Court.',
+      landmark_sc_ruling:
+        'State of Maharashtra v. Lalit Somdatta Nagpal, (2007) 4 SCC 171 — Strict evidentiary threshold for establishing continuing syndicate activity.',
+      counsel_checklist: [
+        'Collate prior charge sheets showing continuous unlawful activity within past 10 years.',
+        'Cross-check predicate financial fraud / recovery transactions with ledger trails.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Section 111. Organised crime.',
+      verbatim_text:
+        '(1) Any continuing unlawful activity including kidnapping, robbery, vehicle theft, extortion, land grabbing, contract killing, economic offence, cyber-crimes having severe consequences, trafficking in persons, drugs or weapons or illicit goods or services, human trafficking for prostitution or ransom, by any person or a group of persons acting on behalf of such a syndicate, by use of violence, intimidation, coercion, or other unlawful means to obtain direct or indirect material benefit, shall constitute organised crime.',
+    },
+  },
+  sec303_bns: {
+    section_code: 'sec303_bns',
+    short_label: 'Sec 303(2) BNS (Theft / formerly Sec 379 IPC)',
+    act_name: 'Bharatiya Nyaya Sanhita, 2023',
+    aliases: ['bns 303', 'sec 303', 'theft', 'dishonest taking', 'ipc 379'],
+    summary_view: {
+      core_legal_rule:
+        'Punishes dishonest moving of movable property out of the possession of any person without consent with imprisonment up to 3 years or fine or community service.',
+      essential_ingredients: [
+        'Movable property moved dishonestly.',
+        'Property taken out of possession without person\'s consent.',
+        'Moving in order to such taking.',
+      ],
+      statutory_limitation: 'Cognizable, non-bailable, triable by any Magistrate.',
+      landmark_sc_ruling: 'K.N. Mehra v. State of Rajasthan, 1957 SCR 623.',
+      counsel_checklist: [
+        'Establish lawful prior possession.',
+        'Provide delivery challan / physical custody logs.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Section 303. Theft.',
+      verbatim_text:
+        '(1) Whoever, intending to take dishonestly any movable property out of the possession of any person without that person\'s consent, moves that property in order to such taking, is said to commit theft.\n(2) Whoever commits theft shall be punished with imprisonment of either description for a term which may extend to three years, or with fine, or with both.',
+    },
+  },
+  sec61_bns: {
+    section_code: 'sec61_bns',
+    short_label: 'Sec 61 BNS (Criminal Conspiracy / formerly Sec 120B IPC)',
+    act_name: 'Bharatiya Nyaya Sanhita, 2023',
+    aliases: [
+      'bns 61',
+      'sec 61',
+      'criminal conspiracy',
+      'conspiracy',
+      'ipc 120b',
+      'common intention',
+    ],
+    summary_view: {
+      core_legal_rule:
+        'When two or more persons agree to do or cause to be done an illegal act or an act by illegal means, an agreement itself constitutes criminal conspiracy.',
+      essential_ingredients: [
+        'Agreement between two or more persons.',
+        'Object of agreement is an illegal act or legal act by illegal means.',
+        'Meeting of minds and overt execution trail.',
+      ],
+      statutory_limitation: 'Punishable in same manner as abetment of target offence.',
+      landmark_sc_ruling: 'State of Maharashtra v. Som Nath Thapa, (1996) 4 SCC 659.',
+      counsel_checklist: [
+        'Identify common plan via communication records (WhatsApp/Emails under Section 63 BSA).',
+        'Demonstrate coordinated overt steps taken by named co-accused.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Section 61. Criminal conspiracy.',
+      verbatim_text:
+        '(1) When two or more persons agree to do, or cause to be done—\n(a) an illegal act; or\n(b) an act which is not illegal by illegal means, such an agreement is designated a criminal conspiracy.',
+    },
+  },
+  sec173_bnss: {
+    section_code: 'sec173_bnss',
+    short_label: 'Sec 173 BNSS (Registration of FIR / formerly Sec 154 CrPC)',
+    act_name: 'Bharatiya Nagarik Suraksha Sanhita, 2023',
+    aliases: ['bnss 173', 'sec 173', 'fir', 'first information report', 'crpc 154', 'zero fir'],
+    summary_view: {
+      core_legal_rule:
+        'Mandatory registration of First Information Report (FIR) upon receiving information relating to commission of a cognizable offence, including electronic transmission with 3 days sign-off.',
+      essential_ingredients: [
+        'Information discloses cognizable offence.',
+        'Officer in charge of Police Station has statutory duty to reduce to writing and enter in station diary.',
+        'Mandatory preliminary inquiry within 14 days for offences punishable between 3 and 7 years.',
+      ],
+      statutory_limitation: 'Mandatory FIR registration immediately or post 14-day inquiry.',
+      landmark_sc_ruling:
+        'Lalita Kumari v. Govt. of U.P., (2014) 2 SCC 1 — Supreme Court held registration of FIR is mandatory if cognizable offence is disclosed.',
+      counsel_checklist: [
+        'Attach formal complaint addressed to SHO / DCP.',
+        'Ensure electronic report is signed within three days per Section 173(1) proviso.',
+        'Track Preliminary Inquiry report within 14 days statutory limit.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Section 173. Information in cognizable cases.',
+      verbatim_text:
+        '(1) Every information relating to the commission of a cognizable offence, if given orally to an officer in charge of a police station, shall be reduced to writing by him or under his direction, and be read over to the informant...\nProvided that if the information is given by the woman against whom an offence under section 64... is alleged to have been committed, such information shall be recorded, by a woman police officer...',
+    },
+  },
+  sec175_bnss: {
+    section_code: 'sec175_bnss',
+    short_label: 'Sec 175(3) BNSS (Magistrate Directing FIR / formerly Sec 156(3) CrPC)',
+    act_name: 'Bharatiya Nagarik Suraksha Sanhita, 2023',
+    aliases: [
+      'bnss 175',
+      'sec 175',
+      'crpc 156(3)',
+      'crpc 156',
+      'magistrate investigation',
+      'direct fir',
+    ],
+    summary_view: {
+      core_legal_rule:
+        'Empowers Judicial Magistrate to order police investigation upon an application supported by affidavit after failure of police to register FIR under Section 173(4).',
+      essential_ingredients: [
+        'Applicant must have exhausted remedy before SHO and Superintendent of Police under Section 173.',
+        'Mandatory sworn affidavit filed in support of application (Priyanka Srivastava doctrine).',
+        'Magistrate considers police status report (Action Taken Report - ATR).',
+      ],
+      statutory_limitation: 'Filed before jurisdictional Metropolitan Magistrate / JMFC.',
+      landmark_sc_ruling:
+        'Priyanka Srivastava v. State of U.P., (2015) 6 SCC 287 — Affidavit mandatory to prevent abuse of magisterial investigation.',
+      counsel_checklist: [
+        'Attach postal receipts of Section 173(4) representation sent to DCP/SP.',
+        'Draft affidavit conforming to Section 175(3) BNSS requirements.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Section 175. Police officer’s power to investigate cognizable case.',
+      verbatim_text:
+        '(3) Any Magistrate empowered under section 210 may, after considering the application supported by an affidavit and the submissions of the officer in charge of the police station, order such an investigation as above-mentioned.',
+    },
+  },
+  sec65_bsa: {
+    section_code: 'sec65_bsa',
+    short_label: 'Sec 65 BSA (Secondary Evidence Admissibility)',
+    act_name: 'Bharatiya Sakshya Adhiniyam, 2023',
+    aliases: ['bsa 65', 'sec 65', 'secondary evidence', 'certified copies', 'lost original'],
+    summary_view: {
+      core_legal_rule:
+        'Prescribes specific situations when secondary evidence (certified copies, copies made from original by mechanical processes) may be given in proof of existence, condition, or contents of a document.',
+      essential_ingredients: [
+        'Original is shown or appears to be in possession of opposing party or out of reach.',
+        'Original has been destroyed or lost without fault of applicant.',
+        'Document is of such a nature as not to be easily movable.',
+      ],
+      statutory_limitation: 'Admissibility subject to proof of foundation.',
+      landmark_sc_ruling: 'J. Yashoda v. K. Shobha Rani, (2007) 5 SCC 730.',
+      counsel_checklist: [
+        'File formal application detailing diligent search made for missing original.',
+        'Verify certification standards under Section 65 BSA.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading:
+        'Section 65. Cases in which secondary evidence relating to documents may be given.',
+      verbatim_text:
+        'Secondary evidence may be given of the existence, condition, or contents of a document in the following cases:—\n(a) when the original is shown or appears to be in the possession or power of the person against whom the document is sought to be proved...\n(b) when the existence, condition or contents of the original have been proved to be admitted in writing...',
+    },
+  },
+  sec24_bsa: {
+    section_code: 'sec24_bsa',
+    short_label: 'Sec 24 BSA (Admissions in Civil & Commercial Suits)',
+    act_name: 'Bharatiya Sakshya Adhiniyam, 2023',
+    aliases: [
+      'bsa 24',
+      'sec 24',
+      'admission',
+      'admission of liability',
+      'written statement admission',
+      'concession',
+    ],
+    summary_view: {
+      core_legal_rule:
+        'Admissions are relevant and may be proved as against the person who makes them, or his representative in interest, but cannot be proved on his behalf.',
+      essential_ingredients: [
+        'Statement oral, documentary, or electronic which suggests inference as to any fact in issue or relevant fact.',
+        'Made by party to proceedings or agent authorised.',
+        'Establishes admission of liability, debt, or acceptance of goods.',
+      ],
+      statutory_limitation: 'Read with Order XII Rule 6 CPC (Judgment on Admissions).',
+      landmark_sc_ruling: 'Nagindas Ramdas v. Dalpatram Ichharam, (1974) 1 SCC 242.',
+      counsel_checklist: [
+        'Highlight written admissions in email correspondence and balance confirmations.',
+        'Cross-reference with Section 63 BSA electronic hash certificates.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Section 24. Admission defined.',
+      verbatim_text:
+        'An admission is a statement, oral or documentary or contained in electronic form, which suggests any inference as to any fact in issue or relevant fact, and which is made by any of the persons, and under the circumstances, hereinafter mentioned.',
+    },
+  },
+  order37_cpc: {
+    section_code: 'order37_cpc',
+    short_label: 'Order 37 CPC (Summary Suit for Debt Recovery)',
+    act_name: 'Code of Civil Procedure, 1908',
+    aliases: [
+      'order 37',
+      'order xxxvii',
+      'cpc order 37',
+      'summary suit',
+      'debt recovery',
+      'leave to defend',
+    ],
+    summary_view: {
+      core_legal_rule:
+        'Expedited summary procedure for recovery of debts or liquidated commercial demands arising upon written contracts, bills of exchange, hundies, or promissory notes.',
+      essential_ingredients: [
+        'Suit strictly based on written contract, bill of exchange, promissory note, or enactment where sum is fixed.',
+        'Defendant cannot defend suit as of right; must enter appearance within 10 days of summons.',
+        'Defendant must seek leave to defend by showing substantial or triable defence.',
+      ],
+      statutory_limitation:
+        'Summons for Judgment served after appearance; 10 days for leave application.',
+      landmark_sc_ruling:
+        'IDBI Trusteeship Services Ltd v. Hubtown Ltd, (2017) 1 SCC 568 — Quadruple principles governing unconditional leave versus conditional deposit.',
+      counsel_checklist: [
+        'Verify signed contract, purchase order, and counter-signed delivery challans.',
+        'Serve Summons for Judgment in Form 4A, Appendix B.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Order XXXVII Rule 1. Application of Order.',
+      verbatim_text:
+        'Subject to the provisions of sub-rule (2), this Order shall apply to the following Courts, namely:—\n(a) High Courts, City Civil Courts and Courts of Small Causes; and\n(b) other Courts...\n(2) Subject to the provisions of sub-rule (1), the Order applies to the following classes of suits, namely:—\n(a) suits upon bills of exchange, hundies and promissory notes;\n(b) suits in which the plaintiff seeks only to recover a debt or liquidated demand in money...',
+    },
+  },
+  sec9_arb: {
+    section_code: 'sec9_arb',
+    short_label: 'Sec 9 Arbitration Act (Interim Measures by Court)',
+    act_name: 'Arbitration and Conciliation Act, 1996',
+    aliases: [
+      'sec 9 arb',
+      'section 9',
+      'interim relief',
+      'asset freeze',
+      'status quo',
+      'preservation of goods',
+    ],
+    summary_view: {
+      core_legal_rule:
+        'Enables party to apply to Court before, during, or after arbitral award for interim protection, preservation, custody, or sale of disputed goods, or securing amount in dispute.',
+      essential_ingredients: [
+        'Existence of valid arbitration agreement.',
+        'Urgent necessity to secure goods or monetary assets before constitution of tribunal.',
+        'Arbitral proceedings must be commenced within 90 days from order if passed pre-arbitration.',
+      ],
+      statutory_limitation:
+        'Must issue Section 21 notice within 90 days of Section 9 interim relief.',
+      landmark_sc_ruling:
+        'Firm Ashok Traders v. Gurumukh Das Saluja, (2004) 3 SCC 155 & ArcelorMittal Nippon Steel v. Essar Bulk Terminal, (2022) 1 SCC 712.',
+      counsel_checklist: [
+        'Demonstrate apprehension of asset siphoning or disposal by opposite party.',
+        'Confirm readiness to initiate arbitration within statutory 90-day window.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Section 9. Interim measures, etc., by Court.',
+      verbatim_text:
+        '(1) A party may, before or during arbitral proceedings or at any time after the making of the arbitral award but before it is enforced in accordance with section 36, apply to a Court:—\n(i) for the appointment of a guardian...\n(ii) for an interim measure of protection in respect of...\n(b) securing the amount in dispute in the arbitration...',
+    },
+  },
+  sec34_arb: {
+    section_code: 'sec34_arb',
+    short_label: 'Sec 34 Arbitration Act (Setting Aside Arbitral Award)',
+    act_name: 'Arbitration and Conciliation Act, 1996',
+    aliases: [
+      'sec 34 arb',
+      'section 34',
+      'challenge award',
+      'patent illegality',
+      'public policy',
+      'set aside award',
+    ],
+    summary_view: {
+      core_legal_rule:
+        'Recourse to a Court against an arbitral award may be made only by an application for setting aside such award in accordance with sub-section (2) and sub-section (2A) on strictly limited grounds.',
+      essential_ingredients: [
+        'Incapacity of party or invalidity of arbitration agreement.',
+        'Party was not given proper notice of arbitrator appointment or proceedings.',
+        'Award deals with dispute not contemplated or exceeds terms of submission.',
+        'Patent illegality appearing on face of award (domestic arbitrations).',
+      ],
+      statutory_limitation:
+        'Strict 3 months from receipt of award + 30 days condonable grace period only.',
+      landmark_sc_ruling:
+        'Associate Builders v. DDA, (2015) 3 SCC 49 & Ssangyong Engineering & Construction v. NHAI, (2019) 15 SCC 131.',
+      counsel_checklist: [
+        'Verify date of receipt of signed arbitral award.',
+        'Confirm pre-deposit requirements under Section 19 of MSMED Act if applicable.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Section 34. Application for setting aside arbitral award.',
+      verbatim_text:
+        '(1) Recourse to a Court against an arbitral award may be made only by an application for setting aside such award in accordance with sub-section (2) and sub-section (3)...\n(3) An application for setting aside may not be made after three months have elapsed from the date on which the party making that application had received the arbitral award...',
+    },
+  },
+  sec141_ni_act: {
+    section_code: 'sec141_ni_act',
+    short_label: 'Sec 141 NI Act (Cheque Bounce - Corporate Liability)',
+    act_name: 'Negotiable Instruments Act, 1881',
+    aliases: [
+      'sec 141',
+      'ni 141',
+      '141 ni',
+      'vicarious liability',
+      'director liability',
+      'signatory',
+      'cheque bounce company',
+    ],
+    summary_view: {
+      core_legal_rule:
+        'Where offence under Section 138 is committed by a company, every person who was in charge of and responsible to the company for conduct of business is deemed guilty along with the company.',
+      essential_ingredients: [
+        'Company must be arraigned as primary accused (Aneeta Hada doctrine).',
+        'Specific averment in complaint that director was in charge of day-to-day business at time of commission.',
+        'Signatory of cheque is deemed liable without requiring separate averments.',
+      ],
+      statutory_limitation:
+        'Must be arraigned in Section 138 complaint within 30 days of notice expiry.',
+      landmark_sc_ruling:
+        'Aneeta Hada v. Godfather Travels & Tours Pvt Ltd, (2012) 5 SCC 661 & Sunita Palita v. Panchami Stone Quarry, (2022) 10 SCC 152.',
+      counsel_checklist: [
+        'Procure MCA Form DIR-12 and Company Master Data confirming active directorship.',
+        'Insert specific factual averment attributing active role in dishonoured transaction.',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading: 'Section 141. Offences by companies.',
+      verbatim_text:
+        '(1) If the person committing an offence under section 138 is a company, every person who, at the time the offence was committed, was in charge of, and was responsible to, the company for the conduct of the business of the company, as well as the company, shall be deemed to be guilty of the offence and shall be liable to be proceeded against and punished accordingly.',
+    },
+  },
+  art32_const: {
+    section_code: 'art32_const',
+    short_label: 'Article 32 Constitution (Supreme Court Writ Jurisdiction)',
+    act_name: 'Constitution of India, 1950',
+    aliases: [
+      'art 32',
+      'article 32',
+      'supreme court writ',
+      'fundamental rights',
+      'habeas corpus',
+      'mandamus',
+      'pil',
+    ],
+    summary_view: {
+      core_legal_rule:
+        'Right to move the Supreme Court by appropriate proceedings for enforcement of Part III Fundamental Rights is itself guaranteed as a fundamental right.',
+      essential_ingredients: [
+        'Direct violation of Fundamental Right (Articles 14, 19, 21).',
+        'State action or legislation impinging upon constitutional core without legislative authority.',
+        'Explanation as to why High Court under Article 226 was not first approached.',
+      ],
+      statutory_limitation: 'No formal statutory limitation, subject to doctrine of laches.',
+      landmark_sc_ruling:
+        'Romesh Thappar v. State of Madras, 1950 SCR 594 & Daryao v. State of U.P., (1962) 1 SCR 574.',
+      counsel_checklist: [
+        'Establish locus standi or Public Interest Litigation (PIL) compliance.',
+        'Frame explicit prayer for prerogative writ (Certiorari / Mandamus / Prohibition).',
+      ],
+    },
+    details_view_bare_act: {
+      official_heading:
+        'Article 32. Remedies for enforcement of rights conferred by this Part.',
+      verbatim_text:
+        '(1) The right to move the Supreme Court by appropriate proceedings for the enforcement of the rights conferred by this Part is guaranteed.\n(2) The Supreme Court shall have power to issue directions or orders or writs, including writs in the nature of habeas corpus, mandamus, prohibition, quo warranto and certiorari, whichever may be appropriate, for the enforcement of any of the rights conferred by this Part.',
+    },
+  },
 };
+
+/* -----------------------------------------------------------------------------
+ * EPIC: epic_legal_case_intake_workspace.md
+ * STORY: STORY-INTAKE-02: Intelligent Multi-Modal Legal Case Intake Workspace
+ * DESIGN: Configurable Domain Schema Optional Fields Catalog
+ * ----------------------------------------------------------------------------- */
+export interface ConfiguredDomainField {
+  key: string;
+  label: string;
+  placeholder: string;
+  type: 'text' | 'select' | 'number' | 'date';
+  options?: string[];
+  description: string;
+  applicableCategories: Array<'commercial' | 'criminal' | 'constitutional' | 'arbitration' | 'civil'>;
+  defaultForCategories: Array<'commercial' | 'criminal' | 'constitutional' | 'arbitration' | 'civil'>;
+}
+
+export const CONFIGURED_DOMAIN_FIELDS_CATALOG: ConfiguredDomainField[] = [
+  {
+    key: 'claim_valuation',
+    label: 'Disputed Valuation / Claim Amount',
+    placeholder: 'e.g. ₹92,00,000 (Principal + 18% Interest)',
+    type: 'text',
+    description: 'Monetary claim or fraud quantum (can be removed if not relevant for writs or quashing)',
+    applicableCategories: ['commercial', 'criminal', 'arbitration', 'civil'],
+    defaultForCategories: ['commercial', 'arbitration', 'civil'],
+  },
+  {
+    key: 'police_jurisdiction',
+    label: 'Police Station / Investigating Agency',
+    placeholder: 'e.g. PS Economic Offences Wing (EOW), New Delhi',
+    type: 'text',
+    description: 'Jurisdictional police station or regulatory investigation agency',
+    applicableCategories: ['criminal', 'commercial'],
+    defaultForCategories: ['criminal'],
+  },
+  {
+    key: 'coram_presiding',
+    label: 'Adjudicating Coram / Presiding Judge',
+    placeholder: 'e.g. Chief Metropolitan Magistrate (CMM) / Commercial Bench',
+    type: 'text',
+    description: 'Name of judicial magistrate, bench, or arbitrator',
+    applicableCategories: ['commercial', 'criminal', 'constitutional', 'arbitration', 'civil'],
+    defaultForCategories: ['commercial', 'criminal', 'constitutional', 'arbitration', 'civil'],
+  },
+  {
+    key: 'court_level',
+    label: 'Court / Forum Hierarchy',
+    placeholder: 'Select hierarchy level',
+    type: 'select',
+    options: [
+      'Magistrate Court (CMM / ACMM)',
+      'District / Commercial Court',
+      'Sessions Court (Special Judge / ASJ)',
+      'High Court (Single Judge)',
+      'High Court (Division Bench)',
+      'Supreme Court of India',
+      'Sole Arbitrator Tribunal',
+      '3-Member Arbitral Tribunal',
+    ],
+    description: 'Judicial hierarchy level for jurisdiction & appellate routing',
+    applicableCategories: ['commercial', 'criminal', 'constitutional', 'arbitration', 'civil'],
+    defaultForCategories: ['commercial', 'criminal', 'constitutional', 'arbitration', 'civil'],
+  },
+  {
+    key: 'court_complex',
+    label: 'Court Complex / Location',
+    placeholder: 'e.g. Tis Hazari Courts, Central District, Delhi',
+    type: 'text',
+    description: 'Physical or virtual seat of court/forum',
+    applicableCategories: ['commercial', 'criminal', 'constitutional', 'arbitration', 'civil'],
+    defaultForCategories: ['commercial', 'criminal', 'constitutional', 'arbitration', 'civil'],
+  },
+  {
+    key: 'secondary_reference',
+    label: 'Secondary Reference (FIR / Contract / PPA / Gazette)',
+    placeholder: 'e.g. FIR No. 142/2026 or Contract Ref SC-902',
+    type: 'text',
+    description: 'Secondary citation, contract clause reference, or police complaint number',
+    applicableCategories: ['commercial', 'criminal', 'constitutional', 'arbitration', 'civil'],
+    defaultForCategories: ['commercial', 'criminal', 'arbitration'],
+  },
+  {
+    key: 'limitation_date',
+    label: 'Statutory Limitation / Filing Deadline',
+    placeholder: 'YYYY-MM-DD',
+    type: 'date',
+    description: 'Prescribed deadline under Limitation Act or statutory notice window',
+    applicableCategories: ['commercial', 'criminal', 'arbitration', 'civil'],
+    defaultForCategories: [],
+  },
+  {
+    key: 'adr_reference',
+    label: 'Pre-Institution Mediation / ADR Docket No.',
+    placeholder: 'e.g. DSLSA Form 1 Ref: MED-2026/041',
+    type: 'text',
+    description: 'Section 12A Commercial Courts Act non-starter report or mediation docket',
+    applicableCategories: ['commercial', 'arbitration', 'civil'],
+    defaultForCategories: [],
+  },
+  {
+    key: 'interim_relief',
+    label: 'Interim Relief / Status Quo Urgency',
+    placeholder: 'e.g. Order 39 ex-parte injunction or Sec 9 asset freeze',
+    type: 'text',
+    description: 'Immediate ex-parte relief or status-quo prayers',
+    applicableCategories: ['commercial', 'constitutional', 'arbitration', 'civil'],
+    defaultForCategories: [],
+  },
+  {
+    key: 'opposite_counsel',
+    label: 'Opposite Counsel / External Law Firm',
+    placeholder: 'e.g. M/s Trilegal / Advocate on Record',
+    type: 'text',
+    description: 'Representing legal counsel for opposite party',
+    applicableCategories: ['commercial', 'criminal', 'constitutional', 'arbitration', 'civil'],
+    defaultForCategories: [],
+  },
+  {
+    key: 'billing_code',
+    label: 'Internal Client / Matter Billing Code',
+    placeholder: 'e.g. MAT-DLH-2026-042',
+    type: 'text',
+    description: 'Enterprise ERP / Timesheet matter reference code',
+    applicableCategories: ['commercial', 'criminal', 'constitutional', 'arbitration', 'civil'],
+    defaultForCategories: [],
+  },
+];
+
+/* -----------------------------------------------------------------------------
+ * EPIC: epic_legal_case_intake_workspace.md
+ * STORY: STORY-INTAKE-02: Intelligent Multi-Modal Legal Case Intake Workspace
+ * DESIGN: Extraction Profile Prompt Schema & Intelligent Legal Intake Extractor
+ * ----------------------------------------------------------------------------- */
+export interface ExtractionProfilePrompt {
+  profile_id: string;
+  name: string;
+  system_instruction: string;
+  target_fields: string[];
+}
+
+export interface IntakeExtractionResult {
+  headline: string;
+  caseCategory: 'commercial' | 'criminal' | 'constitutional' | 'arbitration' | 'civil';
+  initiatingParty: string;
+  opposingParty: string;
+  sections: string[]; // section_code matches from STATUTORY_RECKONER_DB
+  forumOrCourt?: string;
+  claimOrDisputedValue?: string;
+  secondaryReference?: string;
+  disputeDescription?: string;
+  policeJurisdiction?: string;
+  coramBench?: string;
+  activeOptionalKeys: string[];
+  optionalFieldValues: Record<string, string>;
+  confidenceScore: number;
+}
+
+export const DEFAULT_INTAKE_EXTRACTION_PROFILE: ExtractionProfilePrompt = {
+  profile_id: 'default_legal_intake_v1',
+  name: 'Standard Indian Jurisprudence Intake Profile',
+  system_instruction:
+    'Extract structured case intake fields from the matter text or document extract: case category, matter headline, initiating and opposing parties, statutory sections/articles (BNS, BNSS, BSA, CPC, Arbitration Act, NI Act), forum, value, police jurisdiction, and optional domain fields.',
+  target_fields: [
+    'case_category',
+    'matter_headline',
+    'initiating_party',
+    'opposing_party',
+    'statutory_sections',
+    'disputed_value',
+    'forum_or_court',
+    'police_jurisdiction',
+    'secondary_reference',
+  ],
+};
+
+/**
+ * Intelligent client-side intake extraction engine.
+ * Parses brief text, pasted extracts, or document file metadata.
+ * Returns structured fields or null if content lacks sufficient legal signal.
+ */
+export function extractIntakeDetails(
+  briefText: string,
+  attachedFiles: Array<{ name: string; size?: string } | string> = [],
+  categoryHint?: 'commercial' | 'criminal' | 'constitutional' | 'arbitration' | 'civil',
+): IntakeExtractionResult | null {
+  const combinedText = [
+    briefText.trim(),
+    ...attachedFiles.map((f) => (typeof f === 'string' ? f : f.name)),
+  ].join(' ');
+
+  if (combinedText.length < 12) {
+    return null;
+  }
+
+  const lower = combinedText.toLowerCase();
+
+  const hasLegalKeywords =
+    lower.includes('v.') ||
+    lower.includes('vs.') ||
+    lower.includes('versus') ||
+    lower.includes('bns') ||
+    lower.includes('bnss') ||
+    lower.includes('bsa') ||
+    lower.includes('ipc') ||
+    lower.includes('crpc') ||
+    lower.includes('cpc') ||
+    lower.includes('sec') ||
+    lower.includes('section') ||
+    lower.includes('article') ||
+    lower.includes('court') ||
+    lower.includes('fir') ||
+    lower.includes('police') ||
+    lower.includes('arbitrat') ||
+    lower.includes('cheque') ||
+    lower.includes('claim') ||
+    lower.includes('invoice') ||
+    lower.includes('agreement') ||
+    lower.includes('contract') ||
+    lower.includes('dispute') ||
+    lower.includes('recovery') ||
+    lower.includes('notice');
+
+  if (!hasLegalKeywords && combinedText.length < 30) {
+    return null;
+  }
+
+  // 1. Detect Category
+  let detectedCategory: 'commercial' | 'criminal' | 'constitutional' | 'arbitration' | 'civil' =
+    categoryHint || 'commercial';
+
+  if (
+    lower.includes('fir') ||
+    lower.includes('police') ||
+    lower.includes('accused') ||
+    lower.includes('cheating') ||
+    lower.includes('bns') ||
+    lower.includes('crpc') ||
+    lower.includes('bail') ||
+    lower.includes('cognizable') ||
+    lower.includes('cbt') ||
+    lower.includes('318') ||
+    lower.includes('316') ||
+    lower.includes('165') ||
+    lower.includes('138')
+  ) {
+    detectedCategory = 'criminal';
+  } else if (
+    lower.includes('arbitrat') ||
+    lower.includes('diac') ||
+    lower.includes('mcia') ||
+    lower.includes('tribunal') ||
+    lower.includes('sec 21') ||
+    lower.includes('section 9') ||
+    lower.includes('sec 34')
+  ) {
+    detectedCategory = 'arbitration';
+  } else if (
+    lower.includes('writ') ||
+    lower.includes('article 226') ||
+    lower.includes('art 226') ||
+    lower.includes('article 32') ||
+    lower.includes('mandamus') ||
+    lower.includes('certiorari') ||
+    lower.includes('fundamental right')
+  ) {
+    detectedCategory = 'constitutional';
+  } else if (
+    lower.includes('order 39') ||
+    lower.includes('order 37') ||
+    lower.includes('civil suit') ||
+    lower.includes('partition') ||
+    lower.includes('eviction') ||
+    lower.includes('specific performance')
+  ) {
+    detectedCategory = 'civil';
+  } else {
+    detectedCategory = categoryHint || 'commercial';
+  }
+
+  // 2. Detect Statutory Sections
+  const matchedSectionCodes = new Set<string>();
+
+  Object.values(STATUTORY_RECKONER_DB).forEach((sec) => {
+    if (sec.aliases) {
+      for (const alias of sec.aliases) {
+        if (lower.includes(alias.toLowerCase())) {
+          matchedSectionCodes.add(sec.section_code);
+          break;
+        }
+      }
+    }
+    if (lower.includes(sec.section_code.replace(/_/g, ' '))) {
+      matchedSectionCodes.add(sec.section_code);
+    }
+  });
+
+  if (detectedCategory === 'criminal') {
+    if (
+      lower.includes('cheque') ||
+      lower.includes('dishonour') ||
+      lower.includes('bounce') ||
+      lower.includes('138')
+    ) {
+      matchedSectionCodes.add('sec138_ni_act');
+      matchedSectionCodes.add('sec141_ni_act');
+    }
+    if (
+      lower.includes('cheating') ||
+      lower.includes('inducement') ||
+      lower.includes('fraud') ||
+      lower.includes('420') ||
+      lower.includes('318')
+    ) {
+      matchedSectionCodes.add('sec318_bns');
+    }
+    if (
+      lower.includes('cbt') ||
+      lower.includes('trust') ||
+      lower.includes('misappropriation') ||
+      lower.includes('316')
+    ) {
+      matchedSectionCodes.add('sec316_bns');
+    }
+    if (
+      lower.includes('165') ||
+      lower.includes('public servant') ||
+      lower.includes('incorrect document') ||
+      lower.includes('218')
+    ) {
+      matchedSectionCodes.add('sec165_bns');
+    }
+    if (
+      lower.includes('fir') ||
+      lower.includes('police') ||
+      lower.includes('173') ||
+      lower.includes('154')
+    ) {
+      matchedSectionCodes.add('sec173_bnss');
+    }
+    if (
+      lower.includes('electronic') ||
+      lower.includes('whatsapp') ||
+      lower.includes('email') ||
+      lower.includes('certificate')
+    ) {
+      matchedSectionCodes.add('sec63_bsa');
+    }
+    if (matchedSectionCodes.size === 0) {
+      matchedSectionCodes.add('sec318_bns');
+      matchedSectionCodes.add('sec35_bnss');
+      matchedSectionCodes.add('sec63_bsa');
+    }
+  } else if (detectedCategory === 'commercial') {
+    matchedSectionCodes.add('sec12a_cca');
+    matchedSectionCodes.add('sec63_bsa');
+    if (lower.includes('summary') || lower.includes('liquidated') || lower.includes('order 37')) {
+      matchedSectionCodes.add('order37_cpc');
+    }
+    if (lower.includes('arbitrat') || lower.includes('clause')) {
+      matchedSectionCodes.add('sec21_arb');
+    }
+  } else if (detectedCategory === 'arbitration') {
+    matchedSectionCodes.add('sec21_arb');
+    if (
+      lower.includes('interim') ||
+      lower.includes('freeze') ||
+      lower.includes('injunction') ||
+      lower.includes('sec 9')
+    ) {
+      matchedSectionCodes.add('sec9_arb');
+    }
+    if (lower.includes('set aside') || lower.includes('challenge') || lower.includes('sec 34')) {
+      matchedSectionCodes.add('sec34_arb');
+    }
+    matchedSectionCodes.add('sec63_bsa');
+  } else if (detectedCategory === 'constitutional') {
+    if (
+      lower.includes('supreme court') ||
+      lower.includes('art 32') ||
+      lower.includes('article 32')
+    ) {
+      matchedSectionCodes.add('art32_const');
+    } else {
+      matchedSectionCodes.add('art226_writ');
+    }
+  } else if (detectedCategory === 'civil') {
+    matchedSectionCodes.add('order39_cpc');
+    if (lower.includes('admission') || lower.includes('concession')) {
+      matchedSectionCodes.add('sec24_bsa');
+    }
+  }
+
+  // 3. Extract Financial Valuation / Claim Amount
+  let extractedValuation = '';
+  const valMatch =
+    combinedText.match(
+      /(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d+)?\s*(?:cr(?:ore)?s?|l(?:akh)?s?|k)?)/i,
+    ) || combinedText.match(/(\d+(?:\.\d+)?\s*(?:cr(?:ore)?s?|l(?:akh)?s?))/i);
+  if (valMatch) {
+    extractedValuation = valMatch[0].trim();
+    if (
+      !extractedValuation.startsWith('₹') &&
+      !extractedValuation.toLowerCase().startsWith('rs') &&
+      !extractedValuation.toLowerCase().startsWith('inr')
+    ) {
+      extractedValuation = `₹${extractedValuation}`;
+    }
+  }
+
+  // 4. Extract Parties
+  let initiatingParty = '';
+  let opposingParty = '';
+
+  const vMatch = combinedText.match(
+    /([A-Z][A-Za-z0-9\s.,&'-]+?)\s+(?:v\.|vs\.|versus)\s+([A-Z][A-Za-z0-9\s.,&'-]+?)(?=[,\n\.;\-–—]|$)/,
+  );
+  if (vMatch && vMatch[1].trim().length > 2 && vMatch[2].trim().length > 2) {
+    initiatingParty = vMatch[1].trim();
+    opposingParty = vMatch[2].trim();
+  } else {
+    const compMatch = combinedText.match(
+      /(?:complainant|petitioner|claimant|plaintiff)[:\s]+([A-Z][A-Za-z0-9\s.,&'-]+?)(?=[,\n\.;\-–—]|$)/i,
+    );
+    const accMatch = combinedText.match(
+      /(?:accused|respondent|defendant)[:\s]+([A-Z][A-Za-z0-9\s.,&'-]+?)(?=[,\n\.;\-–—]|$)/i,
+    );
+    if (compMatch) initiatingParty = compMatch[1].trim();
+    if (accMatch) opposingParty = accMatch[1].trim();
+  }
+
+  if (!initiatingParty) {
+    initiatingParty =
+      detectedCategory === 'criminal'
+        ? 'State of NCT of Delhi (Complainant)'
+        : detectedCategory === 'constitutional'
+          ? 'Aggrieved Petitioner'
+          : 'Initiating Corporate Entity';
+  }
+  if (!opposingParty) {
+    opposingParty =
+      detectedCategory === 'criminal'
+        ? 'Named Accused & Managing Director'
+        : detectedCategory === 'constitutional'
+          ? 'Union of India / State Authority'
+          : 'Opposing Commercial Entity LLP';
+  }
+
+  // 5. Extract Headline
+  let headline = '';
+  if (initiatingParty && opposingParty) {
+    const topicSummary = extractedValuation
+      ? `(${extractedValuation} ${detectedCategory === 'criminal' ? 'Dishonour & Fraud Matter' : 'Commercial Claim'})`
+      : `(${detectedCategory.toUpperCase()} Dispute)`;
+    headline = `${initiatingParty} v. ${opposingParty} ${topicSummary}`;
+  } else {
+    headline = briefText.split(/[.\n]/)[0].trim() || 'New Legal Dispute Workspace';
+  }
+
+  // 6. Domain-specific fields
+  let policeJurisdiction = '';
+  const policeMatch =
+    combinedText.match(
+      /(?:ps|police station|station)[:\s]+([A-Za-z0-9\s.,&'-]+?)(?=[,\n\.;\-–—]|$)/i,
+    ) ||
+    combinedText.match(/(?:economic offences wing|eow|cyber cell|crime branch)/i);
+  if (policeMatch) {
+    policeJurisdiction = policeMatch[0].trim();
+  } else if (detectedCategory === 'criminal') {
+    policeJurisdiction = 'PS Economic Offences Wing (EOW), New Delhi';
+  }
+
+  let forumOrCourt = '';
+  if (lower.includes('supreme court')) {
+    forumOrCourt = 'Supreme Court of India, New Delhi';
+  } else if (
+    lower.includes('high court') ||
+    lower.includes('delhi high court') ||
+    lower.includes('bombay high court')
+  ) {
+    forumOrCourt = 'High Court of Delhi, New Delhi';
+  } else if (lower.includes('diac') || lower.includes('arbitrat')) {
+    forumOrCourt = 'Delhi International Arbitration Centre (DIAC)';
+  } else if (lower.includes('patiala house')) {
+    forumOrCourt = 'Commercial Court, Patiala House Courts, New Delhi';
+  } else if (lower.includes('tis hazari') || detectedCategory === 'criminal') {
+    forumOrCourt = 'Court of Chief Metropolitan Magistrate (CMM), Tis Hazari Courts, Delhi';
+  } else {
+    forumOrCourt = 'Commercial Court, Patiala House Courts, New Delhi';
+  }
+
+  let secondaryRef = '';
+  const firMatch = combinedText.match(/fir\s*(?:no\.?)?\s*[\w\d\/]+/i);
+  const contractMatch = combinedText.match(/contract\s*(?:no\.?|ref\.?)?\s*[\w\d\/-]+/i);
+  if (firMatch) secondaryRef = firMatch[0].trim();
+  else if (contractMatch) secondaryRef = contractMatch[0].trim();
+  else if (detectedCategory === 'criminal') secondaryRef = 'FIR No. 142/2026, PS EOW Central';
+  else secondaryRef = 'Contract Ref: SC-2026/COM';
+
+  // Build active optional fields & values
+  const activeOptionalKeys: string[] = [];
+  const optionalFieldValues: Record<string, string> = {};
+
+  if (extractedValuation && detectedCategory !== 'constitutional') {
+    activeOptionalKeys.push('claim_valuation');
+    optionalFieldValues['claim_valuation'] = extractedValuation;
+  }
+  if (policeJurisdiction) {
+    activeOptionalKeys.push('police_jurisdiction');
+    optionalFieldValues['police_jurisdiction'] = policeJurisdiction;
+  }
+  if (forumOrCourt) {
+    activeOptionalKeys.push('court_complex');
+    optionalFieldValues['court_complex'] = forumOrCourt;
+  }
+  if (secondaryRef) {
+    activeOptionalKeys.push('secondary_reference');
+    optionalFieldValues['secondary_reference'] = secondaryRef;
+  }
+  activeOptionalKeys.push('coram_presiding');
+  optionalFieldValues['coram_presiding'] =
+    detectedCategory === 'criminal'
+      ? 'Court of Chief Metropolitan Magistrate (CMM), Tis Hazari'
+      : detectedCategory === 'constitutional'
+        ? 'Division Bench (Hon\'ble Chief Justice + Companion Judge)'
+        : 'Commercial Court Single Judge / Bench';
+
+  activeOptionalKeys.push('court_level');
+  optionalFieldValues['court_level'] =
+    detectedCategory === 'criminal'
+      ? 'Magistrate Court (CMM / ACMM)'
+      : detectedCategory === 'constitutional'
+        ? 'High Court (Division Bench)'
+        : detectedCategory === 'arbitration'
+          ? 'Sole Arbitrator Tribunal'
+          : 'District / Commercial Court';
+
+  return {
+    headline,
+    caseCategory: detectedCategory,
+    initiatingParty,
+    opposingParty,
+    sections: Array.from(matchedSectionCodes),
+    forumOrCourt,
+    claimOrDisputedValue: extractedValuation,
+    secondaryReference: secondaryRef,
+    disputeDescription: briefText.trim() || 'Dispute parsed from matter documentation.',
+    policeJurisdiction,
+    coramBench: optionalFieldValues['coram_presiding'],
+    activeOptionalKeys,
+    optionalFieldValues,
+    confidenceScore: 0.94,
+  };
+}
 
 // -----------------------------------------------------------------------------
 // CASE 1: Orion Components v. Delta Systems

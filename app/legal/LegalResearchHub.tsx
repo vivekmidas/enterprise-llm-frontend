@@ -264,23 +264,29 @@ export default function LegalResearchHub({
   const [outcomeTagOptions, setOutcomeTagOptions] = useState(DEFAULT_OUTCOME_TAG_OPTIONS);
   const [statusBadgeOptions, setStatusBadgeOptions] = useState(DEFAULT_STATUS_BADGE_OPTIONS);
 
-  const [selectedCourts, setSelectedCourts] = useState<string[]>([
-    'Supreme Court of India',
-    'High Court of Delhi',
-  ]);
+  // ===============================================================================
+  // BLOCK COMMENT: DEFAULT LEGAL SEARCH FILTERS (EMPTY BY DEFAULT)
+  // Module: frontend/app/legal/LegalResearchHub.tsx
+  // Purpose:
+  //   1. All filters are removed by default so queries search across all documents.
+  //   2. The default/active LLM profile is resolved and used for searches & synthesis.
+  // ===============================================================================
+  const [selectedCourts, setSelectedCourts] = useState<string[]>([]);
   const [selectedStatutes, setSelectedStatutes] = useState<string[]>([]);
   const [selectedOutcomeTags, setSelectedOutcomeTags] = useState<string[]>([]);
-  const [selectedStatusBadges, setSelectedStatusBadges] = useState<string[]>(['Good Law']);
+  const [selectedStatusBadges, setSelectedStatusBadges] = useState<string[]>([]);
   const [judgeFilter, setJudgeFilter] = useState('');
-  const [yearMin, setYearMin] = useState(2018);
-  const [yearMax, setYearMax] = useState(2026);
+  const [yearMin, setYearMin] = useState<number | undefined>(undefined);
+  const [yearMax, setYearMax] = useState<number | undefined>(undefined);
 
   const activeFiltersCount =
     selectedCourts.length +
     selectedStatutes.length +
     selectedOutcomeTags.length +
     selectedStatusBadges.length +
-    (judgeFilter ? 1 : 0);
+    (judgeFilter ? 1 : 0) +
+    (yearMin !== undefined ? 1 : 0) +
+    (yearMax !== undefined ? 1 : 0);
 
   // Panel 3 State (Detail View)
   const [selectedCnr, setSelectedCnr] = useState<string | null>(null);
@@ -341,8 +347,12 @@ export default function LegalResearchHub({
       }
       const profs = await api.getLlmProfiles();
       if (Array.isArray(profs) && profs.length > 0) {
-        const active = profs.find((p: any) => p.is_active || p.is_default) || profs[0];
-        if (active) setActiveProfileId(active.id);
+        // Prioritize default profile, then active profile, then first available
+        const defaultProfile =
+          profs.find((p: any) => p.is_default) ||
+          profs.find((p: any) => p.is_active) ||
+          profs[0];
+        if (defaultProfile) setActiveProfileId(defaultProfile.id);
       }
     } catch (err) {
       console.warn('Could not pre-load tenant KBs/profiles:', err);
@@ -419,23 +429,27 @@ export default function LegalResearchHub({
     setHasSearched(true);
 
     try {
-      // 1. Execute Two-Stage Domain & Precedent Search (with phonetic and tag pre-filtering)
+      // 1. Execute Two-Stage Domain & Precedent Search (search across all documents / KBs by default)
       let domainSearchSuccess = false;
       let mappedItems: any[] = [];
+
+      // Assemble filter dictionary strictly from active user selections
+      const dynamicFilters: Record<string, any> = {};
+      if (selectedCourts.length > 0) dynamicFilters.court = selectedCourts[0];
+      if (selectedStatutes.length > 0) dynamicFilters.statute = selectedStatutes[0];
+      if (selectedOutcomeTags.length > 0) dynamicFilters.disposition = selectedOutcomeTags[0];
+      if (selectedStatusBadges.length > 0) dynamicFilters.status = selectedStatusBadges[0];
+      if (judgeFilter && judgeFilter.trim()) dynamicFilters.judge = judgeFilter.trim();
+      if (yearMin !== undefined) dynamicFilters.year_min = yearMin;
+      if (yearMax !== undefined) dynamicFilters.year_max = yearMax;
 
       try {
         const searchRes = await api.searchDomainKnowledge({
           query: textToSearch,
           domain: 'legal',
-          knowledge_base_id: activeKbIds[0] || undefined,
-          filters: {
-            ...(selectedCourts.length > 0 ? { court: selectedCourts[0] } : {}),
-            ...(selectedStatutes.length > 0 ? { statute: selectedStatutes[0] } : {}),
-            ...(selectedOutcomeTags.length > 0 ? { disposition: selectedOutcomeTags[0] } : {}),
-            ...(judgeFilter ? { judge: judgeFilter } : {}),
-            year_min: yearMin,
-            year_max: yearMax,
-          },
+          knowledge_base_id: undefined, // Search across all documents across tenant
+          llm_profile_id: activeProfileId || undefined,
+          filters: Object.keys(dynamicFilters).length > 0 ? dynamicFilters : undefined,
         });
 
         if (searchRes && searchRes.results && searchRes.results.length > 0) {
@@ -740,11 +754,22 @@ export default function LegalResearchHub({
     handleSearch(promptQuery);
   };
 
+  const clearAllFilters = () => {
+    setSelectedCourts([]);
+    setSelectedStatutes([]);
+    setSelectedOutcomeTags([]);
+    setSelectedStatusBadges([]);
+    setJudgeFilter('');
+    setYearMin(undefined);
+    setYearMax(undefined);
+  };
+
   const resetToHero = () => {
     setHasSearched(false);
     setSearchQuery('');
     setResults([]);
     setSelectedResult(null);
+    clearAllFilters();
   };
 
   const toggleCourt = (courtVal: string) => {
@@ -756,6 +781,18 @@ export default function LegalResearchHub({
   const toggleStatute = (st: string) => {
     setSelectedStatutes((prev) =>
       prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st],
+    );
+  };
+
+  const toggleOutcomeTag = (tag: string) => {
+    setSelectedOutcomeTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  };
+
+  const toggleStatusBadge = (badge: string) => {
+    setSelectedStatusBadges((prev) =>
+      prev.includes(badge) ? prev.filter((b) => b !== badge) : [...prev, badge],
     );
   };
 
@@ -987,13 +1024,30 @@ export default function LegalResearchHub({
                 className="absolute top-11 right-0 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-100"
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="text-xs font-extrabold text-slate-900">Precedent Filters</span>
-                  <button
-                    onClick={() => setShowFilterPopover(false)}
-                    className="text-slate-400 hover:text-slate-700"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold text-slate-900">Precedent Filters</span>
+                    {activeFiltersCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-800 text-[9px] font-bold">
+                        {activeFiltersCount} active
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {activeFiltersCount > 0 && (
+                      <button
+                        onClick={clearAllFilters}
+                        className="text-[10px] text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowFilterPopover(false)}
+                      className="text-slate-400 hover:text-slate-700"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Court Hierarchy Filters */}
@@ -1028,7 +1082,7 @@ export default function LegalResearchHub({
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     Statutes & Codes
                   </span>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto">
                     {statuteOptions.map((st: string) => {
                       const active = selectedStatutes.includes(st);
                       return (
@@ -1047,6 +1101,60 @@ export default function LegalResearchHub({
                     })}
                   </div>
                 </div>
+
+                {/* Outcome / Disposition Filter */}
+                {outcomeTagOptions.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Dispositions & Outcomes
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {outcomeTagOptions.map((out: string) => {
+                        const active = selectedOutcomeTags.includes(out);
+                        return (
+                          <button
+                            key={out}
+                            onClick={() => toggleOutcomeTag(out)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition border cursor-pointer ${
+                              active
+                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300 shadow-2xs font-bold'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {out}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Status Badges */}
+                {statusBadgeOptions.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Precedent Status
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {statusBadgeOptions.map((badge: string) => {
+                        const active = selectedStatusBadges.includes(badge);
+                        return (
+                          <button
+                            key={badge}
+                            onClick={() => toggleStatusBadge(badge)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition border cursor-pointer ${
+                              active
+                                ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs font-bold'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {badge}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
