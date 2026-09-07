@@ -29,6 +29,8 @@ import {
   X,
   ChevronRight,
   Eye,
+  BookOpen,
+  Lock,
 } from 'lucide-react';
 import Alert from '@mui/material/Alert';
 
@@ -125,9 +127,19 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
   // Modal / Drawer state for Editing Domain Config
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [activeConfigTab, setActiveConfigTab] = useState<
-    'general' | 'schema' | 'prompts' | 'advanced'
+    'general' | 'schema' | 'prompts' | 'kbs' | 'advanced'
   >('general');
   const [editingDomain, setEditingDomain] = useState<DomainSchemaItem | null>(null);
+
+  // Knowledge Bases linked to this domain
+  const [domainKbs, setDomainKbs] = useState<any[]>([]);
+  const [kbsLoading, setKbsLoading] = useState(false);
+  const [showAddKbModal, setShowAddKbModal] = useState(false);
+  const [newKbName, setNewKbName] = useState('');
+  const [newKbDescription, setNewKbDescription] = useState('');
+  const [newKbScope, setNewKbScope] = useState<'SYSTEM' | 'TENANT'>('SYSTEM');
+  const [newKbIsSystem, setNewKbIsSystem] = useState(true);
+  const [savingKb, setSavingKb] = useState(false);
 
   // Form State
   const [formName, setFormName] = useState('');
@@ -198,6 +210,19 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
 
     setActiveConfigTab('general');
     setShowConfigModal(true);
+
+    // Fetch Knowledge Bases linked to this domain
+    setKbsLoading(true);
+    api
+      .getKnowledgeBases()
+      .then((kbs: any[]) => {
+        const linked = (kbs || []).filter(
+          (k) => k.domain_id === domain.id || k.domain_id === domain.domain_key,
+        );
+        setDomainKbs(linked);
+      })
+      .catch((err) => console.error('Failed to load domain KBs:', err))
+      .finally(() => setKbsLoading(false));
   };
 
   const openAddModal = () => {
@@ -720,6 +745,19 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
 
               <button
                 type="button"
+                onClick={() => setActiveConfigTab('kbs')}
+                className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeConfigTab === 'kbs'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>4. Knowledge Bases ({domainKbs.length})</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveConfigTab('advanced')}
                 className={`py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
                   activeConfigTab === 'advanced'
@@ -728,7 +766,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                 }`}
               >
                 <Code className="w-3.5 h-3.5" />
-                <span>4. Capabilities & JSON Config</span>
+                <span>5. Capabilities & JSON Config</span>
               </button>
             </div>
 
@@ -1129,7 +1167,180 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                 </div>
               )}
 
-              {/* TAB 4: ADVANCED CAPABILITIES JSON */}
+              {/* TAB 4: KNOWLEDGE BASES LINKED TO THIS DOMAIN */}
+              {activeConfigTab === 'kbs' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                        Domain Knowledge Repositories
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        System-level & tenant knowledge bases indexed under this domain schema. System KBs are shared read-only across all tenants in this domain.
+                      </p>
+                    </div>
+
+                    {isSystemAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewKbName('');
+                          setNewKbDescription('');
+                          setNewKbScope('SYSTEM');
+                          setNewKbIsSystem(true);
+                          setShowAddKbModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add System KB to Domain</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {kbsLoading ? (
+                    <div className="p-8 text-center text-gray-400 text-xs">
+                      <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-500" />
+                      Loading domain knowledge bases...
+                    </div>
+                  ) : domainKbs.length === 0 ? (
+                    <div className="p-8 text-center bg-slate-50 border border-dashed border-gray-300 rounded-xl">
+                      <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-xs font-semibold text-gray-600">No Knowledge Bases Linked to this Domain</p>
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Add a system KB (e.g. statutes, reference codes, case laws) or link tenant KBs.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {domainKbs.map((kb) => {
+                        const isSystem = Boolean(kb.is_system || kb.scope === 'SYSTEM');
+                        return (
+                          <div
+                            key={kb.id}
+                            className="p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-between hover:border-indigo-200 transition-colors shadow-2xs"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-bold text-xs text-gray-900">{kb.name}</h5>
+                                {isSystem ? (
+                                  <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-bold flex items-center gap-1">
+                                    <Shield className="w-3 h-3 text-purple-600" />
+                                    System KB (Domain-Common)
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
+                                    Tenant KB
+                                  </span>
+                                )}
+                              </div>
+                              {kb.description && (
+                                <p className="text-[11px] text-gray-500 line-clamp-1">{kb.description}</p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-[11px] font-mono text-gray-400">
+                                {kb.document_count ?? 0} docs
+                              </span>
+                              {!isSystemAdmin && isSystem && (
+                                <span className="text-gray-400" title="Read-only for tenant users">
+                                  <Lock className="w-3.5 h-3.5" />
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* INLINE ADD SYSTEM KB MODAL */}
+                  {showAddKbModal && (
+                    <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-xl space-y-3 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <h5 className="font-bold text-xs text-purple-900 flex items-center gap-1.5">
+                          <Shield className="w-4 h-4 text-purple-600" />
+                          New System Knowledge Base for {formName || 'Domain'}
+                        </h5>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddKbModal(false)}
+                          className="text-gray-400 hover:text-gray-600 text-xs cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700">KB Name *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Universal Criminal Code (BNS & CrPC)"
+                            value={newKbName}
+                            onChange={(e) => setNewKbName(toSentenceCase(e.target.value))}
+                            className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs bg-white text-gray-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-700">Description</label>
+                          <input
+                            type="text"
+                            placeholder="Universal reference law repository shared across all tenants"
+                            value={newKbDescription}
+                            onChange={(e) => setNewKbDescription(e.target.value)}
+                            className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs bg-white text-gray-900"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowAddKbModal(false)}
+                          className="px-3 py-1 bg-white border border-gray-300 rounded text-xs font-semibold text-gray-700 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={savingKb || !newKbName.trim()}
+                          onClick={async () => {
+                            if (!newKbName.trim()) return;
+                            setSavingKb(true);
+                            try {
+                              const created = await api.createKnowledgeBase({
+                                name: newKbName.trim(),
+                                description: newKbDescription.trim() || undefined,
+                                domain_id: editingDomain?.id || formDomainKey,
+                                scope: 'SYSTEM',
+                                is_system: true,
+                              });
+                              setDomainKbs((prev) => [...prev, created]);
+                              setShowAddKbModal(false);
+                              setNewKbName('');
+                              setNewKbDescription('');
+                            } catch (err: any) {
+                              console.error(err);
+                              alert(err.detail || err.message || 'Failed to create system knowledge base');
+                            } finally {
+                              setSavingKb(false);
+                            }
+                          }}
+                          className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1"
+                        >
+                          {savingKb && <RefreshCw className="w-3 h-3 animate-spin" />}
+                          <span>Create System KB</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 5: ADVANCED CAPABILITIES JSON */}
               {activeConfigTab === 'advanced' && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">

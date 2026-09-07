@@ -502,6 +502,9 @@ export default function LegalResearchHub({
               citations: r.citations || meta.citations || null,
               parallel_citation:
                 r.parallel_citation || meta.citation || meta.parallel_citation || null,
+              is_system: Boolean(r.is_system || meta.is_system || r.scope === 'SYSTEM' || meta.scope === 'SYSTEM'),
+              scope: r.scope || meta.scope || (r.is_system ? 'SYSTEM' : 'TENANT'),
+              source_type: r.source_type || (r.is_system ? 'domain_law' : 'case_file'),
               status_badge: r.status_badge || meta.status_badge || 'Good Law',
               outcome_tag:
                 r.final_decision || r.outcome || meta.outcome || meta.outcome_tag || null,
@@ -1733,6 +1736,16 @@ export default function LegalResearchHub({
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
+                        {r.is_system ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
+                            <Scale className="w-2.5 h-2.5 text-purple-600" />
+                            System Law
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                            Case File
+                          </span>
+                        )}
                         {r.status_badge && (
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
@@ -2010,6 +2023,16 @@ export default function LegalResearchHub({
                       >
                         {selectedResult.case_number || selectedResult.cnr}
                       </span>
+                      {selectedResult.is_system ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
+                          <Scale className="w-2.5 h-2.5 text-purple-600" />
+                          System Law
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                          Case File
+                        </span>
+                      )}
                       {selectedResult.status_badge && (
                         <span
                           className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${

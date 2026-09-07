@@ -478,6 +478,8 @@ function LegalPlatformContent() {
   );
 }
 
+
+
 export default function LegalPlatformPage() {
   return (
     <React.Suspense

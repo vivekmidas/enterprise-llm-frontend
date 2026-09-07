@@ -785,6 +785,8 @@ export const api = {
     name: string;
     description?: string;
     domain_id?: string;
+    scope?: 'SYSTEM' | 'TENANT';
+    is_system?: boolean;
     settings?: any;
   }) => {
     const res = await fetch(`${BACKEND_URL}/api/knowledge/bases`, {
@@ -792,7 +794,10 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Failed to create knowledge base');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create knowledge base');
+    }
     return res.json();
   },
 
@@ -801,7 +806,10 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to delete knowledge base');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to delete knowledge base');
+    }
     return res.json();
   },
 
@@ -812,6 +820,8 @@ export const api = {
       description?: string;
       domain_id?: string;
       status?: string;
+      scope?: 'SYSTEM' | 'TENANT';
+      is_system?: boolean;
       settings?: any;
     },
   ) => {
@@ -820,7 +830,10 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Failed to update knowledge base');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update knowledge base');
+    }
     return res.json();
   },
 
@@ -1679,4 +1692,76 @@ export const api = {
     document.body.removeChild(a);
     return filename;
   },
+
+  /* ==============================================================================
+     BLOCK COMMENT: MULTILINGUAL VOICE LEGAL ASSISTANT APIS
+     Epic: epic_system_tenant_common_knowledge_bases.md
+     Story: STORY-SYSKB-04 (Multilingual Voice Conversational Knowledge Assistant)
+     ============================================================================== */
+  startAssistantSession: async (title?: string, language: string = 'en') => {
+    const res = await fetch(`${BACKEND_URL}/api/chat/assistant/session`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ title: title || 'Legal Assistant Session', language }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to initialize assistant session');
+    }
+    return res.json();
+  },
+
+  sendAssistantMessage: async (
+    sessionId: string,
+    message: string,
+    language?: string,
+    audioUsed: boolean = false,
+  ) => {
+    const res = await fetch(`${BACKEND_URL}/api/chat/assistant/message`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        message,
+        language: language || null,
+        audio_used: audioUsed,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to send message to assistant');
+    }
+    return res.json();
+  },
+
+  sendInactivityEvent: async (
+    sessionId: string,
+    eventType: 'ping' | 'bye',
+    language: string = 'en',
+  ) => {
+    const res = await fetch(`${BACKEND_URL}/api/chat/assistant/inactivity-event`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ session_id: sessionId, event_type: eventType, language }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to post inactivity event');
+    }
+    return res.json();
+  },
+
+  getAssistantHistory: async (limit: number = 10, sessionId?: string) => {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (sessionId) query.set('session_id', sessionId);
+    const res = await fetch(`${BACKEND_URL}/api/chat/assistant/history?${query.toString()}`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to fetch assistant conversation history');
+    }
+    return res.json();
+  },
 };
+
