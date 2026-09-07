@@ -330,7 +330,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
   // Accordion Step Expansion State (5 Sequential Stages)
   const [openStages, setOpenStages] = useState<Record<number, boolean>>({
     1: true, // Case Details & Parties
-    2: true, // Case Activity Log & Timeline Flow
+    2: false, // Case Activity Log & Timeline Flow
     3: false, // AI Verified Facts & Statutory References
     4: true, // Gap Analysis (Star feature)
     5: false, // Strategy Branches & Pleadings
@@ -1747,13 +1747,13 @@ export default function LegalPilotInteractiveWorkspacePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="min-h-screen bg-white text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
       {/* --------------------------------------------------------------------- */}
       {/* 1. TOP GLOBAL BAR */}
       {/* --------------------------------------------------------------------- */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 py-2.5 flex items-center justify-between shadow-2xs">
+      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 lg:px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-900 text-white flex items-center justify-center font-bold shadow-xs">
+          <div className="size-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold">
             <Scale className="w-4 h-4" />
           </div>
           <div>
@@ -1772,17 +1772,12 @@ export default function LegalPilotInteractiveWorkspacePage() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500">
-            <ShieldCheck className="w-4 h-4 text-slate-400" />
-            <span>No authentication required for this mockup</span>
-          </div>
-
-          <Link
-            href="/legal"
-            className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-bold transition shadow-2xs"
-          >
-            Exit demo
-          </Link>
+  <Link
+  href="/legal"
+  className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-medium transition"
+  >
+  Exit demo
+  </Link>
         </div>
       </header>
 
@@ -1793,7 +1788,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
         {/* =================================================================== */}
         {/* 1ST PANEL / LEFT SIDEBAR: CASE SELECTOR, EVIDENCE VAULT & TIMELINE */}
         {/* =================================================================== */}
-        <aside className="w-full lg:w-80 bg-white border-r border-slate-200 p-5 space-y-6 shrink-0 lg:sticky lg:top-14 lg:h-[calc(100vh-57px)] overflow-y-auto">
+        <aside className="w-full lg:w-72 bg-white border-r border-slate-200 p-5 space-y-6 shrink-0 lg:sticky lg:top-14 lg:h-[calc(100vh-57px)] overflow-y-auto">
           {/* Case File Selector & "+ New Case" */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -1813,7 +1808,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
               <select
                 value={selectedCaseCode}
                 onChange={(e) => handleSwitchCase(e.target.value)}
-                className="w-full text-xs font-black p-3 pr-8 rounded-xl border border-slate-200 bg-slate-50 text-indigo-950 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+                className="w-full text-xs font-black p-3 pr-8 rounded-xl border border-slate-200 bg-slate-50 text-indigo-950 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-none"
               >
                 <option value="orion_v_delta">1. Orion v. Delta (₹1.85 Cr Supply Dispute)</option>
                 <option value="cloudnet_v_starlight">
@@ -1896,7 +1891,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
               </span>
               <button
                 onClick={handleOpenAddUpdate}
-                className="text-[10px] text-amber-800 hover:text-amber-950 font-extrabold bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-300 cursor-pointer flex items-center gap-1 shadow-2xs transition-colors"
+                className="text-[10px] text-amber-800 hover:text-amber-950 font-extrabold bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-300 cursor-pointer flex items-center gap-1 shadow-none transition-colors"
               >
                 <Plus className="w-3 h-3 text-amber-700" />
                 <span>Log Updates</span>
@@ -1910,7 +1905,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   <div
                     key={event.id}
                     onClick={() => handleOpenEditUpdate(event)}
-                    className="relative pl-3 text-xs p-2 rounded-xl transition-all hover:bg-slate-50 border border-slate-200/60 bg-white/70 shadow-2xs cursor-pointer group"
+                    className="relative pl-3 text-xs p-2 rounded-xl transition-all hover:bg-slate-50 border border-slate-200/60 bg-white/70 shadow-none cursor-pointer group"
                   >
                     <div
                       className={`absolute -left-[14px] top-2.5 w-2.5 h-2.5 rounded-full ring-4 ring-white ${style.dotBg}`}
@@ -1984,7 +1979,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
               <div className="flex items-center gap-2 self-start sm:self-center">
                 <button
                   onClick={handleOpenAddUpdate}
-                  className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer shrink-0"
+                  className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-none cursor-pointer shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5 text-amber-700" />
                   <span>Log Updates</span>
@@ -2029,7 +2024,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     setSelectedReckoner(reck);
                     setReckonerTab('summary');
                   }}
-                  className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-indigo-50/80 hover:bg-indigo-100 text-indigo-950 border border-indigo-200/80 transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-indigo-50/80 hover:bg-indigo-100 text-indigo-950 border border-indigo-200/80 transition cursor-pointer flex items-center gap-1.5 shadow-none"
                 >
                   <span className="text-indigo-700 font-black">§</span>
                   <span>{reck.short_label}</span>
@@ -2042,7 +2037,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div
               onClick={() => toggleStage(1)}
-              className="p-4 rounded-2xl border border-slate-200 bg-white transition shadow-2xs hover:border-indigo-300 cursor-pointer"
+              className="p-4 rounded-xl border border-slate-200 bg-white transition shadow-none hover:border-indigo-300 cursor-pointer"
             >
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-xs font-bold">Matter status</span>
@@ -2055,7 +2050,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
 
             <div
               onClick={() => toggleStage(2)}
-              className="p-4 rounded-2xl border border-slate-200 bg-white transition shadow-2xs hover:border-indigo-300 cursor-pointer"
+              className="p-4 rounded-xl border border-slate-200 bg-white transition shadow-none hover:border-indigo-300 cursor-pointer"
             >
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-xs font-bold">Activity & Timeline</span>
@@ -2068,7 +2063,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
 
             <div
               onClick={() => toggleStage(3)}
-              className="p-4 rounded-2xl border border-slate-200 bg-white transition shadow-2xs hover:border-indigo-300 cursor-pointer"
+              className="p-4 rounded-xl border border-slate-200 bg-white transition shadow-none hover:border-indigo-300 cursor-pointer"
             >
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-xs font-bold">Evidence completeness</span>
@@ -2081,7 +2076,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
 
             <div
               onClick={() => toggleStage(5)}
-              className="p-4 rounded-2xl border border-slate-200 bg-white transition shadow-2xs hover:border-indigo-300 cursor-pointer"
+              className="p-4 rounded-xl border border-slate-200 bg-white transition shadow-none hover:border-indigo-300 cursor-pointer"
             >
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-xs font-bold">Open gaps</span>
@@ -2100,7 +2095,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
             {/* =============================================================== */}
             {/* STAGE 1: CASE INTAKE, PARTIES (WITH ADD/EDIT/DELETE CTAS) */}
             {/* =============================================================== */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-none overflow-hidden">
               <button
                 onClick={() => toggleStage(1)}
                 className="w-full p-4.5 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between text-left transition cursor-pointer"
@@ -2237,7 +2232,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                             return (
                               <div
                                 key={k}
-                                className="p-2.5 rounded-lg bg-white border border-slate-200 text-xs shadow-2xs"
+                                className="p-2.5 rounded-lg bg-white border border-slate-200 text-xs shadow-none"
                               >
                                 <div className="text-[10px] font-bold text-slate-500 uppercase">
                                   {fieldDef?.label || k}
@@ -2256,7 +2251,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
             {/* =============================================================== */}
             {/* STAGE 2: CASE ACTIVITY LOG & FULL TIMELINE (APPROVED WIREFRAME) */}
             {/* =============================================================== */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-none overflow-hidden">
               <button
                 onClick={() => toggleStage(2)}
                 className="w-full p-4.5 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between text-left transition cursor-pointer"
@@ -2291,7 +2286,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         type="button"
                         onClick={() => setTimelineFilter('all')}
                         className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer ${timelineFilter === 'all'
-                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            ? 'bg-indigo-900 text-white shadow-none'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
@@ -2301,7 +2296,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         type="button"
                         onClick={() => setTimelineFilter('client')}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'client'
-                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            ? 'bg-indigo-900 text-white shadow-none'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
@@ -2311,7 +2306,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         type="button"
                         onClick={() => setTimelineFilter('counsel')}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'counsel'
-                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            ? 'bg-indigo-900 text-white shadow-none'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
@@ -2321,7 +2316,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         type="button"
                         onClick={() => setTimelineFilter('hearing')}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'hearing'
-                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            ? 'bg-indigo-900 text-white shadow-none'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
@@ -2331,7 +2326,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         type="button"
                         onClick={() => setTimelineFilter('settlement')}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'settlement'
-                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            ? 'bg-indigo-900 text-white shadow-none'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
@@ -2341,7 +2336,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         type="button"
                         onClick={() => setTimelineFilter('others')}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'others'
-                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            ? 'bg-indigo-900 text-white shadow-none'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
@@ -2390,11 +2385,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
                             </div>
                             {/* Node Dot */}
                             <div className="relative z-10 -ml-[13px] sm:-ml-[17px] mt-3.5 shrink-0">
-                              <div className={`w-4 h-4 rounded-full ${style.dotBg} ring-4 ring-white shadow-2xs`}></div>
+                              <div className={`w-4 h-4 rounded-full ${style.dotBg} ring-4 ring-white shadow-none`}></div>
                             </div>
                             {/* Main Card in line with timeline node */}
                             <div
-                              className={`flex-1 bg-white border ${style.borderBase} rounded-2xl p-5 shadow-2xs space-y-3 ${style.borderHover} transition`}
+                              className={`flex-1 bg-white border ${style.borderBase} rounded-2xl p-5 shadow-none space-y-3 ${style.borderHover} transition`}
                             >
                               <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
                                 <span
@@ -2436,7 +2431,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                                   {event.people_involved.map((person, pIdx) => (
                                     <span
                                       key={pIdx}
-                                      className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-800 font-semibold text-[10px] border border-slate-200 shadow-2xs"
+                                      className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-800 font-semibold text-[10px] border border-slate-200 shadow-none"
                                     >
                                       {person}
                                     </span>
@@ -2494,7 +2489,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
             {/* =============================================================== */}
             {/* STAGE 3: INGESTED DOCUMENTS (CLICKABLE DETAILS DRAWER) */}
             {/* =============================================================== */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-none overflow-hidden">
               <button
                 onClick={() => toggleStage(3)}
                 className="w-full p-4.5 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between text-left transition cursor-pointer"
@@ -2556,7 +2551,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                             setSelectedDocForDrawer(doc);
                             setIsEditingDoc(false);
                           }}
-                          className="p-4 rounded-2xl border border-slate-200 bg-white hover:bg-indigo-50/40 hover:border-indigo-300 transition shadow-2xs cursor-pointer group flex flex-col justify-between space-y-2.5"
+                          className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-indigo-50/40 hover:border-indigo-300 transition shadow-none cursor-pointer group flex flex-col justify-between space-y-2.5"
                         >
                           <div>
                             <div className="flex items-center justify-between gap-1.5">
@@ -2653,7 +2648,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
             {/* =============================================================== */}
             {/* STAGE 4: AI VERIFIED FACTS & STATUTORY CROSS REFERENCES */}
             {/* =============================================================== */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-none overflow-hidden">
               <button
                 onClick={() => toggleStage(4)}
                 className="w-full p-4.5 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between text-left transition cursor-pointer"
@@ -2723,7 +2718,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-black text-sm text-indigo-950">
+                      <h3 className="font-semibold text-sm text-slate-900">
                         Gap Analysis & Remedial Action CTAs
                       </h3>
                       <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-indigo-600 text-white">
@@ -2751,7 +2746,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     return (
                       <div
                         key={gap.id}
-                        className={`p-5 rounded-2xl border transition shadow-2xs ${isClosed
+                        className={`p-5 rounded-2xl border transition shadow-none ${isClosed
                             ? 'bg-emerald-50/40 border-emerald-200'
                             : gap.severity === 'High'
                               ? 'bg-white border-slate-200 hover:border-indigo-300'
@@ -2814,7 +2809,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                           {isOpen && (
                             <button
                               onClick={() => handleRemedialCTA(gap)}
-                              className="px-4 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 self-start sm:self-center shrink-0 cursor-pointer"
+                              className="px-4 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-xs transition shadow-none flex items-center gap-1.5 self-start sm:self-center shrink-0 cursor-pointer"
                             >
                               <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
                               <span>{gap.remedial_cta_label}</span>
@@ -2831,7 +2826,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
             {/* =============================================================== */}
             {/* STAGE 6: STRATEGY BRANCHES & FIRST-DRAFT COURT PLEADINGS */}
             {/* =============================================================== */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-none overflow-hidden">
               <button
                 onClick={() => toggleStage(6)}
                 className="w-full p-4.5 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between text-left transition cursor-pointer"
@@ -2861,7 +2856,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   {activeMatter.actions.map((act) => (
                     <div
                       key={act.id}
-                      className="p-5 rounded-2xl border border-slate-200 bg-white shadow-2xs space-y-3"
+                      className="p-5 rounded-xl border border-slate-200 bg-white shadow-none space-y-3"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -3099,7 +3094,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                 {!isEditingDoc ? (
                   <button
                     onClick={() => handleStartEditDoc()}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-indigo-50 text-indigo-900 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-indigo-50 text-indigo-900 font-bold text-xs flex items-center gap-1.5 shadow-none transition cursor-pointer"
                   >
                     <Edit3 className="w-3.5 h-3.5 text-indigo-700" />
                     <span>Edit</span>
@@ -3272,7 +3267,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                             type="button"
                             onClick={() => handleToggleEditDocTag(tag)}
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${isSelected
-                                ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
+                                ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-none'
                                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
                               }`}
                           >
@@ -3439,7 +3434,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         {selectedDocForDrawer.tags.map((t, idx) => (
                           <span
                             key={idx}
-                            className="px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold text-[10px] shadow-2xs"
+                            className="px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-semibold text-[10px] shadow-none"
                           >
                             #{t}
                           </span>
@@ -3588,7 +3583,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
       {/* --------------------------------------------------------------------- */}
       {showPartyModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 animate-scaleIn space-y-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 animate-scaleIn space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-indigo-900" />
@@ -3752,7 +3747,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     }`}
                 >
                   {evidenceFile ? (
-                    <div className="flex items-center justify-between w-full p-2 bg-white rounded-xl border border-emerald-200 shadow-2xs">
+                    <div className="flex items-center justify-between w-full p-2 bg-white rounded-xl border border-emerald-200 shadow-none">
                       <div className="flex items-center gap-3 text-left">
                         <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-extrabold text-xs">
                           {evidenceFile.name.endsWith('.pdf')
@@ -3932,7 +3927,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         type="button"
                         onClick={() => handleToggleEvidenceTag(tag)}
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${isSelected
-                            ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
+                            ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-none'
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
                           }`}
                       >
@@ -4119,7 +4114,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   <button
                     type="button"
                     onClick={() => handleApplyPreset(newCaseCategory)}
-                    className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-white border border-indigo-200 px-2.5 py-1 rounded-lg shadow-2xs hover:bg-indigo-50 cursor-pointer flex items-center gap-1 shrink-0"
+                    className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-white border border-indigo-200 px-2.5 py-1 rounded-lg shadow-none hover:bg-indigo-50 cursor-pointer flex items-center gap-1 shrink-0"
                   >
                     <span>Load {CASE_CATEGORY_CONFIG[newCaseCategory].badge} Sample Brief</span>
                   </button>
@@ -4149,7 +4144,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       <Paperclip className="w-3.5 h-3.5 text-indigo-700" />
                       <span>Attach Supporting Briefs & Evidence ({intakeAttachedFiles.length} files)</span>
                     </span>
-                    <label className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition shadow-2xs">
+                    <label className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition shadow-none">
                       <UploadCloud className="w-3.5 h-3.5 text-indigo-600" />
                       <span>Add File(s)</span>
                       <input
@@ -4172,7 +4167,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       {intakeAttachedFiles.map((file, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-800 px-2.5 py-1 rounded-xl shadow-2xs text-[11px] font-medium group"
+                          className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-800 px-2.5 py-1 rounded-xl shadow-none text-[11px] font-medium group"
                         >
                           <FileText className="w-3.5 h-3.5 text-indigo-600" />
                           <span className="font-bold truncate max-w-[180px]">{file.name}</span>
@@ -4229,7 +4224,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         return (
                           <span
                             key={code}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-indigo-950 border border-indigo-200 shadow-2xs"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-indigo-950 border border-indigo-200 shadow-none"
                           >
                             <span className="text-indigo-600 font-black">§</span>
                             <span>{reck?.short_label || code}</span>
@@ -4390,7 +4385,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     <button
                       type="button"
                       onClick={() => setIsAddOptionalFieldDropdownOpen(!isAddOptionalFieldDropdownOpen)}
-                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-indigo-900 font-extrabold text-xs flex items-center gap-1.5 border border-indigo-200 shadow-2xs cursor-pointer transition"
+                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-indigo-900 font-extrabold text-xs flex items-center gap-1.5 border border-indigo-200 shadow-none cursor-pointer transition"
                     >
                       <Plus className="w-3.5 h-3.5 text-indigo-600" />
                       <span>Add Optional Field</span>
@@ -4398,7 +4393,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     </button>
 
                     {isAddOptionalFieldDropdownOpen && (
-                      <div className="absolute right-0 top-full mt-1 w-72 bg-white rounded-2xl border border-slate-200 shadow-2xl z-30 p-2 space-y-1">
+                      <div className="absolute right-0 top-full mt-1 w-72 bg-white rounded-xl border border-slate-200 shadow-2xl z-30 p-2 space-y-1">
                         <div className="text-[10px] font-extrabold uppercase text-slate-400 px-2 py-1">
                           Available Domain Fields:
                         </div>
@@ -4439,7 +4434,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     return (
                       <div
                         key={key}
-                        className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-1.5 relative group"
+                        className="p-3 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1.5 relative group"
                       >
                         <div className="flex items-center justify-between">
                           <label className="block text-[11px] font-bold text-slate-700">
@@ -4545,7 +4540,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
       {/* --------------------------------------------------------------------- */}
       {showDraftModal && currentDraft && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] animate-scaleIn">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-2xl w-full flex flex-col max-h-[85vh] animate-scaleIn">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-indigo-900" />
@@ -4644,7 +4639,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     type="button"
                     onClick={() => setUpdateCategory('Client Discussion')}
                     className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Client Discussion'
-                        ? 'border-blue-400 bg-blue-50 text-blue-950 shadow-2xs'
+                        ? 'border-blue-400 bg-blue-50 text-blue-950 shadow-none'
                         : 'border-slate-200 bg-slate-50 hover:bg-blue-50/50 text-slate-700'
                       }`}
                   >
@@ -4654,7 +4649,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     type="button"
                     onClick={() => setUpdateCategory('Counsel Strategy')}
                     className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Counsel Strategy'
-                        ? 'border-purple-400 bg-purple-50 text-purple-950 shadow-2xs'
+                        ? 'border-purple-400 bg-purple-50 text-purple-950 shadow-none'
                         : 'border-slate-200 bg-slate-50 hover:bg-purple-50/50 text-slate-700'
                       }`}
                   >
@@ -4664,7 +4659,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     type="button"
                     onClick={() => setUpdateCategory('Court / Tribunal Hearing')}
                     className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Court / Tribunal Hearing'
-                        ? 'border-amber-400 bg-amber-50 text-amber-950 shadow-2xs'
+                        ? 'border-amber-400 bg-amber-50 text-amber-950 shadow-none'
                         : 'border-slate-200 bg-slate-50 hover:bg-amber-50/50 text-slate-700'
                       }`}
                   >
@@ -4674,7 +4669,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     type="button"
                     onClick={() => setUpdateCategory('Settlement / Negotiation')}
                     className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Settlement / Negotiation'
-                        ? 'border-emerald-400 bg-emerald-50 text-emerald-950 shadow-2xs'
+                        ? 'border-emerald-400 bg-emerald-50 text-emerald-950 shadow-none'
                         : 'border-slate-200 bg-slate-50 hover:bg-emerald-50/50 text-slate-700'
                       }`}
                   >
@@ -4684,7 +4679,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     type="button"
                     onClick={() => setUpdateCategory('General Note')}
                     className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'General Note'
-                        ? 'border-indigo-400 bg-indigo-50 text-indigo-950 shadow-2xs'
+                        ? 'border-indigo-400 bg-indigo-50 text-indigo-950 shadow-none'
                         : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
                       }`}
                   >
@@ -4694,7 +4689,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     type="button"
                     onClick={() => setUpdateCategory('Others')}
                     className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Others'
-                        ? 'border-slate-400 bg-slate-200 text-slate-900 shadow-2xs'
+                        ? 'border-slate-400 bg-slate-200 text-slate-900 shadow-none'
                         : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
                       }`}
                   >
@@ -4759,7 +4754,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                           type="button"
                           onClick={() => handleTogglePersonSuggestion(person)}
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${isSelected
-                              ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
+                              ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-none'
                               : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
                             }`}
                         >
@@ -4812,7 +4807,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
               </div>
 
               {/* OPTIONAL DOCUMENT ATTACHMENT SECTION */}
-              <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
