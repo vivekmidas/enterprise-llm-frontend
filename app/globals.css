@@ -315,6 +315,51 @@
   stroke-width: 3px;
 }
 
+/* Keep the autopilot workspace readable without changing other routes. */
+.autopilot-page {
+  font-size: 15px;
+}
+
+.autopilot-page :where(.text-\[9px\]) {
+  font-size: 11px;
+}
+
+.autopilot-page :where(.text-\[10px\]) {
+  font-size: 12px;
+}
+
+.autopilot-page :where(.text-\[11px\]) {
+  font-size: 13px;
+}
+
+.autopilot-page :where(.text-xs) {
+  font-size: 14px;
+}
+
+.autopilot-page :where(.text-sm) {
+  font-size: 16px;
+}
+
+.autopilot-page :where(.text-base) {
+  font-size: 18px;
+}
+
+.autopilot-page :where(.text-lg) {
+  font-size: 20px;
+}
+
+.autopilot-page :where(.text-xl) {
+  font-size: 22px;
+}
+
+.autopilot-page :where(.text-2xl) {
+  font-size: 26px;
+}
+
+.autopilot-page :where(.text-3xl) {
+  font-size: 32px;
+}
+
 .react-flow__edge-path.animated {
   stroke-dasharray: 6, 6;
   animation: edge-flow 1.2s linear infinite;

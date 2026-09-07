@@ -1747,7 +1747,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="autopilot-page min-h-screen bg-white text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
       {/* --------------------------------------------------------------------- */}
       {/* 1. TOP GLOBAL BAR */}
       {/* --------------------------------------------------------------------- */}
@@ -2439,7 +2439,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                               {(event.bench_direction || event.key_action) && (
                                 <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs space-y-1">
                                   <div className="font-extrabold text-amber-900 flex items-center gap-1.5">
-                                    <span>⚡ Key Decision / Action / Direction:</span>
+                                    <span>�� Key Decision / Action / Direction:</span>
                                   </div>
                                   <p className="text-amber-950 font-medium leading-relaxed">
                                     {event.bench_direction || event.key_action}
