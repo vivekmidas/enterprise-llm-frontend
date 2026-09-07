@@ -1788,7 +1788,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
         {/* =================================================================== */}
         {/* 1ST PANEL / LEFT SIDEBAR: CASE SELECTOR, EVIDENCE VAULT & TIMELINE */}
         {/* =================================================================== */}
-        <aside className="w-full lg:w-72 bg-white border-r border-slate-200 p-5 space-y-6 shrink-0 lg:sticky lg:top-14 lg:h-[calc(100vh-57px)] overflow-y-auto">
+        <aside className="w-full lg:w-80 bg-white border-r border-slate-200 p-6 space-y-7 shrink-0 lg:sticky lg:top-14 lg:h-[calc(100vh-57px)] overflow-y-auto">
           {/* Case File Selector & "+ New Case" */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -1937,9 +1937,6 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         <span>Next Date: {event.next_date}</span>
                       </div>
                     )}
-                    <div className="mt-1 text-[10px] text-slate-400 font-mono truncate">
-                      {event.source?.doc_name ? `Doc: ${event.source.doc_name}` : 'Direct Note / Memo'}
-                    </div>
                   </div>
                 );
               })}
@@ -2098,14 +2095,14 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-xl border border-slate-200 shadow-none overflow-hidden">
               <button
                 onClick={() => toggleStage(1)}
-                className="w-full p-4.5 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between text-left transition cursor-pointer"
+                className="w-full p-5 bg-sky-50/70 hover:bg-sky-100/70 flex items-center justify-between text-left transition cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-black text-xs">
+                  <div className="size-8 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold text-sm">
                     1
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm text-indigo-950">
+                    <h3 className="font-extrabold text-base text-slate-950">
                       Case Details, Parties Involved & Roles ({activeMatter.parties.length}{' '}
                       Parties)
                     </h3>
@@ -2254,14 +2251,14 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-xl border border-slate-200 shadow-none overflow-hidden">
               <button
                 onClick={() => toggleStage(2)}
-                className="w-full p-4.5 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between text-left transition cursor-pointer"
+                className="w-full p-5 bg-sky-50/70 hover:bg-sky-100/70 flex items-center justify-between text-left transition cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black text-xs">
                     2
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm text-indigo-950">
+                    <h3 className="font-extrabold text-base text-slate-950">
                       Case Activity Log & Full Timeline Flow ({sortedTimeline.length} Updates)
                     </h3>
                     <p className="text-xs text-slate-500">
@@ -2492,14 +2489,14 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-xl border border-slate-200 shadow-none overflow-hidden">
               <button
                 onClick={() => toggleStage(3)}
-                className="w-full p-4.5 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between text-left transition cursor-pointer"
+                className="w-full p-5 bg-sky-50/70 hover:bg-sky-100/70 flex items-center justify-between text-left transition cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-black text-xs">
+                  <div className="size-8 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold text-sm">
                     3
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm text-indigo-950">
+                    <h3 className="font-extrabold text-base text-slate-950">
                       Ingested Evidence Files & Document Intelligence (
                       {activeMatter.documents.length} Files)
                     </h3>
@@ -2651,14 +2648,14 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-xl border border-slate-200 shadow-none overflow-hidden">
               <button
                 onClick={() => toggleStage(4)}
-                className="w-full p-4.5 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between text-left transition cursor-pointer"
+                className="w-full p-5 bg-sky-50/70 hover:bg-sky-100/70 flex items-center justify-between text-left transition cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-black text-xs">
+                  <div className="size-8 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold text-sm">
                     4
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm text-indigo-950">
+                    <h3 className="font-extrabold text-base text-slate-950">
                       AI Verified Facts & Statutory Cross-References (BNS/IPC, BNSS/CrPC,
                       BSA/IEA)
                     </h3>
@@ -2829,14 +2826,14 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-xl border border-slate-200 shadow-none overflow-hidden">
               <button
                 onClick={() => toggleStage(6)}
-                className="w-full p-4.5 bg-slate-50/70 hover:bg-slate-50 flex items-center justify-between text-left transition cursor-pointer"
+                className="w-full p-5 bg-sky-50/70 hover:bg-sky-100/70 flex items-center justify-between text-left transition cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-black text-xs">
+                  <div className="size-8 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold text-sm">
                     6
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm text-indigo-950">
+                    <h3 className="font-extrabold text-base text-slate-950">
                       Strategy Branches & First-Draft Court Pleadings Generator
                     </h3>
                     <p className="text-xs text-slate-500">
