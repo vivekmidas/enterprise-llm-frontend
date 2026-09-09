@@ -37,9 +37,10 @@ import {
   Volume2,
   Maximize2,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import FormattedMarkdown from '@/app/components/FormattedMarkdown';
 
 interface CaseReference {
   case_id: string;
@@ -347,11 +348,30 @@ export default function LegalChatAssistantModal({
   };
 
   // Case Redirection click handler
-  const handleCaseClick = (url: string, caseId: string) => {
-    if (onNavigateToCase) {
+  const handleCaseClick = (url: string, caseId?: string) => {
+    if (onNavigateToCase && caseId) {
       onNavigateToCase(caseId);
     } else {
+      handleLinkNavigation(url);
+    }
+  };
+
+  // Internal or external link navigation from formatted markdown
+  const handleLinkNavigation = (url: string) => {
+    try {
+      const match = url.match(/[?&]matter=([^&#]+)/);
+      if (match && match[1] && onNavigateToCase) {
+        onNavigateToCase(match[1]);
+        return;
+      }
+    } catch {
+      // fallback
+    }
+
+    if (url.startsWith('/') || url.startsWith('#')) {
       router.push(url);
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -615,7 +635,11 @@ export default function LegalChatAssistantModal({
                         : 'bg-blue-600 text-white shadow-md rounded-br-sm'
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                    <FormattedMarkdown
+                      content={msg.content}
+                      variant={isBot ? 'bot' : 'user'}
+                      onLinkClick={handleLinkNavigation}
+                    />
 
                     {/* Direct Clickable Case Link Badges */}
                     {msg.referenced_cases && msg.referenced_cases.length > 0 && (

@@ -1983,13 +1983,20 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     </span>
                   )}
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-black text-indigo-950 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-black text-indigo-950 tracking-tight">
                   {activeMatter.case_title}
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-600">{activeMatter.case_subtitle}</p>
               </div>
 
               <div className="flex items-center gap-2 self-start sm:self-center">
+                <button
+                  onClick={() => setIsSimilarCasesModalOpen(true)}
+                  className="px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 font-extrabold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer shrink-0"
+                >
+                  <Scale className="w-3.5 h-3.5 text-indigo-700" />
+                  <span>Similar Cases</span>
+                </button>
                 <button
                   onClick={handleOpenAddUpdate}
                   className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer shrink-0"
@@ -2017,10 +2024,10 @@ export default function LegalPilotInteractiveWorkspacePage() {
             {/* Matter Summary & Legal Issues (Simplified & Uncluttered) */}
             <div className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 space-y-1.5">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                <Scale className="w-4 h-4 text-indigo-600" />
-                <span>Matter Overview & Substantive Legal Claims</span>
+                {/* <Scale className="w-4 h-4 text-indigo-600" /> */}
+                <span>Case Overview & Substantive Legal Claims</span>
               </div>
-              <p className="text-sm sm:text-base font-semibold text-slate-800 leading-relaxed">
+              <p className="text-xs sm:text-base font-black text-slate-800 leading-relaxed">
                 {activeMatter.dispute_description ||
                   'No dispute description specified for this matter.'}
               </p>
@@ -2043,8 +2050,6 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   </button>
                 ))}
               </div>
-
-
             </div>
 
           </div>
@@ -2056,10 +2061,10 @@ export default function LegalPilotInteractiveWorkspacePage() {
               className="p-4 rounded-2xl border border-sky-200/70 bg-white hover:bg-sky-50/50 transition shadow-2xs hover:shadow-xs hover:border-sky-300 cursor-pointer"
             >
               <div className="flex items-center justify-between text-sky-700/80">
-                <span className="text-sm font-bold">Matter Status</span>
+                <span className="text-sm font-bold">Case Status</span>
                 <Clock className="w-4 h-4" />
               </div>
-              <div className="text-lg font-black text-slate-900 mt-1.5 capitalize">
+              <div className="text-[16px] font-black text-slate-900 mt-1.5 capitalize">
                 {activeMatter.matter_status}
               </div>
             </div>
@@ -2072,7 +2077,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                 <span className="text-sm font-bold">Timeline Updates</span>
                 <Clock className="w-4 h-4" />
               </div>
-              <div className="text-lg font-black text-slate-900 mt-1.5">
+              <div className="text-[16px] font-black text-slate-900 mt-1.5">
                 {sortedTimeline.length} events
               </div>
             </div>
@@ -2085,7 +2090,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                 <span className="text-sm font-bold">Evidence Files</span>
                 <FileText className="w-4 h-4" />
               </div>
-              <div className="text-lg font-black text-slate-900 mt-1.5">
+              <div className="text-[16px] font-black text-slate-900 mt-1.5">
                 {activeMatter.documents.length} ingested ({activeMatter.evidence_completeness}%)
               </div>
             </div>
@@ -2098,7 +2103,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                 <span className="text-sm font-bold">Open Gaps</span>
                 <AlertCircle className="w-4 h-4" />
               </div>
-              <div className="text-lg font-black text-slate-900 mt-1.5">
+              <div className="text-[16px] font-black text-slate-900 mt-1.5">
                 {activeMatter.open_gaps_count} flagged
               </div>
             </div>
@@ -2314,7 +2319,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('all')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer ${timelineFilter === 'all'
+                        className={`px-3 py-1.5 rounded-xl text-sm font-extrabold transition cursor-pointer ${timelineFilter === 'all'
                           ? 'bg-indigo-900 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
@@ -2324,52 +2329,52 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('client')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'client'
+                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${timelineFilter === 'client'
                           ? 'bg-indigo-900 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
-                        🗣️ Client Discussion
+                        Client Discussion
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('counsel')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'counsel'
+                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${timelineFilter === 'counsel'
                           ? 'bg-indigo-900 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
-                        ⚖️ Counsel Strategy
+                        Counsel Strategy
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('hearing')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'hearing'
+                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${timelineFilter === 'hearing'
                           ? 'bg-indigo-900 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
-                        🏛️ Court Hearing
+                        Court Hearing
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('settlement')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'settlement'
+                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${timelineFilter === 'settlement'
                           ? 'bg-indigo-900 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
-                        🤝 Settlement
+                        Settlement
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('others')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${timelineFilter === 'others'
+                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${timelineFilter === 'others'
                           ? 'bg-indigo-900 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           }`}
                       >
-                        📁 Others
+                        Others
                       </button>
                     </div>
 
