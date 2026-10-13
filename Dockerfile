@@ -1,23 +1,37 @@
-# Use Node.js as the base image
-FROM node:20-alpine
-# Set the working directory
+# ── Build stage ──────────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
 WORKDIR /app
 ENV CI=true
-RUN apk update && npm install -g pnpm 
 
-# Copy package files and install dependencies
-COPY . . 
+RUN apk add --no-cache curl
 
-RUN pnpm install --no-frozen-lockfile
+RUN npm install -g pnpm@12.12.1
 
-# Build the Next.js app for production
+# Install deps first (better layer caching)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY .env.local .env
+RUN pnpm install
+
+# Copy source and build
+COPY . .
 RUN pnpm next build
-# Expose the application port
+
+# ── Runtime stage ─────────────────────────────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV CI=true NODE_ENV=production
+
+RUN apk add --no-cache curl
+RUN npm install -g pnpm
+
+# Copy only the artifacts needed to run
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
 EXPOSE 3000
 
-# Health check to ensure the application is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/ || exit 1
 
-# Start the application
 CMD ["pnpm", "next", "start"]

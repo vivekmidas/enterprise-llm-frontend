@@ -54,6 +54,23 @@ export const apiFetch = async (url: string, init: RequestInit = {}): Promise<Res
   });
 };
 
+export const handleResponse = async (res: Response, defaultMessage = 'Request failed') => {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.status === 'error') {
+    let errorDetail = data.detail ?? data.details ?? data.message ?? defaultMessage;
+    if (typeof errorDetail === 'object' && errorDetail !== null) {
+      if (Array.isArray(errorDetail)) {
+        errorDetail = errorDetail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+      } else {
+        errorDetail = errorDetail.message || JSON.stringify(errorDetail);
+      }
+    }
+    console.error(`[API Error ${res.status || ''}] ${res.url}:`, errorDetail);
+    throw new Error(String(errorDetail));
+  }
+  return data;
+};
+
 export const api = {
   /** Authentication */
 
@@ -64,11 +81,7 @@ export const api = {
       credentials: 'include',
       body: JSON.stringify(credentials),
     });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.detail || 'Login failed');
-    }
-    const data = await res.json();
+    const data = await handleResponse(res, 'Login failed');
     if (data.token) {
       setAccessToken(data.token);
     }
@@ -84,8 +97,7 @@ export const api = {
     if (res.status === 401) {
       setAccessToken(null);
     }
-    if (!res.ok) throw new Error('Failed to fetch user details');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch user details');
   },
 
   logout: async () => {
@@ -93,7 +105,7 @@ export const api = {
       await fetch(`${BACKEND_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
-      }).catch(() => {});
+      }).catch(() => { });
     } finally {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
@@ -116,11 +128,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.detail || 'Registration failed');
-    }
-    return res.json();
+    return handleResponse(res, 'Registration failed');
   },
 
   /** Fetches all available agent definitions that can be used as components */
@@ -197,8 +205,7 @@ export const api = {
     const res = await fetch(`${BACKEND_URL}/workflows/${agentId}/nodes/${nodeId}/properties`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to load workflow node properties');
-    return res.json();
+    return handleResponse(res, 'Failed to load workflow node properties');
   },
 
   /** Writes persisted properties for one node instance inside a workflow */
@@ -212,8 +219,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(properties),
     });
-    if (!res.ok) throw new Error('Failed to update workflow node properties');
-    return res.json();
+    return handleResponse(res, 'Failed to update workflow node properties');
   },
 
   /** Lists all saved workflows stored in the database */
@@ -266,16 +272,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      let message = 'Failed to delete workflow';
-      try {
-        const data = await res.json();
-        message = data.detail || message;
-      } catch {
-        message = res.statusText || message;
-      }
-      throw new Error(message);
-    }
+    await handleResponse(res, 'Failed to delete workflow');
     return true;
   },
 
@@ -286,7 +283,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(node),
     });
-    return res.json();
+    return handleResponse(res, 'Failed to update node');
   },
 
   /** Updates a node definition in the registry (catalog) */
@@ -296,7 +293,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(node),
     });
-    return res.json();
+    return handleResponse(res, 'Failed to create node');
   },
 
   /** Deletes a node definition from the registry */
@@ -305,21 +302,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      let detail: any = 'Failed to delete node';
-      try {
-        const data = await res.json();
-        detail = data.detail || detail;
-      } catch {
-        detail = res.statusText || detail;
-      }
-      if (typeof detail === 'object') {
-        const err = new Error(detail.message || 'Failed to delete node');
-        (err as any).detail = detail;
-        throw err;
-      }
-      throw new Error(detail);
-    }
+    await handleResponse(res, 'Failed to delete node');
     return true;
   },
 
@@ -364,11 +347,7 @@ export const api = {
       headers: getHeaders(),
       method: 'GET',
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to fetch users');
-    }
-    const data = await res.json();
+    const data = await handleResponse(res, 'Failed to fetch users');
     return Array.isArray(data) ? data : [];
   },
 
@@ -378,11 +357,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(user),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to create user');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to create user');
   },
 
   updateUserRole: async (
@@ -394,11 +369,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to update user role');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to update user role');
   },
 
   deleteUser: async (id: number) => {
@@ -406,16 +377,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      let message = 'Failed to delete user';
-      try {
-        const data = await res.json();
-        message = data.detail || message;
-      } catch {
-        message = res.statusText || message;
-      }
-      throw new Error(message);
-    }
+    await handleResponse(res, 'Failed to delete user');
     return true;
   },
 
@@ -431,8 +393,7 @@ export const api = {
     const res = await fetch(url.toString(), {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to load audit logs');
-    return res.json();
+    return handleResponse(res, 'Failed to load audit logs');
   },
 
   getCustomers: async () => {
@@ -605,11 +566,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Failed to create provider preset');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to create provider preset');
   },
 
   updateProviderPreset: async (id: string, payload: any) => {
@@ -618,11 +575,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Failed to update provider preset');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to update provider preset');
   },
 
   deleteProviderPreset: async (id: string) => {
@@ -630,10 +583,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Failed to delete provider preset');
-    }
+    await handleResponse(res, 'Failed to delete provider preset');
     return true;
   },
 
@@ -642,11 +592,7 @@ export const api = {
       method: 'POST',
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Failed to seed provider presets');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to seed provider presets');
   },
 
   getCustomerNodeConfigs: async (customerId?: string | number) => {
@@ -683,8 +629,7 @@ export const api = {
       headers: getHeaders(),
       method: 'GET',
     });
-    if (!res.ok) throw new Error('Failed to fetch knowledge bases');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch knowledge bases');
   },
   /* END BLOCK */
 
@@ -694,8 +639,7 @@ export const api = {
       headers: getHeaders(),
       method: 'GET',
     });
-    if (!res.ok) throw new Error('Failed to fetch domain schemas');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch domain schemas');
   },
 
   getDomainSchema: async (id: string) => {
@@ -703,8 +647,7 @@ export const api = {
       headers: getHeaders(),
       method: 'GET',
     });
-    if (!res.ok) throw new Error('Failed to fetch domain schema');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch domain schema');
   },
 
   createDomainSchema: async (payload: {
@@ -734,8 +677,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Failed to create domain schema');
-    return res.json();
+    return handleResponse(res, 'Failed to create domain schema');
   },
 
   updateDomainSchema: async (
@@ -767,8 +709,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Failed to update domain schema');
-    return res.json();
+    return handleResponse(res, 'Failed to update domain schema');
   },
 
   deleteDomainSchema: async (id: string) => {
@@ -776,8 +717,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to delete domain schema');
-    return res.json();
+    return handleResponse(res, 'Failed to delete domain schema');
   },
   /* END BLOCK */
 
@@ -794,11 +734,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to create knowledge base');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to create knowledge base');
   },
 
   deleteKnowledgeBase: async (id: number | string) => {
@@ -806,11 +742,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to delete knowledge base');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to delete knowledge base');
   },
 
   updateKnowledgeBase: async (
@@ -830,11 +762,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to update knowledge base');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to update knowledge base');
   },
 
   updateDocument: async (
@@ -847,8 +775,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Failed to update document');
-    return res.json();
+    return handleResponse(res, 'Failed to update document');
   },
 
   reprocessDocument: async (kbId: number | string, docId: number | string) => {
@@ -859,8 +786,7 @@ export const api = {
         headers: getHeaders(),
       },
     );
-    if (!res.ok) throw new Error('Failed to queue document for reprocessing');
-    return res.json();
+    return handleResponse(res, 'Failed to queue document for reprocessing');
   },
 
   getKnowledgeBaseDocuments: async (kbId: number | string) => {
@@ -868,8 +794,7 @@ export const api = {
       headers: getHeaders(),
       method: 'GET',
     });
-    if (!res.ok) throw new Error('Failed to fetch documents');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch documents');
   },
 
   uploadDocument: async (
@@ -897,15 +822,7 @@ export const api = {
       headers: getHeaders(), // Let browser set boundary for multipart/form-data
       body: formData,
     });
-    if (!res.ok) {
-      let msg = 'Failed to upload document';
-      try {
-        const errData = await res.json();
-        msg = errData.detail || msg;
-      } catch {}
-      throw new Error(msg);
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to upload document');
   },
 
   deleteDocument: async (kbId: string, docId: string) => {
@@ -913,8 +830,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to delete document');
-    return res.json();
+    return handleResponse(res, 'Failed to delete document');
   },
 
   getDocumentStatus: async (kbId: string, docId: string) => {
@@ -922,8 +838,7 @@ export const api = {
       headers: getHeaders(),
       method: 'GET',
     });
-    if (!res.ok) throw new Error('Failed to fetch document status');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch document status');
   },
 
   getDocumentViews: async (kbId: string | number, docId: string | number) => {
@@ -931,8 +846,7 @@ export const api = {
       headers: getHeaders(),
       method: 'GET',
     });
-    if (!res.ok) throw new Error('Failed to fetch document views');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch document views');
   },
 
   updateDocumentViews: async (
@@ -945,8 +859,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Failed to update document views');
-    return res.json();
+    return handleResponse(res, 'Failed to update document views');
   },
 
   retrieveKnowledge: async (payload: {
@@ -967,8 +880,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Failed to retrieve knowledge');
-    return res.json();
+    return handleResponse(res, 'Failed to retrieve knowledge');
   },
 
   generateResponse: async (payload: {
@@ -987,8 +899,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Failed to generate response');
-    return res.json();
+    return handleResponse(res, 'Failed to generate response');
   },
 
   getDocumentTypes: async (): Promise<string[]> => {
@@ -996,8 +907,7 @@ export const api = {
       headers: getHeaders(),
       method: 'GET',
     });
-    if (!res.ok) throw new Error('Failed to fetch document types');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch document types');
   },
 
   updateDocumentTypes: async (types: string[]): Promise<string[]> => {
@@ -1006,8 +916,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(types),
     });
-    if (!res.ok) throw new Error('Failed to update document types');
-    return res.json();
+    return handleResponse(res, 'Failed to update document types');
   },
 
   getCompanySettings: async (customerId?: string | number) => {
@@ -1018,8 +927,7 @@ export const api = {
     const res = await fetch(url.toString(), {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to fetch company settings');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch company settings');
   },
 
   updateCompanySettings: async (settings: any, customerId?: string | number) => {
@@ -1032,16 +940,14 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(settings),
     });
-    if (!res.ok) throw new Error('Failed to update company settings');
-    return res.json();
+    return handleResponse(res, 'Failed to update company settings');
   },
 
   getLlmProfile: async (profileId: string | number) => {
     const res = await fetch(`${BACKEND_URL}/api/profiles/${profileId}`, {
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to fetch LLM profile');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch LLM profile');
   },
 
   getLlmProfiles: async (customerId?: string | number) => {
@@ -1058,8 +964,7 @@ export const api = {
       if (customerId && customerId !== 'all')
         fallbackUrl.searchParams.append('customer_id', String(customerId));
       const fbRes = await fetch(fallbackUrl.toString(), { headers: getHeaders() });
-      if (!fbRes.ok) throw new Error('Failed to fetch LLM profiles');
-      return fbRes.json();
+      return handleResponse(fbRes, 'Failed to fetch LLM profiles');
     }
     return res.json();
   },
@@ -1071,8 +976,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(profile),
     });
-    if (!res.ok) throw new Error('Failed to create LLM profile');
-    return res.json();
+    return handleResponse(res, 'Failed to create LLM profile');
   },
 
   updateLlmProfile: async (id: string, profile: any, customerId?: string) => {
@@ -1082,8 +986,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(profile),
     });
-    if (!res.ok) throw new Error('Failed to update LLM profile');
-    return res.json();
+    return handleResponse(res, 'Failed to update LLM profile');
   },
 
   deleteLlmProfile: async (id: string, customerId?: string) => {
@@ -1093,7 +996,8 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok && res.status !== 204) throw new Error('Failed to delete LLM profile');
+    if (res.status === 204) return true;
+    await handleResponse(res, 'Failed to delete LLM profile');
     return true;
   },
 
@@ -1103,8 +1007,7 @@ export const api = {
       method: 'POST',
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to activate LLM profile');
-    return res.json();
+    return handleResponse(res, 'Failed to activate LLM profile');
   },
 
   runPlaygroundTest: async (payload: any) => {
@@ -1113,11 +1016,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.detail || 'Playground test execution failed');
-    }
-    return res.json();
+    return handleResponse(res, 'Playground test execution failed');
   },
 
   testLlmConnection: async (payload: any) => {
@@ -1126,11 +1025,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.detail || 'Connection test failed');
-    }
-    return res.json();
+    return handleResponse(res, 'Connection test failed');
   },
 
   testNode: async (payload: { node_name: string; config: any; data: any; context?: any }) => {
@@ -1139,11 +1034,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.detail || 'Failed to execute node test');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to execute node test');
   },
 
   getJsonSamples: async (schema: any) => {
@@ -1152,11 +1043,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ schema }),
     });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.detail || 'Failed to generate JSON sample');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to generate JSON sample');
   },
 
   getConfiguredLLMProfiles: async () => {
@@ -1190,8 +1077,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Legal search failed');
-    return res.json();
+    return handleResponse(res, 'Legal search failed');
   },
 
   searchDomainKnowledge: async (payload: {
@@ -1215,8 +1101,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Domain search failed');
-    return res.json();
+    return handleResponse(res, 'Domain search failed');
   },
 
   getTaxonomySuggestions: async (
@@ -1268,8 +1153,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Research drafting failed');
-    return res.json();
+    return handleResponse(res, 'Research drafting failed');
   },
 
   getLegalFilterOptions: async () => {
@@ -1301,8 +1185,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Failed to save query');
-    return res.json();
+    return handleResponse(res, 'Failed to save query');
   },
 
   getLegalAuditLogs: async () => {
@@ -1319,8 +1202,7 @@ export const api = {
       method: 'GET',
       headers: getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to fetch case detail');
-    return res.json();
+    return handleResponse(res, 'Failed to fetch case detail');
   },
 
   ingestLegalDocument: async (payload: {
@@ -1335,8 +1217,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Document ingestion failed');
-    return res.json();
+    return handleResponse(res, 'Document ingestion failed');
   },
 
   triggerWebhookWorkflow: async (webhookPath: string, payload: any) => {
@@ -1346,15 +1227,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      let detail = 'Webhook workflow execution failed';
-      try {
-        const data = await res.json();
-        detail = data.detail || detail;
-      } catch {}
-      throw new Error(detail);
-    }
-    return res.json();
+    return handleResponse(res, 'Webhook workflow execution failed');
   },
 
   getCasePrecedents: async (caseId: string) => {
@@ -1371,18 +1244,8 @@ export const api = {
     const url = path.startsWith('/') ? `${BACKEND_URL}${path}` : `${BACKEND_URL}/${path}`;
     const headers = getHeaders((options.headers as any) || { 'Content-Type': 'application/json' });
     const res = await fetch(url, { ...options, headers });
-    if (!res.ok) {
-      let msg = 'API request failed';
-      try {
-        const data = await res.json();
-        msg = data.detail || msg;
-      } catch {
-        msg = res.statusText || msg;
-      }
-      throw new Error(msg);
-    }
     if (res.status === 204) return null;
-    return res.json();
+    return handleResponse(res, 'API request failed');
   },
 
   /** Roles & Permissions API */
@@ -1421,11 +1284,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to create role');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to create role');
   },
 
   updateRole: async (
@@ -1437,11 +1296,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to update role');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to update role');
   },
 
   deleteRole: async (roleId: string) => {
@@ -1449,10 +1304,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to delete role');
-    }
+    await handleResponse(res, 'Failed to delete role');
     return true;
   },
 
@@ -1490,11 +1342,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to create custom module');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to create custom module');
   },
 
   deleteCustomModule: async (moduleId: string) => {
@@ -1502,10 +1350,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to delete module');
-    }
+    await handleResponse(res, 'Failed to delete module');
     return true;
   },
 
@@ -1532,11 +1377,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to create permission');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to create permission');
   },
 
   createModulePermissions: async (data: {
@@ -1549,11 +1390,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to register module permissions');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to register module permissions');
   },
 
   createRoutePermissionBinding: async (data: {
@@ -1569,11 +1406,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to create route permission binding');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to create route permission binding');
   },
 
   updateRoutePermissionBinding: async (
@@ -1592,11 +1425,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to update route permission binding');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to update route permission binding');
   },
 
   deleteRoutePermissionBinding: async (id: string) => {
@@ -1604,10 +1433,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to delete route permission binding');
-    }
+    await handleResponse(res, 'Failed to delete route permission binding');
     return true;
   },
 
@@ -1617,11 +1443,7 @@ export const api = {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to sync default route permissions');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to sync default route permissions');
   },
 
   // BLOCK COMMENT: REQUIREMENT 3 SYSTEM SQL BACKUP DUMP EXPORTER METHOD
@@ -1631,8 +1453,7 @@ export const api = {
       headers: getHeaders(),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to generate SQL data backup');
+      await handleResponse(res, 'Failed to generate SQL data backup');
     }
 
     // Extract filename from header or generate default matching ekb_data_dd_mm_yyyy_sss.sql format
@@ -1663,11 +1484,7 @@ export const api = {
     const res = await fetch(`${BACKEND_URL}/api/admin/backup/history`, {
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to fetch SQL backup history');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to fetch SQL backup history');
   },
 
   downloadSqlBackupFile: async (filename: string) => {
@@ -1727,11 +1544,7 @@ export const api = {
         audio_used: audioUsed,
       }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to send message to assistant');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to send message to assistant');
   },
 
   sendInactivityEvent: async (
@@ -1744,11 +1557,7 @@ export const api = {
       headers: getHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ session_id: sessionId, event_type: eventType, language }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to post inactivity event');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to post inactivity event');
   },
 
   getAssistantHistory: async (limit: number = 10, sessionId?: string) => {
@@ -1757,11 +1566,73 @@ export const api = {
     const res = await fetch(`${BACKEND_URL}/api/chat/assistant/history?${query.toString()}`, {
       headers: getHeaders(),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to fetch assistant conversation history');
-    }
-    return res.json();
+    return handleResponse(res, 'Failed to fetch assistant conversation history');
+  },
+
+  /* ==============================================================================
+     BLOCK COMMENT: LEGAL INTELLIGENCE & MATTER INTAKE API (EPIC 3.3)
+     Integrates with /api/v1/legal backend endpoints for matter analysis,
+     provenance tracking, 1-click case conversion, and draft scaffolding.
+     ============================================================================== */
+  legalIntake: async (payload: { input_mode: string; raw_text?: string; instructions?: string; file_name?: string }) => {
+    const res = await fetch(`${BACKEND_URL}/api/v1/legal/analysis/intake`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(res, 'Failed to process matter intake');
+  },
+
+  legalUploadIntake: async (formData: FormData) => {
+    const headers = getHeaders();
+    // Do not set Content-Type header manually for multipart FormData
+    const res = await fetch(`${BACKEND_URL}/api/v1/legal/analysis/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    return handleResponse(res, 'Failed to process document upload intake');
+  },
+
+  getLegalAnalysis: async (analysisId: string) => {
+    const res = await fetch(`${BACKEND_URL}/api/v1/legal/analysis/${analysisId}`, {
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Failed to fetch analysis details');
+  },
+
+  overrideLegalFields: async (analysisId: string, overrides: Array<{ field_name: string; value: string }>) => {
+    const res = await fetch(`${BACKEND_URL}/api/v1/legal/analysis/${analysisId}/fields`, {
+      method: 'PATCH',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ overrides }),
+    });
+    return handleResponse(res, 'Failed to update field overrides');
+  },
+
+  convertAnalysisToCase: async (analysisId: string, payload: any) => {
+    const res = await fetch(`${BACKEND_URL}/api/v1/legal/analysis/${analysisId}/convert-case`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(res, 'Failed to convert analysis to case');
+  },
+
+  generateLegalDraftScaffold: async (analysisId: string, payload: { draft_type?: string; user_instructions?: string }) => {
+    const res = await fetch(`${BACKEND_URL}/api/v1/legal/analysis/${analysisId}/draft`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(res, 'Failed to scaffold legal draft');
+  },
+
+  listLegalCases: async () => {
+    const res = await fetch(`${BACKEND_URL}/api/v1/legal/cases`, {
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Failed to list tenant cases');
   },
 };
 

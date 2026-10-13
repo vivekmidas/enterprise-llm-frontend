@@ -213,15 +213,19 @@ function toPillsArray(val: any): string[] {
 export interface LegalResearchHubProps {
   userPermissions?: string[];
   userRole?: string;
+  initialQuery?: string;
+  initialMode?: string;
 }
 
 export default function LegalResearchHub({
   userPermissions: propPermissions,
   userRole: propRole,
+  initialQuery = '',
+  initialMode,
 }: LegalResearchHubProps = {}) {
   const router = useRouter();
   // Navigation & Workspace State
-  const [hasSearched, setHasSearched] = useState(false);
+  const [hasSearched, setHasSearched] = useState(Boolean(initialQuery));
   const [activeWorkflow, setActiveWorkflow] = useState<
     'search' | 'draft' | 'affidavit' | 'cases' | 'opponent' | 'briefs'
   >('search');
@@ -245,7 +249,14 @@ export default function LegalResearchHub({
   const isRailExpanded = isRailPinned || isRailHovered;
 
   // Search & Results State
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery || '');
+
+  useEffect(() => {
+    if (initialQuery) {
+      setSearchQuery(initialQuery);
+      setHasSearched(true);
+    }
+  }, [initialQuery]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [parsedIntent, setParsedIntent] = useState<any>(null);

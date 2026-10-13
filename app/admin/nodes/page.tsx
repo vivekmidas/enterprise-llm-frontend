@@ -1557,7 +1557,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                           userRole === 'system_admin') && (
                           <button
                             onClick={() => handleDeleteNode(agent.name)}
-                            className="p-1 bg-red-900 text-red-850 hover:bg-white-900 hover:text-red-900  rounded cursor-pointer"
+                            className="p-1 bg-white-900 text-red-500 hover:text-white hover:bg-red-500  rounded cursor-pointer"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

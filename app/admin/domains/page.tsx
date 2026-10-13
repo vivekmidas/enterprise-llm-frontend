@@ -31,6 +31,7 @@ import {
   Eye,
   BookOpen,
   Lock,
+  Upload,
 } from 'lucide-react';
 import Alert from '@mui/material/Alert';
 
@@ -141,6 +142,65 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
   const [newKbIsSystem, setNewKbIsSystem] = useState(true);
   const [savingKb, setSavingKb] = useState(false);
 
+  // Document Management for Domain KBs
+  const [selectedDomainKbForDocs, setSelectedDomainKbForDocs] = useState<any | null>(null);
+  const [domainKbDocs, setDomainKbDocs] = useState<any[]>([]);
+  const [loadingDomainKbDocs, setLoadingDomainKbDocs] = useState(false);
+  const [uploadingDomainKbDoc, setUploadingDomainKbDoc] = useState(false);
+  const domainKbFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const fetchDomainKbDocs = async (kbId: string | number) => {
+    setLoadingDomainKbDocs(true);
+    try {
+      const docs = await api.getKnowledgeBaseDocuments(kbId);
+      setDomainKbDocs(docs || []);
+    } catch (err) {
+      console.error('Failed to load KB documents', err);
+    } finally {
+      setLoadingDomainKbDocs(false);
+    }
+  };
+
+  const handleUploadFileToDomainKb = async (file: File) => {
+    if (!selectedDomainKbForDocs) return;
+    setUploadingDomainKbDoc(true);
+    try {
+      await api.uploadDocument(String(selectedDomainKbForDocs.id), file);
+      await fetchDomainKbDocs(selectedDomainKbForDocs.id);
+      setDomainKbs((prev) =>
+        prev.map((k) =>
+          k.id === selectedDomainKbForDocs.id
+            ? { ...k, document_count: (k.document_count || 0) + 1 }
+            : k
+        )
+      );
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to upload document to domain KB');
+    } finally {
+      setUploadingDomainKbDoc(false);
+    }
+  };
+
+  const handleDeleteDocFromDomainKb = async (docId: string | number) => {
+    if (!selectedDomainKbForDocs) return;
+    if (!confirm('Are you sure you want to delete this document from the domain repository?')) return;
+    try {
+      await api.deleteDocument(String(selectedDomainKbForDocs.id), String(docId));
+      setDomainKbDocs((prev) => prev.filter((d) => d.id !== docId));
+      setDomainKbs((prev) =>
+        prev.map((k) =>
+          k.id === selectedDomainKbForDocs.id
+            ? { ...k, document_count: Math.max(0, (k.document_count || 1) - 1) }
+            : k
+        )
+      );
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to delete document');
+    }
+  };
+
   // Form State
   const [formName, setFormName] = useState('');
   const [formDomainKey, setFormDomainKey] = useState('');
@@ -172,7 +232,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
       setDomains(data || []);
     } catch (err: any) {
       console.error('Failed to load domain schemas:', err);
-      setAlertMessage({ type: 'error', text: 'Failed to load domain schemas.' });
+      setAlertMessage({ type: 'error', text: err.message || 'Failed to load domain schemas.' });
     } finally {
       setLoading(false);
     }
@@ -342,17 +402,17 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
 
     try {
       if (editingDomain) {
-        await api.updateDomainSchema(editingDomain.id, payload);
+        const res = await api.updateDomainSchema(editingDomain.id, payload);
         setAlertMessage({
           type: 'success',
-          text: `Domain "${payload.name}" updated successfully.`,
+          text: res?.message || `Domain "${payload.name}" updated successfully.`,
         });
         setShowConfigModal(false);
       } else {
-        await api.createDomainSchema(payload);
+        const res = await api.createDomainSchema(payload);
         setAlertMessage({
           type: 'success',
-          text: `New Domain "${payload.name}" created successfully.`,
+          text: res?.message || `New Domain "${payload.name}" created successfully.`,
         });
         setShowAddModal(false);
       }
@@ -376,8 +436,11 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
     setSaving(true);
     setAlertMessage(null);
     try {
-      await api.deleteDomainSchema(id);
-      setAlertMessage({ type: 'success', text: `Domain "${name}" deleted successfully.` });
+      const res = await api.deleteDomainSchema(id);
+      setAlertMessage({
+        type: 'success',
+        text: res?.message || `Domain "${name}" deleted successfully.`,
+      });
       await fetchDomains();
     } catch (err: any) {
       console.error('Failed to delete domain schema:', err);
@@ -1240,18 +1303,191 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                             </div>
 
                             <div className="flex items-center gap-2 text-xs">
-                              <span className="text-[11px] font-mono text-gray-400">
+                              <span className="text-[11px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                                 {kb.document_count ?? 0} docs
                               </span>
-                              {!isSystemAdmin && isSystem && (
-                                <span className="text-gray-400" title="Read-only for tenant users">
-                                  <Lock className="w-3.5 h-3.5" />
-                                </span>
+                              {isSystemAdmin ? (
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (selectedDomainKbForDocs?.id === kb.id) {
+                                        setSelectedDomainKbForDocs(null);
+                                      } else {
+                                        setSelectedDomainKbForDocs(kb);
+                                        fetchDomainKbDocs(kb.id);
+                                      }
+                                    }}
+                                    className={`px-2.5 py-1 border rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+                                      selectedDomainKbForDocs?.id === kb.id
+                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                        : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                                    }`}
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    <span>{selectedDomainKbForDocs?.id === kb.id ? 'Close Docs' : 'Documents'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedDomainKbForDocs(kb);
+                                      fetchDomainKbDocs(kb.id);
+                                      setTimeout(() => domainKbFileInputRef.current?.click(), 50);
+                                    }}
+                                    className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="Upload document to this Knowledge Base"
+                                  >
+                                    <Upload className="w-3.5 h-3.5" />
+                                    <span>Upload</span>
+                                  </button>
+                                </div>
+                              ) : (
+                                isSystem && (
+                                  <span className="text-gray-400 flex items-center gap-1 text-[11px]" title="Read-only for tenant users">
+                                    <Lock className="w-3.5 h-3.5" />
+                                    <span>Read-only</span>
+                                  </span>
+                                )
                               )}
                             </div>
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+
+                  {/* Hidden file input for Domain KB Uploads */}
+                  <input
+                    type="file"
+                    ref={domainKbFileInputRef}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleUploadFileToDomainKb(file);
+                        e.target.value = '';
+                      }
+                    }}
+                    accept=".pdf,.txt,.doc,.docx,.md"
+                    className="hidden"
+                  />
+
+                  {/* EXPANDABLE DOCUMENT MANAGEMENT DRAWER FOR DOMAIN KB */}
+                  {selectedDomainKbForDocs && (
+                    <div className="p-4 bg-slate-50 border border-indigo-200 rounded-xl space-y-4 animate-in fade-in">
+                      <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h5 className="font-bold text-xs text-gray-900 flex items-center gap-1.5">
+                              <BookOpen className="w-4 h-4 text-indigo-600" />
+                              <span>{selectedDomainKbForDocs.name}</span>
+                            </h5>
+                            <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-bold flex items-center gap-1">
+                              <Shield className="w-3 h-3 text-purple-600" />
+                              Shared Domain Vector Repository
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-0.5">
+                            Documents uploaded here are vectorized into Qdrant and automatically queryable by all tenants in this domain.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={`/admin?tab=knowledge&kb_id=${selectedDomainKbForDocs.id}`}
+                            className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Open in Knowledge Tab"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Open in Knowledge Workspace</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDomainKbForDocs(null)}
+                            className="p-1 text-gray-400 hover:text-gray-600 rounded text-xs cursor-pointer font-bold"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Upload action bar */}
+                      {isSystemAdmin && (
+                        <div className="flex items-center justify-between p-3 bg-white border border-dashed border-indigo-300 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <Upload className="w-4 h-4 text-indigo-600" />
+                            <div>
+                              <p className="text-xs font-bold text-gray-800">Upload Law / Statute / Precedent Document</p>
+                              <p className="text-[11px] text-gray-500">Supports PDF, DOCX, TXT, Markdown (up to 50MB)</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={uploadingDomainKbDoc}
+                            onClick={() => domainKbFileInputRef.current?.click()}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                          >
+                            {uploadingDomainKbDoc ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Plus className="w-3.5 h-3.5" />
+                            )}
+                            <span>{uploadingDomainKbDoc ? 'Ingesting into Vector DB...' : 'Upload Document'}</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Documents List */}
+                      <div className="space-y-1.5">
+                        <h6 className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">
+                          Indexed Documents ({domainKbDocs.length})
+                        </h6>
+
+                        {loadingDomainKbDocs ? (
+                          <div className="p-4 text-center text-gray-400 text-xs">
+                            <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-1 text-indigo-500" />
+                            Loading documents...
+                          </div>
+                        ) : domainKbDocs.length === 0 ? (
+                          <div className="p-6 text-center bg-white border border-gray-200 rounded-lg text-xs text-gray-500">
+                            No documents in this domain knowledge base yet. Click "Upload Document" to index law statutes or precedents into Qdrant.
+                          </div>
+                        ) : (
+                          <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-60 overflow-y-auto">
+                            {domainKbDocs.map((doc) => (
+                              <div key={doc.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                  <span className="font-semibold text-gray-900 truncate max-w-xs">{doc.name}</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-gray-600 font-mono">
+                                    {doc.chunk_count || 0} chunks
+                                  </span>
+                                  <span
+                                    className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                                      doc.status === 'indexed' || doc.status === 'ready'
+                                        ? 'bg-emerald-50 text-emerald-700'
+                                        : doc.status === 'error' || doc.status === 'failed'
+                                        ? 'bg-red-50 text-red-700'
+                                        : 'bg-amber-50 text-amber-700'
+                                    }`}
+                                  >
+                                    {doc.status}
+                                  </span>
+                                </div>
+
+                                {isSystemAdmin && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteDocFromDomainKb(doc.id)}
+                                    className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors cursor-pointer"
+                                    title="Delete document from domain KB"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 

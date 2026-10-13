@@ -1,6 +1,12 @@
 {
   "name": "enterprise-llm-frontend",
   "version": "0.1.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

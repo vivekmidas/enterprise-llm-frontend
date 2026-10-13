@@ -510,15 +510,13 @@ export default function KnowledgeBasesTab({
   const handleDeleteDomainSchema = async (id: string) => {
     if (!confirm('Are you sure you want to delete this Domain Schema?')) return;
     try {
-      await api.deleteDomainSchema(id);
+      const res = await api.deleteDomainSchema(id);
+      alert(res?.message || 'Domain Schema deleted successfully.');
       const updatedList = await api.getDomainSchemas();
       setDomainSchemas(updatedList);
     } catch (err: any) {
-      console.error(err);
-      alert(
-        err.message ||
-          'Failed to delete Domain Schema. It may be linked to active Knowledge Bases.',
-      );
+      console.error('Failed to delete Domain Schema:', err);
+      alert(err.message || 'Failed to delete Domain Schema.');
     }
   };
 
@@ -1117,6 +1115,7 @@ export default function KnowledgeBasesTab({
   const [editKbName, setEditKbName] = useState('');
   const [editKbDesc, setEditKbDesc] = useState('');
   const [editKbPurpose, setEditKbPurpose] = useState('');
+  const [editKbDomainId, setEditKbDomainId] = useState('');
   const [editKbTags, setEditKbTags] = useState<string[]>([]);
   const [editKbEmbeddingModel, setEditKbEmbeddingModel] = useState('nomic-embed-text');
   const [editKbVectorDimension, setEditKbVectorDimension] = useState<number>(768);
@@ -1469,7 +1468,7 @@ export default function KnowledgeBasesTab({
       }
     } catch (err: any) {
       console.error(err);
-      setError('Failed to delete Knowledge Base.');
+      setError(err.message || 'Failed to delete Knowledge Base.');
     }
   };
 
@@ -1679,6 +1678,7 @@ export default function KnowledgeBasesTab({
         : kb.settings?.parser_strategy !== 'docling_only',
     );
     setEditKbEnableDedup(Boolean(kb.settings?.enable_dedup));
+    setEditKbDomainId(kb.domain_id || '');
     setEditKbExtractionPrompt(kb.settings?.extraction_prompt || kb.settings?.system_prompt || '');
     setShowEditKbModal(true);
   };
@@ -1700,6 +1700,7 @@ export default function KnowledgeBasesTab({
       const updatedKb = await api.updateKnowledgeBase(selectedKb.id, {
         name: toSentenceCase(editKbName.trim()),
         description: editKbDesc || undefined,
+        domain_id: editKbDomainId || undefined,
         settings: {
           ...(selectedKb.settings || {}),
           purpose: editKbPurpose || undefined,
@@ -1887,6 +1888,8 @@ export default function KnowledgeBasesTab({
                 </button>
                 <button
                   onClick={() => {
+                    setNewKbIsSystem(false);
+                    setNewKbScope('TENANT');
                     if (selectedCustomerFilter !== 'all') {
                       setCreateKbTargetCustomer(selectedCustomerFilter);
                     }
@@ -1897,6 +1900,29 @@ export default function KnowledgeBasesTab({
                   <Plus className="w-4 h-4" />
                   <span>Create Knowledge Base</span>
                 </button>
+                {isSystemAdmin && (
+                  <button
+                    onClick={() => {
+                      setNewKbIsSystem(true);
+                      setNewKbScope('SYSTEM');
+                      setCreateKbTargetCustomer('');
+                      const legalDom = domainSchemas.find(
+                        (d) => d.domain_key === 'legal' || d.domain_key === 'legal_judgment'
+                      );
+                      if (legalDom) {
+                        setNewKbDomainId(legalDom.id);
+                      } else if (domainSchemas.length > 0) {
+                        setNewKbDomainId(domainSchemas[0].id);
+                      }
+                      setShowCreateModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    title="Create a Domain-Level Knowledge Base shared across all tenants configured with this domain"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>+ New Domain KB</span>
+                  </button>
+                )}
               </>
             )}
 
@@ -1972,7 +1998,7 @@ export default function KnowledgeBasesTab({
                   }`}
                 >
                   <Shield className="w-3 h-3" />
-                  <span>System KBs</span>
+                  <span>Domain KBs</span>
                 </button>
               </div>
               {/* END BLOCK */}
@@ -2032,7 +2058,7 @@ export default function KnowledgeBasesTab({
                             {isKbSystem && (
                               <span className="px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-bold flex items-center gap-0.5">
                                 <Shield className="w-2.5 h-2.5" />
-                                System
+                                Domain KB
                               </span>
                             )}
                           </div>
@@ -2845,6 +2871,25 @@ export default function KnowledgeBasesTab({
                           Delete Schema
                         </button>
                       )}
+                      {isSystemAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewKbIsSystem(true);
+                            setNewKbScope('SYSTEM');
+                            setNewKbDomainId(selectedDomainId);
+                            setNewKbName(`${domainName} Common Knowledge`);
+                            setNewKbPurpose(`Common shared repository for ${domainName}`);
+                            setNewKbTags(domainName.toUpperCase().replace(/[^A-Z0-9]/g, '_'));
+                            setShowCreateModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                          title="Create a shared Domain Knowledge Base for this schema"
+                        >
+                          <Shield className="w-3.5 h-3.5 text-purple-600" />
+                          <span>+ Add Domain KB</span>
+                        </button>
+                      )}
                       <button
                         type="submit"
                         disabled={savingDomain}
@@ -3075,30 +3120,107 @@ export default function KnowledgeBasesTab({
               </button>
             </div>
             <form onSubmit={handleCreateKB} className="p-6 space-y-4">
-              {/* BLOCK: Customer selector & System KB toggle for system_admin */}
-              {isSystemAdmin && (
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="newKbIsSystem"
-                      checked={newKbIsSystem}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setNewKbIsSystem(checked);
-                        setNewKbScope(checked ? 'SYSTEM' : 'TENANT');
-                        if (checked) setCreateKbTargetCustomer('');
+              {/* BLOCK: KB Scope Selector for system_admin */}
+              {isSystemAdmin ? (
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Knowledge Base Type & Scope
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option 1: Tenant KB */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewKbIsSystem(false);
+                        setNewKbScope('TENANT');
                       }}
-                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
-                    />
-                    <label htmlFor="newKbIsSystem" className="text-xs font-bold text-purple-900 flex items-center gap-1.5 cursor-pointer">
-                      <Shield className="w-3.5 h-3.5 text-purple-600" />
-                      System Knowledge Base (Shared read-only across all tenants in domain)
-                    </label>
+                      className={`p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        !newKbIsSystem
+                          ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-500/20'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                          🏢 Tenant Knowledge Base
+                        </span>
+                        {!newKbIsSystem && (
+                          <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-555 leading-relaxed">
+                        Private repository scoped to a single customer tenant workspace.
+                      </p>
+                    </button>
+
+                    {/* Option 2: Domain KB */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewKbIsSystem(true);
+                        setNewKbScope('SYSTEM');
+                        setCreateKbTargetCustomer('');
+                        const legalDom = domainSchemas.find(
+                          (d) => d.domain_key === 'legal' || d.domain_key === 'legal_judgment'
+                        );
+                        if (legalDom && !newKbDomainId) {
+                          setNewKbDomainId(legalDom.id);
+                        } else if (domainSchemas.length > 0 && !newKbDomainId) {
+                          setNewKbDomainId(domainSchemas[0].id);
+                        }
+                      }}
+                      className={`p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        newKbIsSystem
+                          ? 'border-purple-500 bg-purple-50/50 ring-2 ring-purple-500/20'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                          <Shield className="w-3.5 h-3.5 text-purple-600" />
+                          Domain Knowledge Base
+                        </span>
+                        {newKbIsSystem && (
+                          <span className="w-2 h-2 rounded-full bg-purple-600"></span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-purple-700 leading-relaxed">
+                        Global shared repository across all tenants configured in this domain (e.g. Legal).
+                      </p>
+                    </button>
                   </div>
 
-                  {!newKbIsSystem && (
-                    <div className="space-y-1 pt-1 border-t border-slate-200">
+                  {/* Context-sensitive configuration panel */}
+                  {newKbIsSystem ? (
+                    <div className="p-3 bg-purple-50/60 border border-purple-200 rounded-lg space-y-2">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-purple-900 flex items-center justify-between">
+                          <span>Target Domain Schema *</span>
+                          <span className="text-[10px] font-semibold text-purple-600">Shared with all tenants in this domain</span>
+                        </label>
+                        <select
+                          value={newKbDomainId}
+                          required
+                          onChange={(e) => setNewKbDomainId(e.target.value)}
+                          className="w-full border border-purple-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-purple-600 cursor-pointer font-semibold"
+                        >
+                          <option value="">Select Domain (e.g. Legal)...</option>
+                          {domainSchemas.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name} ({d.domain_key})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <p className="text-[11px] text-purple-800 leading-relaxed flex items-center gap-1.5">
+                        <Shield className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                        <span>
+                          All customer tenants configured with the selected domain will automatically have read-only access to this KB and its indexed documents.
+                        </span>
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
                       <label className="block text-xs font-semibold text-gray-700">
                         Target Customer Tenant
                       </label>
@@ -3117,7 +3239,7 @@ export default function KnowledgeBasesTab({
                     </div>
                   )}
                 </div>
-              )}
+              ) : null}
               {/* END BLOCK */}
 
               {/* ROW 1: NAME & LINKED DOMAIN SCHEMA */}
@@ -3129,7 +3251,7 @@ export default function KnowledgeBasesTab({
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Employee handbook"
+                    placeholder={newKbIsSystem ? 'e.g. Legal Precedents & Judgments' : 'e.g. Employee handbook'}
                     value={newKbName}
                     onChange={(e) => setNewKbName(toSentenceCase(e.target.value))}
                     onBlur={() => setNewKbName(toSentenceCase(newKbName))}
@@ -3137,23 +3259,39 @@ export default function KnowledgeBasesTab({
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-gray-700">
-                    Linked Domain Schema (Optional)
-                  </label>
-                  <select
-                    value={newKbDomainId}
-                    onChange={(e) => setNewKbDomainId(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
-                  >
-                    <option value="">None (General KB)</option>
-                    {domainSchemas.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name} ({d.domain_key} - {d.scope})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {!newKbIsSystem ? (
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-700">
+                      Linked Domain Schema (Optional)
+                    </label>
+                    <select
+                      value={newKbDomainId}
+                      onChange={(e) => setNewKbDomainId(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
+                    >
+                      <option value="">None (General KB)</option>
+                      {domainSchemas.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} ({d.domain_key} - {d.scope})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-purple-900">
+                      Domain Scope Status
+                    </label>
+                    <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-xs font-semibold text-purple-700 flex items-center gap-1.5 h-[38px]">
+                      <Shield className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                      <span className="truncate">
+                        {newKbDomainId && domainSchemasMap[newKbDomainId]
+                          ? `Domain: ${domainSchemasMap[newKbDomainId].name}`
+                          : 'Domain Knowledge Base'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* ROW 2: PURPOSE & TAGS */}
@@ -3783,6 +3921,37 @@ export default function KnowledgeBasesTab({
                     placeholder="e.g. Customer support FAQs"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500"
                   />
+                </div>
+              </div>
+
+              {/* ROW 1.5: LINKED DOMAIN SCHEMA */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-gray-700 flex items-center justify-between">
+                    <span>Linked Domain Schema</span>
+                    {(selectedKb.is_system || selectedKb.scope === 'SYSTEM') && (
+                      <span className="text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 flex items-center gap-1">
+                        <Shield className="w-2.5 h-2.5" /> Domain KB
+                      </span>
+                    )}
+                  </label>
+                  <select
+                    value={editKbDomainId}
+                    onChange={(e) => setEditKbDomainId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
+                  >
+                    <option value="">None (General KB)</option>
+                    {domainSchemas.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} ({d.domain_key} - {d.scope})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1 flex flex-col justify-end">
+                  <p className="text-[11px] text-gray-500 leading-relaxed">
+                    Link with domain schemas (e.g. Legal & Contracts, Court Orders) to apply domain entity extraction and metadata categorization.
+                  </p>
                 </div>
               </div>
 
