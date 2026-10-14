@@ -276,6 +276,42 @@ export const api = {
     return true;
   },
 
+  // =============================================================================
+  // BLOCK COMMENT: DOMAIN-AGNOSTIC WORKFLOW EXECUTION CLIENT (EPIC-ARCH-001)
+  // Allows frontend plants (legal, education, admin) to execute workflows via
+  // the Gateway REST API and query trace observability results.
+  // =============================================================================
+  executeWorkflow: async (
+    workflowIdOrSlug: string,
+    inputData: any,
+    options?: {
+      executionMode?: 'sync' | 'async';
+      traceId?: string;
+      metadata?: Record<string, any>;
+    }
+  ) => {
+    const payload = {
+      input_data: inputData,
+      execution_mode: options?.executionMode || 'sync',
+      trace_id: options?.traceId,
+      metadata: options?.metadata || {},
+    };
+    const res = await fetch(`${BACKEND_URL}/workflows/${encodeURIComponent(workflowIdOrSlug)}/execute`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(res, `Failed to execute workflow '${workflowIdOrSlug}'`);
+  },
+
+  getWorkflowTrace: async (traceId: string) => {
+    const res = await fetch(`${BACKEND_URL}/workflows/traces/${encodeURIComponent(traceId)}`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, `Failed to fetch trace '${traceId}'`);
+  },
+
   /** Updates a node definition in the registry (catalog) */
   updateNode: async (node: any) => {
     const res = await fetch(`${BACKEND_URL}/nodes/${node.name}`, {
@@ -585,6 +621,65 @@ export const api = {
     });
     await handleResponse(res, 'Failed to delete provider preset');
     return true;
+  },
+
+  // ==============================================================================
+  // BLOCK COMMENT: TENANT API KEY CLIENT METHODS (EPIC-AUTH-001 / STORY-1.4)
+  // ==============================================================================
+  getApiKeys: async (customerId?: string) => {
+    const url = new URL(`${BACKEND_URL}/admin/api-keys`);
+    if (customerId && customerId !== 'all') {
+      url.searchParams.append('customer_id', String(customerId));
+    }
+    const res = await fetch(url.toString(), {
+      headers: getHeaders(),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  createApiKey: async (payload: {
+    name: string;
+    customer_id?: string;
+    role_id?: string;
+    scopes?: string[];
+    allowed_workflow_ids?: string[];
+    rate_limit_rpm?: number;
+    expires_at?: string | null;
+  }) => {
+    const res = await fetch(`${BACKEND_URL}/admin/api-keys`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(res, 'Failed to create API key');
+  },
+
+  updateApiKey: async (
+    id: string,
+    payload: {
+      name?: string;
+      role_id?: string;
+      is_active?: boolean;
+      scopes?: string[];
+      allowed_workflow_ids?: string[];
+      rate_limit_rpm?: number;
+    }
+  ) => {
+    const res = await fetch(`${BACKEND_URL}/admin/api-keys/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(res, 'Failed to update API key');
+  },
+
+  deleteApiKey: async (id: string) => {
+    const res = await fetch(`${BACKEND_URL}/admin/api-keys/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return res.ok;
   },
 
   seedProviderPresets: async () => {

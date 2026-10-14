@@ -37,6 +37,7 @@ import RolesTab from './roles/page';
 import PermissionsTab from './permissions/page';
 import BackupTab from './backup/page';
 import DomainsTab from './domains/page';
+import ApiKeysTab from './api-keys/page';
 
 export interface AdminTabItem {
   id: string;
@@ -54,6 +55,7 @@ function buildDynamicAdminTabs(routes: RoutePermissionRule[]): AdminTabItem[] {
     'users',
     'roles',
     'permissions',
+    'api-keys',
     'domains',
     'customers',
     'knowledge',
@@ -91,6 +93,15 @@ function buildDynamicAdminTabs(routes: RoutePermissionRule[]): AdminTabItem[] {
       });
     }
   });
+
+  // Ensure api-keys tab is always available in admin menu
+  if (!tabsMap.has('api-keys')) {
+    tabsMap.set('api-keys', {
+      id: 'api-keys',
+      label: 'API Keys',
+      permission: 'admin:tenant_settings:configure',
+    });
+  }
 
   // Sort based on default order, remaining at the end
   return Array.from(tabsMap.values()).sort((a, b) => {
@@ -424,6 +435,8 @@ function AdminDashboardContent() {
           )}
           {/* BLOCK COMMENT: RENDER PERMISSIONS TAB */}
           {activeTab === 'permissions' && isAdmin && <PermissionsTab />}
+          {/* BLOCK COMMENT: RENDER API KEYS TAB (EPIC-AUTH-001) */}
+          {activeTab === 'api-keys' && isAdmin && <ApiKeysTab />}
           {activeTab === 'domains' && isAdmin && (
             <DomainsTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
           )}

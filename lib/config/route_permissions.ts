@@ -287,6 +287,22 @@ export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
     submodule: 'oauth',
     label: 'OAuth Integrations Sub-routes',
   },
+
+  // API Keys (EPIC-AUTH-001)
+  {
+    pattern: '/admin/api-keys',
+    permission: 'admin:tenant_settings:configure',
+    module: 'admin',
+    submodule: 'api_keys',
+    label: 'API Keys',
+  },
+  {
+    pattern: '/admin/api-keys/**',
+    permission: 'admin:tenant_settings:configure',
+    module: 'admin',
+    submodule: 'api_keys',
+    label: 'API Keys Sub-routes',
+  },
   {
     pattern: '/oauth',
     permission: 'admin:oauth:view',

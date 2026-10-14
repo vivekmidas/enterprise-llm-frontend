@@ -18,6 +18,7 @@ import {
   Users as UsersIcon,
   ShieldCheck,
   Building2,
+  Key,
 } from 'lucide-react';
 
 interface NavItem {
@@ -52,6 +53,7 @@ function buildDynamicNavSections(routes: RoutePermissionRule[]): NavSection[] {
   };
 
   const getIconForRoute = (pattern: string) => {
+    if (pattern.includes('api-keys')) return <Key className="w-4 h-4" />;
     if (pattern.includes('autopilot')) return <Sword className="w-4 h-4" />;
     if (pattern.includes('legal')) return <Scale className="w-4 h-4" />;
     if (pattern.includes('workflow')) return <Workflow className="w-4 h-4" />;
