@@ -2,6 +2,7 @@ import { type NodeProps, type Node, Handle, Position } from '@xyflow/react';
 import { CustomNodeData } from './CustomNodeData';
 import { IconMap } from '@/lib/icons';
 import { Bot, Loader2, CheckCircle2, XCircle, Zap, Share2 } from 'lucide-react';
+import { getCategory, resolveThemeColor } from '../component-categoriees';
 
 export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) => {
   const {
@@ -26,16 +27,22 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
 
   const handleStyle = readOnly ? { opacity: 0, pointerEvents: 'none' as const } : undefined;
 
-  const renderIcon = () => {
-    if (!icon) return <Bot size={14} />;
+  /* ============================================================================
+     BLOCK COMMENT: THEME COLOR ICON & CONTAINER STYLING
+     Applies themeColor directly to the node icon and uses a light-tinted
+     container background so the icon color remains visible alongside the
+     themeColor left border.
+     ============================================================================ */
+  const renderIcon = (themeColor: string) => {
+    if (!icon) return <Bot size={20}  style={{ color: themeColor }} />;
 
     // Handle emoji icons (some built-in nodes use emojis)
     if (typeof icon === 'string' && icon.length <= 2 && /\p{Emoji}/u.test(icon)) {
-      return <span className="text-sm">{icon}</span>;
+      return <span className="text-sm text-gray-500">{icon}</span>;
     }
 
     const IconComponent = typeof icon === 'string' ? IconMap[icon.toLowerCase()] || Bot : Bot;
-    return <IconComponent size={14} />;
+    return <IconComponent size={20}  style={{ color: themeColor }} />;
   };
 
   const isConditionNode =
@@ -83,7 +90,17 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
   };
 
   const statusStyles = getStatusStyles();
-  const themeColor = category_color || color || '#3b82f6';
+  const fallbackCategory = getCategory((data as any).category || (data as any).group);
+  const themeColor = resolveThemeColor(
+    category_color,
+    color,
+    fallbackCategory?.color,
+    '#3b82f6',
+  );
+  const iconBgColor =
+    themeColor.startsWith('#') && themeColor.length === 7
+      ? `${themeColor}18`
+      : `color-mix(in srgb, ${themeColor} 12%, transparent)`;
   const isTrigger =
     node_type?.toLowerCase() === 'trigger' ||
     (data as any).category?.toString().toLowerCase() === 'trigger' ||
@@ -149,17 +166,19 @@ export const CustomNode = ({ data, selected }: NodeProps<Node<CustomNodeData>>) 
       className={`relative w-[210px] bg-white border rounded-xl p-2.5 flex flex-col gap-1 transition-all duration-300 ${statusStyles.cardBorder}`}
       style={{
         borderLeft: `3px solid ${themeColor}`,
+        borderLeftColor: themeColor,
       }}
     >
       <div className="flex items-start gap-2.5 w-full">
         {/* Node Icon Container */}
         <div
-          className="relative w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-white shadow-sm"
+          className="relative w-8 h-8 shrink-0 rounded-lg flex items-center justify-center shadow-sm"
           style={{
-            backgroundColor: themeColor,
+            backgroundColor: iconBgColor,
+            color: themeColor,
           }}
         >
-          {renderIcon()}
+          {renderIcon(themeColor)}
 
           {/* If it's a trigger node_type, show a tiny zap badge overlay in the bottom right corner */}
           {isTrigger && (

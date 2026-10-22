@@ -9,6 +9,7 @@ import {
   CATEGORIES,
   getCategory,
   normalizeAgent,
+  resolveThemeColor,
   AgentSidebarProps,
   CategoryItem,
 } from './component-categoriees';
@@ -77,7 +78,11 @@ export default function AgentSidebar({
             group: id,
             label,
             icon: IconMap[cat.icon?.toLowerCase()] || IconMap.settings,
-            color: typeof cat === 'object' ? cat.color || 'black' : 'black',
+            color: resolveThemeColor(
+              typeof cat === 'object' ? cat.color : undefined,
+              getCategory(label)?.color,
+              '#64748b',
+            ),
             id,
           };
         });
@@ -150,50 +155,81 @@ export default function AgentSidebar({
     (event.target as HTMLElement).style.opacity = '1';
   };
 
+  /* ============================================================================
+     BLOCK COMMENT: THEME COLOR ICONS & BORDERS FOR SIDEBAR NODES
+     Resolves themeColor (category_color -> category -> node.color -> fallback)
+     while rejecting white/transparent values, and applies it to both the left
+     border and icon in compact (Trigger/Logic) and action node cards.
+     ============================================================================ */
   const renderCompactNodeItem = (node: any, keyOverride?: string) => {
-    const category = getCategory(node.id);
+    const category = getCategory(node.category || node.group || node.id);
+    const matchedCat = categories.find((c) => String(c.id) === String(node.category));
     const Icon =
       IconMap[node.icon?.toLowerCase()] || IconMap[category.icon?.toLowerCase()] || IconMap.bot;
-    const themeColor = node.category_color || category.color || '#3b82f6';
+    const themeColor = resolveThemeColor(
+      node.category_color,
+      '#3b82f6',
+    );
 
     return (
       <div
         key={keyOverride || `compact-${node.id || node.name}`}
         draggable
-        onDragStart={(event) => onDragStart(event, node)}
+        onDragStart={(event) =>
+          onDragStart(event, { ...node, category_color: themeColor, color: node.color || themeColor })
+        }
         onDragEnd={onDragEnd}
-        className="cursor-grab rounded-lg border border-l-4 border-l-slate-300 border-slate-150 bg-white p-2 shadow-sm transition-all duration-200 hover:border-slate-305 hover:shadow-md hover:scale-[1.01] active:cursor-grabbing active:scale-[0.98] flex items-center gap-1.5 text-[10px] font-semibold text-slate-650 min-w-0"
+        className="cursor-grab rounded-lg border border-slate-150 bg-white p-2 shadow-sm transition-all duration-200 hover:border-slate-305 hover:shadow-md hover:scale-[1.01] active:cursor-grabbing active:scale-[0.98] flex items-center gap-1.5 text-[10px] font-semibold text-slate-650 min-w-0"
         title={node.label || node.name}
-        style={{ borderLeft: `2.5px solid ${themeColor}` }}
+        style={{
+          borderLeft: `2.5px solid ${themeColor}`,
+          borderLeftColor: themeColor,
+        }}
       >
-        <Icon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+        <Icon className="h-3.5 w-3.5 shrink-0"  style={{ color: themeColor }} />
         <span className="truncate shrink text-[12px]">{node.label || node.name}</span>
       </div>
     );
   };
 
   const renderNodeItem = (node: any, keyOverride?: string) => {
-    const category = getCategory(node.id);
+    const category = getCategory(node.category || node.group || node.id);
+    const matchedCat = categories.find((c) => String(c.id) === String(node.category));
     const Icon =
       IconMap[node.icon?.toLowerCase()] || IconMap[category.icon?.toLowerCase()] || IconMap.bot;
-    const themeColor = node.category_color || category.color || '#3b82f6';
+    const themeColor = resolveThemeColor(
+      node.category_color,
+      '#3b82f6',
+    );
+    const iconBgColor =
+      themeColor.startsWith('#') && themeColor.length === 7
+        ? `${themeColor}18`
+        : `color-mix(in srgb, ${themeColor} 12%, transparent)`;
 
     return (
       <div
         key={keyOverride || `action-${node.id || node.name}`}
         draggable
-        onDragStart={(event) => onDragStart(event, node)}
+        onDragStart={(event) =>
+          onDragStart(event, { ...node, category_color: themeColor, color: node.color || themeColor })
+        }
         onDragEnd={onDragEnd}
-        className="cursor-grab rounded-lg border border-l-4 border-l-slate-400 border-slate-150 bg-white p-2.5 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md hover:translate-y-[-1px] active:cursor-grabbing active:scale-[0.98]"
+        className="cursor-grab rounded-lg border border-slate-150 bg-white p-2.5 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md hover:translate-y-[-1px] active:cursor-grabbing active:scale-[0.98]"
         title={node.label || node.name}
-        style={{ borderLeft: `3px solid ${themeColor}` }}
+        style={{
+          borderLeft: `3px solid ${themeColor}`,
+          borderLeftColor: themeColor,
+        }}
       >
         <div className="flex items-start gap-2.5">
           <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-white shadow-sm"
-            style={{ backgroundColor: themeColor }}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md shadow-sm"
+            style={{
+              backgroundColor: iconBgColor,
+              color: themeColor,
+            }}
           >
-            <Icon className="h-4.5 w-4.5" />
+            <Icon className="h-4.5 w-4.5"  style={{ color: themeColor }} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold leading-tight text-slate-700 truncate">
@@ -304,7 +340,7 @@ export default function AgentSidebar({
             </div>
 
             {/* Selected category node items */}
-            <div className="min-w-0 flex-1 border-l border-slate-100 pl-3">
+            <div className="min-w-0 flex-1 border-l border-slate-200 pl-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-bold text-slate-700 truncate">
                   {selectedCategory?.label || ''}
