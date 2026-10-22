@@ -226,7 +226,11 @@ const BASE_TENANT_ROLES = [
   },
 ];
 
-const getRelevantRolesForDomains = (allowedDomains: string[] = [], domainSchemas: any[] = []) => {
+const getRelevantRolesForDomains = (
+  allowedDomains: string[] = [],
+  domainSchemas: any[] = [],
+  domainRef?: string,
+) => {
   const rolesMap = new Map<
     string,
     { role_type: string; role_name: string; description?: string }
@@ -234,7 +238,9 @@ const getRelevantRolesForDomains = (allowedDomains: string[] = [], domainSchemas
 
   BASE_TENANT_ROLES.forEach((r) => rolesMap.set(r.role_type, r));
 
-  const domains = allowedDomains && allowedDomains.length > 0 ? allowedDomains : [];
+  const domains =
+    allowedDomains && allowedDomains.length > 0 ? allowedDomains : domainRef ? [domainRef] : [];
+
   domains.forEach((dom) => {
     const schema = domainSchemas.find((s: any) => s.id === dom || s.domain_key === dom);
     const key = (schema ? schema.domain_key : dom).toLowerCase();
@@ -271,10 +277,6 @@ export default function CustomersTab() {
   const [editCustomerPluginsEnabled, setEditCustomerPluginsEnabled] = useState(false);
   const [editCustomerStoragePath, setEditCustomerStoragePath] = useState('');
   const [editCustomerAllowedDomains, setEditCustomerAllowedDomains] = useState<string[]>([]);
-  const [editCustomerSearchSystemPrompt, setEditCustomerSearchSystemPrompt] = useState('');
-  const [editCustomerSearchUserPrompt, setEditCustomerSearchUserPrompt] = useState('');
-  const [editCustomerDraftingSystemPrompt, setEditCustomerDraftingSystemPrompt] = useState('');
-  const [editCustomerDraftingUserPrompt, setEditCustomerDraftingUserPrompt] = useState('');
 
   const [customerNodes, setCustomerNodes] = useState<any[]>([]);
   const [customerNodesLoading, setCustomerNodesLoading] = useState(false);
@@ -294,10 +296,6 @@ export default function CustomersTab() {
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
   const [newCustomerContactPerson, setNewCustomerContactPerson] = useState('');
   const [newCustomerAllowedDomains, setNewCustomerAllowedDomains] = useState<string[]>([]);
-  const [newCustomerSearchSystemPrompt, setNewCustomerSearchSystemPrompt] = useState('');
-  const [newCustomerSearchUserPrompt, setNewCustomerSearchUserPrompt] = useState('');
-  const [newCustomerDraftingSystemPrompt, setNewCustomerDraftingSystemPrompt] = useState('');
-  const [newCustomerDraftingUserPrompt, setNewCustomerDraftingUserPrompt] = useState('');
 
   // Add Customer User Modal
   const [showAddCustomerUserModal, setShowAddCustomerUserModal] = useState(false);
@@ -340,9 +338,6 @@ export default function CustomersTab() {
       /* BLOCK COMMENT: FETCH REGISTERED DOMAIN SCHEMAS */
       const domSchemas = await api.getDomainSchemas().catch(() => []);
       setDomainSchemas(domSchemas || []);
-      if (domSchemas && domSchemas.length > 0) {
-        setNewCustomerAllowedDomains((prev) => (prev.length === 0 ? [domSchemas[0].id] : prev));
-      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -451,28 +446,19 @@ export default function CustomersTab() {
     e.preventDefault();
     if (!selectedCustomer) return;
     try {
-      const promptsPayload: any = {};
-      if (editCustomerSearchSystemPrompt.trim())
-        promptsPayload.search_system_prompt = editCustomerSearchSystemPrompt.trim();
-      if (editCustomerSearchUserPrompt.trim())
-        promptsPayload.search_user_prompt = editCustomerSearchUserPrompt.trim();
-      if (editCustomerDraftingSystemPrompt.trim())
-        promptsPayload.drafting_system_prompt = editCustomerDraftingSystemPrompt.trim();
-      if (editCustomerDraftingUserPrompt.trim())
-        promptsPayload.drafting_user_prompt = editCustomerDraftingUserPrompt.trim();
-
-      const existingSettings = selectedCustomer.settings || {};
-      const updatedSettings = {
-        ...existingSettings,
-        prompts: {
-          ...(existingSettings.prompts || {}),
-          ...promptsPayload,
-        },
-      };
+      // Traceability: Story 1 - Prompt Decoupling from Tenant
+      const updatedSettings = { ...(selectedCustomer.settings || {}) };
+      delete (updatedSettings as any).prompts;
+      delete (updatedSettings as any).search_system_prompt;
+      delete (updatedSettings as any).search_user_prompt;
+      delete (updatedSettings as any).drafting_system_prompt;
+      delete (updatedSettings as any).drafting_user_prompt;
+      delete (updatedSettings as any).synthesize_system_prompt;
+      delete (updatedSettings as any).synthesize_user_prompt;
 
       const updated = await api.updateCustomer(selectedCustomer.id, {
         name: editCustomerName,
-        domain: editCustomerDomain,
+        domain: editCustomerDomain || null,
         email: editCustomerEmail || null,
         address: editCustomerAddress || null,
         contact_person: editCustomerContactPerson || null,
@@ -493,19 +479,9 @@ export default function CustomersTab() {
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const promptsPayload: any = {};
-      if (newCustomerSearchSystemPrompt.trim())
-        promptsPayload.search_system_prompt = newCustomerSearchSystemPrompt.trim();
-      if (newCustomerSearchUserPrompt.trim())
-        promptsPayload.search_user_prompt = newCustomerSearchUserPrompt.trim();
-      if (newCustomerDraftingSystemPrompt.trim())
-        promptsPayload.drafting_system_prompt = newCustomerDraftingSystemPrompt.trim();
-      if (newCustomerDraftingUserPrompt.trim())
-        promptsPayload.drafting_user_prompt = newCustomerDraftingUserPrompt.trim();
-
       await api.createCustomer({
         name: newCustomerName,
-        domain: newCustomerDomain,
+        domain: newCustomerDomain || null,
         icon: newCustomerIcon,
         color_schema: newCustomerColor,
         custom_plugins_enabled: newCustomerPluginsEnabled,
@@ -513,8 +489,8 @@ export default function CustomersTab() {
         email: newCustomerEmail || null,
         address: newCustomerAddress || null,
         contact_person: newCustomerContactPerson || null,
-        allowed_domains: newCustomerAllowedDomains,
-        settings: Object.keys(promptsPayload).length > 0 ? { prompts: promptsPayload } : {},
+        allowed_domains: [],
+        settings: {},
       });
       setShowAddCustomerModal(false);
       setNewCustomerName('');
@@ -524,12 +500,7 @@ export default function CustomersTab() {
       setNewCustomerContactPerson('');
       setNewCustomerPluginsEnabled(false);
       setNewCustomerStoragePath('');
-      setNewCustomerSearchSystemPrompt('');
-      setNewCustomerSearchUserPrompt('');
-      setNewCustomerDraftingSystemPrompt('');
-      setNewCustomerDraftingUserPrompt('');
-      const defaultDomainId = domainSchemas.length > 0 ? [domainSchemas[0].id] : [];
-      setNewCustomerAllowedDomains(defaultDomainId);
+      setNewCustomerAllowedDomains([]);
       fetchInitialData();
     } catch (err: any) {
       alert('Failed to create customer: ' + err.message);
@@ -804,29 +775,6 @@ export default function CustomersTab() {
                   setEditCustomerPluginsEnabled(selectedCustomer.custom_plugins_enabled || false);
                   setEditCustomerStoragePath(selectedCustomer.plugin_storage_path || '');
                   setEditCustomerAllowedDomains(selectedCustomer.allowed_domains || []);
-                  const existingPrompts = selectedCustomer.settings?.prompts || {};
-                  setEditCustomerSearchSystemPrompt(
-                    existingPrompts.search_system_prompt ||
-                      selectedCustomer.settings?.search_system_prompt ||
-                      '',
-                  );
-                  setEditCustomerSearchUserPrompt(
-                    existingPrompts.search_user_prompt ||
-                      selectedCustomer.settings?.search_user_prompt ||
-                      '',
-                  );
-                  setEditCustomerDraftingSystemPrompt(
-                    existingPrompts.drafting_system_prompt ||
-                      existingPrompts.synthesize_system_prompt ||
-                      selectedCustomer.settings?.drafting_system_prompt ||
-                      '',
-                  );
-                  setEditCustomerDraftingUserPrompt(
-                    existingPrompts.drafting_user_prompt ||
-                      existingPrompts.synthesize_user_prompt ||
-                      selectedCustomer.settings?.drafting_user_prompt ||
-                      '',
-                  );
                   setIsEditingCustomer(true);
                 }}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm cursor-pointer"
@@ -899,15 +847,23 @@ export default function CustomersTab() {
                     </div>
                     <div>
                       <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-                        Domain
+                        Domain{' '}
+                        <span className="text-[10px] text-gray-400 font-normal lowercase">
+                          (reference only)
+                        </span>
                       </label>
-                      <input
-                        type="text"
-                        required
+                      <select
                         value={editCustomerDomain}
                         onChange={(e) => setEditCustomerDomain(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
-                      />
+                        className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white cursor-pointer"
+                      >
+                        <option value="">Select Domain (Reference Only)</option>
+                        {domainSchemas.map((d: any) => (
+                          <option key={d.id} value={d.domain_key || d.name}>
+                            {d.name || d.domain_key}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -998,118 +954,6 @@ export default function CustomersTab() {
                     </div>
                   )}
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase text-gray-500 mb-2">
-                      Allowed Domains
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {/* BLOCK COMMENT: DYNAMICALLY POPULATED DOMAINS FROM DOMAIN_SCHEMAS USING DOMAIN_ID */}
-                      {domainSchemas.map((d: any) => {
-                        const isSelected =
-                          editCustomerAllowedDomains.includes(d.id) ||
-                          editCustomerAllowedDomains.includes(d.domain_key);
-                        return (
-                          <button
-                            key={d.id}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setEditCustomerAllowedDomains(
-                                  editCustomerAllowedDomains.filter(
-                                    (x) => x !== d.id && x !== d.domain_key,
-                                  ),
-                                );
-                              } else {
-                                setEditCustomerAllowedDomains([
-                                  ...editCustomerAllowedDomains.filter((x) => x !== d.domain_key),
-                                  d.id,
-                                ]);
-                              }
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
-                              isSelected
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                            }`}
-                          >
-                            {d.name || d.domain_key} {isSelected ? '✓' : '+'}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* BLOCK COMMENT: CLIENT-LEVEL AI PROMPTS CONFIGURATION */}
-                  <div className="border border-indigo-100 rounded-xl p-4 bg-indigo-50/40 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-xs font-bold uppercase text-indigo-900 tracking-wider">
-                          Client AI Prompts (Search & Response Drafting)
-                        </h4>
-                        <p className="text-[11px] text-gray-500">
-                          Configure default search summary and response drafting prompts
-                          automatically applied to all users in this tenant.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                      <div className="space-y-1">
-                        <label className="block text-[11px] font-bold text-gray-700">
-                          Search System Prompt (search_system_prompt)
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={editCustomerSearchSystemPrompt}
-                          onChange={(e) => setEditCustomerSearchSystemPrompt(e.target.value)}
-                          placeholder="e.g. Format search results into a JSON list of cases with minimum basic fields..."
-                          className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="block text-[11px] font-bold text-gray-700">
-                          Search User Prompt Template (search_user_prompt)
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={editCustomerSearchUserPrompt}
-                          onChange={(e) => setEditCustomerSearchUserPrompt(e.target.value)}
-                          placeholder="e.g. Matching Records:\n{context}\n\nSearch Query: {query}"
-                          className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="block text-[11px] font-bold text-gray-700">
-                          Drafting System Prompt this is required to instruct system when drafting a
-                          response (drafting_system_prompt)
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={editCustomerDraftingSystemPrompt}
-                          onChange={(e) => setEditCustomerDraftingSystemPrompt(e.target.value)}
-                          placeholder="e.g. You are an expert Legal Research Drafter. Ground all analysis strictly in context..."
-                          className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="block text-[11px] font-bold text-gray-700">
-                          Drafting User Prompt this is required to instruct system when drafting a
-                          response(drafting_user_prompt)
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={editCustomerDraftingUserPrompt}
-                          onChange={(e) => setEditCustomerDraftingUserPrompt(e.target.value)}
-                          placeholder="e.g. Context:\n{context}\n\nNotes: {user_notes}\n\nTask: {instruction}"
-                          className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="flex gap-2 pt-2">
                     <button
                       type="submit"
@@ -1133,10 +977,12 @@ export default function CustomersTab() {
                     <div className="space-y-4">
                       <div>
                         <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
-                          Domain name
+                          Domain
                         </span>
                         <span className="text-sm font-semibold text-black">
-                          {selectedCustomer.domain}
+                          {selectedCustomer.domain
+                            ? getDomainLabel(selectedCustomer.domain) || selectedCustomer.domain
+                            : 'None'}
                         </span>
                       </div>
                       <div>
@@ -1174,26 +1020,6 @@ export default function CustomersTab() {
                     <div className="space-y-4">
                       <div>
                         <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
-                          Allowed Knowledge Domains
-                        </span>
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {selectedCustomer.allowed_domains &&
-                          selectedCustomer.allowed_domains.length > 0 ? (
-                            selectedCustomer.allowed_domains.map((dom: string) => (
-                              <span
-                                key={dom}
-                                className="px-2.5 py-1 rounded text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase shadow-2xs"
-                              >
-                                {getDomainLabel(dom)}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-gray-400 italic">None assigned</span>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">
                           Address
                         </span>
                         <span className="text-sm font-semibold text-black block whitespace-pre-line leading-relaxed">
@@ -1224,105 +1050,6 @@ export default function CustomersTab() {
                       )}
                     </div>
                   </div>
-
-                  {/* ROW 2: CLIENT AI PROMPTS SECTION */}
-                  <div className="border border-indigo-100 rounded-xl p-5 bg-indigo-50/40 space-y-4">
-                    <div className="flex items-center justify-between pb-2 border-b border-indigo-100/80">
-                      <div>
-                        <h4 className="text-xs font-bold uppercase text-indigo-900 tracking-wider">
-                          Client AI Prompts (Search & Response Drafting)
-                        </h4>
-                        <p className="text-[11px] text-gray-500">
-                          Tenant-default prompt configurations applied to search summaries and
-                          long-form drafted briefs.
-                        </p>
-                      </div>
-                    </div>
-
-                    {(() => {
-                      const prompts = selectedCustomer.settings?.prompts || {};
-                      const searchSys =
-                        prompts.search_system_prompt ||
-                        selectedCustomer.settings?.search_system_prompt;
-                      const searchUser =
-                        prompts.search_user_prompt || selectedCustomer.settings?.search_user_prompt;
-                      const draftSys =
-                        prompts.drafting_system_prompt ||
-                        prompts.synthesize_system_prompt ||
-                        selectedCustomer.settings?.drafting_system_prompt ||
-                        selectedCustomer.settings?.synthesize_system_prompt;
-                      const draftUser =
-                        prompts.drafting_user_prompt ||
-                        prompts.synthesize_user_prompt ||
-                        selectedCustomer.settings?.drafting_user_prompt ||
-                        selectedCustomer.settings?.synthesize_user_prompt;
-
-                      return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-1.5 bg-white p-3.5 rounded-lg border border-gray-200">
-                            <span className="block text-[10px] font-bold uppercase text-gray-500">
-                              Search System Prompt (search_system_prompt)
-                            </span>
-                            {searchSys ? (
-                              <pre className="text-xs font-mono bg-slate-900 text-slate-100 p-2.5 rounded-md whitespace-pre-wrap max-h-36 overflow-y-auto">
-                                {searchSys}
-                              </pre>
-                            ) : (
-                              <span className="text-xs text-gray-400 italic">
-                                Default system prompt active (Multi-case JSON summary)
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="space-y-1.5 bg-white p-3.5 rounded-lg border border-gray-200">
-                            <span className="block text-[10px] font-bold uppercase text-gray-500">
-                              Search User Prompt Template (search_user_prompt)
-                            </span>
-                            {searchUser ? (
-                              <pre className="text-xs font-mono bg-slate-900 text-slate-100 p-2.5 rounded-md whitespace-pre-wrap max-h-36 overflow-y-auto">
-                                {searchUser}
-                              </pre>
-                            ) : (
-                              <span className="text-xs text-gray-400 italic">
-                                Default template active ({'{context}'}, {'{query}'})
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="space-y-1.5 bg-white p-3.5 rounded-lg border border-gray-200">
-                            <span className="block text-[10px] font-bold uppercase text-gray-500">
-                              Drafting System Prompt (drafting_system_prompt)
-                            </span>
-                            {draftSys ? (
-                              <pre className="text-xs font-mono bg-slate-900 text-slate-100 p-2.5 rounded-md whitespace-pre-wrap max-h-36 overflow-y-auto">
-                                {draftSys}
-                              </pre>
-                            ) : (
-                              <span className="text-xs text-gray-400 italic">
-                                Default system prompt active (Grounded Research Drafter)
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="space-y-1.5 bg-white p-3.5 rounded-lg border border-gray-200">
-                            <span className="block text-[10px] font-bold uppercase text-gray-500">
-                              Drafting User Prompt Template (drafting_user_prompt)
-                            </span>
-                            {draftUser ? (
-                              <pre className="text-xs font-mono bg-slate-900 text-slate-100 p-2.5 rounded-md whitespace-pre-wrap max-h-36 overflow-y-auto">
-                                {draftUser}
-                              </pre>
-                            ) : (
-                              <span className="text-xs text-gray-400 italic">
-                                Default template active ({'{context}'}, {'{user_notes}'},{' '}
-                                {'{instruction}'})
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
                 </div>
               )}
             </div>
@@ -1344,6 +1071,7 @@ export default function CustomersTab() {
                     const roles = getRelevantRolesForDomains(
                       targetCust?.allowed_domains,
                       domainSchemas,
+                      targetCust?.domain,
                     );
                     setCustomerUserRole(roles[0]?.role_type || 'tenant_user');
                     setShowAddCustomerUserModal(true);
@@ -1638,12 +1366,7 @@ export default function CustomersTab() {
                   <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
                     Plugin Name
                   </th>
-                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
-                    Domain Name
-                  </th>
-                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
-                    Allowed Domains
-                  </th>
+                  <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">Domain</th>
                   <th className="px-4 py-3 text-xs text-gray-500 uppercase font-bold">
                     Custom Plugins
                   </th>
@@ -1671,22 +1394,14 @@ export default function CustomersTab() {
                       ></span>
                       {c.name}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{c.domain}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      <div className="flex flex-wrap gap-1">
-                        {c.allowed_domains && c.allowed_domains.length > 0 ? (
-                          c.allowed_domains.map((dom: string) => (
-                            <span
-                              key={dom}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase"
-                            >
-                              {getDomainLabel(dom)}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">None</span>
-                        )}
-                      </div>
+                      {c.domain ? (
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-700">
+                          {getDomainLabel(c.domain) || c.domain}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">None</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm" onClick={(e) => e.stopPropagation()}>
                       <label className="relative inline-flex items-center cursor-pointer">
@@ -1737,6 +1452,7 @@ export default function CustomersTab() {
                           const roles = getRelevantRolesForDomains(
                             c?.allowed_domains,
                             domainSchemas,
+                            c?.domain,
                           );
                           setCustomerUserRole(roles[0]?.role_type || 'tenant_user');
                           setShowAddCustomerUserModal(true);
@@ -1800,16 +1516,23 @@ export default function CustomersTab() {
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-                  Domain Name
+                  Domain{' '}
+                  <span className="text-[10px] text-gray-400 font-normal lowercase">
+                    (reference only)
+                  </span>
                 </label>
-                <input
-                  type="text"
-                  required
+                <select
                   value={newCustomerDomain}
                   onChange={(e) => setNewCustomerDomain(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white"
-                  placeholder="e.g. acme"
-                />
+                  className="w-full rounded-lg border border-gray-200 p-2 text-sm text-black focus:border-bg-primary focus:outline-none bg-white cursor-pointer"
+                >
+                  <option value="">Select Domain (Reference Only)</option>
+                  {domainSchemas.map((d: any) => (
+                    <option key={d.id} value={d.domain_key || d.name}>
+                      {d.name || d.domain_key}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1874,41 +1597,7 @@ export default function CustomersTab() {
                 />
               </div>
               <div className="border border-gray-100 rounded-lg p-3 bg-gray-50 space-y-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-                    Allowed Knowledge Domains
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {/* BLOCK COMMENT: DYNAMICALLY POPULATED DOMAINS FROM DOMAIN_SCHEMAS USING DOMAIN_ID */}
-                    {domainSchemas.map((d: any) => {
-                      const isSelected = newCustomerAllowedDomains.includes(d.id);
-                      return (
-                        <button
-                          key={d.id}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) {
-                              setNewCustomerAllowedDomains(
-                                newCustomerAllowedDomains.filter((x) => x !== d.id),
-                              );
-                            } else {
-                              setNewCustomerAllowedDomains([...newCustomerAllowedDomains, d.id]);
-                            }
-                          }}
-                          className={`px-3 py-1 rounded text-xs font-bold transition-all border cursor-pointer ${
-                            isSelected
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
-                          }`}
-                        >
-                          {d.name || d.domain_key} {isSelected ? '✓' : '+'}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     id="newCustomerPluginsEnabled"
@@ -1937,73 +1626,6 @@ export default function CustomersTab() {
                     />
                   </div>
                 )}
-              </div>
-
-              {/* BLOCK COMMENT: NEW CUSTOMER CLIENT AI PROMPTS */}
-              <div className="border border-indigo-100 rounded-xl p-4 bg-indigo-50/40 space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold uppercase text-indigo-900 tracking-wider">
-                    Client AI Prompts (Search & Response Drafting)
-                  </h4>
-                  <p className="text-[11px] text-gray-500">
-                    Optional tenant-default prompts for search result formatting and long-form
-                    response drafting.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-gray-700">
-                      Search System Prompt
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={newCustomerSearchSystemPrompt}
-                      onChange={(e) => setNewCustomerSearchSystemPrompt(e.target.value)}
-                      placeholder="e.g. Format search results into a JSON list of cases with minimum basic fields..."
-                      className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-gray-700">
-                      Search User Prompt Template
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={newCustomerSearchUserPrompt}
-                      onChange={(e) => setNewCustomerSearchUserPrompt(e.target.value)}
-                      placeholder="e.g. Matching Records:\n{context}\n\nSearch Query: {query}"
-                      className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-gray-700">
-                      Drafting System Prompt
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={newCustomerDraftingSystemPrompt}
-                      onChange={(e) => setNewCustomerDraftingSystemPrompt(e.target.value)}
-                      placeholder="e.g. You are an expert Legal Research Drafter. Ground all analysis strictly in context..."
-                      className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-gray-700">
-                      Drafting User Prompt Template
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={newCustomerDraftingUserPrompt}
-                      onChange={(e) => setNewCustomerDraftingUserPrompt(e.target.value)}
-                      placeholder="e.g. Context:\n{context}\n\nNotes: {user_notes}\n\nTask: {instruction}"
-                      className="w-full rounded-lg border border-gray-300 p-2 text-xs text-black focus:border-indigo-500 focus:outline-none bg-white font-mono"
-                    />
-                  </div>
-                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
@@ -2086,6 +1708,10 @@ export default function CustomersTab() {
                       selectedCustomer
                     )?.allowed_domains,
                     domainSchemas,
+                    (
+                      customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) ||
+                      selectedCustomer
+                    )?.domain,
                   ).map((r) => (
                     <option key={r.role_type} value={r.role_type}>
                       {r.role_name}
@@ -2095,19 +1721,17 @@ export default function CustomersTab() {
                 {(
                   customers.find((c) => String(c.id) === String(selectedCustomerIdForUser)) ||
                   selectedCustomer
-                )?.allowed_domains && (
+                )?.domain && (
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Roles available for allowed domain(s):{' '}
+                    Domain reference:{' '}
                     <span className="font-semibold text-gray-600 uppercase">
-                      {(
+                      {getDomainLabel(
                         (
                           customers.find(
                             (c) => String(c.id) === String(selectedCustomerIdForUser),
                           ) || selectedCustomer
-                        ).allowed_domains || []
-                      )
-                        .map((dom: string) => getDomainLabel(dom))
-                        .join(', ')}
+                        ).domain,
+                      )}
                     </span>
                   </p>
                 )}

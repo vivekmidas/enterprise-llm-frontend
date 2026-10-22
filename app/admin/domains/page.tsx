@@ -171,8 +171,8 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
         prev.map((k) =>
           k.id === selectedDomainKbForDocs.id
             ? { ...k, document_count: (k.document_count || 0) + 1 }
-            : k
-        )
+            : k,
+        ),
       );
     } catch (err: any) {
       console.error(err);
@@ -184,7 +184,8 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
 
   const handleDeleteDocFromDomainKb = async (docId: string | number) => {
     if (!selectedDomainKbForDocs) return;
-    if (!confirm('Are you sure you want to delete this document from the domain repository?')) return;
+    if (!confirm('Are you sure you want to delete this document from the domain repository?'))
+      return;
     try {
       await api.deleteDocument(String(selectedDomainKbForDocs.id), String(docId));
       setDomainKbDocs((prev) => prev.filter((d) => d.id !== docId));
@@ -192,8 +193,8 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
         prev.map((k) =>
           k.id === selectedDomainKbForDocs.id
             ? { ...k, document_count: Math.max(0, (k.document_count || 1) - 1) }
-            : k
-        )
+            : k,
+        ),
       );
     } catch (err: any) {
       console.error(err);
@@ -1239,7 +1240,8 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                         Domain Knowledge Repositories
                       </h4>
                       <p className="text-xs text-gray-500">
-                        System-level & tenant knowledge bases indexed under this domain schema. System KBs are shared read-only across all tenants in this domain.
+                        System-level & tenant knowledge bases indexed under this domain schema.
+                        System KBs are shared read-only across all tenants in this domain.
                       </p>
                     </div>
 
@@ -1269,9 +1271,12 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                   ) : domainKbs.length === 0 ? (
                     <div className="p-8 text-center bg-slate-50 border border-dashed border-gray-300 rounded-xl">
                       <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                      <p className="text-xs font-semibold text-gray-600">No Knowledge Bases Linked to this Domain</p>
+                      <p className="text-xs font-semibold text-gray-600">
+                        No Knowledge Bases Linked to this Domain
+                      </p>
                       <p className="text-[11px] text-gray-400 mt-1">
-                        Add a system KB (e.g. statutes, reference codes, case laws) or link tenant KBs.
+                        Add a system KB (e.g. statutes, reference codes, case laws) or link tenant
+                        KBs.
                       </p>
                     </div>
                   ) : (
@@ -1298,7 +1303,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                                 )}
                               </div>
                               {kb.description && (
-                                <p className="text-[11px] text-gray-500 line-clamp-1">{kb.description}</p>
+                                <p className="text-[11px] text-gray-500 line-clamp-1">
+                                  {kb.description}
+                                </p>
                               )}
                             </div>
 
@@ -1325,7 +1332,11 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                                     }`}
                                   >
                                     <FileText className="w-3.5 h-3.5" />
-                                    <span>{selectedDomainKbForDocs?.id === kb.id ? 'Close Docs' : 'Documents'}</span>
+                                    <span>
+                                      {selectedDomainKbForDocs?.id === kb.id
+                                        ? 'Close Docs'
+                                        : 'Documents'}
+                                    </span>
                                   </button>
                                   <button
                                     type="button"
@@ -1343,7 +1354,10 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                                 </div>
                               ) : (
                                 isSystem && (
-                                  <span className="text-gray-400 flex items-center gap-1 text-[11px]" title="Read-only for tenant users">
+                                  <span
+                                    className="text-gray-400 flex items-center gap-1 text-[11px]"
+                                    title="Read-only for tenant users"
+                                  >
                                     <Lock className="w-3.5 h-3.5" />
                                     <span>Read-only</span>
                                   </span>
@@ -1387,7 +1401,8 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                             </span>
                           </div>
                           <p className="text-[11px] text-gray-500 mt-0.5">
-                            Documents uploaded here are vectorized into Qdrant and automatically queryable by all tenants in this domain.
+                            Documents uploaded here are vectorized into Qdrant and automatically
+                            queryable by all tenants in this domain.
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1415,8 +1430,12 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                           <div className="flex items-center gap-2">
                             <Upload className="w-4 h-4 text-indigo-600" />
                             <div>
-                              <p className="text-xs font-bold text-gray-800">Upload Law / Statute / Precedent Document</p>
-                              <p className="text-[11px] text-gray-500">Supports PDF, DOCX, TXT, Markdown (up to 50MB)</p>
+                              <p className="text-xs font-bold text-gray-800">
+                                Upload Law / Statute / Precedent Document
+                              </p>
+                              <p className="text-[11px] text-gray-500">
+                                Supports PDF, DOCX, TXT, Markdown (up to 50MB)
+                              </p>
                             </div>
                           </div>
                           <button
@@ -1430,7 +1449,11 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                             ) : (
                               <Plus className="w-3.5 h-3.5" />
                             )}
-                            <span>{uploadingDomainKbDoc ? 'Ingesting into Vector DB...' : 'Upload Document'}</span>
+                            <span>
+                              {uploadingDomainKbDoc
+                                ? 'Ingesting into Vector DB...'
+                                : 'Upload Document'}
+                            </span>
                           </button>
                         </div>
                       )}
@@ -1448,15 +1471,21 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                           </div>
                         ) : domainKbDocs.length === 0 ? (
                           <div className="p-6 text-center bg-white border border-gray-200 rounded-lg text-xs text-gray-500">
-                            No documents in this domain knowledge base yet. Click "Upload Document" to index law statutes or precedents into Qdrant.
+                            No documents in this domain knowledge base yet. Click "Upload Document"
+                            to index law statutes or precedents into Qdrant.
                           </div>
                         ) : (
                           <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-60 overflow-y-auto">
                             {domainKbDocs.map((doc) => (
-                              <div key={doc.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50">
+                              <div
+                                key={doc.id}
+                                className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50"
+                              >
                                 <div className="flex items-center gap-2 min-w-0">
                                   <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                  <span className="font-semibold text-gray-900 truncate max-w-xs">{doc.name}</span>
+                                  <span className="font-semibold text-gray-900 truncate max-w-xs">
+                                    {doc.name}
+                                  </span>
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-gray-600 font-mono">
                                     {doc.chunk_count || 0} chunks
                                   </span>
@@ -1465,8 +1494,8 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                                       doc.status === 'indexed' || doc.status === 'ready'
                                         ? 'bg-emerald-50 text-emerald-700'
                                         : doc.status === 'error' || doc.status === 'failed'
-                                        ? 'bg-red-50 text-red-700'
-                                        : 'bg-amber-50 text-amber-700'
+                                          ? 'bg-red-50 text-red-700'
+                                          : 'bg-amber-50 text-amber-700'
                                     }`}
                                   >
                                     {doc.status}
@@ -1510,7 +1539,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
 
                       <div className="space-y-2">
                         <div>
-                          <label className="block text-[11px] font-bold text-gray-700">KB Name *</label>
+                          <label className="block text-[11px] font-bold text-gray-700">
+                            KB Name *
+                          </label>
                           <input
                             type="text"
                             required
@@ -1521,7 +1552,9 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-gray-700">Description</label>
+                          <label className="block text-[11px] font-bold text-gray-700">
+                            Description
+                          </label>
                           <input
                             type="text"
                             placeholder="Universal reference law repository shared across all tenants"
@@ -1560,7 +1593,11 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                               setNewKbDescription('');
                             } catch (err: any) {
                               console.error(err);
-                              alert(err.detail || err.message || 'Failed to create system knowledge base');
+                              alert(
+                                err.detail ||
+                                  err.message ||
+                                  'Failed to create system knowledge base',
+                              );
                             } finally {
                               setSavingKb(false);
                             }

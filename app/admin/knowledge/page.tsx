@@ -39,6 +39,7 @@ import {
   Filter,
   ChevronRight,
   FileCode,
+  Cloud,
 } from 'lucide-react';
 import { COLOR_PALETTE } from '@/lib/utils';
 
@@ -1907,7 +1908,7 @@ export default function KnowledgeBasesTab({
                       setNewKbScope('SYSTEM');
                       setCreateKbTargetCustomer('');
                       const legalDom = domainSchemas.find(
-                        (d) => d.domain_key === 'legal' || d.domain_key === 'legal_judgment'
+                        (d) => d.domain_key === 'legal' || d.domain_key === 'legal_judgment',
                       );
                       if (legalDom) {
                         setNewKbDomainId(legalDom.id);
@@ -2026,145 +2027,145 @@ export default function KnowledgeBasesTab({
                       return true;
                     })
                     .map((kb) => {
-                    const isSelected = selectedKb?.id === kb.id;
-                    const tags = Array.isArray(kb.settings?.tags) ? kb.settings.tags : [];
-                    const uploaderName = usersMap[kb.created_by] || `User #${kb.created_by}`;
-                    const isKbSystem = Boolean(kb.is_system || kb.scope === 'SYSTEM');
-                    const canManageKb = isSystemAdmin || !isKbSystem;
-                    const createdDate = kb.created_at
-                      ? new Date(kb.created_at).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      : '-';
-                    return (
-                      <div
-                        key={kb.id}
-                        onClick={() => {
-                          setSelectedKb(kb);
-                        }}
-                        className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
-                          isSelected ? 'bg-blue-50/40 border-l-4 border-l-primary' : ''
-                        }`}
-                      >
-                        <div className="space-y-1.5 pr-2 min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <h4
-                              className={`font-bold text-sm ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}
-                            >
-                              {kb.name}
-                            </h4>
-                            {isKbSystem && (
-                              <span className="px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-bold flex items-center gap-0.5">
-                                <Shield className="w-2.5 h-2.5" />
-                                Domain KB
-                              </span>
+                      const isSelected = selectedKb?.id === kb.id;
+                      const tags = Array.isArray(kb.settings?.tags) ? kb.settings.tags : [];
+                      const uploaderName = usersMap[kb.created_by] || `User #${kb.created_by}`;
+                      const isKbSystem = Boolean(kb.is_system || kb.scope === 'SYSTEM');
+                      const canManageKb = isSystemAdmin || !isKbSystem;
+                      const createdDate = kb.created_at
+                        ? new Date(kb.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : '-';
+                      return (
+                        <div
+                          key={kb.id}
+                          onClick={() => {
+                            setSelectedKb(kb);
+                          }}
+                          className={`p-4 flex items-start justify-between cursor-pointer transition-all hover:bg-slate-50/80 ${
+                            isSelected ? 'bg-blue-50/40 border-l-4 border-l-primary' : ''
+                          }`}
+                        >
+                          <div className="space-y-1.5 pr-2 min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4
+                                className={`font-bold text-sm ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}
+                              >
+                                {kb.name}
+                              </h4>
+                              {isKbSystem && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-bold flex items-center gap-0.5">
+                                  <Shield className="w-2.5 h-2.5" />
+                                  Domain KB
+                                </span>
+                              )}
+                            </div>
+                            {kb.description && (
+                              <p className="text-xs text-gray-555 line-clamp-2 leading-relaxed">
+                                {kb.description}
+                              </p>
                             )}
-                          </div>
-                          {kb.description && (
-                            <p className="text-xs text-gray-555 line-clamp-2 leading-relaxed">
-                              {kb.description}
-                            </p>
-                          )}
-                          {/* BLOCK: Tenant badge for system_admin */}
-                          {isSystemAdmin && kb.customer_id && (
-                            <div className="pt-0.5">
-                              <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold">
-                                Tenant:{' '}
-                                {customersMap[kb.customer_id] || `Tenant #${kb.customer_id}`}
-                              </span>
-                            </div>
-                          )}
-                          {/* END BLOCK */}
-
-                          {/* Linked Domain Schema Badge */}
-                          {kb.domain_id && domainSchemasMap[kb.domain_id] && (
-                            <div className="pt-0.5">
-                              <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold inline-flex items-center gap-1">
-                                🏷️ {domainSchemasMap[kb.domain_id].name} (
-                                {domainSchemasMap[kb.domain_id].scope})
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Linked LLM Profile Badge */}
-                          {kb.settings?.llm_profile_id &&
-                            llmProfilesMap[kb.settings.llm_profile_id] && (
+                            {/* BLOCK: Tenant badge for system_admin */}
+                            {isSystemAdmin && kb.customer_id && (
                               <div className="pt-0.5">
-                                <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1">
-                                  {llmProfilesMap[kb.settings.llm_profile_id].name}
+                                <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold">
+                                  Tenant:{' '}
+                                  {customersMap[kb.customer_id] || `Tenant #${kb.customer_id}`}
                                 </span>
                               </div>
                             )}
-                          <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-gray-400">
-                            <span className="inline-flex items-center gap-1">
-                              <svg
-                                className="w-3 h-3"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                viewBox="0 0 24 24"
+                            {/* END BLOCK */}
+
+                            {/* Linked Domain Schema Badge */}
+                            {kb.domain_id && domainSchemasMap[kb.domain_id] && (
+                              <div className="pt-0.5">
+                                <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold inline-flex items-center gap-1">
+                                  🏷️ {domainSchemasMap[kb.domain_id].name} (
+                                  {domainSchemasMap[kb.domain_id].scope})
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Linked LLM Profile Badge */}
+                            {kb.settings?.llm_profile_id &&
+                              llmProfilesMap[kb.settings.llm_profile_id] && (
+                                <div className="pt-0.5">
+                                  <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1">
+                                    {llmProfilesMap[kb.settings.llm_profile_id].name}
+                                  </span>
+                                </div>
+                              )}
+                            <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-gray-400">
+                              <span className="inline-flex items-center gap-1">
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                  <circle cx="12" cy="7" r="4" />
+                                </svg>
+                                <span className="font-medium text-gray-550">{uploaderName}</span>
+                              </span>
+                              <span className="text-gray-300">·</span>
+                              <span className="inline-flex items-center gap-1">
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                  <line x1="16" y1="2" x2="16" y2="6" />
+                                  <line x1="8" y1="2" x2="8" y2="6" />
+                                  <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg>
+                                <span>{createdDate}</span>
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {canManageKb ? (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditKbModal(kb);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-bg-primary rounded hover:bg-blue-50 transition-all cursor-pointer"
+                                  title="KB Settings"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteKB(kb.id);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-all cursor-pointer"
+                                  title="Delete Knowledge Base"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
+                              <span
+                                className="p-1 text-gray-300 cursor-not-allowed"
+                                title="System Knowledge Base (Read-only for tenant users)"
                               >
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                <circle cx="12" cy="7" r="4" />
-                              </svg>
-                              <span className="font-medium text-gray-550">{uploaderName}</span>
-                            </span>
-                            <span className="text-gray-300">·</span>
-                            <span className="inline-flex items-center gap-1">
-                              <svg
-                                className="w-3 h-3"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                viewBox="0 0 24 24"
-                              >
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                                <line x1="16" y1="2" x2="16" y2="6" />
-                                <line x1="8" y1="2" x2="8" y2="6" />
-                                <line x1="3" y1="10" x2="21" y2="10" />
-                              </svg>
-                              <span>{createdDate}</span>
-                            </span>
+                                <Lock className="w-3.5 h-3.5" />
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          {canManageKb ? (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openEditKbModal(kb);
-                                }}
-                                className="p-1 text-gray-400 hover:text-bg-primary rounded hover:bg-blue-50 transition-all cursor-pointer"
-                                title="KB Settings"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteKB(kb.id);
-                                }}
-                                className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-all cursor-pointer"
-                                title="Delete Knowledge Base"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          ) : (
-                            <span
-                              className="p-1 text-gray-300 cursor-not-allowed"
-                              title="System Knowledge Base (Read-only for tenant users)"
-                            >
-                              <Lock className="w-3.5 h-3.5" />
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })
                 )}
               </div>
             </div>
@@ -2183,7 +2184,8 @@ export default function KnowledgeBasesTab({
                           System Knowledge Base
                         </span>
                       )}
-                      {(isSystemAdmin || (!selectedKb.is_system && selectedKb.scope !== 'SYSTEM')) && (
+                      {(isSystemAdmin ||
+                        (!selectedKb.is_system && selectedKb.scope !== 'SYSTEM')) && (
                         <button
                           onClick={() => openEditKbModal(selectedKb)}
                           className="p-1 text-gray-400 hover:text-bg-primary rounded transition-colors cursor-pointer"
@@ -2221,7 +2223,7 @@ export default function KnowledgeBasesTab({
                       Auto-Refresh Status
                     </label>
 
-                    {(isSystemAdmin || (!selectedKb.is_system && selectedKb.scope !== 'SYSTEM')) ? (
+                    {isSystemAdmin || (!selectedKb.is_system && selectedKb.scope !== 'SYSTEM') ? (
                       <button
                         onClick={() => setShowUploadModal(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-blue-700 shadow-sm transition-colors cursor-pointer"
@@ -2545,6 +2547,63 @@ export default function KnowledgeBasesTab({
                                             : doc.status.toUpperCase()
                                           : (doc.status || 'UNKNOWN').toUpperCase()}
                                     </span>
+
+                                    {/* Document Version Badge */}
+                                    <span
+                                      className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200"
+                                      title={`Document Version ${doc.version ?? 1}`}
+                                    >
+                                      v{doc.version ?? 1}
+                                    </span>
+
+                                    {/* Ingestion Source Provenance Badge */}
+                                    {(() => {
+                                      const isS3 =
+                                        doc.source_type === 's3' ||
+                                        (doc.source_uri && doc.source_uri.startsWith('s3://'));
+                                      const isApi =
+                                        doc.source_type === 'api' || doc.source_type === 'webhook';
+                                      if (isS3) {
+                                        return (
+                                          <span
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-300"
+                                            title={doc.source_uri || 'Amazon S3 Bucket'}
+                                          >
+                                            <Cloud className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                            <span>S3</span>
+                                            {doc.source_uri && (
+                                              <span className="font-mono text-[10px] text-amber-800 max-w-[160px] truncate">
+                                                {doc.source_uri.replace(/^s3:\/\//, '')}
+                                              </span>
+                                            )}
+                                          </span>
+                                        );
+                                      }
+                                      if (isApi) {
+                                        return (
+                                          <span
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-900 border border-purple-200"
+                                            title={
+                                              doc.source_uri
+                                                ? `API: ${doc.source_uri}`
+                                                : 'Workflow API Ingestion'
+                                            }
+                                          >
+                                            <Code2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                                            <span>API</span>
+                                          </span>
+                                        );
+                                      }
+                                      return (
+                                        <span
+                                          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
+                                          title="Direct Admin UI Upload"
+                                        >
+                                          <Upload className="w-3 h-3 text-slate-500 shrink-0" />
+                                          <span>Upload</span>
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
 
                                   {/* Live Processing Progress Bar & DB Message */}
@@ -2611,6 +2670,20 @@ export default function KnowledgeBasesTab({
                                           })
                                         : '-'}
                                     </span>
+                                    {doc.source_uri && (
+                                      <>
+                                        <span>·</span>
+                                        <span className="inline-flex items-center gap-1 text-gray-500">
+                                          <span className="font-semibold text-gray-600">URI:</span>
+                                          <span
+                                            className="font-mono text-[11px] text-gray-700 max-w-[200px] truncate"
+                                            title={doc.source_uri}
+                                          >
+                                            {doc.source_uri}
+                                          </span>
+                                        </span>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -2669,7 +2742,9 @@ export default function KnowledgeBasesTab({
                                   );
                                 })()}
                                 {(() => {
-                                  const isKbSystem = Boolean(selectedKb?.is_system || selectedKb?.scope === 'SYSTEM');
+                                  const isKbSystem = Boolean(
+                                    selectedKb?.is_system || selectedKb?.scope === 'SYSTEM',
+                                  );
                                   const canManageDoc = isSystemAdmin || !isKbSystem;
                                   if (!canManageDoc) {
                                     return (
@@ -3161,7 +3236,7 @@ export default function KnowledgeBasesTab({
                         setNewKbScope('SYSTEM');
                         setCreateKbTargetCustomer('');
                         const legalDom = domainSchemas.find(
-                          (d) => d.domain_key === 'legal' || d.domain_key === 'legal_judgment'
+                          (d) => d.domain_key === 'legal' || d.domain_key === 'legal_judgment',
                         );
                         if (legalDom && !newKbDomainId) {
                           setNewKbDomainId(legalDom.id);
@@ -3185,7 +3260,8 @@ export default function KnowledgeBasesTab({
                         )}
                       </div>
                       <p className="text-[11px] text-purple-700 leading-relaxed">
-                        Global shared repository across all tenants configured in this domain (e.g. Legal).
+                        Global shared repository across all tenants configured in this domain (e.g.
+                        Legal).
                       </p>
                     </button>
                   </div>
@@ -3196,7 +3272,9 @@ export default function KnowledgeBasesTab({
                       <div className="space-y-1">
                         <label className="block text-xs font-bold text-purple-900 flex items-center justify-between">
                           <span>Target Domain Schema *</span>
-                          <span className="text-[10px] font-semibold text-purple-600">Shared with all tenants in this domain</span>
+                          <span className="text-[10px] font-semibold text-purple-600">
+                            Shared with all tenants in this domain
+                          </span>
                         </label>
                         <select
                           value={newKbDomainId}
@@ -3215,7 +3293,8 @@ export default function KnowledgeBasesTab({
                       <p className="text-[11px] text-purple-800 leading-relaxed flex items-center gap-1.5">
                         <Shield className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                         <span>
-                          All customer tenants configured with the selected domain will automatically have read-only access to this KB and its indexed documents.
+                          All customer tenants configured with the selected domain will
+                          automatically have read-only access to this KB and its indexed documents.
                         </span>
                       </p>
                     </div>
@@ -3251,7 +3330,9 @@ export default function KnowledgeBasesTab({
                   <input
                     type="text"
                     required
-                    placeholder={newKbIsSystem ? 'e.g. Legal Precedents & Judgments' : 'e.g. Employee handbook'}
+                    placeholder={
+                      newKbIsSystem ? 'e.g. Legal Precedents & Judgments' : 'e.g. Employee handbook'
+                    }
                     value={newKbName}
                     onChange={(e) => setNewKbName(toSentenceCase(e.target.value))}
                     onBlur={() => setNewKbName(toSentenceCase(newKbName))}
@@ -3950,7 +4031,8 @@ export default function KnowledgeBasesTab({
                 </div>
                 <div className="space-y-1 flex flex-col justify-end">
                   <p className="text-[11px] text-gray-500 leading-relaxed">
-                    Link with domain schemas (e.g. Legal & Contracts, Court Orders) to apply domain entity extraction and metadata categorization.
+                    Link with domain schemas (e.g. Legal & Contracts, Court Orders) to apply domain
+                    entity extraction and metadata categorization.
                   </p>
                 </div>
               </div>

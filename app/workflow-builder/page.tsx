@@ -27,6 +27,7 @@ import PropertiesPanel from '../components/PropertiesPanel';
 import { normalizeAgent } from '../components/component-categoriees';
 import FieldMappingController from './components/FieldMappingController';
 import WorkflowCanvas from './components/WorkflowCanvas';
+import WorkflowEndpointBar, { type WorkflowInvocationSpec } from './components/WorkflowEndpointBar';
 import WorkflowHeader from './components/WorkflowHeader';
 import type { ExecutionStatus, NodeProperties, WorkflowNodeData, WorkflowTraceStep } from './types';
 import {
@@ -55,6 +56,8 @@ function AgentBuilderContent() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [userId, setUserId] = useState<string>('1');
+  const [customerId, setCustomerId] = useState<string | number | null>(null);
+  const [invocationSpec, setInvocationSpec] = useState<WorkflowInvocationSpec | null>(null);
   const [userRole, setUserRole] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
   const [workflowOwnerId, setWorkflowOwnerId] = useState<string | null>(null);
@@ -74,6 +77,28 @@ function AgentBuilderContent() {
   const [nextNodeContract, setNextNodeContract] = useState<any>(null);
 
   /* ==============================================================================
+     BLOCK COMMENT: REFRESH WORKFLOW INVOCATION SPEC
+     Reference: EPIC-WORKFLOW-ENDPOINT-001 / STORY-WF-INVOKE-UI
+     Description:
+       Fetches latest URL path, headers, entry input_contract, and sample payload
+       for a saved workflow from backend /workflows/{id}/invocation-spec.
+     ============================================================================== */
+  const refreshInvocationSpec = useCallback(async (targetWorkflowId: string) => {
+    if (!targetWorkflowId) return;
+    try {
+      const spec = await api.getWorkflowInvocationSpec(targetWorkflowId);
+      if (spec) {
+        setInvocationSpec(spec);
+        if (spec.customer_id !== undefined && spec.customer_id !== null) {
+          setCustomerId(spec.customer_id);
+        }
+      }
+    } catch {
+      // Non-fatal: WorkflowEndpointBar derives fallback spec from local canvas state
+    }
+  }, []);
+
+  /* ==============================================================================
      BLOCK COMMENT: INITIALIZE AUTHENTICATED WORKFLOW BUILDER
      ============================================================================== */
   useEffect(() => {
@@ -84,6 +109,11 @@ function AgentBuilderContent() {
         setUserId(userData.id);
         setUserRole(userData.role || '');
         setUserEmail(userData.email || '');
+        if (userData.customer_id !== undefined && userData.customer_id !== null) {
+          setCustomerId(userData.customer_id);
+        } else if (userData.tenant !== undefined && userData.tenant !== null) {
+          setCustomerId(userData.tenant);
+        }
 
         const perms = userData.permissions || [];
         const requiredPerm = getRequiredPermissionForPath('/workflow-builder') || 'workflow:view';
@@ -420,13 +450,14 @@ function AgentBuilderContent() {
       }
       try {
         await api.updateAgentNodeProperties(agentId, nodeId, properties);
+        await refreshInvocationSpec(agentId);
         setStatus('✅ Node instance properties saved.');
       } catch (error) {
         setStatus('❌ Unable to save node instance properties.');
         throw error;
       }
     },
-    [agentId],
+    [agentId, refreshInvocationSpec],
   );
 
   const validateAgent = useCallback(() => {
@@ -498,13 +529,33 @@ function AgentBuilderContent() {
         is_enabled: isAgentEnabled,
       });
 
+      const resolvedId = savedAgent.id || currentId;
+      setAgentId(resolvedId);
       setAgentVersion(savedAgent.version);
-      setStatus(`Saved ${savedAgent.name} v${savedAgent.version}.`);
+      if (savedAgent.customer_id !== undefined && savedAgent.customer_id !== null) {
+        setCustomerId(savedAgent.customer_id);
+      }
+      if (savedAgent.invocation_spec) {
+        setInvocationSpec(savedAgent.invocation_spec);
+      } else {
+        await refreshInvocationSpec(resolvedId);
+      }
+      setStatus(`Saved ${savedAgent.name || currentName} v${savedAgent.version ?? 1}.`);
       setIsDirty(false);
     } catch {
       setStatus('Unable to save agent.');
     }
-  }, [edges, nodes, validateAgent, agentId, agentName, agentCategory, isAgentEnabled, userId]);
+  }, [
+    edges,
+    nodes,
+    validateAgent,
+    agentId,
+    agentName,
+    agentCategory,
+    isAgentEnabled,
+    userId,
+    refreshInvocationSpec,
+  ]);
 
   const onSaveAs = useCallback(async () => {
     const nextName = window.prompt('Save agent as', agentName);
@@ -535,10 +586,19 @@ function AgentBuilderContent() {
         is_enabled: isAgentEnabled,
       });
 
-      setAgentId(savedAgent.id || nextId);
+      const resolvedId = savedAgent.id || nextId;
+      setAgentId(resolvedId);
       setAgentName(savedAgent.name || nextName.trim());
       setAgentVersion(savedAgent.version ?? 1);
       setWorkflowOwnerId(userId);
+      if (savedAgent.customer_id !== undefined && savedAgent.customer_id !== null) {
+        setCustomerId(savedAgent.customer_id);
+      }
+      if (savedAgent.invocation_spec) {
+        setInvocationSpec(savedAgent.invocation_spec);
+      } else {
+        await refreshInvocationSpec(resolvedId);
+      }
       setIsDirty(false);
       setStatus(
         `Saved new agent ${savedAgent.name || nextName.trim()} v${savedAgent.version ?? 1}.`,
@@ -546,7 +606,16 @@ function AgentBuilderContent() {
     } catch {
       setStatus('Unable to save agent as new agent.');
     }
-  }, [edges, nodes, validateAgent, agentName, agentCategory, isAgentEnabled]);
+  }, [
+    edges,
+    nodes,
+    validateAgent,
+    agentName,
+    agentCategory,
+    isAgentEnabled,
+    userId,
+    refreshInvocationSpec,
+  ]);
 
   const onGet = useCallback(async () => {
     try {
@@ -560,21 +629,34 @@ function AgentBuilderContent() {
         return;
       }
 
+      const resolvedId = latestWorkflow.id || agentId;
       setNodes(getWorkflowNodes(latestWorkflow));
       setEdges(latestWorkflow.edges || []);
-      setAgentId(latestWorkflow.id || agentId);
+      setAgentId(resolvedId);
       setAgentName(latestWorkflow.name || latestWorkflow.id || agentName);
       setAgentCategory(latestWorkflow.category || 'default');
       setIsAgentEnabled(latestWorkflow.is_enabled ?? true);
       setWorkflowOwnerId(latestWorkflow.user_id || null);
+      if (latestWorkflow.customer_id !== undefined && latestWorkflow.customer_id !== null) {
+        setCustomerId(latestWorkflow.customer_id);
+      }
       setAgentVersion(latestWorkflow.version);
       setSelectedNode(null);
       setIsDirty(false);
+      await refreshInvocationSpec(resolvedId);
       setStatus(`Loaded ${workflows.length} latest agent${workflows.length === 1 ? '' : 's'}.`);
     } catch {
       setStatus('Unable to get agents or update scheduler agent schema.');
     }
-  }, [setEdges, setNodes, agentId, agentName, availableAgentNames, setIsAgentEnabled]);
+  }, [
+    setEdges,
+    setNodes,
+    agentId,
+    agentName,
+    availableAgentNames,
+    setIsAgentEnabled,
+    refreshInvocationSpec,
+  ]);
 
   const loadAgent = useCallback(
     async (id: string) => {
@@ -587,24 +669,29 @@ function AgentBuilderContent() {
           return;
         }
 
+        const resolvedId = data.id || id;
         setNodes(getWorkflowNodes(data));
         setEdges(data.edges || []);
-        setAgentId(data.id || id);
+        setAgentId(resolvedId);
         setAgentName(data.name || data.id || id);
         setAgentCategory(data.category || 'default');
         setIsAgentEnabled(data.is_enabled ?? true);
         setWorkflowOwnerId(data.user_id || null);
+        if (data.customer_id !== undefined && data.customer_id !== null) {
+          setCustomerId(data.customer_id);
+        }
         setAgentVersion(data.version);
         setSelectedNode(null);
         setExecutionTrace([]);
         setIsDirty(false);
         setAgentDescription(data.description);
+        await refreshInvocationSpec(resolvedId);
         setStatus(`Loaded ${data.name || id}.`);
       } catch (e) {
         setStatus(`Unable to load agent ${id}.`);
       }
     },
-    [setEdges, setNodes, availableAgentNames],
+    [setEdges, setNodes, availableAgentNames, refreshInvocationSpec],
   );
 
   const handleNewAgent = useCallback(() => {
@@ -614,6 +701,7 @@ function AgentBuilderContent() {
     setNodes([]);
     setEdges([]);
     setAgentId('');
+    setInvocationSpec(null);
     setAgentName('New Agent');
     setAgentCategory('default');
     setIsAgentEnabled(true);
@@ -897,6 +985,21 @@ function AgentBuilderContent() {
         onExecute={onExecute}
         onCenter={onCenter}
         onNewAgent={handleNewAgent}
+      />
+
+      {/* ==========================================================================
+          BLOCK COMMENT: SAVED WORKFLOW ENDPOINT & PAYLOAD SPEC BAR
+          Reference: EPIC-WORKFLOW-ENDPOINT-001 / STORY-WF-INVOKE-UI
+          Displays /run/workflows/{customer_id}/{workflow_id}, headers, entry
+          input_contract, sample JSON payload, and cURL snippet once workflow saved.
+          ========================================================================== */}
+      <WorkflowEndpointBar
+        agentId={agentId}
+        customerId={customerId}
+        isAgentEnabled={isAgentEnabled}
+        nodes={nodes}
+        edges={edges}
+        invocationSpec={invocationSpec}
       />
 
       {/* Demo mode banner */}
