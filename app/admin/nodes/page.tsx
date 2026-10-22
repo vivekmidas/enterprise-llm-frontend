@@ -5,6 +5,7 @@ import { api, getHeaders } from '@/lib/api';
 import { IconMap } from '@/lib/icons';
 import { AgentNode, NodeCategory } from '@components/component-categoriees';
 import JsonSchemaGeneratorModal from '@components/JsonSchemaGeneratorModal';
+import ChoiceCheckboxList, { toSelectedList } from '@components/ChoiceCheckboxList';
 import {
   Plus,
   Box,
@@ -35,6 +36,9 @@ type PropertyEntry = {
   multiple?: boolean;
   description?: string;
   source?: string;
+  // EPIC-NODE-PROPS-UI-001: preserve choice options + textarea placeholder across edits/saves
+  options?: string[];
+  placeholder?: string;
 };
 
 type PropertyRow = PropertyEntry & {
@@ -179,6 +183,38 @@ const safeJsonParse = (value: string) => {
   }
 };
 
+/* ==============================================================================
+   BLOCK COMMENT: CHOICE ENTRY NORMALIZATION (EDIT NODE REGISTRY)
+   Reference: EPIC-NODE-PROPS-UI-001 / STORY-CHOICE-TEXTAREA-VALUES-001
+   Description:
+       Lifts choice options from options/choices/allowed_values (or legacy
+       comma-separated `value`) into `options` so selecting a value never
+       destroys the option list.
+   ============================================================================== */
+const CHOICE_FIELD_TYPES = ['choice', 'select'];
+const TEXTAREA_FIELD_TYPES = ['textarea', 'text area', 'text_area'];
+
+const normalizeChoiceEntry = (entry: any): PropertyEntry => {
+  const type = String(entry?.type || '').toLowerCase();
+  if (!CHOICE_FIELD_TYPES.includes(type)) return entry;
+  let options = parseChoiceOptions(entry.options || entry.choices || entry.allowed_values);
+  const next = { ...entry };
+  if (options.length === 0 && !entry.multiple) {
+    for (const src of ['value', 'default'] as const) {
+      const raw = entry[src];
+      if (typeof raw === 'string' && raw.includes(',')) {
+        options = parseChoiceOptions(raw);
+        next[src] = '';
+        break;
+      }
+    }
+  }
+  if (options.length) next.options = options;
+  return next;
+};
+
+const isEmptyVal = (v: any) => v === undefined || v === null || v === '';
+
 const propertyEntriesFromValue = (value: any): PropertyEntry[] => {
   if (!value) return [];
   if (typeof value === 'string') {
@@ -191,7 +227,8 @@ const propertyEntriesFromValue = (value: any): PropertyEntry[] => {
       .filter(
         (item): item is PropertyEntry =>
           !!item && typeof item === 'object' && typeof item.key === 'string',
-      );
+      )
+      .map(normalizeChoiceEntry);
   }
   if (typeof value === 'object') {
     return Object.entries(value).map(([key, entryValue]) => ({
@@ -214,6 +251,9 @@ const propertyEntriesToJsonStrings = (entries: PropertyEntry[]): any[] =>
     description: entry.description ?? '',
     source: entry.source || undefined,
     multiple: entry.multiple || undefined,
+    // EPIC-NODE-PROPS-UI-001: keep choice options / placeholder on save
+    options: entry.options && entry.options.length ? entry.options : undefined,
+    placeholder: entry.placeholder || undefined,
   }));
 
 const normalizeContractRule = (rule: any): ContractRule => {
@@ -380,6 +420,8 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     description: '',
     source: '',
     multiple: false,
+    // EPIC-NODE-PROPS-UI-001: comma-separated choice options editor value
+    options: '',
   });
 
   const [contractGenerator, setContractGenerator] = useState({
@@ -780,12 +822,21 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
         sourceIndex: field.sourceIndex ?? -1,
         key: field.key,
         label: field.label || field.key,
-        type: field.type || 'string',
-        defaultValue: field.default || '',
-        value: field.value ?? '',
+        // EPIC-NODE-PROPS-UI-001: normalize type aliases so Field Type <select> matches
+        type: (() => {
+          const t = String(field.type || 'string').toLowerCase();
+          if (TEXTAREA_FIELD_TYPES.includes(t)) return 'textarea';
+          if (CHOICE_FIELD_TYPES.includes(t)) return 'choice';
+          return field.type || 'string';
+        })(),
+        defaultValue: Array.isArray(field.default)
+          ? field.default.join(', ')
+          : (field.default ?? ''),
+        value: Array.isArray(field.value) ? field.value.join(', ') : (field.value ?? ''),
         description: field.description || '',
         source: field.source || '',
         multiple: !!field.multiple,
+        options: Array.isArray(field.options) ? field.options.join(', ') : '',
       });
       setIsEditingProp(true);
     } else {
@@ -802,6 +853,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
         description: '',
         source: '',
         multiple: false,
+        options: '',
       });
       setIsEditingProp(false);
     }
@@ -816,15 +868,21 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
       const isUser = propModal.target === 'user';
       const userProps = propertyEntriesFromValue(prev.user_properties);
       const sysProps = propertyEntriesFromValue(prev.system_properties);
-      const nextEntry = {
+      // EPIC-NODE-PROPS-UI-001: persist choice options; multi-select values stored as arrays
+      const isChoice = CHOICE_FIELD_TYPES.includes(String(propModal.type).toLowerCase());
+      const modalOptions = isChoice ? parseChoiceOptions(propModal.options) : [];
+      const toStored = (v: any) =>
+        isChoice && propModal.multiple && typeof v === 'string' ? parseChoiceOptions(v) : v;
+      const nextEntry: PropertyEntry = {
         key: propModal.key,
         label: propModal.label || propModal.key,
         type: propModal.type || 'string',
-        value: propModal.value,
-        default: propModal.defaultValue,
+        value: toStored(propModal.value),
+        default: toStored(propModal.defaultValue),
         description: propModal.description || '',
         source: propModal.source || undefined,
         multiple: propModal.multiple || undefined,
+        options: modalOptions.length ? modalOptions : undefined,
       };
 
       if (isEditingProp && propModal.sourceIndex >= 0) {
@@ -1112,13 +1170,15 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     }
   };
 
-  const renderValueInput = (field: PropertyRow, value: any) => {
+  const renderValueInput = (field: PropertyRow, value: any, forceDisabled = false) => {
     const handleValChange = (v: any) => updateProperty(field, v);
     const commonClasses =
       'w-full bg-white border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 text-sm text-black';
 
-    const displayValue = value !== undefined && value !== null ? value : field.default;
-    const isDisabled = userRole !== 'system_admin' && !customerId;
+    // EPIC-NODE-PROPS-UI-001: empty value ("") falls back to default
+    const displayValue = !isEmptyVal(value) ? value : field.default;
+    const fieldTypeLc = String(field.type || '').toLowerCase();
+    const isDisabled = forceDisabled || (userRole !== 'system_admin' && !customerId);
 
     if (field.type === 'password' || field.type?.toLowerCase().includes('secret')) {
       return (
@@ -1195,15 +1255,50 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
       );
     }
 
-    if (field.type === 'textarea') {
+    if (TEXTAREA_FIELD_TYPES.includes(fieldTypeLc)) {
       return (
         <textarea
-          className={`${commonClasses} text-black min-h-[60px] resize-y`}
+          className={`${commonClasses} text-black min-h-[60px] resize-y font-mono text-xs`}
           value={String(displayValue ?? '')}
-          placeholder="Multiline content..."
+          placeholder={field.placeholder || 'Multiline content...'}
           onChange={(e) => handleValChange(e.target.value)}
           disabled={isDisabled}
         />
+      );
+    }
+
+    // EPIC-NODE-PROPS-UI-001: choice/select -> <select> (single) or inline checkbox list (multi)
+    if (CHOICE_FIELD_TYPES.includes(fieldTypeLc)) {
+      const opts = parseChoiceOptions(field.options);
+      if (field.multiple) {
+        return (
+          <div className="w-full font-sans">
+            <ChoiceCheckboxList
+              accent="purple"
+              options={opts}
+              selected={toSelectedList(displayValue)}
+              disabled={isDisabled}
+              onChange={(next) => handleValChange(next)}
+            />
+          </div>
+        );
+      }
+      const strVal = isEmptyVal(displayValue) ? '' : String(displayValue);
+      const selectOpts = strVal && !opts.includes(strVal) ? [strVal, ...opts] : opts;
+      return (
+        <select
+          className={`${commonClasses} text-black cursor-pointer`}
+          value={strVal || selectOpts[0] || ''}
+          onChange={(e) => handleValChange(e.target.value)}
+          disabled={isDisabled}
+        >
+          {selectOpts.length === 0 && <option value="">No options configured</option>}
+          {selectOpts.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
       );
     }
 
@@ -1790,12 +1885,12 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               </span>
                             </td>
                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                              {row.category === 'user' ? (
-                                renderValueInput(row, row.value)
-                              ) : (
-                                <span className="text-gray-400 font-mono text-xs">
-                                  {String(row.value)}
-                                </span>
+                              {/* EPIC-NODE-PROPS-UI-001: render typed inputs for user + system rows
+                                  (system rows editable only by system_admin) */}
+                              {renderValueInput(
+                                row,
+                                row.value,
+                                row.category === 'system' && userRole !== 'system_admin',
                               )}
                             </td>
                             {userRole === 'system_admin' && (
@@ -2040,14 +2135,89 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                   <label className="text-[10px] font-bold text-gray-500 uppercase">
                     Value (In Catalog)
                   </label>
-                  <input
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                    value={propModal.value}
-                    onChange={(e) => setPropModal({ ...propModal, value: e.target.value })}
-                    placeholder="Registry value"
-                  />
+                  {/* EPIC-NODE-PROPS-UI-001: typed value editor for textarea / choice */}
+                  {TEXTAREA_FIELD_TYPES.includes(propModal.type) ? (
+                    <textarea
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono text-black focus:ring-2 focus:ring-blue-500 outline-none bg-white min-h-[60px] resize-y"
+                      value={propModal.value}
+                      onChange={(e) => setPropModal({ ...propModal, value: e.target.value })}
+                      placeholder="Multiline registry value"
+                    />
+                  ) : CHOICE_FIELD_TYPES.includes(propModal.type) && propModal.multiple ? (
+                    <ChoiceCheckboxList
+                      accent="purple"
+                      options={parseChoiceOptions(propModal.options)}
+                      selected={toSelectedList(propModal.value)}
+                      onChange={(next) => setPropModal({ ...propModal, value: next.join(', ') })}
+                    />
+                  ) : CHOICE_FIELD_TYPES.includes(propModal.type) ? (
+                    <select
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none bg-white cursor-pointer"
+                      value={propModal.value}
+                      onChange={(e) => setPropModal({ ...propModal, value: e.target.value })}
+                    >
+                      <option value="">(use default)</option>
+                      {parseChoiceOptions(propModal.options).map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      value={propModal.value}
+                      onChange={(e) => setPropModal({ ...propModal, value: e.target.value })}
+                      placeholder="Registry value"
+                    />
+                  )}
                 </div>
               </div>
+
+              {/* EPIC-NODE-PROPS-UI-001: choice options + multi-select toggle */}
+              {CHOICE_FIELD_TYPES.includes(propModal.type) && (
+                <div className="space-y-3 p-3 border rounded bg-gray-50/50">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">
+                      Options (comma-separated)
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      value={propModal.options}
+                      onChange={(e) => setPropModal({ ...propModal, options: e.target.value })}
+                      placeholder="e.g. highlight, redact, reject"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">
+                      Default Value
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-black focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      value={propModal.defaultValue}
+                      onChange={(e) =>
+                        setPropModal({ ...propModal, defaultValue: e.target.value })
+                      }
+                      placeholder={propModal.multiple ? 'e.g. opt1, opt2' : 'e.g. highlight'}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="prop-choice-multiple"
+                      checked={!!propModal.multiple}
+                      onChange={(e) => setPropModal({ ...propModal, multiple: e.target.checked })}
+                      className="rounded text-bg-primary focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                    />
+                    <label
+                      htmlFor="prop-choice-multiple"
+                      className="text-[10px] font-bold text-gray-500 uppercase cursor-pointer select-none"
+                    >
+                      Allow Multiple Values Selection (List)
+                    </label>
+                  </div>
+                </div>
+              )}
 
               {propModal.type === 'source' && (
                 <div className="space-y-3 p-3 border rounded bg-gray-50/50">

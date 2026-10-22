@@ -342,10 +342,10 @@ function AdminDashboardContent() {
                       if (tab.id === 'playground') setPlaygroundKbId(null);
                       handleTabChange(tab.id);
                     }}
-                    className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0  ${
+                    className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 rounded-none border-b-2 ${
                       activeTab === tab.id
-                        ? 'bg-white text-primary bg-primary/10 border-primary'
-                        : 'text-muted-foreground hover:text-foreground  border-transparent'
+                        ? 'text-primary border-primary'
+                        : 'text-muted-foreground hover:text-foreground border-transparent'
                     }`}
                   >
                     {tab.label}

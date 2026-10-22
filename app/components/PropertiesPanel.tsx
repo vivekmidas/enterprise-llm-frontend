@@ -26,8 +26,9 @@ import {
   XCircle,
 } from 'lucide-react';
 import { api, getHeaders } from '@/lib/api';
-import { NodePropertyDefinition, PropertyValue } from './component-categoriees';
+import { NodePropertyDefinition, PropertyValue, resolveSchemaEntryValue } from './component-categoriees';
 import JsonSchemaGeneratorModal from './JsonSchemaGeneratorModal';
+import ChoiceCheckboxList, { toSelectedList } from './ChoiceCheckboxList';
 
 /* Robust choice options parser supporting arrays, objects, comma-separated strings, and nested schemas */
 const parseChoiceOptions = (rawOptions: any): string[] => {
@@ -1272,9 +1273,19 @@ export default function PropertiesPanel({
     (selectedNode?.data as any)?.propertySchema || (selectedNode?.data as any)?.property_schema,
   );
 
+  // EPIC-NODE-PROPS-UI-001 / STORY-CHOICE-TEXTAREA-VALUES-001:
+  // schema entries tagged category=system belong to Runtime System, not Parameters
+  const systemSchemaKeys = new Set(
+    schemaArray.filter((f: any) => f?.category === 'system').map((f: any) => f?.key),
+  );
+  const schemaByKey: Record<string, any> = schemaArray.reduce((acc: Record<string, any>, f: any) => {
+    if (f?.key) acc[f.key] = f;
+    return acc;
+  }, {});
+
   const allParamKeys = Array.from(
     new Set([
-      ...schemaArray.map((f: any) => f?.key).filter(Boolean),
+      ...schemaArray.filter((f: any) => f?.category !== 'system').map((f: any) => f?.key).filter(Boolean),
       ...userPropsArray.map((f: any) => f?.key).filter(Boolean),
       ...Object.keys(properties),
     ]),
@@ -1298,9 +1309,16 @@ export default function PropertiesPanel({
       (key) =>
         key.toLowerCase() !== 'mapping_template' &&
         !systemKeys.includes(key) &&
+        !systemSchemaKeys.has(key) &&
         !IGNORED_METADATA_KEYS.has(key.toLowerCase()),
     )
-    .map((key) => [key, properties[key]] as [string, any]);
+    .map((key) => {
+      // EPIC-NODE-PROPS-UI-001: fall back to schema value/default when instance value missing
+      const raw = properties[key];
+      if (raw !== undefined && raw !== null) return [key, raw] as [string, any];
+      const sch = schemaByKey[key];
+      return [key, sch ? resolveSchemaEntryValue(sch) : raw] as [string, any];
+    });
 
   const systemEntries = Object.entries(systemProperties).filter(
     ([key]) => !IGNORED_METADATA_KEYS.has(key.toLowerCase()),
@@ -1763,7 +1781,8 @@ export default function PropertiesPanel({
   const getPropertyValue = (properties: NodeProperties, field: NodePropertyDefinition) => {
     if (properties[field.key] !== undefined) return properties[field.key];
     if (field.default !== undefined && field.default !== null) return field.default;
-    const fieldType = field.type || (field as any).field_type;
+    // EPIC-NODE-PROPS-UI-001: widen to string so 'select' / 'text area' aliases are accepted
+    const fieldType = String(field.type || (field as any).field_type || '').toLowerCase();
     if (fieldType === 'boolean') return false;
     if (field.multiple) return [];
     return '';
@@ -1783,7 +1802,8 @@ export default function PropertiesPanel({
         ? systemProps[field.key]
         : getPropertyValue(userProps, field);
     const isDisabled = Boolean((field as any).readonly || (field as any).readOnly);
-    const fieldType = field.type || (field as any).field_type;
+    // EPIC-NODE-PROPS-UI-001: widen to string so 'select' / 'text area' aliases are accepted
+    const fieldType = String(field.type || (field as any).field_type || '').toLowerCase();
     const displayValue =
       (isSystem || hasUserValue) && fieldType === 'password' && value
         ? '••••••••'
@@ -1964,18 +1984,28 @@ export default function PropertiesPanel({
     }
 
     // Choice Selection
-    if (fieldType === 'choice') {
-      const rawOptions = getRawChoiceOptions(field, field.key, systemProps, value);
+    // EPIC-NODE-PROPS-UI-001: support choice/select; multi-select renders inline checkbox list
+    if (fieldType === 'choice' || fieldType === 'select') {
+      const isMultiSelect = Boolean(field.multiple || (field as any).multi_select);
+      const effVal =
+        value !== undefined && value !== null && value !== '' ? value : (field as any).default;
+      const rawOptions = getRawChoiceOptions(
+        field,
+        field.key,
+        systemProps,
+        isMultiSelect ? undefined : effVal,
+      );
 
       let options = parseChoiceOptions(rawOptions);
-      const strVal = value !== undefined && value !== null ? String(value) : '';
-      if (strVal && !strVal.includes(',') && !options.includes(strVal)) {
+      const strVal =
+        effVal !== undefined && effVal !== null && !Array.isArray(effVal) ? String(effVal) : '';
+      if (!isMultiSelect && strVal && !strVal.includes(',') && !options.includes(strVal)) {
         options = [strVal, ...options];
       }
       const selectedValue = options.includes(strVal) ? strVal : options[0] || '';
 
       // Multi-select mode
-      if (field.multiple) {
+      if (isMultiSelect) {
         return (
           <div key={field.key}>
             <label
@@ -1989,10 +2019,10 @@ export default function PropertiesPanel({
                 </span>
               )}
             </label>
-            <MultiSelectDropdown
-              disabled={false}
-              selected={Array.isArray(value) ? value.map(String) : []}
-              options={options.map((o) => ({ key: o, label: o }))}
+            <ChoiceCheckboxList
+              disabled={isDisabled}
+              selected={toSelectedList(effVal)}
+              options={options}
               onChange={(values) => handlePropertyChange(field.key, values)}
             />
           </div>
@@ -2045,8 +2075,10 @@ export default function PropertiesPanel({
       );
     }
 
-    // Multiline text area
-    if (fieldType === 'textarea') {
+    // Multiline text area (EPIC-NODE-PROPS-UI-001: accept 'textarea' / 'text area')
+    if (fieldType === 'textarea' || fieldType === 'text area' || fieldType === 'text_area') {
+      const taVal =
+        value !== undefined && value !== null && value !== '' ? value : (field as any).default;
       return (
         <div key={field.key}>
           <label
@@ -2062,7 +2094,7 @@ export default function PropertiesPanel({
           </label>
           <textarea
             disabled={isDisabled}
-            value={String(value)}
+            value={String(taVal ?? '')}
             placeholder={field.placeholder}
             onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
               !isDisabled && handlePropertyChange(field.key, event.target.value)
@@ -2284,23 +2316,23 @@ export default function PropertiesPanel({
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-500 shrink-0">
+      <div className="flex border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-500 shrink-0 mt-2">
         <button
           onClick={() => setViewMode('config')}
-          className={`flex-1 py-3 text-center transition-all cursor-pointer ${
+          className={`flex-1 py-3 text-center transition-all cursor-pointer rounded-none border-b-2 shadow-none ${
             viewMode === 'config'
-              ? 'bg-white text-indigo-650 border-b-2 border-indigo-600 font-bold'
-              : 'bg-slate-50/50 hover:bg-slate-50 hover:text-slate-700'
+              ? 'bg-white text-primary border-primary font-bold'
+              : 'bg-slate-50/50 border-transparent hover:bg-slate-50 hover:text-slate-700'
           }`}
         >
           Properties
         </button>
         <button
           onClick={() => setViewMode('contract')}
-          className={`flex-1 py-3 text-center text-[10px] transition-all cursor-pointer ${
+          className={`flex-1 py-3 text-center text-[10px] transition-all cursor-pointer rounded-none border-b-2 shadow-none ${
             viewMode === 'contract'
-              ? 'bg-white text-indigo-650 border-b-2 border-indigo-600 font-bold'
-              : 'bg-slate-50/50 hover:bg-slate-50 hover:text-slate-700'
+              ? 'bg-white text-primary border-primary font-bold'
+              : 'bg-slate-50/50 border-transparent hover:bg-slate-50 hover:text-slate-700'
           }`}
         >
           Data Contracts
@@ -2428,7 +2460,6 @@ export default function PropertiesPanel({
                     {entries.length > 0 ? (
                       <div className="space-y-4">
                         {entries.map(([key, value]) => {
-                          const label = formatLabel(key);
                           const valueType =
                             typeof value === 'boolean'
                               ? 'boolean'
@@ -2471,8 +2502,11 @@ export default function PropertiesPanel({
                             values:
                               catalogSchema.values || userSchema.values || systemSchema.values,
                           };
-                          const fieldType =
-                            fieldSchema?.type || fieldSchema?.field_type || valueType;
+                          const fieldType = String(
+                            fieldSchema?.type || fieldSchema?.field_type || valueType,
+                          ).toLowerCase();
+                          // EPIC-NODE-PROPS-UI-001: prefer schema label over formatted key
+                          const label = fieldSchema?.label || formatLabel(key);
 
                           // Source type: show label, save key
                           if (fieldType === 'source' || Boolean(fieldSchema?.source)) {
@@ -2516,12 +2550,18 @@ export default function PropertiesPanel({
                             );
                           }
 
-                          if (fieldType === 'choice') {
+                          // EPIC-NODE-PROPS-UI-001: choice/select -> <select>, or checkbox list when multi-select
+                          if (fieldType === 'choice' || fieldType === 'select') {
+                            const isMultiSelect = Boolean(
+                              fieldSchema?.multiple ||
+                                fieldSchema?.multi_select ||
+                                fieldSchema?.multiSelect,
+                            );
                             const rawOptions = getRawChoiceOptions(
                               fieldSchema,
                               key,
                               systemProperties,
-                              value,
+                              isMultiSelect ? undefined : value,
                             );
 
                             let options = parseChoiceOptions(rawOptions);
@@ -2536,16 +2576,19 @@ export default function PropertiesPanel({
                             };
 
                             const rawVal =
-                              value !== undefined && value !== null ? value : fieldSchema?.default;
-                            const strVal = extractValStr(rawVal);
+                              value !== undefined && value !== null && value !== ''
+                                ? value
+                                : fieldSchema?.default;
+                            const strVal = Array.isArray(rawVal) ? '' : extractValStr(rawVal);
                             if (
+                              !isMultiSelect &&
                               strVal &&
                               !strVal.includes(',') &&
                               !options.some((o) => o.toLowerCase() === strVal.toLowerCase())
                             ) {
                               options = [strVal, ...options];
                             }
-                            const isMultiple = Boolean(fieldSchema?.multiple);
+                            const isMultiple = isMultiSelect;
                             const matchedOption = options.find(
                               (o) => o.toLowerCase() === strVal.toLowerCase(),
                             );
@@ -2566,10 +2609,10 @@ export default function PropertiesPanel({
                                       </span>
                                     )}
                                   </label>
-                                  <MultiSelectDropdown
+                                  <ChoiceCheckboxList
                                     disabled={false}
-                                    selected={Array.isArray(value) ? value.map(String) : []}
-                                    options={options.map((o) => ({ key: o, label: o }))}
+                                    selected={toSelectedList(rawVal)}
+                                    options={options}
                                     onChange={(values) => handlePropertyChange(key, values)}
                                   />
                                 </div>
@@ -2655,15 +2698,24 @@ export default function PropertiesPanel({
                               ? JSON.stringify(value, null, 2)
                               : String(value ?? '');
 
-                          // Multiline textarea for prompts/long strings
+                          // Multiline textarea for explicit textarea fields, prompts, or long strings
+                          // EPIC-NODE-PROPS-UI-001: honor schema type 'textarea' / 'text area'
+                          const isTextareaType =
+                            fieldType === 'textarea' ||
+                            fieldType === 'text area' ||
+                            fieldType === 'text_area';
                           const isMultiline =
+                            isTextareaType ||
                             displayStr.length > 40 ||
                             key.toLowerCase().includes('prompt') ||
                             key.toLowerCase().includes('query');
 
                           return (
                             <div key={key} className="space-y-1.5">
-                              <label className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest">
+                              <label
+                                className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest"
+                                title={fieldSchema?.description}
+                              >
                                 {label}
                               </label>
                               {isMultiline ? (
@@ -2671,8 +2723,8 @@ export default function PropertiesPanel({
                                   value={displayStr}
                                   disabled={false}
                                   onChange={(e) => handlePropertyChange(key, e.target.value)}
-                                  placeholder="Enter text/variables..."
-                                  rows={3}
+                                  placeholder={fieldSchema?.placeholder || 'Enter text/variables...'}
+                                  rows={isTextareaType ? 4 : 3}
                                   className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20"
                                 />
                               ) : (
@@ -2821,8 +2873,49 @@ export default function PropertiesPanel({
                     <div className="p-4 space-y-4 border-t border-slate-100 bg-white">
                       <div className="bg-slate-50/75 rounded-xl p-3 border border-slate-150 space-y-2.5 shadow-sm">
                         {systemEntries.map(([key, value]) => {
-                          const label = formatLabel(key);
+                          // EPIC-NODE-PROPS-UI-001: schema label + read-only textarea for textarea/long values
+                          const sysSchema = schemaByKey[key] || {};
+                          const label = sysSchema.label || formatLabel(key);
                           const isCopied = copiedKey === key;
+                          const sysType = String(sysSchema.type || '').toLowerCase();
+                          const sysStr =
+                            typeof value === 'object' && value !== null
+                              ? JSON.stringify(value)
+                              : String(value ?? '');
+                          const isSysTextarea =
+                            sysType === 'textarea' || sysType === 'text area' || sysStr.length > 60;
+                          if (isSysTextarea) {
+                            return (
+                              <div key={key} className="space-y-1 py-0.5 group/row">
+                                <div className="flex justify-between items-center gap-2">
+                                  <span
+                                    className="font-semibold text-[10px] text-slate-500 truncate"
+                                    title={sysSchema.description}
+                                  >
+                                    {label}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopy(key, value)}
+                                    className="p-1 hover:bg-slate-150 rounded transition-colors shrink-0 opacity-0 group-hover/row:opacity-100 focus:opacity-100 text-slate-400 hover:text-slate-655 cursor-pointer"
+                                    title="Copy to clipboard"
+                                  >
+                                    {isCopied ? (
+                                      <Check className="w-3 h-3 text-emerald-600 font-bold" />
+                                    ) : (
+                                      <Copy className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                </div>
+                                <textarea
+                                  readOnly
+                                  value={sysStr}
+                                  rows={3}
+                                  className="w-full font-mono text-[10px] text-slate-700 bg-white border border-slate-150 px-2 py-1 rounded shadow-inner-sm resize-y outline-none"
+                                />
+                              </div>
+                            );
+                          }
                           return (
                             <div
                               key={key}
