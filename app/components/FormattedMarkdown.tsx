@@ -344,7 +344,7 @@ export default function FormattedMarkdown({
         }
       });
     },
-    [variant, onLinkClick]
+    [variant, onLinkClick],
   );
 
   const renderTextWithBreaks = useCallback(
@@ -357,7 +357,7 @@ export default function FormattedMarkdown({
         </React.Fragment>
       ));
     },
-    [renderInlineTokens]
+    [renderInlineTokens],
   );
 
   return (
@@ -429,8 +429,8 @@ export default function FormattedMarkdown({
                           item.isOrdered
                             ? 'text-[11px] min-w-[18px] text-slate-500 dark:text-slate-400'
                             : isNested
-                            ? 'text-slate-400 text-sm leading-none'
-                            : 'text-blue-600 dark:text-blue-400 text-base leading-none'
+                              ? 'text-slate-400 text-sm leading-none'
+                              : 'text-blue-600 dark:text-blue-400 text-base leading-none'
                         } ${variant === 'user' ? '!text-white' : ''}`}
                       >
                         {item.isOrdered ? `${item.index}.` : isNested ? '◦' : '•'}
@@ -539,9 +539,7 @@ export default function FormattedMarkdown({
               <hr
                 key={bKey}
                 className={`my-2.5 border-t ${
-                  variant === 'user'
-                    ? 'border-white/30'
-                    : 'border-slate-200 dark:border-slate-700'
+                  variant === 'user' ? 'border-white/30' : 'border-slate-200 dark:border-slate-700'
                 }`}
               />
             );

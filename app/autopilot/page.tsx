@@ -300,7 +300,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
   useEffect(() => {
     async function initUser() {
       try {
-        await loadRoutePermissionsFromDB().catch(() => { });
+        await loadRoutePermissionsFromDB().catch(() => {});
         const user = await api.getCurrentUser();
         if (user) {
           setCurrentUser(user);
@@ -522,9 +522,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
 
   // Key people suggestions from active matter parties + common roles
   const suggestedPeople = useMemo(() => {
-    const fromParties = activeMatter.parties
-      .map((p) => p.contact_person || p.name)
-      .filter(Boolean);
+    const fromParties = activeMatter.parties.map((p) => p.contact_person || p.name).filter(Boolean);
     const standardRoles = [
       'Client CFO / MD',
       'Senior Advocate',
@@ -596,7 +594,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
     const defaultOptional = CONFIGURED_DOMAIN_FIELDS_CATALOG.filter((f) =>
       f.defaultForCategories.includes(cat),
     ).map((f) => f.key);
-    setActiveOptionalKeys(defaultOptional.length > 0 ? defaultOptional : ['court_level', 'court_complex']);
+    setActiveOptionalKeys(
+      defaultOptional.length > 0 ? defaultOptional : ['court_level', 'court_complex'],
+    );
     setOptionalFieldValues((prev) => ({
       ...prev,
       court_level:
@@ -654,7 +654,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
         const codeMatch = sec.section_code.toLowerCase().includes(q);
         const labelMatch = sec.short_label.toLowerCase().includes(q);
         const actMatch = sec.act_name.toLowerCase().includes(q);
-        const aliasMatch = sec.aliases ? sec.aliases.some((a) => a.toLowerCase().includes(q)) : false;
+        const aliasMatch = sec.aliases
+          ? sec.aliases.some((a) => a.toLowerCase().includes(q))
+          : false;
         return codeMatch || labelMatch || actMatch || aliasMatch;
       })
       .slice(0, 8);
@@ -717,7 +719,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
     if (!intakeBriefText.trim() && intakeAttachedFiles.length === 0) {
       setExtractionAlert({
         type: 'warning',
-        message: 'No data identified for the form. Please type a matter summary or upload brief documents.',
+        message:
+          'No data identified for the form. Please type a matter summary or upload brief documents.',
       });
       triggerToast('Please provide brief text or attach files to parse.');
       return;
@@ -734,7 +737,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
       if (!result || (result.confidenceScore < 0.25 && !result.headline)) {
         setExtractionAlert({
           type: 'warning',
-          message: 'No structured legal data identified from provided text. You can add or edit details manually below.',
+          message:
+            'No structured legal data identified from provided text. You can add or edit details manually below.',
         });
         triggerToast('No structured data identified. Ready for manual entry.');
         return;
@@ -785,7 +789,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
 
       // Sync active optional fields & values
       if (result.activeOptionalKeys && result.activeOptionalKeys.length > 0) {
-        setActiveOptionalKeys((prev) => Array.from(new Set([...prev, ...result.activeOptionalKeys])));
+        setActiveOptionalKeys((prev) =>
+          Array.from(new Set([...prev, ...result.activeOptionalKeys])),
+        );
       }
       if (result.optionalFieldValues) {
         setOptionalFieldValues((prev) => ({
@@ -884,13 +890,13 @@ export default function LegalPilotInteractiveWorkspacePage() {
       updated.parties = updated.parties.map((p) =>
         p.id === editingPartyId
           ? {
-            ...p,
-            name: partyName.trim(),
-            role: partyRole,
-            entity_type: partyType,
-            address: partyAddress.trim(),
-            contact_person: partyContact.trim(),
-          }
+              ...p,
+              name: partyName.trim(),
+              role: partyRole,
+              entity_type: partyType,
+              address: partyAddress.trim(),
+              contact_person: partyContact.trim(),
+            }
           : p,
       );
       triggerToast('Party details updated.');
@@ -935,7 +941,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
     setEditDocClauses(
       targetDoc.extracted_clauses && targetDoc.extracted_clauses.length > 0
         ? JSON.parse(JSON.stringify(targetDoc.extracted_clauses))
-        : []
+        : [],
     );
     setEditDocGaps(targetDoc.associated_gaps ? targetDoc.associated_gaps.join(', ') : '');
     if (!selectedDocForDrawer || selectedDocForDrawer.id !== targetDoc.id) {
@@ -978,7 +984,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
   const handleUpdateClauseField = (
     index: number,
     field: keyof ExtractedDocClause,
-    value: string
+    value: string,
   ) => {
     const updated = [...editDocClauses];
     updated[index] = {
@@ -1022,14 +1028,14 @@ export default function LegalPilotInteractiveWorkspacePage() {
       tags: tagsArray,
       raw_ocr_snippet: editDocRawOcr.trim(),
       extracted_clauses: editDocClauses.filter(
-        (cl) => cl.clause_title.trim() || cl.extracted_snippet.trim() || cl.clause_number.trim()
+        (cl) => cl.clause_title.trim() || cl.extracted_snippet.trim() || cl.clause_number.trim(),
       ),
       associated_gaps: gapsArray,
     };
 
     const updatedMatter = { ...activeMatter };
     updatedMatter.documents = updatedMatter.documents.map((d) =>
-      d.id === updatedDoc.id ? updatedDoc : d
+      d.id === updatedDoc.id ? updatedDoc : d,
     );
     setActiveMatter(updatedMatter);
     setSelectedDocForDrawer(updatedDoc);
@@ -1339,10 +1345,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
     });
     const currentUserId = currentUser?.id || currentUser?.user_id || 'usr_adv_01';
 
-    const effectiveClaim =
-      optionalFieldValues.claim_valuation || newCaseClaim || cfg.claimDefault;
-    const effectiveForum =
-      optionalFieldValues.court_complex || newCaseCourt || cfg.courtDefault;
+    const effectiveClaim = optionalFieldValues.claim_valuation || newCaseClaim || cfg.claimDefault;
+    const effectiveForum = optionalFieldValues.court_complex || newCaseCourt || cfg.courtDefault;
 
     const created: MatterCase = {
       id: formattedCaseId,
@@ -1457,13 +1461,13 @@ export default function LegalPilotInteractiveWorkspacePage() {
       file_ext: fileExt,
       extracted_clauses: evidenceDescription.trim()
         ? [
-          {
-            clause_number: 'Key Finding / Clause',
-            clause_title: evidenceDocType,
-            extracted_snippet: evidenceDescription.trim(),
-            legal_impact: 'Admitted into matter factual repository and linked to case strategy.',
-          },
-        ]
+            {
+              clause_number: 'Key Finding / Clause',
+              clause_title: evidenceDocType,
+              extracted_snippet: evidenceDescription.trim(),
+              legal_impact: 'Admitted into matter factual repository and linked to case strategy.',
+            },
+          ]
         : undefined,
       raw_ocr_snippet: evidenceDescription.trim() || `OCR extract for ${filename}`,
     };
@@ -1654,7 +1658,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
     setUpdatePeopleInvolved(
       Array.isArray(event.people_involved)
         ? event.people_involved.join(', ')
-        : (event.people_involved || ''),
+        : event.people_involved || '',
     );
     setUpdateNextDate(event.next_date || '');
     if (event.source && (event.source.doc_name || event.source.title)) {
@@ -1689,11 +1693,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
     const sourceObj: SourceRef | undefined =
       updateHasDoc && updateDocName.trim()
         ? {
-          title: updateDocName.trim(),
-          doc_name: updateDocName.trim(),
-          page_or_clause: updateDocClause.trim() || undefined,
-          date: updateDate,
-        }
+            title: updateDocName.trim(),
+            doc_name: updateDocName.trim(),
+            page_or_clause: updateDocClause.trim() || undefined,
+            date: updateDate,
+          }
         : undefined;
 
     const peopleArray = updatePeopleInvolved
@@ -1886,9 +1890,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     >
                       <Edit3 className="w-3 h-3" />
                     </button>
-                    <span className="text-[10px] text-indigo-600 font-bold">
-                      View
-                    </span>
+                    <span className="text-[10px] text-indigo-600 font-bold">View</span>
                   </div>
                 </div>
               ))}
@@ -1928,7 +1930,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         <span>{style.icon}</span>
                         <span>{event.date}</span>
                       </div>
-                      <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded-md border ${style.pillBg}`}>
+                      <span
+                        className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded-md border ${style.pillBg}`}
+                      >
                         {style.label}
                       </span>
                     </div>
@@ -1951,7 +1955,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       </div>
                     )}
                     <div className="mt-1 text-[10px] text-slate-400 font-mono truncate">
-                      {event.source?.doc_name ? `Doc: ${event.source.doc_name}` : 'Direct Note / Memo'}
+                      {event.source?.doc_name
+                        ? `Doc: ${event.source.doc_name}`
+                        : 'Direct Note / Memo'}
                     </div>
                   </div>
                 );
@@ -1978,8 +1984,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   </span>
                   {activeMatter.created_by_user_id && (
                     <span className="text-[10px] text-slate-500 font-medium">
-                      by <strong className="text-slate-700">{activeMatter.created_by_user_id}</strong>
-                      {activeMatter.created_at_display ? ` on ${activeMatter.created_at_display}` : ''}
+                      by{' '}
+                      <strong className="text-slate-700">{activeMatter.created_by_user_id}</strong>
+                      {activeMatter.created_at_display
+                        ? ` on ${activeMatter.created_at_display}`
+                        : ''}
                     </span>
                   )}
                 </div>
@@ -2051,7 +2060,6 @@ export default function LegalPilotInteractiveWorkspacePage() {
                 ))}
               </div>
             </div>
-
           </div>
 
           {/* 4 Clickable Top Summary Metric Cards (Clean Minimalist Pastel Hover) */}
@@ -2109,7 +2117,6 @@ export default function LegalPilotInteractiveWorkspacePage() {
             </div>
           </div>
 
-
           {/* ----------------------------------------------------------------- */}
           {/* STAGE-WISE ACCORDION FLOW (STAGES 1 TO 5) */}
           {/* ----------------------------------------------------------------- */}
@@ -2120,10 +2127,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-2xl border border-sky-200/90 shadow-xs overflow-hidden transition-all">
               <button
                 onClick={() => toggleStage(1)}
-                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-sky-50 via-blue-50/50 to-sky-50 hover:from-sky-100/80 hover:to-blue-100/80 flex items-center justify-between text-left transition cursor-pointer ${openStages[1]
-                  ? 'rounded-t-2xl rounded-b-none border-b border-sky-100'
-                  : 'rounded-2xl'
-                  }`}
+                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-sky-50 via-blue-50/50 to-sky-50 hover:from-sky-100/80 hover:to-blue-100/80 flex items-center justify-between text-left transition cursor-pointer ${
+                  openStages[1]
+                    ? 'rounded-t-2xl rounded-b-none border-b border-sky-100'
+                    : 'rounded-2xl'
+                }`}
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-sky-200/90 text-sky-950 border border-sky-300 font-black text-base sm:text-lg flex items-center justify-center shadow-2xs shrink-0">
@@ -2131,8 +2139,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   </div>
                   <div>
                     <h3 className="font-black text-sm sm:text-sm text-sky-950 tracking-tight">
-                      Case Details, Parties Involved & Roles ({activeMatter.parties.length}{' '}
-                      Parties)
+                      Case Details, Parties Involved & Roles ({activeMatter.parties.length} Parties)
                     </h3>
                     <p className="text-sm sm:text-base text-sky-850/80 font-medium mt-1">
                       Claimant, respondent, guarantors, witnesses, and jurisdiction forum.
@@ -2147,7 +2154,6 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   )}
                 </div>
               </button>
-
 
               {openStages[1] && (
                 <div className="p-6 border-t border-slate-200 space-y-4 text-sm">
@@ -2255,8 +2261,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                           {Object.entries(activeMatter.optional_domain_fields).map(([k, val]) => {
-                            if (!val || k === 'claim_valuation' || k === 'court_complex') return null;
-                            const fieldDef = CONFIGURED_DOMAIN_FIELDS_CATALOG.find((f) => f.key === k);
+                            if (!val || k === 'claim_valuation' || k === 'court_complex')
+                              return null;
+                            const fieldDef = CONFIGURED_DOMAIN_FIELDS_CATALOG.find(
+                              (f) => f.key === k,
+                            );
                             return (
                               <div
                                 key={k}
@@ -2265,7 +2274,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                                 <div className="text-[10px] font-bold text-slate-500 uppercase">
                                   {fieldDef?.label || k}
                                 </div>
-                                <div className="font-black text-slate-900 mt-0.5 truncate">{val}</div>
+                                <div className="font-black text-slate-900 mt-0.5 truncate">
+                                  {val}
+                                </div>
                               </div>
                             );
                           })}
@@ -2282,10 +2293,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-2xl border border-amber-200/90 shadow-xs overflow-hidden transition-all">
               <button
                 onClick={() => toggleStage(2)}
-                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-amber-50 via-orange-50/50 to-amber-50 hover:from-amber-100/80 hover:to-orange-100/80 flex items-center justify-between text-left transition cursor-pointer ${openStages[2]
-                  ? 'rounded-t-2xl rounded-b-none border-b border-amber-100'
-                  : 'rounded-2xl'
-                  }`}
+                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-amber-50 via-orange-50/50 to-amber-50 hover:from-amber-100/80 hover:to-orange-100/80 flex items-center justify-between text-left transition cursor-pointer ${
+                  openStages[2]
+                    ? 'rounded-t-2xl rounded-b-none border-b border-amber-100'
+                    : 'rounded-2xl'
+                }`}
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-200/90 text-amber-950 border border-amber-300 font-black text-base sm:text-lg flex items-center justify-center shadow-2xs shrink-0">
@@ -2296,7 +2308,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       Case Activity Log & Full Timeline Flow ({sortedTimeline.length} Updates)
                     </h3>
                     <p className="text-sm sm:text-base text-amber-850/80 font-medium mt-1">
-                      Complete chronology of court orders, pleadings filed, client communications, and interim hearings.
+                      Complete chronology of court orders, pleadings filed, client communications,
+                      and interim hearings.
                     </p>
                   </div>
                 </div>
@@ -2309,7 +2322,6 @@ export default function LegalPilotInteractiveWorkspacePage() {
                 </div>
               </button>
 
-
               {openStages[2] && (
                 <div className="p-6 border-t border-slate-200 space-y-6 text-xs">
                   {/* Controls: Filter Pills, Search Bar & '+ Log New Update' CTA */}
@@ -2319,60 +2331,66 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('all')}
-                        className={`px-3 py-1.5 rounded-xl text-sm font-extrabold transition cursor-pointer ${timelineFilter === 'all'
-                          ? 'bg-indigo-900 text-white shadow-2xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          }`}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-extrabold transition cursor-pointer ${
+                          timelineFilter === 'all'
+                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
                       >
                         All ({sortedTimeline.length})
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('client')}
-                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${timelineFilter === 'client'
-                          ? 'bg-indigo-900 text-white shadow-2xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          }`}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${
+                          timelineFilter === 'client'
+                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
                       >
                         Client Discussion
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('counsel')}
-                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${timelineFilter === 'counsel'
-                          ? 'bg-indigo-900 text-white shadow-2xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          }`}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${
+                          timelineFilter === 'counsel'
+                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
                       >
                         Counsel Strategy
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('hearing')}
-                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${timelineFilter === 'hearing'
-                          ? 'bg-indigo-900 text-white shadow-2xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          }`}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${
+                          timelineFilter === 'hearing'
+                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
                       >
                         Court Hearing
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('settlement')}
-                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${timelineFilter === 'settlement'
-                          ? 'bg-indigo-900 text-white shadow-2xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          }`}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${
+                          timelineFilter === 'settlement'
+                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
                       >
                         Settlement
                       </button>
                       <button
                         type="button"
                         onClick={() => setTimelineFilter('others')}
-                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${timelineFilter === 'others'
-                          ? 'bg-indigo-900 text-white shadow-2xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          }`}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-bold transition cursor-pointer ${
+                          timelineFilter === 'others'
+                            ? 'bg-indigo-900 text-white shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
                       >
                         Others
                       </button>
@@ -2404,7 +2422,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   <div className="space-y-6 relative before:absolute before:left-24 sm:before:left-28 before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-300">
                     {filteredTimeline.length === 0 ? (
                       <div className="py-8 text-center text-slate-500 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                        <p className="font-bold text-xs">No updates matching your filter or search.</p>
+                        <p className="font-bold text-xs">
+                          No updates matching your filter or search.
+                        </p>
                       </div>
                     ) : (
                       filteredTimeline.map((event) => {
@@ -2419,7 +2439,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                             </div>
                             {/* Node Dot */}
                             <div className="relative z-10 -ml-[13px] sm:-ml-[17px] mt-3.5 shrink-0">
-                              <div className={`w-4 h-4 rounded-full ${style.dotBg} ring-4 ring-white shadow-2xs`}></div>
+                              <div
+                                className={`w-4 h-4 rounded-full ${style.dotBg} ring-4 ring-white shadow-2xs`}
+                              ></div>
                             </div>
                             {/* Main Card in line with timeline node */}
                             <div
@@ -2450,7 +2472,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                               </div>
 
                               <div>
-                                <h3 className="text-sm font-extrabold text-slate-900">{event.title}</h3>
+                                <h3 className="text-sm font-extrabold text-slate-900">
+                                  {event.title}
+                                </h3>
                                 <p className="text-xs text-slate-700 mt-1 leading-relaxed whitespace-pre-wrap">
                                   {event.description}
                                 </p>
@@ -2488,12 +2512,16 @@ export default function LegalPilotInteractiveWorkspacePage() {
                                 <div className="flex items-center gap-2 text-slate-600">
                                   {event.source?.doc_name ? (
                                     <>
-                                      <span className="font-bold text-slate-500">Document Attached:</span>
+                                      <span className="font-bold text-slate-500">
+                                        Document Attached:
+                                      </span>
                                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 font-mono text-[11px] border border-slate-200">
                                         <FileText className="w-3 h-3 text-rose-600" />
                                         <span>
                                           {event.source.doc_name}
-                                          {event.source.page_or_clause ? ` (${event.source.page_or_clause})` : ''}
+                                          {event.source.page_or_clause
+                                            ? ` (${event.source.page_or_clause})`
+                                            : ''}
                                         </span>
                                       </span>
                                     </>
@@ -2526,10 +2554,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-2xl border border-teal-200/90 shadow-xs overflow-hidden transition-all">
               <button
                 onClick={() => toggleStage(3)}
-                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-teal-50 via-emerald-50/50 to-teal-50 hover:from-teal-100/80 hover:to-emerald-100/80 flex items-center justify-between text-left transition cursor-pointer ${openStages[3]
-                  ? 'rounded-t-2xl rounded-b-none border-b border-teal-100'
-                  : 'rounded-2xl'
-                  }`}
+                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-teal-50 via-emerald-50/50 to-teal-50 hover:from-teal-100/80 hover:to-emerald-100/80 flex items-center justify-between text-left transition cursor-pointer ${
+                  openStages[3]
+                    ? 'rounded-t-2xl rounded-b-none border-b border-teal-100'
+                    : 'rounded-2xl'
+                }`}
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-teal-200/90 text-teal-950 border border-teal-300 font-black text-base sm:text-lg flex items-center justify-center shadow-2xs shrink-0">
@@ -2537,7 +2566,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   </div>
                   <div>
                     <h3 className="font-black text-sm sm:text-sm text-teal-950 tracking-tight">
-                      Ingested Evidence Files & Document Intelligence ({activeMatter.documents.length} Files)
+                      Ingested Evidence Files & Document Intelligence (
+                      {activeMatter.documents.length} Files)
                     </h3>
                     <p className="text-sm sm:text-base text-teal-850/80 font-medium mt-1">
                       Extracted contractual clauses, OCR transcripts, and source links.
@@ -2552,7 +2582,6 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   )}
                 </div>
               </button>
-
 
               {openStages[3] && (
                 <div className="p-6 border-t border-slate-200 space-y-4 text-xs">
@@ -2595,12 +2624,13 @@ export default function LegalPilotInteractiveWorkspacePage() {
                             <div className="flex items-center justify-between gap-1.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span
-                                  className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${isImg
-                                    ? 'bg-amber-50 text-amber-900 border-amber-200'
-                                    : isMd
-                                      ? 'bg-blue-50 text-blue-900 border-blue-200'
-                                      : 'bg-rose-50 text-rose-900 border-rose-200'
-                                    }`}
+                                  className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
+                                    isImg
+                                      ? 'bg-amber-50 text-amber-900 border-amber-200'
+                                      : isMd
+                                        ? 'bg-blue-50 text-blue-900 border-blue-200'
+                                        : 'bg-rose-50 text-rose-900 border-rose-200'
+                                  }`}
                                 >
                                   {isImg ? '🖼️ IMG' : isMd ? '📝 MD' : '📄 PDF'}
                                 </span>
@@ -2689,10 +2719,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-2xl border border-indigo-200/90 shadow-xs overflow-hidden transition-all">
               <button
                 onClick={() => toggleStage(4)}
-                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-indigo-50 via-slate-100/60 to-indigo-50 hover:from-indigo-100/80 hover:to-slate-100/80 flex items-center justify-between text-left transition cursor-pointer ${openStages[4]
-                  ? 'rounded-t-2xl rounded-b-none border-b border-indigo-100'
-                  : 'rounded-2xl'
-                  }`}
+                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-indigo-50 via-slate-100/60 to-indigo-50 hover:from-indigo-100/80 hover:to-slate-100/80 flex items-center justify-between text-left transition cursor-pointer ${
+                  openStages[4]
+                    ? 'rounded-t-2xl rounded-b-none border-b border-indigo-100'
+                    : 'rounded-2xl'
+                }`}
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-indigo-200/90 text-indigo-950 border border-indigo-300 font-black text-base sm:text-lg flex items-center justify-center shadow-2xs shrink-0">
@@ -2703,7 +2734,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       AI Verified Facts & Statutory Cross-References (BNS/IPC, BNSS/CrPC, BSA/IEA)
                     </h3>
                     <p className="text-sm sm:text-base text-indigo-850/80 font-medium mt-1">
-                      {activeMatter.facts.length} core facts with source links & substantive Indian legal provisions.
+                      {activeMatter.facts.length} core facts with source links & substantive Indian
+                      legal provisions.
                     </p>
                   </div>
                 </div>
@@ -2715,7 +2747,6 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   )}
                 </div>
               </button>
-
 
               {openStages[4] && (
                 <div className="p-6 border-t border-slate-200 space-y-4 text-xs">
@@ -2752,10 +2783,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-2xl border-2 border-rose-200/90 shadow-xs overflow-hidden transition-all ring-4 ring-rose-500/5">
               <button
                 onClick={() => toggleStage(5)}
-                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-rose-50 via-red-50/50 to-rose-50 hover:from-rose-100/80 hover:to-red-100/80 flex items-center justify-between text-left transition cursor-pointer ${openStages[5]
-                  ? 'rounded-t-2xl rounded-b-none border-b border-rose-100'
-                  : 'rounded-2xl'
-                  }`}
+                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-rose-50 via-red-50/50 to-rose-50 hover:from-rose-100/80 hover:to-red-100/80 flex items-center justify-between text-left transition cursor-pointer ${
+                  openStages[5]
+                    ? 'rounded-t-2xl rounded-b-none border-b border-rose-100'
+                    : 'rounded-2xl'
+                }`}
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-rose-200/90 text-rose-950 border border-rose-300 font-black text-base sm:text-lg flex items-center justify-center shadow-2xs shrink-0">
@@ -2771,7 +2803,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       </span>
                     </div>
                     <p className="text-sm sm:text-base text-rose-850/80 font-medium mt-1">
-                      {activeMatter.open_gaps_count} missing critical items identified. One-click remedial actions.
+                      {activeMatter.open_gaps_count} missing critical items identified. One-click
+                      remedial actions.
                     </p>
                   </div>
                 </div>
@@ -2784,7 +2817,6 @@ export default function LegalPilotInteractiveWorkspacePage() {
                 </div>
               </button>
 
-
               {openStages[5] && (
                 <div className="p-6 border-t border-slate-200 space-y-4">
                   {activeMatter.gaps.map((gap) => {
@@ -2794,21 +2826,23 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     return (
                       <div
                         key={gap.id}
-                        className={`p-5 rounded-2xl border transition shadow-2xs ${isClosed
-                          ? 'bg-emerald-50/40 border-emerald-200'
-                          : gap.severity === 'High'
-                            ? 'bg-white border-slate-200 hover:border-indigo-300'
-                            : 'bg-white border-slate-200'
-                          }`}
+                        className={`p-5 rounded-2xl border transition shadow-2xs ${
+                          isClosed
+                            ? 'bg-emerald-50/40 border-emerald-200'
+                            : gap.severity === 'High'
+                              ? 'bg-white border-slate-200 hover:border-indigo-300'
+                              : 'bg-white border-slate-200'
+                        }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                           <div className="space-y-1.5 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${isClosed
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-indigo-100 text-indigo-900'
-                                  }`}
+                                className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                                  isClosed
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-indigo-100 text-indigo-900'
+                                }`}
                               >
                                 {gap.status}
                               </span>
@@ -2817,10 +2851,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
                               </span>
                               {!isClosed && (
                                 <span
-                                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${gap.severity === 'High'
-                                    ? 'bg-rose-100 text-rose-800'
-                                    : 'bg-slate-100 text-slate-600'
-                                    }`}
+                                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                    gap.severity === 'High'
+                                      ? 'bg-rose-100 text-rose-800'
+                                      : 'bg-slate-100 text-slate-600'
+                                  }`}
                                 >
                                   {gap.severity} Priority
                                 </span>
@@ -2877,10 +2912,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="bg-white rounded-2xl border border-purple-200/90 shadow-xs overflow-hidden transition-all">
               <button
                 onClick={() => toggleStage(6)}
-                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-purple-50 via-fuchsia-50/50 to-purple-50 hover:from-purple-100/80 hover:to-fuchsia-100/80 flex items-center justify-between text-left transition cursor-pointer ${openStages[6]
-                  ? 'rounded-t-2xl rounded-b-none border-b border-purple-100'
-                  : 'rounded-2xl'
-                  }`}
+                className={`w-full p-5 sm:p-5.5 bg-gradient-to-r from-purple-50 via-fuchsia-50/50 to-purple-50 hover:from-purple-100/80 hover:to-fuchsia-100/80 flex items-center justify-between text-left transition cursor-pointer ${
+                  openStages[6]
+                    ? 'rounded-t-2xl rounded-b-none border-b border-purple-100'
+                    : 'rounded-2xl'
+                }`}
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-purple-200/90 text-purple-950 border border-purple-300 font-black text-base sm:text-lg flex items-center justify-center shadow-2xs shrink-0">
@@ -2903,7 +2939,6 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   )}
                 </div>
               </button>
-
 
               {openStages[6] && (
                 <div className="p-6 border-t border-slate-200 space-y-4">
@@ -2995,19 +3030,21 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="px-6 pt-3 border-b border-slate-200 bg-slate-50/50 flex gap-2">
               <button
                 onClick={() => setReckonerTab('summary')}
-                className={`pb-2.5 px-3 text-xs font-extrabold border-b-2 transition cursor-pointer ${reckonerTab === 'summary'
-                  ? 'border-indigo-900 text-indigo-950 font-black'
-                  : 'border-transparent text-slate-500 hover:text-slate-900'
-                  }`}
+                className={`pb-2.5 px-3 text-xs font-extrabold border-b-2 transition cursor-pointer ${
+                  reckonerTab === 'summary'
+                    ? 'border-indigo-900 text-indigo-950 font-black'
+                    : 'border-transparent text-slate-500 hover:text-slate-900'
+                }`}
               >
                 1. Practitioner Summary
               </button>
               <button
                 onClick={() => setReckonerTab('bare_act')}
-                className={`pb-2.5 px-3 text-xs font-extrabold border-b-2 transition cursor-pointer ${reckonerTab === 'bare_act'
-                  ? 'border-indigo-900 text-indigo-950 font-black'
-                  : 'border-transparent text-slate-500 hover:text-slate-900'
-                  }`}
+                className={`pb-2.5 px-3 text-xs font-extrabold border-b-2 transition cursor-pointer ${
+                  reckonerTab === 'bare_act'
+                    ? 'border-indigo-900 text-indigo-950 font-black'
+                    : 'border-transparent text-slate-500 hover:text-slate-900'
+                }`}
               >
                 2. Details as in the Act (Bare Act)
               </button>
@@ -3118,10 +3155,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
             <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 ${isEditingDoc
-                    ? 'bg-amber-100 text-amber-900'
-                    : 'bg-indigo-100 text-indigo-900'
-                    }`}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 ${
+                    isEditingDoc ? 'bg-amber-100 text-amber-900' : 'bg-indigo-100 text-indigo-900'
+                  }`}
                 >
                   {isEditingDoc ? <Edit3 className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                 </div>
@@ -3181,7 +3217,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   {/* File Name & Doc Classification */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Document Filename / Title *</label>
+                      <label className="text-xs font-bold text-slate-700">
+                        Document Filename / Title *
+                      </label>
                       <input
                         type="text"
                         value={editDocFilename}
@@ -3192,21 +3230,39 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Document Classification / Type</label>
+                      <label className="text-xs font-bold text-slate-700">
+                        Document Classification / Type
+                      </label>
                       <select
                         value={editDocType}
                         onChange={(e) => setEditDocType(e.target.value)}
                         className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
                       >
                         <option value="Commercial Contract">Commercial Contract / Agreement</option>
-                        <option value="First Information Report (FIR)">First Information Report (FIR)</option>
-                        <option value="Tax Invoices & Challans">Tax Invoices & Delivery Challans</option>
-                        <option value="Site Inspection Photo / Visual">Site Inspection Photo / Visual Evidence</option>
-                        <option value="WhatsApp / Email / Note Export">WhatsApp / Email / Note Communication</option>
-                        <option value="Legal Notice & Proof of Service">Legal Notice & Proof of Service</option>
-                        <option value="Court Order / Certified Record">Court Order / Certified Record</option>
-                        <option value="Expert / Forensic Technical Report">Expert / Forensic Technical Report</option>
-                        <option value="Supplemental Admission">Supplemental Admission / Debt Acknowledgment</option>
+                        <option value="First Information Report (FIR)">
+                          First Information Report (FIR)
+                        </option>
+                        <option value="Tax Invoices & Challans">
+                          Tax Invoices & Delivery Challans
+                        </option>
+                        <option value="Site Inspection Photo / Visual">
+                          Site Inspection Photo / Visual Evidence
+                        </option>
+                        <option value="WhatsApp / Email / Note Export">
+                          WhatsApp / Email / Note Communication
+                        </option>
+                        <option value="Legal Notice & Proof of Service">
+                          Legal Notice & Proof of Service
+                        </option>
+                        <option value="Court Order / Certified Record">
+                          Court Order / Certified Record
+                        </option>
+                        <option value="Expert / Forensic Technical Report">
+                          Expert / Forensic Technical Report
+                        </option>
+                        <option value="Supplemental Admission">
+                          Supplemental Admission / Debt Acknowledgment
+                        </option>
                         <option value="Other Evidence">Other Evidence</option>
                       </select>
                     </div>
@@ -3215,7 +3271,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   {/* Provenance, Status, Date, Pages & Size */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Provenance / Origin</label>
+                      <label className="text-xs font-bold text-slate-700">
+                        Provenance / Origin
+                      </label>
                       <select
                         value={editDocProvenance}
                         onChange={(e) => setEditDocProvenance(e.target.value)}
@@ -3225,7 +3283,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         <option value="Opposing Party Production">Opposing Party Production</option>
                         <option value="Court Certified Record">Court Certified Copy</option>
                         <option value="Third Party / Subpoena">Third Party / Subpoena</option>
-                        <option value="Field Investigation">Field Investigation / Site Audit</option>
+                        <option value="Field Investigation">
+                          Field Investigation / Site Audit
+                        </option>
                         <option value="Forensic / Expert Report">Forensic / Expert Report</option>
                       </select>
                     </div>
@@ -3234,7 +3294,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       <label className="text-xs font-bold text-slate-700">Processing Status</label>
                       <select
                         value={editDocStatus}
-                        onChange={(e) => setEditDocStatus(e.target.value as 'Parsed' | 'Supplemental')}
+                        onChange={(e) =>
+                          setEditDocStatus(e.target.value as 'Parsed' | 'Supplemental')
+                        }
                         className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
                       >
                         <option value="Parsed">Parsed & Indexed</option>
@@ -3280,7 +3342,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
 
                   {/* Legal Relevance & Description */}
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">Legal Relevance & Factual Summary</label>
+                    <label className="text-xs font-bold text-slate-700">
+                      Legal Relevance & Factual Summary
+                    </label>
                     <textarea
                       rows={3}
                       value={editDocDescription}
@@ -3297,7 +3361,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         <Tag className="w-3.5 h-3.5 text-indigo-700" />
                         <span>Evidence Tags (Comma-Separated)</span>
                       </label>
-                      <span className="text-[10px] text-slate-400">e.g. Contract, Annexure, WhatsApp</span>
+                      <span className="text-[10px] text-slate-400">
+                        e.g. Contract, Annexure, WhatsApp
+                      </span>
                     </div>
                     <input
                       type="text"
@@ -3320,10 +3386,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
                             key={tag}
                             type="button"
                             onClick={() => handleToggleEditDocTag(tag)}
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${isSelected
-                              ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
-                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                              }`}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
                           >
                             <span>{isSelected ? '✓' : '+'}</span>
                             <span>{tag}</span>
@@ -3793,12 +3860,13 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       handleEvidenceFileSelect(e.dataTransfer.files[0]);
                     }
                   }}
-                  className={`border-2 border-dashed rounded-2xl p-5 text-center transition flex flex-col items-center justify-center gap-2 ${isDraggingEvidence
-                    ? 'border-indigo-500 bg-indigo-50/80 scale-[1.01]'
-                    : evidenceFile
-                      ? 'border-emerald-300 bg-emerald-50/40'
-                      : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/20'
-                    }`}
+                  className={`border-2 border-dashed rounded-2xl p-5 text-center transition flex flex-col items-center justify-center gap-2 ${
+                    isDraggingEvidence
+                      ? 'border-indigo-500 bg-indigo-50/80 scale-[1.01]'
+                      : evidenceFile
+                        ? 'border-emerald-300 bg-emerald-50/40'
+                        : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/20'
+                  }`}
                 >
                   {evidenceFile ? (
                     <div className="flex items-center justify-between w-full p-2 bg-white rounded-xl border border-emerald-200 shadow-2xs">
@@ -3808,7 +3876,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
                             ? 'PDF'
                             : evidenceFile.name.endsWith('.md')
                               ? 'MD'
-                              : evidenceFile.name.endsWith('.png') || evidenceFile.name.endsWith('.jpg')
+                              : evidenceFile.name.endsWith('.png') ||
+                                  evidenceFile.name.endsWith('.jpg')
                                 ? 'IMG'
                                 : 'DOC'}
                         </div>
@@ -3855,7 +3924,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
                           </label>
                         </p>
                         <p className="text-[11px] text-slate-500 mt-0.5">
-                          Supports PDF documents, Markdown notes (.md), Images (.png, .jpg), and Word (.docx)
+                          Supports PDF documents, Markdown notes (.md), Images (.png, .jpg), and
+                          Word (.docx)
                         </p>
                       </div>
                     </>
@@ -3866,7 +3936,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
               {/* 2. File / Evidence Name & Document Type Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Document / Evidence Name *</label>
+                  <label className="text-xs font-bold text-slate-700">
+                    Document / Evidence Name *
+                  </label>
                   <input
                     type="text"
                     value={evidenceDocInput}
@@ -3877,20 +3949,36 @@ export default function LegalPilotInteractiveWorkspacePage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Document Classification / Type</label>
+                  <label className="text-xs font-bold text-slate-700">
+                    Document Classification / Type
+                  </label>
                   <select
                     value={evidenceDocType}
                     onChange={(e) => setEvidenceDocType(e.target.value)}
                     className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
                   >
                     <option value="Commercial Contract">Commercial Contract / Agreement</option>
-                    <option value="Tax Invoices & Challans">Tax Invoices & Delivery Challans</option>
-                    <option value="Site Inspection Photo / Visual">Site Inspection Photo / Visual Evidence</option>
-                    <option value="WhatsApp / Email / Note Export">WhatsApp / Email / Note Communication</option>
-                    <option value="Legal Notice & Proof of Service">Legal Notice & Proof of Service (Speed Post / Dasti)</option>
-                    <option value="Court Order / Certified Record">Court Order / Certified Record</option>
-                    <option value="Expert / Forensic Technical Report">Expert / Forensic Technical Report</option>
-                    <option value="Supplemental Admission">Supplemental Admission / Debt Acknowledgment</option>
+                    <option value="Tax Invoices & Challans">
+                      Tax Invoices & Delivery Challans
+                    </option>
+                    <option value="Site Inspection Photo / Visual">
+                      Site Inspection Photo / Visual Evidence
+                    </option>
+                    <option value="WhatsApp / Email / Note Export">
+                      WhatsApp / Email / Note Communication
+                    </option>
+                    <option value="Legal Notice & Proof of Service">
+                      Legal Notice & Proof of Service (Speed Post / Dasti)
+                    </option>
+                    <option value="Court Order / Certified Record">
+                      Court Order / Certified Record
+                    </option>
+                    <option value="Expert / Forensic Technical Report">
+                      Expert / Forensic Technical Report
+                    </option>
+                    <option value="Supplemental Admission">
+                      Supplemental Admission / Debt Acknowledgment
+                    </option>
                     <option value="Other Evidence">Other Evidence</option>
                   </select>
                 </div>
@@ -3899,23 +3987,31 @@ export default function LegalPilotInteractiveWorkspacePage() {
               {/* 3. Provenance (Origin / Source) & Date / Pages Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Source Provenance / Origin</label>
+                  <label className="text-xs font-bold text-slate-700">
+                    Source Provenance / Origin
+                  </label>
                   <select
                     value={evidenceProvenance}
                     onChange={(e) => setEvidenceProvenance(e.target.value)}
                     className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
                   >
                     <option value="Client Direct Submission">Client Direct Submission</option>
-                    <option value="Opposing Party Production">Opposing Party Production / Discovery</option>
+                    <option value="Opposing Party Production">
+                      Opposing Party Production / Discovery
+                    </option>
                     <option value="Court Certified Record">Court Certified Copy</option>
-                    <option value="Third Party / Subpoena">Third Party / Subpoena / Statutory Body</option>
+                    <option value="Third Party / Subpoena">
+                      Third Party / Subpoena / Statutory Body
+                    </option>
                     <option value="Field Investigation">Field Investigation / Site Audit</option>
                     <option value="Forensic / Expert Report">Forensic / Expert Report</option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Date of Document / Receipt</label>
+                  <label className="text-xs font-bold text-slate-700">
+                    Date of Document / Receipt
+                  </label>
                   <input
                     type="date"
                     value={evidenceDate}
@@ -3957,7 +4053,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     <Tag className="w-3.5 h-3.5 text-indigo-700" />
                     <span>Evidence Tags (Comma-Separated)</span>
                   </label>
-                  <span className="text-[10px] text-slate-400">e.g. Contract, Annexure, WhatsApp</span>
+                  <span className="text-[10px] text-slate-400">
+                    e.g. Contract, Annexure, WhatsApp
+                  </span>
                 </div>
                 <input
                   type="text"
@@ -3980,10 +4078,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         key={tag}
                         type="button"
                         onClick={() => handleToggleEvidenceTag(tag)}
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${isSelected
-                          ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
-                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                          }`}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
                       >
                         <span>{isSelected ? '✓' : '+'}</span>
                         <span>{tag}</span>
@@ -4034,11 +4133,13 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       New Legal Case Intake Workspace
                     </h3>
                     <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-900 border border-indigo-200">
-                      {(currentUser?.customer_id || currentUser?.tenant_id || 'delhi_law_chambers')}-case_...
+                      {currentUser?.customer_id || currentUser?.tenant_id || 'delhi_law_chambers'}
+                      -case_...
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 font-medium">
-                    Fast-track case onboarding with statutory extraction, BNS/BNSS/BSA reckoners & dynamic domain fields.
+                    Fast-track case onboarding with statutory extraction, BNS/BNSS/BSA reckoners &
+                    dynamic domain fields.
                   </p>
                 </div>
               </div>
@@ -4055,12 +4156,13 @@ export default function LegalPilotInteractiveWorkspacePage() {
               {/* Alert Banner for Extraction Result or Fallback */}
               {extractionAlert && (
                 <div
-                  className={`p-3.5 rounded-2xl border flex items-start gap-2.5 animate-in fade-in duration-200 ${extractionAlert.type === 'success'
-                    ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
-                    : extractionAlert.type === 'warning'
-                      ? 'bg-amber-50/80 border-amber-200 text-amber-950'
-                      : 'bg-indigo-50/80 border-indigo-200 text-indigo-950'
-                    }`}
+                  className={`p-3.5 rounded-2xl border flex items-start gap-2.5 animate-in fade-in duration-200 ${
+                    extractionAlert.type === 'success'
+                      ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                      : extractionAlert.type === 'warning'
+                        ? 'bg-amber-50/80 border-amber-200 text-amber-950'
+                        : 'bg-indigo-50/80 border-indigo-200 text-indigo-950'
+                  }`}
                 >
                   {extractionAlert.type === 'success' ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
@@ -4069,9 +4171,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   )}
                   <div className="flex-1 text-xs">
                     <span className="font-extrabold">
-                      {extractionAlert.type === 'warning'
-                        ? 'Notice: '
-                        : 'Intake Engine: '}
+                      {extractionAlert.type === 'warning' ? 'Notice: ' : 'Intake Engine: '}
                     </span>
                     <span>{extractionAlert.message}</span>
                   </div>
@@ -4110,21 +4210,24 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         key={catKey}
                         type="button"
                         onClick={() => handleSelectCategory(catKey)}
-                        className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer ${isSelected
-                          ? 'bg-indigo-950 text-white border-indigo-950 shadow-md ring-2 ring-indigo-400'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
-                          }`}
+                        className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-950 text-white border-indigo-950 shadow-md ring-2 ring-indigo-400'
+                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                        }`}
                       >
                         <Icon
-                          className={`w-4 h-4 mb-1.5 ${isSelected ? 'text-indigo-200' : 'text-slate-600'
-                            }`}
+                          className={`w-4 h-4 mb-1.5 ${
+                            isSelected ? 'text-indigo-200' : 'text-slate-600'
+                          }`}
                         />
                         <span className="text-[11px] font-black leading-tight">
                           {item.label.split(' ')[0]}
                         </span>
                         <span
-                          className={`text-[9px] mt-0.5 line-clamp-1 ${isSelected ? 'text-indigo-300' : 'text-slate-400 font-medium'
-                            }`}
+                          className={`text-[9px] mt-0.5 line-clamp-1 ${
+                            isSelected ? 'text-indigo-300' : 'text-slate-400 font-medium'
+                          }`}
                         >
                           {catKey === 'constitutional'
                             ? 'Writ / Art 226/32'
@@ -4157,7 +4260,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         <span>Relevant Sections & Articles (The Statutory Engine)</span>
                       </h4>
                       <p className="text-[11px] text-slate-500 font-medium">
-                        Type matter in plain English, paste an extract, or upload brief. BNS, BNSS & BSA baseline.
+                        Type matter in plain English, paste an extract, or upload brief. BNS, BNSS &
+                        BSA baseline.
                       </p>
                     </div>
                   </div>
@@ -4176,7 +4280,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     <label className="text-[11px] font-bold text-slate-700">
                       Matter Summary / Pleading Extract / FIR Facts
                     </label>
-                    <span className="text-[10px] text-slate-400">Natural Language or Legal Extract</span>
+                    <span className="text-[10px] text-slate-400">
+                      Natural Language or Legal Extract
+                    </span>
                   </div>
                   <textarea
                     rows={3}
@@ -4192,7 +4298,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
                       <Paperclip className="w-3.5 h-3.5 text-indigo-700" />
-                      <span>Attach Supporting Briefs & Evidence ({intakeAttachedFiles.length} files)</span>
+                      <span>
+                        Attach Supporting Briefs & Evidence ({intakeAttachedFiles.length} files)
+                      </span>
                     </span>
                     <label className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition shadow-2xs">
                       <UploadCloud className="w-3.5 h-3.5 text-indigo-600" />
@@ -4204,7 +4312,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                         accept=".pdf,.docx,.txt,.png,.jpg,.jpeg"
                         onChange={(e) => {
                           if (e.target.files && e.target.files.length > 0) {
-                            Array.from(e.target.files).forEach((file) => handleAttachIntakeFile(file));
+                            Array.from(e.target.files).forEach((file) =>
+                              handleAttachIntakeFile(file),
+                            );
                           }
                         }}
                       />
@@ -4239,7 +4349,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
                 {/* Magic Parse CTA Button */}
                 <div className="pt-1 flex items-center justify-between">
                   <span className="text-[10px] text-slate-400 font-medium">
-                    Profile: <strong className="text-slate-600">Standard Indian Jurisprudence Profile</strong> (Editable)
+                    Profile:{' '}
+                    <strong className="text-slate-600">
+                      Standard Indian Jurisprudence Profile
+                    </strong>{' '}
+                    (Editable)
                   </span>
                   <button
                     type="button"
@@ -4247,8 +4361,14 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     disabled={isExtractionInProgress}
                     className="px-4 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-xs flex items-center gap-2 transition shadow-md shadow-indigo-900/20 cursor-pointer disabled:opacity-50"
                   >
-                    <Wand2 className={`w-3.5 h-3.5 text-indigo-300 ${isExtractionInProgress ? 'animate-spin' : ''}`} />
-                    <span>{isExtractionInProgress ? 'Parsing Statutory Context...' : 'Magic Extract & Map Sections'}</span>
+                    <Wand2
+                      className={`w-3.5 h-3.5 text-indigo-300 ${isExtractionInProgress ? 'animate-spin' : ''}`}
+                    />
+                    <span>
+                      {isExtractionInProgress
+                        ? 'Parsing Statutory Context...'
+                        : 'Magic Extract & Map Sections'}
+                    </span>
                   </button>
                 </div>
 
@@ -4257,16 +4377,21 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
                       <span>Applied Statutory Sections & Articles:</span>
-                      <span className="text-slate-400 font-normal">({selectedSectionCodes.length} active)</span>
+                      <span className="text-slate-400 font-normal">
+                        ({selectedSectionCodes.length} active)
+                      </span>
                     </label>
-                    <span className="text-[10px] text-slate-400">Click [×] to remove, or search below to add</span>
+                    <span className="text-[10px] text-slate-400">
+                      Click [×] to remove, or search below to add
+                    </span>
                   </div>
 
                   {/* Active Section Pills with Delete [x] */}
                   <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 bg-slate-50/80 rounded-xl border border-slate-200">
                     {selectedSectionCodes.length === 0 ? (
                       <span className="text-slate-400 text-[11px] italic">
-                        No sections assigned. Search statutory codes below (e.g. &quot;Bns 165&quot;, &quot;Crpc 156&quot;) to add.
+                        No sections assigned. Search statutory codes below (e.g. &quot;Bns
+                        165&quot;, &quot;Crpc 156&quot;) to add.
                       </span>
                     ) : (
                       selectedSectionCodes.map((code) => {
@@ -4358,14 +4483,18 @@ export default function LegalPilotInteractiveWorkspacePage() {
                     </span>
                     <span>Relevant Parties (Auto-Recognized & User Editable)</span>
                   </label>
-                  <span className="text-[10px] text-slate-400 font-medium">Auto-extracted or manual edit</span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Auto-extracted or manual edit
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="block text-[11px] font-bold text-slate-600 flex items-center justify-between">
                       <span>{CASE_CATEGORY_CONFIG[newCaseCategory].party1Label}</span>
-                      <span className="text-[10px] text-indigo-700 font-semibold">Initiating Party</span>
+                      <span className="text-[10px] text-indigo-700 font-semibold">
+                        Initiating Party
+                      </span>
                     </label>
                     <input
                       type="text"
@@ -4378,7 +4507,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   <div className="space-y-1">
                     <label className="block text-[11px] font-bold text-slate-600 flex items-center justify-between">
                       <span>{CASE_CATEGORY_CONFIG[newCaseCategory].party2Label}</span>
-                      <span className="text-[10px] text-indigo-700 font-semibold">Opposing Party</span>
+                      <span className="text-[10px] text-indigo-700 font-semibold">
+                        Opposing Party
+                      </span>
                     </label>
                     <input
                       type="text"
@@ -4423,10 +4554,13 @@ export default function LegalPilotInteractiveWorkspacePage() {
                       <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-900 flex items-center justify-center text-[11px] font-black">
                         5
                       </span>
-                      <span>Optional Domain Schema Fields ({activeOptionalKeys.length} active)</span>
+                      <span>
+                        Optional Domain Schema Fields ({activeOptionalKeys.length} active)
+                      </span>
                     </label>
                     <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                      Fields can be added or removed depending on case relevance (e.g. remove disputed valuation for writs).
+                      Fields can be added or removed depending on case relevance (e.g. remove
+                      disputed valuation for writs).
                     </p>
                   </div>
 
@@ -4434,7 +4568,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setIsAddOptionalFieldDropdownOpen(!isAddOptionalFieldDropdownOpen)}
+                      onClick={() =>
+                        setIsAddOptionalFieldDropdownOpen(!isAddOptionalFieldDropdownOpen)
+                      }
                       className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-indigo-900 font-extrabold text-xs flex items-center gap-1.5 border border-indigo-200 shadow-2xs cursor-pointer transition"
                     >
                       <Plus className="w-3.5 h-3.5 text-indigo-600" />
@@ -4558,7 +4694,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
               <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
                 <span>
-                  Audit: <strong className="text-slate-700">{currentUser?.id || 'usr_adv_01'}</strong> · Today {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  Audit:{' '}
+                  <strong className="text-slate-700">{currentUser?.id || 'usr_adv_01'}</strong> ·
+                  Today {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
@@ -4576,7 +4714,8 @@ export default function LegalPilotInteractiveWorkspacePage() {
                 >
                   <FolderKanban className="w-4 h-4 text-indigo-300" />
                   <span>
-                    Create {CASE_CATEGORY_CONFIG[newCaseCategory].label.split(' ')[0]} Case Workspace
+                    Create {CASE_CATEGORY_CONFIG[newCaseCategory].label.split(' ')[0]} Case
+                    Workspace
                   </span>
                 </button>
               </div>
@@ -4688,60 +4827,66 @@ export default function LegalPilotInteractiveWorkspacePage() {
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('Client Discussion')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Client Discussion'
-                      ? 'border-blue-400 bg-blue-50 text-blue-950 shadow-2xs'
-                      : 'border-slate-200 bg-slate-50 hover:bg-blue-50/50 text-slate-700'
-                      }`}
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
+                      updateCategory === 'Client Discussion'
+                        ? 'border-blue-400 bg-blue-50 text-blue-950 shadow-2xs'
+                        : 'border-slate-200 bg-slate-50 hover:bg-blue-50/50 text-slate-700'
+                    }`}
                   >
                     <span>🗣️</span> <span>Client Discussion</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('Counsel Strategy')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Counsel Strategy'
-                      ? 'border-purple-400 bg-purple-50 text-purple-950 shadow-2xs'
-                      : 'border-slate-200 bg-slate-50 hover:bg-purple-50/50 text-slate-700'
-                      }`}
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
+                      updateCategory === 'Counsel Strategy'
+                        ? 'border-purple-400 bg-purple-50 text-purple-950 shadow-2xs'
+                        : 'border-slate-200 bg-slate-50 hover:bg-purple-50/50 text-slate-700'
+                    }`}
                   >
                     <span>⚖️</span> <span>Counsel Strategy</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('Court / Tribunal Hearing')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Court / Tribunal Hearing'
-                      ? 'border-amber-400 bg-amber-50 text-amber-950 shadow-2xs'
-                      : 'border-slate-200 bg-slate-50 hover:bg-amber-50/50 text-slate-700'
-                      }`}
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
+                      updateCategory === 'Court / Tribunal Hearing'
+                        ? 'border-amber-400 bg-amber-50 text-amber-950 shadow-2xs'
+                        : 'border-slate-200 bg-slate-50 hover:bg-amber-50/50 text-slate-700'
+                    }`}
                   >
                     <span>🏛️</span> <span>Court Hearing</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('Settlement / Negotiation')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Settlement / Negotiation'
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-950 shadow-2xs'
-                      : 'border-slate-200 bg-slate-50 hover:bg-emerald-50/50 text-slate-700'
-                      }`}
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
+                      updateCategory === 'Settlement / Negotiation'
+                        ? 'border-emerald-400 bg-emerald-50 text-emerald-950 shadow-2xs'
+                        : 'border-slate-200 bg-slate-50 hover:bg-emerald-50/50 text-slate-700'
+                    }`}
                   >
                     <span>🤝</span> <span>Settlement</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('General Note')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'General Note'
-                      ? 'border-indigo-400 bg-indigo-50 text-indigo-950 shadow-2xs'
-                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
-                      }`}
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
+                      updateCategory === 'General Note'
+                        ? 'border-indigo-400 bg-indigo-50 text-indigo-950 shadow-2xs'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
+                    }`}
                   >
                     <span>📝</span> <span>General Note</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUpdateCategory('Others')}
-                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${updateCategory === 'Others'
-                      ? 'border-slate-400 bg-slate-200 text-slate-900 shadow-2xs'
-                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
-                      }`}
+                    className={`px-3 py-2 rounded-xl border text-xs font-bold transition text-left flex items-center gap-1.5 cursor-pointer ${
+                      updateCategory === 'Others'
+                        ? 'border-slate-400 bg-slate-200 text-slate-900 shadow-2xs'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
+                    }`}
                   >
                     <span>📁</span> <span>Others</span>
                   </button>
@@ -4803,10 +4948,11 @@ export default function LegalPilotInteractiveWorkspacePage() {
                           key={person}
                           type="button"
                           onClick={() => handleTogglePersonSuggestion(person)}
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${isSelected
-                            ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                            }`}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition cursor-pointer flex items-center gap-1 ${
+                            isSelected
+                              ? 'bg-indigo-100 text-indigo-950 border-indigo-300 shadow-2xs'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
                         >
                           <span>{isSelected ? '✓' : '+'}</span>
                           <span>{person}</span>
@@ -4819,7 +4965,9 @@ export default function LegalPilotInteractiveWorkspacePage() {
 
               {/* Detailed Notes / Summary */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Detailed Notes / Summary *</label>
+                <label className="text-xs font-bold text-slate-700">
+                  Detailed Notes / Summary *
+                </label>
                 <textarea
                   rows={3}
                   value={updateNotes}
@@ -4957,5 +5105,3 @@ export default function LegalPilotInteractiveWorkspacePage() {
     </div>
   );
 }
-
-

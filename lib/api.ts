@@ -105,7 +105,7 @@ export const api = {
       await fetch(`${BACKEND_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
-      }).catch(() => { });
+      }).catch(() => {});
     } finally {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
@@ -255,6 +255,24 @@ export const api = {
     return res.json();
   },
 
+  /* ==============================================================================
+     BLOCK COMMENT: WORKFLOW INVOCATION SPEC FETCHER
+     Reference: EPIC-WORKFLOW-ENDPOINT-001 / STORY-WF-INVOKE-SPEC
+     Description:
+       Fetches execution endpoint path (/run/workflows/{customer_id}/{workflow_id}),
+       required headers, entry input_contract, and generated sample payload.
+     ============================================================================== */
+  getWorkflowInvocationSpec: async (workflowId: string) => {
+    const res = await fetch(
+      `${BACKEND_URL}/workflows/${encodeURIComponent(workflowId)}/invocation-spec`,
+      {
+        method: 'GET',
+        headers: getHeaders(),
+      },
+    );
+    return handleResponse(res, 'Failed to fetch workflow invocation spec');
+  },
+
   /** Toggles the is_enabled status of a workflow */
   toggleWorkflowStatus: async (workflowId: string) => {
     const res = await fetch(`${BACKEND_URL}/workflows/${workflowId}/toggle`, {
@@ -288,7 +306,7 @@ export const api = {
       executionMode?: 'sync' | 'async';
       traceId?: string;
       metadata?: Record<string, any>;
-    }
+    },
   ) => {
     const payload = {
       input_data: inputData,
@@ -296,11 +314,14 @@ export const api = {
       trace_id: options?.traceId,
       metadata: options?.metadata || {},
     };
-    const res = await fetch(`${BACKEND_URL}/workflows/${encodeURIComponent(workflowIdOrSlug)}/execute`, {
-      method: 'POST',
-      headers: getHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(
+      `${BACKEND_URL}/workflows/${encodeURIComponent(workflowIdOrSlug)}/execute`,
+      {
+        method: 'POST',
+        headers: getHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(payload),
+      },
+    );
     return handleResponse(res, `Failed to execute workflow '${workflowIdOrSlug}'`);
   },
 
@@ -664,7 +685,7 @@ export const api = {
       scopes?: string[];
       allowed_workflow_ids?: string[];
       rate_limit_rpm?: number;
-    }
+    },
   ) => {
     const res = await fetch(`${BACKEND_URL}/admin/api-keys/${id}`, {
       method: 'PATCH',
@@ -1669,7 +1690,12 @@ export const api = {
      Integrates with /api/v1/legal backend endpoints for matter analysis,
      provenance tracking, 1-click case conversion, and draft scaffolding.
      ============================================================================== */
-  legalIntake: async (payload: { input_mode: string; raw_text?: string; instructions?: string; file_name?: string }) => {
+  legalIntake: async (payload: {
+    input_mode: string;
+    raw_text?: string;
+    instructions?: string;
+    file_name?: string;
+  }) => {
     const res = await fetch(`${BACKEND_URL}/api/v1/legal/analysis/intake`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -1696,7 +1722,10 @@ export const api = {
     return handleResponse(res, 'Failed to fetch analysis details');
   },
 
-  overrideLegalFields: async (analysisId: string, overrides: Array<{ field_name: string; value: string }>) => {
+  overrideLegalFields: async (
+    analysisId: string,
+    overrides: Array<{ field_name: string; value: string }>,
+  ) => {
     const res = await fetch(`${BACKEND_URL}/api/v1/legal/analysis/${analysisId}/fields`, {
       method: 'PATCH',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -1714,7 +1743,10 @@ export const api = {
     return handleResponse(res, 'Failed to convert analysis to case');
   },
 
-  generateLegalDraftScaffold: async (analysisId: string, payload: { draft_type?: string; user_instructions?: string }) => {
+  generateLegalDraftScaffold: async (
+    analysisId: string,
+    payload: { draft_type?: string; user_instructions?: string },
+  ) => {
     const res = await fetch(`${BACKEND_URL}/api/v1/legal/analysis/${analysisId}/draft`, {
       method: 'POST',
       headers: getHeaders({ 'Content-Type': 'application/json' }),
@@ -1730,4 +1762,3 @@ export const api = {
     return handleResponse(res, 'Failed to list tenant cases');
   },
 };
-

@@ -203,7 +203,11 @@ export default function ApiKeysPage() {
   };
 
   const handleDeleteKey = async (keyItem: APIKeyItem) => {
-    if (!confirm(`Are you sure you want to permanently revoke API key "${keyItem.name}"? This cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to permanently revoke API key "${keyItem.name}"? This cannot be undone.`,
+      )
+    ) {
       return;
     }
     try {
@@ -221,11 +225,12 @@ export default function ApiKeysPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const filteredKeys = keys.filter((k) =>
-    k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    k.key_prefix.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (k.customer_name && k.customer_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (k.customer_id && k.customer_id.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredKeys = keys.filter(
+    (k) =>
+      k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      k.key_prefix.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (k.customer_name && k.customer_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (k.customer_id && k.customer_id.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   return (
@@ -240,7 +245,8 @@ export default function ApiKeysPage() {
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">API Keys</h1>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            Manage headless service credentials and external client application tokens for workflow automation.
+            Manage headless service credentials and external client application tokens for workflow
+            automation.
           </p>
         </div>
 
@@ -367,7 +373,9 @@ export default function ApiKeysPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-xs text-slate-400">
-                      {item.last_used_at ? new Date(item.last_used_at).toLocaleDateString() : 'Never'}
+                      {item.last_used_at
+                        ? new Date(item.last_used_at).toLocaleDateString()
+                        : 'Never'}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -492,7 +500,8 @@ export default function ApiKeysPage() {
                   </select>
                 </div>
                 <p className="mt-1 text-[11px] text-slate-400">
-                  Authorization is role-based. Permissions and accessible endpoints are derived from this role.
+                  Authorization is role-based. Permissions and accessible endpoints are derived from
+                  this role.
                 </p>
               </div>
 
@@ -546,7 +555,8 @@ export default function ApiKeysPage() {
               <div>
                 <span className="font-bold">Important Security Notice:</span>
                 <p className="mt-0.5 text-amber-700 leading-relaxed">
-                  Copy and store this secret key in a secure location now. For your security, it will never be displayed again.
+                  Copy and store this secret key in a secure location now. For your security, it
+                  will never be displayed again.
                 </p>
               </div>
             </div>
@@ -592,4 +602,3 @@ export default function ApiKeysPage() {
     </div>
   );
 }
-

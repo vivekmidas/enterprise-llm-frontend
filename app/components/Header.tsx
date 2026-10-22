@@ -3,9 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Workflow, LogOut, User, Github } from 'lucide-react';
+import { Workflow, LogOut, User, Github, Shield, ArrowLeftRight } from 'lucide-react';
 import { api } from '@/lib/api'; // Assuming api.logout() clears the cookie
-import { hasPermissionScope, loadRoutePermissionsFromDB } from '@/lib/config/route_permissions';
+import {
+  hasPermissionScope,
+  loadRoutePermissionsFromDB,
+  getEffectivePermissions,
+} from '@/lib/config/route_permissions';
 
 // Helper to get a cookie value by name
 const getCookie = (name: string) => {
@@ -76,6 +80,53 @@ export default function Header() {
     router.push('/login');
   };
 
+  // ===============================================================================
+  // BLOCK COMMENT: STORY 2 - ROLE SWITCHER PRIVILEGE EVALUATION
+  // Evaluates if user possesses both Admin rights AND Workflow Designer rights.
+  // When dual-privileged, enables seamless 1-click toggling between /admin and /workflow-builder.
+  // ===============================================================================
+  const effectivePerms = getEffectivePermissions(userPermissions, userRole || undefined);
+
+  const hasAdminRights =
+    ['admin', 'system_admin', 'tenant_admin'].includes((userRole || '').toLowerCase()) ||
+    hasPermissionScope(effectivePerms, '*:*:*') ||
+    hasPermissionScope(effectivePerms, 'admin:*:*') ||
+    hasPermissionScope(effectivePerms, 'admin:dashboard:view') ||
+    effectivePerms.some((p) => p.startsWith('admin:'));
+
+  const hasWorkflowView =
+    hasPermissionScope(effectivePerms, 'workflow:builder:view') ||
+    hasPermissionScope(effectivePerms, 'workflows:builder:view') ||
+    hasPermissionScope(effectivePerms, 'workflow:*:*') ||
+    hasPermissionScope(effectivePerms, 'workflows:*:*') ||
+    hasPermissionScope(effectivePerms, '*:*:*');
+
+  const hasWorkflowDesign =
+    hasPermissionScope(effectivePerms, 'workflow:builder:edit') ||
+    hasPermissionScope(effectivePerms, 'workflows:builder:edit') ||
+    hasPermissionScope(effectivePerms, 'workflow:builder:create') ||
+    hasPermissionScope(effectivePerms, 'workflows:builder:create') ||
+    hasPermissionScope(effectivePerms, 'workflow:builder:manage') ||
+    hasPermissionScope(effectivePerms, 'workflows:builder:manage') ||
+    hasPermissionScope(effectivePerms, 'workflow:*:*') ||
+    hasPermissionScope(effectivePerms, 'workflows:*:*') ||
+    hasPermissionScope(effectivePerms, '*:*:*');
+
+  const hasDesignerRights =
+    (userRole || '').toLowerCase() === 'workflow_designer' ||
+    (hasWorkflowView && hasWorkflowDesign);
+
+  const canSwitchRole = hasAdminRights && hasDesignerRights;
+  const isAdminPath = pathname?.startsWith('/admin');
+
+  const handleToggleRole = () => {
+    if (isAdminPath) {
+      router.push('/workflow-builder');
+    } else {
+      router.push('/admin');
+    }
+  };
+
   // Legal routes render their own focused workspace header.
   if (pathname?.startsWith('/legal')) return null;
 
@@ -102,7 +153,41 @@ export default function Header() {
         </Link> */}
 
           {isAuthenticated ? (
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
+              {/*
+              ===============================================================================
+              BLOCK COMMENT: STORY 2 - ROLE SWITCHER BUTTON
+              Rendered adjacent to user badge for users with dual privileges.
+              Relative positioning only, responsive design.
+              ===============================================================================
+              */}
+              {canSwitchRole && (
+                <button
+                  type="button"
+                  onClick={handleToggleRole}
+                  title={
+                    isAdminPath
+                      ? 'Switch to Workflow Designer (/workflow-builder)'
+                      : 'Switch to Admin Console (/admin)'
+                  }
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all duration-200 cursor-pointer bg-white hover:bg-gray-50 border-gray-200 text-gray-700 hover:border-violet-300 hover:text-violet-700 shadow-xs"
+                >
+                  {isAdminPath ? (
+                    <>
+                      <Workflow className="h-3.5 w-3.5 text-violet-600 shrink-0" />
+                      <span className="hidden sm:inline">Designer</span>
+                      <ArrowLeftRight className="h-3 w-3 text-gray-400 shrink-0" />
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                      <span className="hidden sm:inline">Admin</span>
+                      <ArrowLeftRight className="h-3 w-3 text-gray-400 shrink-0" />
+                    </>
+                  )}
+                </button>
+              )}
+
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
                 <User className="h-4 w-4 text-gray-400" />
                 <span className="text-sm font-medium text-gray-600">{userName || 'User'}</span>
