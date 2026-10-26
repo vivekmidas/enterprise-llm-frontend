@@ -21,6 +21,38 @@ const nodeTypes = {
   trigger: CustomNode, // Map trigger/custom to CustomNode
 };
 
+/* ==============================================================================
+   BLOCK COMMENT: NODE EXECUTION RECORDS (shared state refactor)
+   Backend stores per-node execution info as an ordered list:
+   trace.agents_executed = [{ node_id, agent_name,
+                              data: { input_data, output_data },
+                              metadata: { agent_name, status, latency_ms, start_time(_iso),
+                                          end_time(_iso), error, ...node metadata } }]
+   Latest record per node_id wins (a node may run more than once).
+   Falls back to legacy trace.context.nodes[nodeId] for traces saved before
+   the refactor (Redis TTL 24h). Shared variables live in trace.context.state.
+   ============================================================================== */
+const getNodeEntry = (t: any, nodeId: string) => {
+  const records = Array.isArray(t?.agents_executed) ? t.agents_executed : [];
+  for (let i = records.length - 1; i >= 0; i--) {
+    const r = records[i];
+    if (r && typeof r === 'object' && r.node_id === nodeId) return r;
+  }
+  return t?.context?.nodes?.[nodeId] || null;
+};
+
+const getNodeExecution = (t: any, nodeId: string) => {
+  const entry = getNodeEntry(t, nodeId);
+  if (!entry) return { status: 'idle' as const, output: undefined, error: undefined };
+  const meta = entry.metadata || {};
+  if (meta.status === 'running') return { status: 'running' as const, output: undefined, error: undefined };
+  if (meta.status === 'success') return { status: 'success' as const, output: entry.data?.output_data, error: undefined };
+  if (meta.status === 'failure' || meta.status === 'exception') {
+    return { status: 'error' as const, output: undefined, error: meta.error };
+  }
+  return { status: 'idle' as const, output: undefined, error: undefined };
+};
+
 interface RunVisualizerModalProps {
   trace: any;
   isOpen?: boolean;
@@ -83,22 +115,8 @@ export default function RunVisualizerModal({
       // 3. Map execution statuses onto nodes
       const rawNodes = workflowData.nodes || workflowData.nodes_structure || [];
       const mappedNodes = rawNodes.map((n: any) => {
-        // Find execution logs for this node
-        const nodeHistory = currentTrace.node_history?.[n.id];
-        let status: 'idle' | 'running' | 'success' | 'error' = 'idle';
-        let output = undefined;
-        let error = undefined;
-        if (nodeHistory) {
-          if (nodeHistory.status === 'running') {
-            status = 'running';
-          } else if (nodeHistory.status === 'success') {
-            status = 'success';
-            output = nodeHistory.output_data;
-          } else if (nodeHistory.status === 'failure' || nodeHistory.status === 'exception') {
-            status = 'error';
-            error = nodeHistory.error;
-          }
-        }
+        // Find execution info for this node (latest agents_executed record)
+        const { status, output, error } = getNodeExecution(currentTrace, n.id);
 
         return {
           id: n.id,
@@ -140,21 +158,7 @@ export default function RunVisualizerModal({
         // Re-map execution status of nodes
         setNodes((prevNodes) =>
           prevNodes.map((n) => {
-            const nodeHistory = updatedTrace.node_history?.[n.id];
-            let status: 'idle' | 'running' | 'success' | 'error' = 'idle';
-            let output = undefined;
-            let error = undefined;
-            if (nodeHistory) {
-              if (nodeHistory.status === 'running') {
-                status = 'running';
-              } else if (nodeHistory.status === 'success') {
-                status = 'success';
-                output = nodeHistory.output_data;
-              } else if (nodeHistory.status === 'failure' || nodeHistory.status === 'exception') {
-                status = 'error';
-                error = nodeHistory.error;
-              }
-            }
+            const { status, output, error } = getNodeExecution(updatedTrace, n.id);
             return {
               ...n,
               data: {
@@ -211,17 +215,19 @@ export default function RunVisualizerModal({
 
   // Node click selection for inspection drawer
   const onNodeClick = (_: any, node: Node) => {
-    const nodeHistory = trace.node_history?.[node.id];
-    const nodePayloads = trace.context?.nodes?.[node.id]?.data || {};
+    const nodeEntry = getNodeEntry(trace, node.id) || {};
+    const nodeMeta = nodeEntry.metadata || {};
+    const nodePayloads = nodeEntry.data || {};
     setSelectedNode({
       id: node.id,
       label: node.data.label,
       node_type: node.data.node_type,
-      status: nodeHistory?.status || 'idle',
-      latency_ms: nodeHistory?.latency_ms || 0,
-      input: nodeHistory?.input_data || nodePayloads.input_data || null,
-      output: nodeHistory?.output_data || nodePayloads.output_data || null,
-      error: nodeHistory?.error || null,
+      status: nodeMeta.status || 'idle',
+      latency_ms: nodeMeta.latency_ms || 0,
+      input: nodePayloads.input_data ?? null,
+      output: nodePayloads.output_data ?? null,
+      error: nodeMeta.error || null,
+      metadata: nodeMeta,
     });
   };
 
@@ -403,6 +409,20 @@ export default function RunVisualizerModal({
                       ) : (
                         <div className="text-center text-xs text-gray-400 py-3 bg-gray-50 border border-dashed border-gray-200 rounded-lg">
                           No output payload captured
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Node Metadata (node-scoped: agents_executed[i].metadata) */}
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                        Node Metadata
+                      </h4>
+                      {selectedNode.metadata && Object.keys(selectedNode.metadata).length > 0 ? (
+                        <JsonTreeView data={selectedNode.metadata} />
+                      ) : (
+                        <div className="text-center text-xs text-gray-400 py-3 bg-gray-50 border border-dashed border-gray-200 rounded-lg">
+                          No metadata captured
                         </div>
                       )}
                     </div>

@@ -24,6 +24,8 @@ import {
   Upload,
   FileText,
   XCircle,
+  PanelRightClose,
+  PanelRightOpen,
 } from 'lucide-react';
 import { api, getHeaders } from '@/lib/api';
 import { NodePropertyDefinition, PropertyValue, resolveSchemaEntryValue } from './component-categoriees';
@@ -1199,6 +1201,15 @@ interface PropertiesPanelProps {
   onOpenMapper?: () => void;
   hasPredecessor?: boolean;
   userRole?: string;
+  /* ============================================================================
+     BLOCK COMMENT: MINIMIZABLE PROPERTIES SIDEBAR PROPS
+     Reference: EPIC-PROPS-SIDEBAR-001 / STORY-PROPS-MINIMIZE-001
+     Description:
+       Controls whether the 340px PropertiesPanel pane is minimized/hidden so
+       the workflow design canvas extends to maximum width.
+     ============================================================================ */
+  isMinimized?: boolean;
+  onToggleMinimize?: () => void;
 }
 
 /**
@@ -1220,6 +1231,8 @@ export default function PropertiesPanel({
   onOpenMapper,
   hasPredecessor = false,
   userRole,
+  isMinimized = false,
+  onToggleMinimize,
 }: PropertiesPanelProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [credentials, setCredentials] = useState<any[]>([]);
@@ -2137,18 +2150,68 @@ export default function PropertiesPanel({
     );
   };
 
+  /* ============================================================================
+     BLOCK COMMENT: MINIMIZE / EXPAND PROPERTIES SIDEBAR HANDLER & RENDER
+     Reference: EPIC-PROPS-SIDEBAR-001 / STORY-PROPS-MINIMIZE-001
+     Description:
+       Replaces the Close (X) button with a Minimize (PanelRightClose) action.
+       When minimized (isMinimized === true), hides the 340px pane completely so
+       the WorkflowCanvas (flex-1) extends to maximum available width, rendering
+       only a compact relative flex toggle bar on the right edge to restore.
+     ============================================================================ */
+  const handleMinimize = () => {
+    if (onToggleMinimize) {
+      onToggleMinimize();
+    } else {
+      onClose();
+    }
+  };
+
+  if (isMinimized) {
+    return (
+      <div className="shrink-0 border-l border-properties-border bg-properties-bg text-properties-fg flex flex-col items-center py-3 px-1.5 h-full">
+        <button
+          type="button"
+          onClick={handleMinimize}
+          title="Expand Properties Sidebar"
+          aria-label="Expand Properties Sidebar"
+          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer"
+        >
+          <PanelRightOpen className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
   // Placeholder state when no node is selected
   if (!selectedNode && !selectedEdge) {
     return (
-      <div className="w-[340px] shrink-0 border-l border-properties-border bg-properties-bg text-properties-fg p-6 flex flex-col items-center justify-center h-full">
-        <div className="text-center text-slate-400 max-w-[200px]">
-          <div className="w-12 h-12 bg-slate-50 border border-slate-150 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-            <Settings className="w-5 h-5 text-slate-500 animate-[spin_6s_linear_infinite]" />
+      <div className="w-[340px] shrink-0 border-l border-properties-border bg-properties-bg text-properties-fg flex flex-col h-full overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <div className="font-bold text-xs text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+            <Settings className="w-4 h-4 text-indigo-500" />
+            Properties
           </div>
-          <h3 className="font-semibold text-slate-700 text-sm mb-1">Properties</h3>
-          <p className="text-xs text-slate-400 leading-normal">
-            Select a canvas node or connection line to configure settings.
-          </p>
+          <button
+            type="button"
+            onClick={handleMinimize}
+            title="Minimize Properties"
+            aria-label="Minimize Properties"
+            className="p-1 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+          >
+            <PanelRightClose className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-6 flex-1 flex flex-col items-center justify-center">
+          <div className="text-center text-slate-400 max-w-[200px]">
+            <div className="w-12 h-12 bg-slate-50 border border-slate-150 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <Settings className="w-5 h-5 text-slate-500 animate-[spin_6s_linear_infinite]" />
+            </div>
+            <h3 className="font-semibold text-slate-700 text-sm mb-1">Properties</h3>
+            <p className="text-xs text-slate-400 leading-normal">
+              Select a canvas node or connection line to configure settings.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -2164,10 +2227,13 @@ export default function PropertiesPanel({
             Connection Settings
           </div>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={handleMinimize}
+            title="Minimize Properties"
+            aria-label="Minimize Properties"
             className="p-1 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            <PanelRightClose className="w-4 h-4" />
           </button>
         </div>
 
@@ -2280,10 +2346,13 @@ export default function PropertiesPanel({
           Configure Node
         </div>
         <button
-          onClick={onClose}
+          type="button"
+          onClick={handleMinimize}
+          title="Minimize Properties"
+          aria-label="Minimize Properties"
           className="p-1 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
         >
-          <X className="w-4 h-4" />
+          <PanelRightClose className="w-4 h-4" />
         </button>
       </div>
 
@@ -2376,7 +2445,7 @@ export default function PropertiesPanel({
                     <label className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">
                       Output Structure
                     </label>
-                    {canEditOutputContract ? (
+                    {/* {canEditOutputContract ? (
                       <button
                         onClick={() => {
                           setGeneratorModalType('output');
@@ -2392,7 +2461,7 @@ export default function PropertiesPanel({
                         <Lock className="w-2.5 h-2.5" />
                         Read-only
                       </span>
-                    )}
+                    )} */}
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 shadow-inner max-h-56 overflow-y-auto custom-scrollbar flex">
                     {outputTree.length > 0 ? (

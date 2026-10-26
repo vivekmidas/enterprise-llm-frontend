@@ -7,7 +7,7 @@ export default function MetricsDashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/admin?tab=metrics');
+    router.replace('/admin/metrics');
   }, [router]);
 
   return (

@@ -67,7 +67,7 @@ interface CustomerOption {
   name: string;
 }
 
-const HTTP_VERBS = ['GET', 'POST', 'PUT', 'DELETE'] as const;
+const HTTP_VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
 export default function PermissionsTab() {
   const [modules, setModules] = useState<ModuleItem[]>([]);
@@ -849,7 +849,7 @@ export default function PermissionsTab() {
                             prev.map((a, i) => (i === idx ? { ...a, api_path: val } : a)),
                           );
                         }}
-                        placeholder="/api/endpoint/path"
+                        placeholder="/workflows, /workflows/**, /api/workflows/** (comma-separated)"
                         className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-900"
                       />
                       <div className="flex items-center gap-1 shrink-0 bg-white p-1 rounded-lg border border-slate-200">
@@ -1053,7 +1053,7 @@ export default function PermissionsTab() {
                             prev.map((a, i) => (i === idx ? { ...a, api_path: val } : a)),
                           );
                         }}
-                        placeholder="/api/endpoint/path"
+                        placeholder="/workflows, /workflows/**, /api/workflows/** (comma-separated)"
                         className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-900"
                       />
                       <div className="flex items-center gap-1 shrink-0 bg-white p-1 rounded-lg border border-slate-200">

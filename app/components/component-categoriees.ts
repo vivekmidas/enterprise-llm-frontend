@@ -59,7 +59,7 @@ export interface NodeDefinition {
 export interface CategoryItem {
   group: string;
   label: string;
-  icon: ComponentType<{ className?: string; style?: CSSProperties }>;
+  icon: ComponentType<{ className?: string; style?: CSSProperties; color?: string }>;
   color: string;
   description?: string;
   id: string;
@@ -174,10 +174,158 @@ export const CATEGORIES: Record<string, Category> = {
     color: 'indigo',
   },
   VectorDB: { id: '14', name: 'VectorDB', label: 'Vector DB', icon: 'blocks', color: 'emerald' },
+  NLP: { id: '15', name: 'NLP', label: 'NLP & Analysis', icon: 'brain', color: 'violet' },
 };
 
-export const getCategory = (name?: number): Category => {
-  return (name && CATEGORIES[name]) || CATEGORIES.Agent;
+/* ============================================================================
+   BLOCK COMMENT: THEME COLOR RESOLUTION & NORMALIZATION
+   Maps Tailwind color names to CSS hex codes, normalizes 8-digit hex (#RRGGBBAA)
+   to 6-digit hex (#RRGGBB), and filters out white / near-white / transparent
+   values so node icons and borders always remain visible on white cards.
+   ============================================================================ */
+const TAILWIND_COLOR_HEX_MAP: Record<string, string> = {
+  emerald: '#10b981',
+  green: '#22c55e',
+  amber: '#f59e0b',
+  yellow: '#eab308',
+  indigo: '#6366f1',
+  violet: '#8b5cf6',
+  purple: '#8b5cf6',
+  fuchsia: '#d946ef',
+  pink: '#ec4899',
+  rose: '#f43f5e',
+  red: '#ef4444',
+  orange: '#f97316',
+  blue: '#3b82f6',
+  sky: '#0ea5e9',
+  cyan: '#06b6d4',
+  teal: '#14b8a6',
+  lime: '#84cc16',
+  gray: '#64748b',
+  slate: '#64748b',
+  zinc: '#71717a',
+  neutral: '#737373',
+};
+
+const isUsableThemeColor = (raw: string): string | null => {
+  const trimmed = raw.trim().toLowerCase();
+  if (
+    !trimmed ||
+    trimmed === 'none' ||
+    trimmed === 'transparent' ||
+    trimmed === 'white' ||
+    trimmed === 'inherit' ||
+    trimmed === 'initial' ||
+    trimmed === 'unset'
+  ) {
+    return null;
+  }
+
+  if (TAILWIND_COLOR_HEX_MAP[trimmed]) {
+    return TAILWIND_COLOR_HEX_MAP[trimmed];
+  }
+
+  // Handle #RGB or #RGBA
+  const shortHexMatch = /^#([0-9a-f]{3,4})$/i.exec(trimmed);
+  if (shortHexMatch) {
+    const hex = shortHexMatch[1];
+    if (hex.length === 4 && hex[3] === '0') return null;
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    if (r >= 240 && g >= 240 && b >= 240) return null;
+    return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`;
+  }
+
+  // Handle #RRGGBB or #RRGGBBAA
+  const fullHexMatch = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(trimmed);
+  if (fullHexMatch) {
+    const rgbHex = fullHexMatch[1];
+    const alphaHex = fullHexMatch[2];
+    if (alphaHex && parseInt(alphaHex, 16) < 20) return null;
+    const r = parseInt(rgbHex.slice(0, 2), 16);
+    const g = parseInt(rgbHex.slice(2, 4), 16);
+    const b = parseInt(rgbHex.slice(4, 6), 16);
+    if (r >= 240 && g >= 240 && b >= 240) return null;
+    return `#${rgbHex}`;
+  }
+
+  // Handle rgb(...) / rgba(...)
+  const rgbMatch = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)$/i.exec(
+    trimmed,
+  );
+  if (rgbMatch) {
+    const r = Number(rgbMatch[1]);
+    const g = Number(rgbMatch[2]);
+    const b = Number(rgbMatch[3]);
+    const a = rgbMatch[4] !== undefined ? Number(rgbMatch[4]) : 1;
+    if (a < 0.1 || (r >= 240 && g >= 240 && b >= 240)) return null;
+    return raw.trim();
+  }
+
+  return raw.trim();
+};
+
+export const resolveThemeColor = (
+  ...candidates: Array<string | undefined | null>
+): string => {
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string') {
+      const resolved = isUsableThemeColor(candidate);
+      if (resolved) return resolved;
+    }
+  }
+  return '#3b82f6';
+};
+
+export const getCategory = (nameOrId?: string | number): Category => {
+  if (nameOrId !== undefined && nameOrId !== null) {
+    const key = String(nameOrId);
+    if (CATEGORIES[key]) return CATEGORIES[key];
+    const lower = key.toLowerCase();
+    const matched = Object.values(CATEGORIES).find(
+      (cat) => cat.id === key || cat.name.toLowerCase() === lower || cat.label.toLowerCase() === lower,
+    );
+    if (matched) return matched;
+  }
+  return CATEGORIES.Agent;
+};
+
+// ==============================================================================
+// BLOCK COMMENT: NODE SCHEMA HYDRATION FOR WORKFLOW BUILDER
+// Reference: EPIC-NODE-PROPS-UI-001 / STORY-CHOICE-TEXTAREA-VALUES-001
+// Description:
+//     GET /nodes/{name} returns `user_properties` / `system_properties` as schema
+//     arrays. Build `propertySchema` (typed: choice/textarea/options/multiple) and
+//     initial `properties` (value -> default -> first option) so dropped nodes
+//     render choice + textarea fields with proper values.
+// ==============================================================================
+const toSchemaList = (raw: any, category: 'user' | 'system'): any[] => {
+  let val = raw;
+  if (typeof val === 'string') {
+    try { val = JSON.parse(val); } catch { return []; }
+  }
+  if (!Array.isArray(val)) return [];
+  return val
+    .map((item: any) => {
+      if (typeof item === 'string') {
+        try { return JSON.parse(item); } catch { return null; }
+      }
+      return item;
+    })
+    .filter((item: any) => item && typeof item === 'object' && item.key)
+    .map((item: any) => ({ ...item, category }));
+};
+
+export const resolveSchemaEntryValue = (entry: any): any => {
+  const isEmpty = (v: any) => v === undefined || v === null || v === '';
+  let val = !isEmpty(entry?.value) ? entry.value : entry?.default;
+  const type = String(entry?.type || '').toLowerCase();
+  if (isEmpty(val) && (type === 'choice' || type === 'select') && !entry?.multiple) {
+    const opts = Array.isArray(entry?.options) ? entry.options : [];
+    val = opts.length ? opts[0] : '';
+  }
+  return isEmpty(val) ? '' : val;
 };
 
 // retrieve node details from the backend api /nodes
@@ -186,12 +334,26 @@ export const fetchNodeDetails = async (nodeName: string): Promise<Partial<NodeDe
     const response = await api.getNodesByName(nodeName);
 
     const data = response.node;
+    const schemaFromProps = [
+      ...toSchemaList(data.user_properties, 'user'),
+      ...toSchemaList(data.system_properties, 'system'),
+    ];
+    const propertySchema = data.propertySchema || data.property_schema || (schemaFromProps.length ? schemaFromProps : undefined);
+    let properties = data.defaultProperties || data.properties;
+    if (!properties && schemaFromProps.length) {
+      properties = schemaFromProps
+        .filter((e: any) => e.category === 'user' && e.key !== 'allow_node_testing')
+        .reduce((acc: Record<string, any>, e: any) => {
+          acc[e.key] = resolveSchemaEntryValue(e);
+          return acc;
+        }, {});
+    }
     // Return the full data object to ensure properties like icon, category, and label are available
     return {
       ...data,
       description: data.description,
-      propertySchema: data.propertySchema || data.property_schema,
-      properties: data.defaultProperties || data.properties,
+      propertySchema,
+      properties,
       label: data.label,
       category: data.category,
     };

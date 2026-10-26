@@ -197,6 +197,7 @@ export default function MetricsTab({ userRole }: MetricsTabProps) {
             <option value={10}>Last 10 Minutes</option>
             <option value={30}>Last 30 Minutes</option>
             <option value={60}>Last 1 Hour</option>
+            <option value={120}>Last 2 Hours</option>
           </select>
 
           {/* Workflow Selector */}

@@ -111,6 +111,6 @@ export const IconMap: Record<string, any> = {
   permissions: Lock,
   backup: Database,
   domains: Globe,
-  key: Lock,
+  messages: MessageCircle
 };
 export default IconMap;

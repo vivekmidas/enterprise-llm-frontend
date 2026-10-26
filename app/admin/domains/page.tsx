@@ -1407,7 +1407,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                         </div>
                         <div className="flex items-center gap-2">
                           <a
-                            href={`/admin?tab=knowledge&kb_id=${selectedDomainKbForDocs.id}`}
+                            href={`/admin/knowledge?kb_id=${selectedDomainKbForDocs.id}`}
                             className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                             title="Open in Knowledge Tab"
                           >

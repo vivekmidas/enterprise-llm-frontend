@@ -104,7 +104,9 @@ export default function LegalChatAssistantModal({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionStatus, setSessionStatus] = useState<'active' | 'idle_pinged' | 'closed_inactivity'>('active');
+  const [sessionStatus, setSessionStatus] = useState<
+    'active' | 'idle_pinged' | 'closed_inactivity'
+  >('active');
 
   // Voice STT States
   const [isListening, setIsListening] = useState(false);
@@ -220,7 +222,10 @@ export default function LegalChatAssistantModal({
                 role: 'assistant',
                 content: byeRes.bot_message,
                 detected_language: language,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                timestamp: new Date().toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
               },
             ]);
           } catch (e) {
@@ -301,7 +306,9 @@ export default function LegalChatAssistantModal({
   // Web Speech API Voice Toggle
   const toggleListening = () => {
     if (!speechSupported) {
-      alert('Speech Recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+      alert(
+        'Speech Recognition is not supported in this browser. Please use Chrome, Edge, or Safari.',
+      );
       return;
     }
 
@@ -393,8 +400,14 @@ export default function LegalChatAssistantModal({
   const quickPrompts = [
     { label: 'CrPC 156(3) ➔ BNSS', query: 'What is the conversion for CrPC 156(3) in BNSS?' },
     { label: 'CrPC 302 / BNS 103 Cases', query: 'Show me cases related to crpc 302 and bns 103' },
-    { label: 'Next Hearing Dates', query: 'What are the upcoming hearing dates for my active cases?' },
-    { label: 'Sec 65B ➔ Sec 63 BSA', query: 'Explain Section 63 BSA electronic evidence certificate conversion from Section 65B' },
+    {
+      label: 'Next Hearing Dates',
+      query: 'What are the upcoming hearing dates for my active cases?',
+    },
+    {
+      label: 'Sec 65B ➔ Sec 63 BSA',
+      query: 'Explain Section 63 BSA electronic evidence certificate conversion from Section 65B',
+    },
   ];
 
   // ---------------------------------------------------------------------------
@@ -466,7 +479,9 @@ export default function LegalChatAssistantModal({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-white tracking-tight">Legal AI Assistant</h3>
+              <h3 className="text-sm font-semibold text-white tracking-tight">
+                Legal AI Assistant
+              </h3>
               <span className="inline-flex items-center px-1.5 py-0.2 text-[10px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded">
                 Live
               </span>
@@ -558,7 +573,9 @@ export default function LegalChatAssistantModal({
           {loadingHistory ? (
             <div className="py-8 text-center text-xs text-slate-500">Loading history...</div>
           ) : pastSessions.length === 0 ? (
-            <div className="py-8 text-center text-xs text-slate-500">No previous sessions found.</div>
+            <div className="py-8 text-center text-xs text-slate-500">
+              No previous sessions found.
+            </div>
           ) : (
             <div className="space-y-3 mt-3">
               {pastSessions.map((s) => (
@@ -575,8 +592,13 @@ export default function LegalChatAssistantModal({
                         detected_language: m.detected_language,
                         referenced_cases: m.referenced_cases,
                         citations: m.citations,
-                        timestamp: m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-                      }))
+                        timestamp: m.created_at
+                          ? new Date(m.created_at).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : '',
+                      })),
                     );
                     setShowHistory(false);
                   }}
@@ -723,7 +745,9 @@ export default function LegalChatAssistantModal({
       {/* 3. Quick Query Suggestion Pills */}
       {!showHistory && (
         <div className="px-3 py-1.5 bg-slate-100/80 dark:bg-slate-800/40 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[11px]">
-          <span className="text-slate-400 text-[10px] uppercase font-semibold shrink-0">Quick:</span>
+          <span className="text-slate-400 text-[10px] uppercase font-semibold shrink-0">
+            Quick:
+          </span>
           {quickPrompts.map((p, i) => (
             <button
               key={i}
@@ -765,8 +789,8 @@ export default function LegalChatAssistantModal({
               isListening
                 ? 'Listening... speak legal query now'
                 : language === 'hi'
-                ? 'कानून या केस के बारे में यहाँ पूछें...'
-                : 'Ask about statutes, CrPC ➔ BNS, or cases...'
+                  ? 'कानून या केस के बारे में यहाँ पूछें...'
+                  : 'Ask about statutes, CrPC ➔ BNS, or cases...'
             }
             className="flex-1 px-3.5 py-2 text-xs bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
           />

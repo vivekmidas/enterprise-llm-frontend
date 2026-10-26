@@ -31,17 +31,17 @@ export interface TimelineEvent {
   description: string;
   source?: SourceRef;
   event_type?:
-  | 'Hearing'
-  | 'Order'
-  | 'Filing'
-  | 'Evidence'
-  | 'Notice'
-  | 'Client Discussion'
-  | 'Counsel Strategy'
-  | 'Court Hearing'
-  | 'Settlement'
-  | 'General Note'
-  | 'Others';
+    | 'Hearing'
+    | 'Order'
+    | 'Filing'
+    | 'Evidence'
+    | 'Notice'
+    | 'Client Discussion'
+    | 'Counsel Strategy'
+    | 'Court Hearing'
+    | 'Settlement'
+    | 'General Note'
+    | 'Others';
   impact_badge?: string;
   next_date?: string;
   bench_direction?: string;
@@ -54,12 +54,12 @@ export interface HearingRecord {
   hearing_date: string;
   court_bench: string;
   proceeding_stage:
-  | 'Notice Returnable'
-  | 'Interim Arguments'
-  | 'Framing of Issues'
-  | 'Evidence / Cross'
-  | 'Final Hearing'
-  | 'Order Reserved';
+    | 'Notice Returnable'
+    | 'Interim Arguments'
+    | 'Framing of Issues'
+    | 'Evidence / Cross'
+    | 'Final Hearing'
+    | 'Order Reserved';
   order_summary: string;
   directions_given: string;
   next_hearing_date?: string;
@@ -88,13 +88,13 @@ export interface UploadedDoc {
   description?: string;
   tags?: string[];
   provenance?:
-  | 'Client Direct Submission'
-  | 'Opposing Party Production'
-  | 'Court Certified Record'
-  | 'Third Party / Subpoena'
-  | 'Field Investigation'
-  | 'Forensic / Expert Report'
-  | string;
+    | 'Client Direct Submission'
+    | 'Opposing Party Production'
+    | 'Court Certified Record'
+    | 'Third Party / Subpoena'
+    | 'Field Investigation'
+    | 'Forensic / Expert Report'
+    | string;
   file_ext?: 'pdf' | 'png' | 'jpg' | 'md' | 'txt' | 'docx' | string;
 }
 
@@ -102,11 +102,11 @@ export interface CaseParty {
   id: string;
   name: string;
   role:
-  | 'Claimant / Creditor'
-  | 'Respondent / Debtor'
-  | 'Guarantor / Director'
-  | 'Witness / Site Engineer'
-  | 'Arbitrator / Mediator';
+    | 'Claimant / Creditor'
+    | 'Respondent / Debtor'
+    | 'Guarantor / Director'
+    | 'Witness / Site Engineer'
+    | 'Arbitrator / Mediator';
   entity_type: 'Private Limited Company' | 'LLP' | 'Individual Partner' | 'Proprietorship';
   address: string;
   contact_person?: string;
@@ -614,7 +614,7 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
         'Punishes dishonest moving of movable property out of the possession of any person without consent with imprisonment up to 3 years or fine or community service.',
       essential_ingredients: [
         'Movable property moved dishonestly.',
-        'Property taken out of possession without person\'s consent.',
+        "Property taken out of possession without person's consent.",
         'Moving in order to such taking.',
       ],
       statutory_limitation: 'Cognizable, non-bailable, triable by any Magistrate.',
@@ -627,7 +627,7 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
     details_view_bare_act: {
       official_heading: 'Section 303. Theft.',
       verbatim_text:
-        '(1) Whoever, intending to take dishonestly any movable property out of the possession of any person without that person\'s consent, moves that property in order to such taking, is said to commit theft.\n(2) Whoever commits theft shall be punished with imprisonment of either description for a term which may extend to three years, or with fine, or with both.',
+        "(1) Whoever, intending to take dishonestly any movable property out of the possession of any person without that person's consent, moves that property in order to such taking, is said to commit theft.\n(2) Whoever commits theft shall be punished with imprisonment of either description for a term which may extend to three years, or with fine, or with both.",
     },
   },
   sec61_bns: {
@@ -957,8 +957,7 @@ export const STATUTORY_RECKONER_DB: Record<string, StatutoryReadyReckoner> = {
       ],
     },
     details_view_bare_act: {
-      official_heading:
-        'Article 32. Remedies for enforcement of rights conferred by this Part.',
+      official_heading: 'Article 32. Remedies for enforcement of rights conferred by this Part.',
       verbatim_text:
         '(1) The right to move the Supreme Court by appropriate proceedings for the enforcement of the rights conferred by this Part is guaranteed.\n(2) The Supreme Court shall have power to issue directions or orders or writs, including writs in the nature of habeas corpus, mandamus, prohibition, quo warranto and certiorari, whichever may be appropriate, for the enforcement of any of the rights conferred by this Part.',
     },
@@ -977,8 +976,12 @@ export interface ConfiguredDomainField {
   type: 'text' | 'select' | 'number' | 'date';
   options?: string[];
   description: string;
-  applicableCategories: Array<'commercial' | 'criminal' | 'constitutional' | 'arbitration' | 'civil'>;
-  defaultForCategories: Array<'commercial' | 'criminal' | 'constitutional' | 'arbitration' | 'civil'>;
+  applicableCategories: Array<
+    'commercial' | 'criminal' | 'constitutional' | 'arbitration' | 'civil'
+  >;
+  defaultForCategories: Array<
+    'commercial' | 'criminal' | 'constitutional' | 'arbitration' | 'civil'
+  >;
 }
 
 export const CONFIGURED_DOMAIN_FIELDS_CATALOG: ConfiguredDomainField[] = [
@@ -987,7 +990,8 @@ export const CONFIGURED_DOMAIN_FIELDS_CATALOG: ConfiguredDomainField[] = [
     label: 'Disputed Valuation / Claim Amount',
     placeholder: 'e.g. ₹92,00,000 (Principal + 18% Interest)',
     type: 'text',
-    description: 'Monetary claim or fraud quantum (can be removed if not relevant for writs or quashing)',
+    description:
+      'Monetary claim or fraud quantum (can be removed if not relevant for writs or quashing)',
     applicableCategories: ['commercial', 'criminal', 'arbitration', 'civil'],
     defaultForCategories: ['commercial', 'arbitration', 'civil'],
   },
@@ -1360,9 +1364,8 @@ export function extractIntakeDetails(
   // 3. Extract Financial Valuation / Claim Amount
   let extractedValuation = '';
   const valMatch =
-    combinedText.match(
-      /(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d+)?\s*(?:cr(?:ore)?s?|l(?:akh)?s?|k)?)/i,
-    ) || combinedText.match(/(\d+(?:\.\d+)?\s*(?:cr(?:ore)?s?|l(?:akh)?s?))/i);
+    combinedText.match(/(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d+)?\s*(?:cr(?:ore)?s?|l(?:akh)?s?|k)?)/i) ||
+    combinedText.match(/(\d+(?:\.\d+)?\s*(?:cr(?:ore)?s?|l(?:akh)?s?))/i);
   if (valMatch) {
     extractedValuation = valMatch[0].trim();
     if (
@@ -1428,8 +1431,7 @@ export function extractIntakeDetails(
   const policeMatch =
     combinedText.match(
       /(?:ps|police station|station)[:\s]+([A-Za-z0-9\s.,&'-]+?)(?=[,\n\.;\-–—]|$)/i,
-    ) ||
-    combinedText.match(/(?:economic offences wing|eow|cyber cell|crime branch)/i);
+    ) || combinedText.match(/(?:economic offences wing|eow|cyber cell|crime branch)/i);
   if (policeMatch) {
     policeJurisdiction = policeMatch[0].trim();
   } else if (detectedCategory === 'criminal') {
@@ -1488,7 +1490,7 @@ export function extractIntakeDetails(
     detectedCategory === 'criminal'
       ? 'Court of Chief Metropolitan Magistrate (CMM), Tis Hazari'
       : detectedCategory === 'constitutional'
-        ? 'Division Bench (Hon\'ble Chief Justice + Companion Judge)'
+        ? "Division Bench (Hon'ble Chief Justice + Companion Judge)"
         : 'Commercial Court Single Judge / Bench';
 
   activeOptionalKeys.push('court_level');

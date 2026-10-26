@@ -32,7 +32,7 @@ import {
   CheckCircle2,
   Building2,
   Tag,
-  ArrowUpRight
+  ArrowUpRight,
 } from 'lucide-react';
 
 export interface SimilarCaseItem {
@@ -52,10 +52,17 @@ export interface SimilarCaseItem {
 export const SIMILAR_CASES_CATALOGUE: SimilarCaseItem[] = [
   {
     id: 'orion_v_delta',
-    case_heading: 'Commercial Supply Contract Termination, IP Firmware Infringement & Invoiced Recovery',
+    case_heading:
+      'Commercial Supply Contract Termination, IP Firmware Infringement & Invoiced Recovery',
     parties: 'Orion Tech Labs Pvt. Ltd. (Plaintiff) vs Delta Systems Corp (Defendant)',
-    sections: ['Sec 12A Commercial Courts Act', 'Sec 21 Arbitration Act (DIAC)', 'Sec 318(4) BNS (formerly Sec 420 IPC)', 'Sec 63 BSA (formerly Sec 65B Evidence Act)'],
-    case_summary: 'Dispute involving sudden unilateral termination of multi-year enterprise component manufacturing agreement and unauthorized reverse-engineering of firmware IP. Plaintiff seeking ₹4.80 Cr unpaid milestone invoices, mandatory mediation compliance under Section 12A CCA, and urgent Section 9 interim injunction to restrain proprietary firmware disclosure.',
+    sections: [
+      'Sec 12A Commercial Courts Act',
+      'Sec 21 Arbitration Act (DIAC)',
+      'Sec 318(4) BNS (formerly Sec 420 IPC)',
+      'Sec 63 BSA (formerly Sec 65B Evidence Act)',
+    ],
+    case_summary:
+      'Dispute involving sudden unilateral termination of multi-year enterprise component manufacturing agreement and unauthorized reverse-engineering of firmware IP. Plaintiff seeking ₹4.80 Cr unpaid milestone invoices, mandatory mediation compliance under Section 12A CCA, and urgent Section 9 interim injunction to restrain proprietary firmware disclosure.',
     case_type: 'tenant_matter',
     forum: 'High Court of Delhi (Commercial Division)',
     matter_ref: 'COMM-SUIT-1048/2025',
@@ -63,10 +70,16 @@ export const SIMILAR_CASES_CATALOGUE: SimilarCaseItem[] = [
   },
   {
     id: 'patil_automation_v_rakheja',
-    case_heading: 'Mandatory Exhaustion of Section 12A Pre-Institution Mediation Prior to Suit Filing',
+    case_heading:
+      'Mandatory Exhaustion of Section 12A Pre-Institution Mediation Prior to Suit Filing',
     parties: 'Patil Automation Pvt Ltd vs Rakheja Engineers Pvt Ltd',
-    sections: ['Sec 12A Commercial Courts Act', 'Order VII Rule 11 CPC', 'Sec 30(4) Arbitration Act'],
-    case_summary: 'Landmark Supreme Court ruling declaring Section 12A of the Commercial Courts Act, 2015 to be mandatory and absolute. Held that any commercial plaint instituted without first exhausting pre-institution mediation—unless urgent interim relief is genuinely contemplated—is liable to be rejected under Order VII Rule 11 of CPC. Settled law that mediation period of 3 months is excluded from limitation.',
+    sections: [
+      'Sec 12A Commercial Courts Act',
+      'Order VII Rule 11 CPC',
+      'Sec 30(4) Arbitration Act',
+    ],
+    case_summary:
+      'Landmark Supreme Court ruling declaring Section 12A of the Commercial Courts Act, 2015 to be mandatory and absolute. Held that any commercial plaint instituted without first exhausting pre-institution mediation—unless urgent interim relief is genuinely contemplated—is liable to be rejected under Order VII Rule 11 of CPC. Settled law that mediation period of 3 months is excluded from limitation.',
     case_type: 'precedent_ruling',
     forum: 'Supreme Court of India',
     citation: '(2022) 10 SCC 1',
@@ -74,10 +87,19 @@ export const SIMILAR_CASES_CATALOGUE: SimilarCaseItem[] = [
   },
   {
     id: 'shivam_v_bansal',
-    case_heading: 'Criminal Cheating, Dishonestly Induced Goods Delivery & Forged Bank Return Memos',
+    case_heading:
+      'Criminal Cheating, Dishonestly Induced Goods Delivery & Forged Bank Return Memos',
     parties: 'Shivam Enterprises (Complainant) vs Bansal Trading Co. & Ors (Accused)',
-    sections: ['Sec 103 BNS (formerly Sec 302 IPC connected)', 'Sec 318(4) BNS (formerly Sec 420 IPC)', 'Sec 316(2) BNS (formerly Sec 406 IPC)', 'Sec 173 BNSS (Registration of FIR)', 'Sec 175(3) BNSS (Magistrate Directing FIR)', 'Sec 63 BSA (Electronic Evidence)'],
-    case_summary: 'Criminal complaint regarding dishonestly induced supply of industrial copper consignments worth ₹92 Lakhs backed by forged bank return memos and pre-closed bank accounts. Linked proceedings under Section 175(3) BNSS for magistrate investigation direction and Section 35(3) BNSS notice of appearance issued to accused directors.',
+    sections: [
+      'Sec 103 BNS (formerly Sec 302 IPC connected)',
+      'Sec 318(4) BNS (formerly Sec 420 IPC)',
+      'Sec 316(2) BNS (formerly Sec 406 IPC)',
+      'Sec 173 BNSS (Registration of FIR)',
+      'Sec 175(3) BNSS (Magistrate Directing FIR)',
+      'Sec 63 BSA (Electronic Evidence)',
+    ],
+    case_summary:
+      'Criminal complaint regarding dishonestly induced supply of industrial copper consignments worth ₹92 Lakhs backed by forged bank return memos and pre-closed bank accounts. Linked proceedings under Section 175(3) BNSS for magistrate investigation direction and Section 35(3) BNSS notice of appearance issued to accused directors.',
     case_type: 'tenant_matter',
     forum: 'Metropolitan Magistrate Court, Patiala House Courts, New Delhi',
     matter_ref: 'FIR No. 142/2026 (PS Connaught Place)',
@@ -87,8 +109,14 @@ export const SIMILAR_CASES_CATALOGUE: SimilarCaseItem[] = [
     id: 'cloudnet_v_starlight',
     case_heading: 'Enterprise SaaS Agreement Termination, Cloud Lockout & Interim Preservation',
     parties: 'CloudNet Solutions (Petitioner) vs Starlight Media Ltd (Respondent)',
-    sections: ['Sec 9 Arbitration Act', 'Sec 12A Commercial Courts Act', 'Sec 21 Arbitration Act', 'Sec 63 BSA (formerly Sec 65B Evidence Act)'],
-    case_summary: 'Software as a Service termination dispute where service provider terminated cloud hosting access with ₹1.25 Cr outstanding. Mandatory Section 12A CCA pre-institution mediation resulted in Non-Starter Report. Petitioner filed Section 9 interim petition seeking preservation of database servers and restraining respondent from migrating data to unauthorized third-party vendors.',
+    sections: [
+      'Sec 9 Arbitration Act',
+      'Sec 12A Commercial Courts Act',
+      'Sec 21 Arbitration Act',
+      'Sec 63 BSA (formerly Sec 65B Evidence Act)',
+    ],
+    case_summary:
+      'Software as a Service termination dispute where service provider terminated cloud hosting access with ₹1.25 Cr outstanding. Mandatory Section 12A CCA pre-institution mediation resulted in Non-Starter Report. Petitioner filed Section 9 interim petition seeking preservation of database servers and restraining respondent from migrating data to unauthorized third-party vendors.',
     case_type: 'tenant_matter',
     forum: 'Commercial Court, Tis Hazari Courts, Delhi',
     matter_ref: 'ARB-PET-89/2026',
@@ -96,10 +124,16 @@ export const SIMILAR_CASES_CATALOGUE: SimilarCaseItem[] = [
   },
   {
     id: 'vijay_kumar_ghai_v_wb',
-    case_heading: 'Essential Ingredients of Cheating: Mens Rea at Inception vs Mere Breach of Contract',
+    case_heading:
+      'Essential Ingredients of Cheating: Mens Rea at Inception vs Mere Breach of Contract',
     parties: 'Vijay Kumar Ghai vs State of West Bengal & Ors',
-    sections: ['Sec 318(4) BNS (formerly Sec 420 IPC)', 'Sec 316(2) BNS (formerly Sec 406 IPC)', 'Sec 528 BNSS (formerly Sec 482 CrPC - Quashing)'],
-    case_summary: 'Supreme Court established that to sustain an indictment under Section 420 IPC / Section 318(4) BNS for cheating, fraudulent or dishonest intention must exist at the very inception of the transaction. A mere breach of contractual promise at a subsequent stage cannot be given the cloak of criminal offence. Inherent quashing powers under Section 482 CrPC / 528 BNSS applied to stifle vexatious complaint.',
+    sections: [
+      'Sec 318(4) BNS (formerly Sec 420 IPC)',
+      'Sec 316(2) BNS (formerly Sec 406 IPC)',
+      'Sec 528 BNSS (formerly Sec 482 CrPC - Quashing)',
+    ],
+    case_summary:
+      'Supreme Court established that to sustain an indictment under Section 420 IPC / Section 318(4) BNS for cheating, fraudulent or dishonest intention must exist at the very inception of the transaction. A mere breach of contractual promise at a subsequent stage cannot be given the cloak of criminal offence. Inherent quashing powers under Section 482 CrPC / 528 BNSS applied to stifle vexatious complaint.',
     case_type: 'precedent_ruling',
     forum: 'Supreme Court of India',
     citation: '(2022) 7 SCC 124',
@@ -107,10 +141,16 @@ export const SIMILAR_CASES_CATALOGUE: SimilarCaseItem[] = [
   },
   {
     id: 'precision_v_vanguard',
-    case_heading: 'Summary Invoiced Recovery under Order 37 CPC on Dishonored Negotiable Instruments',
+    case_heading:
+      'Summary Invoiced Recovery under Order 37 CPC on Dishonored Negotiable Instruments',
     parties: 'Precision Auto Components (Plaintiff) vs Vanguard Heavy Engg (Defendant)',
-    sections: ['Order XXXVII CPC', 'Sec 138 Negotiable Instruments Act', 'Sec 318(4) BNS (formerly Sec 420 IPC)'],
-    case_summary: 'Summary suit under Order 37 CPC for liquidated recovery of ₹1.84 Cr for auto components delivered against accepted invoices and dishonored security cheques. Defendant moved application for unconditional leave to defend alleging patent defects in machinery. Court evaluated triable issue standards under IDBI Trusteeship principles.',
+    sections: [
+      'Order XXXVII CPC',
+      'Sec 138 Negotiable Instruments Act',
+      'Sec 318(4) BNS (formerly Sec 420 IPC)',
+    ],
+    case_summary:
+      'Summary suit under Order 37 CPC for liquidated recovery of ₹1.84 Cr for auto components delivered against accepted invoices and dishonored security cheques. Defendant moved application for unconditional leave to defend alleging patent defects in machinery. Court evaluated triable issue standards under IDBI Trusteeship principles.',
     case_type: 'tenant_matter',
     forum: 'High Court of Bombay (Ordinary Original Civil Jurisdiction)',
     matter_ref: 'COMM-CS-314/2026',
@@ -118,10 +158,15 @@ export const SIMILAR_CASES_CATALOGUE: SimilarCaseItem[] = [
   },
   {
     id: 'arjun_panditrao_v_gorantyal',
-    case_heading: 'Mandatory Certificate for Electronic Records under Section 65B IEA / Section 63 BSA',
+    case_heading:
+      'Mandatory Certificate for Electronic Records under Section 65B IEA / Section 63 BSA',
     parties: 'Arjun Panditrao Khotkar vs Kailash Kushanrao Gorantyal & Ors',
-    sections: ['Sec 63 BSA (formerly Sec 65B Evidence Act)', 'Sec 65 BSA (Primary vs Secondary Electronic Records)'],
-    case_summary: 'Three-Judge Bench of the Supreme Court affirmed that certificate under Section 65B(4) of Indian Evidence Act (now Section 63(4) BSA 2023) is an absolute condition precedent to the admissibility of electronic evidence (emails, SMS, call logs, server hard drives) where secondary electronic copies are produced in court.',
+    sections: [
+      'Sec 63 BSA (formerly Sec 65B Evidence Act)',
+      'Sec 65 BSA (Primary vs Secondary Electronic Records)',
+    ],
+    case_summary:
+      'Three-Judge Bench of the Supreme Court affirmed that certificate under Section 65B(4) of Indian Evidence Act (now Section 63(4) BSA 2023) is an absolute condition precedent to the admissibility of electronic evidence (emails, SMS, call logs, server hard drives) where secondary electronic copies are produced in court.',
     case_type: 'precedent_ruling',
     forum: 'Supreme Court of India',
     citation: '(2020) 7 SCC 1',
@@ -131,8 +176,13 @@ export const SIMILAR_CASES_CATALOGUE: SimilarCaseItem[] = [
     id: 'bsnl_v_nortel',
     case_heading: 'Limitation Period for Invoking Section 11(6) Arbitration Application',
     parties: 'Bharat Sanchar Nigam Ltd vs Nortel Networks India Pvt Ltd',
-    sections: ['Sec 21 Arbitration Act', 'Sec 11 Arbitration Act', 'Article 137 Limitation Act, 1963'],
-    case_summary: 'Supreme Court ruled that period of limitation for filing an application seeking appointment of an arbitrator under Section 11 of the Arbitration and Conciliation Act is governed by Article 137 of Limitation Act (3 years from date of notice under Section 21). High Courts have power to refuse referral of claims that are ex-facie hopelessly barred by limitation.',
+    sections: [
+      'Sec 21 Arbitration Act',
+      'Sec 11 Arbitration Act',
+      'Article 137 Limitation Act, 1963',
+    ],
+    case_summary:
+      'Supreme Court ruled that period of limitation for filing an application seeking appointment of an arbitrator under Section 11 of the Arbitration and Conciliation Act is governed by Article 137 of Limitation Act (3 years from date of notice under Section 21). High Courts have power to refuse referral of claims that are ex-facie hopelessly barred by limitation.',
     case_type: 'precedent_ruling',
     forum: 'Supreme Court of India',
     citation: '(2021) 5 SCC 738',
@@ -140,15 +190,20 @@ export const SIMILAR_CASES_CATALOGUE: SimilarCaseItem[] = [
   },
   {
     id: 'priyanka_srivastava_v_up',
-    case_heading: 'Mandatory Affidavit Requirement Prior to Section 156(3) CrPC / 175(3) BNSS Directions',
+    case_heading:
+      'Mandatory Affidavit Requirement Prior to Section 156(3) CrPC / 175(3) BNSS Directions',
     parties: 'Priyanka Srivastava & Anr vs State of Uttar Pradesh',
-    sections: ['Sec 175(3) BNSS (formerly Sec 156(3) CrPC)', 'Sec 173 BNSS (formerly Sec 154 CrPC)'],
-    case_summary: 'Supreme Court laid down mandatory safeguard against abuse of Section 156(3) CrPC (now Section 175(3) BNSS). Held that every application under Section 156(3) seeking magistrate direction to police for FIR registration must be supported by an affidavit sworn by applicant affirming prior exhaustion of remedies under Sections 154(1) and 154(3).',
+    sections: [
+      'Sec 175(3) BNSS (formerly Sec 156(3) CrPC)',
+      'Sec 173 BNSS (formerly Sec 154 CrPC)',
+    ],
+    case_summary:
+      'Supreme Court laid down mandatory safeguard against abuse of Section 156(3) CrPC (now Section 175(3) BNSS). Held that every application under Section 156(3) seeking magistrate direction to police for FIR registration must be supported by an affidavit sworn by applicant affirming prior exhaustion of remedies under Sections 154(1) and 154(3).',
     case_type: 'precedent_ruling',
     forum: 'Supreme Court of India',
     citation: '(2015) 6 SCC 287',
     default_relevance: 75,
-  }
+  },
 ];
 
 interface SimilarCasesModalProps {
@@ -222,9 +277,9 @@ export default function SimilarCasesModal({
             Math.round(
               item.default_relevance * 0.4 +
                 tokenMatchRatio * 45 +
-                (sectionMatchCount > 0 ? 15 : 0)
-            )
-          )
+                (sectionMatchCount > 0 ? 15 : 0),
+            ),
+          ),
         );
       }
 
@@ -263,7 +318,8 @@ export default function SimilarCasesModal({
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Statutory cross-referencing across tenant case files and landmark Indian jurisprudence
+                Statutory cross-referencing across tenant case files and landmark Indian
+                jurisprudence
               </p>
             </div>
           </div>
@@ -371,9 +427,12 @@ export default function SimilarCasesModal({
                 <Search className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No matching cases found</p>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                  No matching cases found
+                </p>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Try adjusting the statutory codes in your search query or clear the filter to see all precedents.
+                  Try adjusting the statutory codes in your search query or clear the filter to see
+                  all precedents.
                 </p>
               </div>
               <button
@@ -404,8 +463,8 @@ export default function SimilarCasesModal({
                             isHigh
                               ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
                               : isMedium
-                              ? 'bg-blue-50 text-blue-800 border border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800'
-                              : 'bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
+                                ? 'bg-blue-50 text-blue-800 border border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800'
+                                : 'bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
                           }`}
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -413,7 +472,9 @@ export default function SimilarCasesModal({
                         </span>
 
                         <span className="text-[11px] font-bold px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-md">
-                          {cs.case_type === 'tenant_matter' ? 'Internal Tenant Matter' : 'Landmark Supreme Court Precedent'}
+                          {cs.case_type === 'tenant_matter'
+                            ? 'Internal Tenant Matter'
+                            : 'Landmark Supreme Court Precedent'}
                         </span>
 
                         {cs.citation && (
@@ -460,7 +521,10 @@ export default function SimilarCasesModal({
                     </div>
                     {cs.forum && (
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Forum / Court: <span className="font-medium text-slate-700 dark:text-slate-300">{cs.forum}</span>
+                        Forum / Court:{' '}
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          {cs.forum}
+                        </span>
                       </div>
                     )}
                   </div>

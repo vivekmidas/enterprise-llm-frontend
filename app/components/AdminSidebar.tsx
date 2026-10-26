@@ -71,7 +71,9 @@ function buildDynamicNavSections(routes: RoutePermissionRule[]): NavSection[] {
 
   routes.forEach((rule) => {
     if (!rule.pattern || rule.pattern.includes('*')) return;
-    const href = rule.pattern;
+    const href = rule.pattern.startsWith('/admin?tab=')
+      ? `/admin/${rule.pattern.split('tab=')[1]}`
+      : rule.pattern;
     if (registeredHrefs.has(href)) return;
     registeredHrefs.add(href);
 

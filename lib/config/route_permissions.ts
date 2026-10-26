@@ -589,27 +589,175 @@ export function getRequiredPermissionForPath(pathname: string): string | null {
   return null;
 }
 
+/* ==============================================================================
+   BLOCK COMMENT: 1-TO-1 CANONICAL PERMISSION ALIAS & EQUIVALENCE ENGINE
+   Reference: EPIC-RBAC-1TO1-001 / STORY-CANONICAL-ROUTE-PERMS-001
+   Description:
+     Maps simplified 1-to-1 route-aligned permissions (e.g. admin:roles:view,
+     admin:users:view, admin:workflows:view, admin:nodes:view) bidirectionally
+     with legacy 3-tier keys (e.g. admin:role_management:view,
+     admin:user_management:read, workflows:builder:view, nodes:catalog:view).
+   ============================================================================== */
+const MODULE_SUBMODULE_EQUIVALENCE_GROUPS: Array<Array<[string, string]>> = [
+  [
+    ['admin', 'workflows'],
+    ['workflows', 'builder'],
+    ['workflow', 'builder'],
+    ['workflows', 'all'],
+    ['workflow', 'all'],
+  ],
+  [
+    ['admin', 'nodes'],
+    ['nodes', 'catalog'],
+    ['node', 'catalog'],
+    ['admin', 'node_management'],
+    ['nodes', 'all'],
+    ['node', 'all'],
+  ],
+  [
+    ['admin', 'roles'],
+    ['admin', 'role_management'],
+  ],
+  [
+    ['admin', 'users'],
+    ['admin', 'user_management'],
+  ],
+  [
+    ['admin', 'customers'],
+    ['admin', 'customer_management'],
+  ],
+  [
+    ['admin', 'company_settings'],
+    ['admin', 'tenant_settings'],
+    ['admin', 'settings'],
+  ],
+  [
+    ['admin', 'api_keys'],
+    ['admin', 'tenant_settings'],
+  ],
+  [
+    ['admin', 'knowledge'],
+    ['kb', 'base'],
+    ['kb', 'document'],
+    ['knowledge', 'base'],
+    ['kb', 'all'],
+    ['knowledge', 'all'],
+  ],
+  [
+    ['legal', 'research'],
+    ['legal', 'case_management'],
+    ['legal', 'cases'],
+    ['legal', 'hub'],
+    ['legal', 'search'],
+    ['legal', 'statutes'],
+    ['legal', 'parties'],
+    ['legal', 'translate'],
+    ['legal', 'draft'],
+    ['legal', 'summarize'],
+  ],
+];
+
+const KNOWN_ACTIONS = new Set([
+  'view',
+  'read',
+  'create',
+  'edit',
+  'update',
+  'delete',
+  'execute',
+  'manage',
+  'query',
+  'ingest',
+  'configure',
+  'upload',
+  'bookmark',
+  'admin',
+  'evidence',
+  'draft',
+  '*',
+]);
+
+export function expandPermissionAliases(requiredPermission: string): Set<string> {
+  if (!requiredPermission) return new Set();
+  const clean = requiredPermission.trim().toLowerCase();
+  const candidates = new Set<string>([clean, '*:*:*']);
+
+  const parts = clean.split(':');
+  let mod = '';
+  let submod = '';
+  let action = '';
+
+  if (parts.length === 2) {
+    mod = parts[0];
+    if (KNOWN_ACTIONS.has(parts[1])) {
+      submod = 'all';
+      action = parts[1];
+    } else {
+      submod = parts[1];
+      action = 'view';
+    }
+  } else if (parts.length >= 3) {
+    mod = parts[0];
+    submod = parts[1];
+    action = parts[2];
+  } else {
+    return candidates;
+  }
+
+  const equivPairs: Array<[string, string]> = [[mod, submod]];
+  for (const group of MODULE_SUBMODULE_EQUIVALENCE_GROUPS) {
+    const matchesPair = group.some(([m, s]) => m === mod && (s === submod || submod === 'all'));
+    if (matchesPair) {
+      group.forEach((p) => equivPairs.push(p));
+    }
+  }
+
+  const equivActions = new Set<string>([action, '*', 'manage', 'admin']);
+  if (action === 'view' || action === 'read') {
+    equivActions.add('view');
+    equivActions.add('read');
+    if (mod === 'legal' || submod === 'research' || submod === 'playground') {
+      equivActions.add('query');
+    }
+  } else if (action === 'query') {
+    equivActions.add('query');
+    equivActions.add('view');
+    equivActions.add('read');
+  } else if (action === 'edit' || action === 'update' || action === 'configure') {
+    equivActions.add('edit');
+    equivActions.add('update');
+    equivActions.add('configure');
+  }
+
+  for (const [m, s] of equivPairs) {
+    candidates.add(`${m}:*:*`);
+    candidates.add(`${m}:*`);
+    candidates.add(`${m}:manage`);
+    candidates.add(`${m}:all:manage`);
+    candidates.add(`${m}:${s}:*`);
+    candidates.add(`${m}:${s}:manage`);
+    for (const a of equivActions) {
+      candidates.add(`${m}:${s}:${a}`);
+      candidates.add(`${m}:${a}`);
+    }
+  }
+
+  return candidates;
+}
+
 /**
  * Checks if a set of user permissions satisfies a required permission scope,
- * supporting 3-tier wildcard rules (*:*:*, xx:*:*, xx:yy:*).
+ * supporting 3-tier wildcard rules (*:*:*, xx:*:*, xx:yy:*) and 1-to-1 / legacy aliases.
  */
 export function hasPermissionScope(userPermissions: string[], requiredPermission: string): boolean {
   if (!userPermissions || !Array.isArray(userPermissions)) return false;
   if (userPermissions.includes('*:*:*')) return true;
-  if (userPermissions.includes(requiredPermission)) return true;
 
-  const parts = requiredPermission.split(':');
-  const module = parts[0] || '';
-  const submodule = parts[1] || '';
-
-  // Check Module wildcard xx:*:* or xx:*
-  if (userPermissions.includes(`${module}:*:*`) || userPermissions.includes(`${module}:*`)) {
-    return true;
-  }
-
-  // Check Submodule wildcard xx:yy:*
-  if (submodule && userPermissions.includes(`${module}:${submodule}:*`)) {
-    return true;
+  const acceptable = expandPermissionAliases(requiredPermission);
+  for (const up of userPermissions) {
+    if (!up) continue;
+    const cleanUp = up.trim().toLowerCase();
+    if (acceptable.has(cleanUp)) return true;
   }
 
   return false;
@@ -625,8 +773,43 @@ export function getDefaultRedirectForPermissions(
   domainId?: string,
   defaultRoute?: string,
 ): string | null {
-  const perms = userPermissions || [];
-  const normalizedRole = (userRole || '').toLowerCase();
+  const perms = getEffectivePermissions(userPermissions, userRole);
+  const normalizedRole = (userRole || '').toLowerCase().trim();
+
+  if (defaultRoute) return defaultRoute;
+
+  // ==============================================================================
+  // BLOCK COMMENT: STORY 2 - WORKFLOW DESIGNER REDIRECT
+  // When user has workflow design & view rights (or workflow_designer role),
+  // open the workflow editor (/workflow-builder) as default destination.
+  // ==============================================================================
+  const hasWorkflowView =
+    hasPermissionScope(perms, 'workflow:builder:view') ||
+    hasPermissionScope(perms, 'workflows:builder:view') ||
+    hasPermissionScope(perms, 'workflow:*:*') ||
+    hasPermissionScope(perms, 'workflows:*:*') ||
+    hasPermissionScope(perms, '*:*:*');
+
+  const hasWorkflowDesign =
+    hasPermissionScope(perms, 'workflow:builder:edit') ||
+    hasPermissionScope(perms, 'workflows:builder:edit') ||
+    hasPermissionScope(perms, 'workflow:builder:create') ||
+    hasPermissionScope(perms, 'workflows:builder:create') ||
+    hasPermissionScope(perms, 'workflow:builder:manage') ||
+    hasPermissionScope(perms, 'workflows:builder:manage') ||
+    hasPermissionScope(perms, 'workflow:*:*') ||
+    hasPermissionScope(perms, 'workflows:*:*') ||
+    hasPermissionScope(perms, '*:*:*');
+
+  const isWorkflowDesigner =
+    normalizedRole === 'workflow_designer' ||
+    (hasWorkflowView &&
+      hasWorkflowDesign &&
+      !['para_legal', 'paralegal', 'tenant_user', 'standard_user'].includes(normalizedRole));
+
+  if (isWorkflowDesigner) {
+    return '/workflow-builder';
+  }
 
   // Admin & Tenant Admin roles route directly to /admin
   if (
@@ -641,8 +824,6 @@ export function getDefaultRedirectForPermissions(
     return '/admin';
   }
 
-  if (defaultRoute) return defaultRoute;
-
   if (
     hasPermissionScope(perms, 'legal:research:query') ||
     hasPermissionScope(perms, 'legal:autopilot:view') ||
@@ -652,12 +833,15 @@ export function getDefaultRedirectForPermissions(
   ) {
     return '/legal';
   }
+
   if (
     hasPermissionScope(perms, 'workflow:builder:view') ||
+    hasPermissionScope(perms, 'workflows:builder:view') ||
     hasPermissionScope(perms, 'workflow:*:*')
   ) {
     return '/workflow-builder';
   }
+
   if (domainId) {
     return `/${domainId}`;
   }
@@ -722,6 +906,25 @@ export const ROLE_PRESET_PERMISSIONS: Record<string, string[]> = {
     'legal:autopilot:evidence',
     'legal:autopilot:draft',
   ],
+  workflow_designer: [
+    'workflows:builder:view',
+    'workflows:builder:create',
+    'workflows:builder:edit',
+    'workflows:builder:delete',
+    'workflows:builder:execute',
+    'workflows:builder:manage',
+    'workflow:builder:view',
+    'workflow:builder:create',
+    'workflow:builder:edit',
+    'workflow:builder:delete',
+    'workflow:builder:execute',
+    'workflow:builder:manage',
+    'nodes:catalog:view',
+    'nodes:catalog:execute',
+    'nodes:catalog:manage',
+    'admin:knowledge:view',
+    'admin:profiles:view',
+  ],
   para_legal: [
     'legal:research:query',
     'legal:research:view',
@@ -779,10 +982,7 @@ export const ROLE_PRESET_PERMISSIONS: Record<string, string[]> = {
 /**
  * Returns effective permission list for a user, combining explicit permissions with their role preset.
  */
-export function getEffectivePermissions(
-  userPermissions?: string[],
-  role?: string,
-): string[] {
+export function getEffectivePermissions(userPermissions?: string[], role?: string): string[] {
   const explicit = Array.isArray(userPermissions) ? userPermissions : [];
   if (explicit.length > 0) return explicit;
   if (!role) return [];

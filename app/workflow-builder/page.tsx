@@ -75,6 +75,16 @@ function AgentBuilderContent() {
   const [isMapperOpen, setIsMapperOpen] = useState(false);
   const [prevNodeContract, setPrevNodeContract] = useState<any>(null);
   const [nextNodeContract, setNextNodeContract] = useState<any>(null);
+  /* ============================================================================
+     BLOCK COMMENT: PROPERTIES SIDEBAR MINIMIZE STATE
+     Reference: EPIC-PROPS-SIDEBAR-001 / STORY-PROPS-MINIMIZE-001
+     Description:
+       Starts minimized on initial load (no node/edge selected) so the design
+       canvas extends to max width. Automatically expands when a node or edge
+       is selected on the canvas, and minimizes completely when the user clicks
+       the minimize button in PropertiesPanel.
+     ============================================================================ */
+  const [isPropertiesMinimized, setIsPropertiesMinimized] = useState(true);
 
   /* ==============================================================================
      BLOCK COMMENT: REFRESH WORKFLOW INVOCATION SPEC
@@ -266,11 +276,14 @@ function AgentBuilderContent() {
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node<WorkflowNodeData>) => {
     setSelectedNode(node);
+    setSelectedEdge(null);
+    setIsPropertiesMinimized(false);
   }, []);
 
   const onEdgeClick = useCallback((edge: Edge) => {
     setSelectedEdge(edge);
     setSelectedNode(null);
+    setIsPropertiesMinimized(false);
   }, []);
 
   // Fetch node properties automatically whenever a node is selected
@@ -1047,7 +1060,10 @@ function AgentBuilderContent() {
         <PropertiesPanel
           selectedNode={selectedNode}
           selectedEdge={selectedEdge}
+          isMinimized={isPropertiesMinimized}
+          onToggleMinimize={() => setIsPropertiesMinimized((prev) => !prev)}
           onClose={() => {
+            setIsPropertiesMinimized(true);
             setSelectedNode(null);
             setSelectedEdge(null);
           }}
