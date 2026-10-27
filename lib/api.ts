@@ -735,6 +735,29 @@ export const api = {
     return res.json();
   },
 
+  /* ==============================================================================
+     BLOCK COMMENT: TENANT ADMIN CLONE NODE API (EPIC-PROPS-CONTRACT-001 / STORY-PROPS-002)
+     ============================================================================== */
+  cloneCustomerNode: async (payload: {
+    base_node_name: string;
+    name: string;
+    label: string;
+    description?: string;
+    properties?: Record<string, any>;
+    input_contract?: any;
+    output_contract?: any;
+  }, customerId?: string | number) => {
+    const url = customerId
+      ? `${BACKEND_URL}/nodes/customer/clone?customer_id=${customerId}`
+      : `${BACKEND_URL}/nodes/customer/clone`;
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+    });
+    return handleResponse(res, 'Failed to clone node configuration');
+  },
+
   /* BLOCK: Allow customer_id filter for knowledge bases */
   getKnowledgeBases: async (customerId?: string | number) => {
     const url = new URL(`${BACKEND_URL}/api/knowledge/bases`);

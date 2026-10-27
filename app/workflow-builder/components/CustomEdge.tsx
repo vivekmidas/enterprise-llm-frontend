@@ -105,8 +105,8 @@ export function CustomLabelEdge({
             viewBox="0 0 16 16"
             refX="12"
             refY="8"
-            markerWidth="8"
-            markerHeight="8"
+            markerWidth="6"
+            markerHeight="6"
             orient="auto-start-reverse"
           >
             <path

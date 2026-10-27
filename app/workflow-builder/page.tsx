@@ -1104,6 +1104,29 @@ function AgentBuilderContent() {
           onOpenMapper={() => setIsMapperOpen(true)}
           hasPredecessor={selectedNode ? edges.some((e) => e.target === selectedNode.id) : false}
           userRole={userRole}
+          sourceContract={prevNodeContract}
+          sourceNodeName={
+            selectedNode
+              ? (() => {
+                  const inc = edges.find((e) => e.target === selectedNode.id);
+                  const srcNode = inc ? nodes.find((n) => n.id === inc.source) : undefined;
+                  return String(srcNode?.data?.label || srcNode?.data?.name || 'Upstream Node');
+                })()
+              : undefined
+          }
+          workflowVariables={(() => {
+            const vars: string[] = [];
+            nodes.forEach((n) => {
+              const outC = (n.data as any)?.output_contract || (n.data as any)?.outputContract;
+              const rules = Array.isArray(outC?.rules) ? outC.rules : [];
+              rules.forEach((r: any) => {
+                if (r && (r.stateable || r.state_required) && r.field_name) {
+                  if (!vars.includes(r.field_name)) vars.push(r.field_name);
+                }
+              });
+            });
+            return vars;
+          })()}
         />
 
         <FieldMappingController

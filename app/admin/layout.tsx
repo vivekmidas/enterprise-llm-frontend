@@ -327,7 +327,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
       case 'customers':
         return <CustomersTab />;
       case 'nodes':
-        return <NodesTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />;
+        return <NodesTab userRole={userRole} customerId={customerId ? String(customerId) : null} />;
       case 'workflows':
         return (
           <WorkflowsTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />

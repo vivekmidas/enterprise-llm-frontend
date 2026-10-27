@@ -37,6 +37,8 @@ interface TreeNode {
   type: string;
   required: boolean;
   description?: string;
+  allowedValues?: string[];
+  defaultValue?: any;
   children?: TreeNode[];
   isLeaf: boolean;
 }
@@ -64,6 +66,7 @@ const convertRulesToSchema = (parsed: any): any => {
 
     if (rule.allowed_values) fieldSchema.enum = rule.allowed_values;
     else if (rule.enum) fieldSchema.enum = rule.enum;
+    if (rule.default !== undefined) fieldSchema.default = rule.default;
 
     // split dots for nested paths
     const parts = fieldName.split('.');
@@ -214,6 +217,12 @@ const buildTreeFromSchema = (schema: any, prefix = ''): TreeNode[] => {
       type: val.type || 'any',
       required: isRequired,
       description: val.description,
+      allowedValues: Array.isArray(val.enum)
+        ? val.enum.map((v: any) => String(v))
+        : Array.isArray(val.allowed_values)
+          ? val.allowed_values.map((v: any) => String(v))
+          : undefined,
+      defaultValue: val.default,
       children,
       isLeaf: !children || children.length === 0,
     };
@@ -753,34 +762,70 @@ export default function FieldMapperModal({
 
             {/* Mapping Input (Only for Leaf Nodes) */}
             {isLeaf && (
-              <div className="flex items-center gap-1.5 relative w-[340px] flex-shrink-0">
-                <div className="flex-1 flex items-center bg-white border border-slate-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 shadow-sm transition-all overflow-hidden">
-                  {/* Jinja2 template prefix indicator */}
-                  <span className="pl-2 pr-1 text-[10px] font-mono text-blue-400 select-none flex-shrink-0">
-                    {'{{ }}'}
-                  </span>
-                  <input
-                    type="text"
-                    value={
-                      Array.isArray(mapping[node.path])
-                        ? JSON.stringify(mapping[node.path])
-                        : mapping[node.path] || ''
-                    }
-                    onChange={(e) => updateMapping(node.path, e.target.value)}
-                    placeholder={readOnly ? 'No mapping configured' : '{{ field_name }}'}
-                    className="w-full px-1.5 py-1.5 text-xs font-mono outline-none bg-white text-slate-800 placeholder:text-slate-400 disabled:opacity-75 disabled:cursor-not-allowed"
-                    disabled={readOnly}
-                  />
-                  {mapping[node.path] && !readOnly && (
-                    <button
-                      onClick={() => updateMapping(node.path, '')}
-                      className="p-1 mr-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-650 transition-colors"
-                      title="Clear mapping"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
+              <div className="flex items-center gap-1.5 relative w-[380px] flex-shrink-0">
+                {(() => {
+                  const currentVal = mapping[node.path] !== undefined ? mapping[node.path] : node.defaultValue ?? '';
+                  const isMapped =
+                    typeof currentVal === 'string' &&
+                    currentVal.includes('{{') &&
+                    currentVal.includes('}}');
+                  const hasAllowed =
+                    Array.isArray(node.allowedValues) && node.allowedValues.length > 0;
+
+                  if (hasAllowed && !isMapped) {
+                    return (
+                      <select
+                        value={String(currentVal || '')}
+                        onChange={(e) => updateMapping(node.path, e.target.value)}
+                        disabled={readOnly}
+                        className="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm cursor-pointer"
+                      >
+                        <option value="">-- Select {node.name} --</option>
+                        {node.allowedValues!.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    );
+                  }
+
+                  return (
+                    <div className="flex-1 flex items-center bg-white border border-slate-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 shadow-sm transition-all overflow-hidden">
+                      {/* Jinja2 template prefix indicator */}
+                      <span className="pl-2 pr-1 text-[10px] font-mono text-blue-400 select-none flex-shrink-0">
+                        {isMapped ? '{{ }}' : 'Fixed'}
+                      </span>
+                      <input
+                        type="text"
+                        value={
+                          Array.isArray(mapping[node.path])
+                            ? JSON.stringify(mapping[node.path])
+                            : mapping[node.path] !== undefined
+                              ? mapping[node.path]
+                              : node.defaultValue ?? ''
+                        }
+                        onChange={(e) => updateMapping(node.path, e.target.value)}
+                        placeholder={
+                          readOnly
+                            ? 'No value configured'
+                            : `Fixed value or {{ field_name }}`
+                        }
+                        className="w-full px-1.5 py-1.5 text-xs font-mono outline-none bg-white text-slate-800 placeholder:text-slate-400 disabled:opacity-75 disabled:cursor-not-allowed"
+                        disabled={readOnly}
+                      />
+                      {mapping[node.path] && !readOnly && (
+                        <button
+                          onClick={() => updateMapping(node.path, '')}
+                          className="p-1 mr-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-650 transition-colors"
+                          title="Clear value"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Popover trigger button */}
                 {!readOnly && (

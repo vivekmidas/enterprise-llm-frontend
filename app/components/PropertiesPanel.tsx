@@ -730,7 +730,16 @@ const parseSystemProperties = (value: any): Record<string, any> => {
   }
   if (Array.isArray(value)) {
     const result: Record<string, any> = {};
+    // Flatten single-level nested arrays (e.g. [[{"key": "host"...}]])
+    const flatItems: any[] = [];
     value.forEach((item) => {
+      if (Array.isArray(item)) {
+        item.forEach((sub) => flatItems.push(sub));
+      } else {
+        flatItems.push(item);
+      }
+    });
+    flatItems.forEach((item) => {
       let entry = item;
       if (typeof item === 'string') {
         try {
@@ -764,6 +773,31 @@ const parseSystemProperties = (value: any): Record<string, any> => {
     return result;
   }
   return {};
+};
+
+const SENSITIVE_PROP_KEYS = new Set([
+  'password',
+  'secret',
+  'token',
+  'api_key',
+  'apikey',
+  'auth_token',
+  'secret_key',
+  'private_key',
+  'client_secret',
+]);
+
+const isSensitivePropertyField = (key: string, fieldType?: string): boolean => {
+  const k = String(key || '').toLowerCase();
+  const t = String(fieldType || '').toLowerCase();
+  if (t === 'password') return true;
+  if (SENSITIVE_PROP_KEYS.has(k)) return true;
+  return (
+    k.endsWith('_password') ||
+    k.endsWith('_secret') ||
+    k.endsWith('_token') ||
+    k.endsWith('_api_key')
+  );
 };
 
 interface ContractTreeNode {
@@ -1201,6 +1235,9 @@ interface PropertiesPanelProps {
   onOpenMapper?: () => void;
   hasPredecessor?: boolean;
   userRole?: string;
+  sourceContract?: Record<string, any> | null;
+  sourceNodeName?: string;
+  workflowVariables?: string[];
   /* ============================================================================
      BLOCK COMMENT: MINIMIZABLE PROPERTIES SIDEBAR PROPS
      Reference: EPIC-PROPS-SIDEBAR-001 / STORY-PROPS-MINIMIZE-001
@@ -1231,6 +1268,9 @@ export default function PropertiesPanel({
   onOpenMapper,
   hasPredecessor = false,
   userRole,
+  sourceContract,
+  sourceNodeName = 'Upstream Node',
+  workflowVariables = [],
   isMinimized = false,
   onToggleMinimize,
 }: PropertiesPanelProps) {
@@ -1244,7 +1284,9 @@ export default function PropertiesPanel({
   const [viewMode, setViewMode] = useState<'config' | 'contract'>('config');
   const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
   const [generatorModalType, setGeneratorModalType] = useState<'input' | 'output'>('input');
+  const [activeOutputPickerField, setActiveOutputPickerField] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    inputContractParams: false,
     parameters: false,
     mapping: false,
     system: true,
@@ -1286,19 +1328,45 @@ export default function PropertiesPanel({
     (selectedNode?.data as any)?.propertySchema || (selectedNode?.data as any)?.property_schema,
   );
 
-  // EPIC-NODE-PROPS-UI-001 / STORY-CHOICE-TEXTAREA-VALUES-001:
-  // schema entries tagged category=system belong to Runtime System, not Parameters
-  const systemSchemaKeys = new Set(
-    schemaArray.filter((f: any) => f?.category === 'system').map((f: any) => f?.key),
+  /* ============================================================================
+     BLOCK COMMENT: USER_PROPERTIES OVERRIDE PRECEDENCE OVER SYSTEM_PROPERTIES
+     Reference: EPIC-PROPS-CONTRACT-001 / STORY-PROPS-001
+     Description:
+       Any property key defined in `user_properties` (or tagged `category: 'user'`
+       in `propertySchema` or present in `properties`) belongs to Node Configuration
+       (`user_properties`) and MUST NOT be hidden inside `Runtime System`, even if
+       a default exists in `system_properties`.
+     ============================================================================ */
+  const userDefinedKeys = new Set([
+    ...userPropsArray.map((f: any) => f?.key).filter(Boolean),
+    ...schemaArray.filter((f: any) => f?.category === 'user').map((f: any) => f?.key).filter(Boolean),
+  ]);
+
+  const onlySystemSchemaKeys = new Set(
+    schemaArray
+      .filter((f: any) => f?.category === 'system' && !userDefinedKeys.has(f?.key))
+      .map((f: any) => f?.key),
   );
+  const onlySystemKeys = new Set(systemKeys.filter((k) => !userDefinedKeys.has(k)));
+
   const schemaByKey: Record<string, any> = schemaArray.reduce((acc: Record<string, any>, f: any) => {
     if (f?.key) acc[f.key] = f;
     return acc;
   }, {});
+  const userSchemaByKey: Record<string, any> = userPropsArray.reduce(
+    (acc: Record<string, any>, f: any) => {
+      if (f?.key) acc[f.key] = f;
+      return acc;
+    },
+    {},
+  );
 
   const allParamKeys = Array.from(
     new Set([
-      ...schemaArray.filter((f: any) => f?.category !== 'system').map((f: any) => f?.key).filter(Boolean),
+      ...schemaArray
+        .filter((f: any) => f?.category !== 'system' || userDefinedKeys.has(f?.key))
+        .map((f: any) => f?.key)
+        .filter(Boolean),
       ...userPropsArray.map((f: any) => f?.key).filter(Boolean),
       ...Object.keys(properties),
     ]),
@@ -1315,27 +1383,110 @@ export default function PropertiesPanel({
     'version',
     'created_by',
     'tenant_id',
+    '__base_node__',
   ]);
 
   const entries = allParamKeys
     .filter(
       (key) =>
         key.toLowerCase() !== 'mapping_template' &&
-        !systemKeys.includes(key) &&
-        !systemSchemaKeys.has(key) &&
+        !onlySystemKeys.has(key) &&
+        !onlySystemSchemaKeys.has(key) &&
         !IGNORED_METADATA_KEYS.has(key.toLowerCase()),
     )
     .map((key) => {
-      // EPIC-NODE-PROPS-UI-001: fall back to schema value/default when instance value missing
+      // Precedence: resolved properties[key] -> user_properties schema -> property_schema -> systemProperties fallback
       const raw = properties[key];
-      if (raw !== undefined && raw !== null) return [key, raw] as [string, any];
+      if (raw !== undefined && raw !== null && raw !== '') return [key, raw] as [string, any];
+      const uSch = userSchemaByKey[key];
+      if (uSch) {
+        const uVal = resolveSchemaEntryValue(uSch);
+        if (uVal !== undefined && uVal !== null && uVal !== '') return [key, uVal] as [string, any];
+      }
       const sch = schemaByKey[key];
-      return [key, sch ? resolveSchemaEntryValue(sch) : raw] as [string, any];
+      if (sch) {
+        const sVal = resolveSchemaEntryValue(sch);
+        if (sVal !== undefined && sVal !== null && sVal !== '') return [key, sVal] as [string, any];
+      }
+      if (systemProperties[key] !== undefined && systemProperties[key] !== null) {
+        return [key, systemProperties[key]] as [string, any];
+      }
+      return [key, raw ?? ''] as [string, any];
     });
 
   const systemEntries = Object.entries(systemProperties).filter(
-    ([key]) => !IGNORED_METADATA_KEYS.has(key.toLowerCase()),
+    ([key]) =>
+      !IGNORED_METADATA_KEYS.has(key.toLowerCase()) && !userDefinedKeys.has(key),
   );
+
+  // Extract input_contract rules for inline Input Parameters configuration (EPIC-PROPS-CONTRACT-001)
+  const inputContractRules = useMemo(() => {
+    if (!inputContract) return [];
+    let parsed = inputContract;
+    if (typeof inputContract === 'string') {
+      try {
+        parsed = JSON.parse(inputContract);
+      } catch {
+        return [];
+      }
+    }
+    if (Array.isArray(parsed?.rules)) {
+      return parsed.rules.filter((r: any) => r && (r.field_name || r.name));
+    }
+    if (parsed?.properties && typeof parsed.properties === 'object') {
+      const reqList = Array.isArray(parsed.required) ? parsed.required : [];
+      return Object.entries(parsed.properties).map(([k, v]: [string, any]) => ({
+        field_name: k,
+        field_type: v?.type || 'string',
+        required: Boolean(v?.required || reqList.includes(k)),
+        allowed_values: v?.allowed_values || v?.enum || [],
+        default: v?.default,
+        description: v?.description || '',
+      }));
+    }
+    return [];
+  }, [inputContract]);
+
+  // Extract upstream output_contract fields for the {} Output Picker
+  const upstreamOutputFields = useMemo(() => {
+    if (!sourceContract) return [];
+    const schema = normalizeContract(sourceContract);
+    const tree = buildTreeFromSchema(schema);
+    const flat: { path: string; type: string }[] = [];
+    const walk = (nodes: ContractTreeNode[]) => {
+      nodes.forEach((n) => {
+        flat.push({ path: n.path, type: n.type });
+        if (n.children && n.children.length > 0) walk(n.children);
+      });
+    };
+    walk(tree);
+    return flat;
+  }, [sourceContract]);
+
+  const currentMappingBag = useMemo<Record<string, any>>(() => {
+    const raw = properties.mapping_template;
+    if (!raw) return {};
+    if (typeof raw === 'object' && !Array.isArray(raw)) return { ...(raw as Record<string, any>) };
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }, [properties.mapping_template]);
+
+  const handleInputContractParamChange = (fieldName: string, val: any) => {
+    const nextBag = { ...currentMappingBag };
+    if (val === undefined) {
+      delete nextBag[fieldName];
+    } else {
+      nextBag[fieldName] = val;
+    }
+    handlePropertyChange('mapping_template', nextBag as any);
+  };
 
   const handleSaveContract = (type: 'input' | 'output', newSchema: any) => {
     if (!selectedNode) return;
@@ -2377,9 +2528,8 @@ export default function PropertiesPanel({
                 label: val,
               });
             }}
-            disabled={userRole === 'user'}
             placeholder="e.g. LLM Node"
-            className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all font-medium disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
+            className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100 transition-all font-medium"
           />
         </div>
       </div>
@@ -2505,39 +2655,348 @@ export default function PropertiesPanel({
 
           return (
             <div className="space-y-4">
-              {/* Accordion Item: Parameters */}
+              {/* ====================================================================
+                  BLOCK COMMENT: INLINE INPUT PARAMETERS (input_contract) SECTION
+                  Reference: EPIC-PROPS-CONTRACT-001 / STORY-CONTRACT-003
+                  Description:
+                    Renders execution input parameters from `input_contract` on the
+                    workflow canvas. Workflow designers can assign Fixed (static)
+                    values (dropdown for `allowed_values`, boolean, number, text,
+                    SQL/JSON textarea) OR click `{}` to map a field from the
+                    upstream node's `output_contract` or workflow `state`.
+                 ==================================================================== */}
+              {!isTrigger && inputContractRules.length > 0 && (
+                <div className="border border-indigo-100 rounded-xl overflow-hidden shadow-sm bg-white">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('inputContractParams')}
+                    className="w-full flex items-center justify-between p-3.5 bg-indigo-50/40 hover:bg-indigo-50/70 transition-colors text-left cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600" />
+                      <span className="text-[10px] font-bold text-slate-800 uppercase tracking-widest">
+                        Input Parameters (input_contract)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[8px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 tracking-wide uppercase">
+                        FIXED / MAP
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
+                          collapsedSections.inputContractParams ? '-rotate-90' : 'rotate-0'
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {!collapsedSections.inputContractParams && (
+                    <div className="p-4 space-y-3.5 border-t border-indigo-100/80 bg-white">
+                      {inputContractRules.map((rule: any) => {
+                        const fieldName = String(rule.field_name || rule.name || '');
+                        const fieldType = String(rule.field_type || rule.type || 'string').toLowerCase();
+                        const isReq = Boolean(rule.required);
+                        const allowedValues = Array.isArray(rule.allowed_values)
+                          ? rule.allowed_values.map((v: any) => String(v))
+                          : [];
+                        const defaultVal = rule.default;
+                        const rawCurrent = currentMappingBag[fieldName];
+                        const currentVal =
+                          rawCurrent !== undefined && rawCurrent !== null
+                            ? rawCurrent
+                            : defaultVal !== undefined && defaultVal !== null
+                              ? defaultVal
+                              : '';
+                        const strCurrent =
+                          typeof currentVal === 'object' && currentVal !== null
+                            ? JSON.stringify(currentVal)
+                            : String(currentVal ?? '');
+                        const isMappedExpr =
+                          typeof currentVal === 'string' &&
+                          currentVal.includes('{{') &&
+                          currentVal.includes('}}');
+                        const isPickerOpen = activeOutputPickerField === fieldName;
+                        const isMultilineInput =
+                          fieldName.toLowerCase().includes('query') ||
+                          fieldName.toLowerCase().includes('prompt') ||
+                          fieldType === 'object' ||
+                          fieldType === 'array' ||
+                          fieldType === 'json';
+
+                        return (
+                          <div
+                            key={fieldName}
+                            className="space-y-1.5 rounded-xl border border-slate-150 bg-slate-50/40 p-2.5"
+                          >
+                            <div className="flex items-center justify-between gap-1.5">
+                              <div className="flex items-center gap-1 min-w-0">
+                                <span
+                                  className="font-mono text-[11px] font-bold text-slate-800 truncate"
+                                  title={rule.description || fieldName}
+                                >
+                                  {fieldName}
+                                </span>
+                                {isReq && (
+                                  <span className="text-rose-500 font-bold text-xs" title="Required">
+                                    *
+                                  </span>
+                                )}
+                                <span className="text-[8px] font-semibold uppercase px-1 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 shrink-0">
+                                  {fieldType}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (isMappedExpr) {
+                                      handleInputContractParamChange(
+                                        fieldName,
+                                        defaultVal !== undefined
+                                          ? defaultVal
+                                          : allowedValues[0] || '',
+                                      );
+                                    }
+                                    setActiveOutputPickerField(null);
+                                  }}
+                                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors cursor-pointer ${
+                                    !isMappedExpr
+                                      ? 'bg-indigo-600 text-white'
+                                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                  }`}
+                                  title="Set Fixed static value"
+                                >
+                                  Fixed
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setActiveOutputPickerField(isPickerOpen ? null : fieldName)
+                                  }
+                                  className={`px-1.5 py-0.5 rounded font-mono text-[9px] font-bold transition-colors cursor-pointer ${
+                                    isMappedExpr || isPickerOpen
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
+                                  }`}
+                                  title="Map from upstream output_contract or workflow state"
+                                >
+                                  {'{}'} Map
+                                </button>
+                              </div>
+                            </div>
+
+                            {rule.description && (
+                              <p className="text-[9px] text-slate-450 leading-tight">
+                                {rule.description}
+                              </p>
+                            )}
+
+                            {/* Value Input: Dropdown (allowed_values), Boolean, Number, Multiline, or Text */}
+                            {!isMappedExpr && allowedValues.length > 0 ? (
+                              <select
+                                value={strCurrent || allowedValues[0] || ''}
+                                onChange={(e) =>
+                                  handleInputContractParamChange(fieldName, e.target.value)
+                                }
+                                className="w-full border border-slate-200 focus:border-indigo-400 rounded-lg px-2.5 py-1.5 text-xs bg-white text-slate-900 outline-none cursor-pointer font-medium"
+                              >
+                                <option value="">-- Select {fieldName} --</option>
+                                {allowedValues.map((opt: string) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : !isMappedExpr && fieldType === 'boolean' ? (
+                              <select
+                                value={
+                                  strCurrent === 'true' || currentVal === true
+                                    ? 'true'
+                                    : strCurrent === 'false' || currentVal === false
+                                      ? 'false'
+                                      : ''
+                                }
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  handleInputContractParamChange(
+                                    fieldName,
+                                    v === 'true' ? true : v === 'false' ? false : '',
+                                  );
+                                }}
+                                className="w-full border border-slate-200 focus:border-indigo-400 rounded-lg px-2.5 py-1.5 text-xs bg-white text-slate-900 outline-none cursor-pointer"
+                              >
+                                <option value="">-- Select boolean --</option>
+                                <option value="true">true</option>
+                                <option value="false">false</option>
+                              </select>
+                            ) : isMultilineInput && !isMappedExpr ? (
+                              <textarea
+                                value={strCurrent}
+                                onChange={(e) =>
+                                  handleInputContractParamChange(fieldName, e.target.value)
+                                }
+                                rows={2}
+                                placeholder={
+                                  fieldType === 'object' || fieldType === 'json'
+                                    ? 'e.g. {"id": 1} or click {} Map'
+                                    : `Enter ${fieldName} or {{ upstream_field }}...`
+                                }
+                                className="w-full border border-slate-200 focus:border-indigo-400 rounded-lg px-2.5 py-1.5 text-xs font-mono bg-white text-slate-900 outline-none resize-y"
+                              />
+                            ) : (
+                              <input
+                                type={
+                                  !isMappedExpr &&
+                                  (fieldType === 'number' || fieldType === 'integer')
+                                    ? 'number'
+                                    : 'text'
+                                }
+                                value={strCurrent}
+                                onChange={(e) => {
+                                  const rawVal = e.target.value;
+                                  if (
+                                    !isMappedExpr &&
+                                    (fieldType === 'number' || fieldType === 'integer') &&
+                                    rawVal !== ''
+                                  ) {
+                                    handleInputContractParamChange(fieldName, Number(rawVal));
+                                  } else {
+                                    handleInputContractParamChange(fieldName, rawVal);
+                                  }
+                                }}
+                                placeholder={
+                                  defaultVal !== undefined
+                                    ? `Default: ${defaultVal}`
+                                    : `Enter ${fieldName} or {{ field }}...`
+                                }
+                                className={`w-full border rounded-lg px-2.5 py-1.5 text-xs font-mono outline-none ${
+                                  isMappedExpr
+                                    ? 'border-emerald-300 bg-emerald-50/40 text-emerald-900 font-semibold'
+                                    : 'border-slate-200 focus:border-indigo-400 bg-white text-slate-900'
+                                }`}
+                              />
+                            )}
+
+                            {/* Upstream output_contract & state Picker Popover */}
+                            {isPickerOpen && (
+                              <div className="mt-1.5 rounded-lg border border-emerald-200 bg-white p-2 shadow-md space-y-2">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-700">
+                                    Map from {sourceNodeName} (output_contract)
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveOutputPickerField(null)}
+                                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                {upstreamOutputFields.length > 0 ? (
+                                  <div className="max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
+                                    {upstreamOutputFields.map((f) => (
+                                      <button
+                                        key={f.path}
+                                        type="button"
+                                        onClick={() => {
+                                          handleInputContractParamChange(
+                                            fieldName,
+                                            `{{ ${f.path} }}`,
+                                          );
+                                          setActiveOutputPickerField(null);
+                                        }}
+                                        className="w-full flex items-center justify-between px-2 py-1 rounded text-left text-[10px] font-mono hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 transition-colors cursor-pointer"
+                                      >
+                                        <span className="truncate font-semibold">{f.path}</span>
+                                        <span className="text-[8px] uppercase text-slate-400 ml-2 shrink-0">
+                                          {f.type}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-slate-400 italic py-1">
+                                    {hasPredecessor
+                                      ? 'No output_contract fields defined on upstream node.'
+                                      : 'Connect an upstream node to pick output_contract fields.'}
+                                  </p>
+                                )}
+
+                                {workflowVariables.length > 0 && (
+                                  <div className="border-t border-slate-100 pt-1.5 space-y-1">
+                                    <span className="block text-[8px] font-bold uppercase tracking-wider text-indigo-600">
+                                      Shared Workflow State
+                                    </span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {workflowVariables.map((v) => (
+                                        <button
+                                          key={v}
+                                          type="button"
+                                          onClick={() => {
+                                            handleInputContractParamChange(
+                                              fieldName,
+                                              `{{ state.${v} }}`,
+                                            );
+                                            setActiveOutputPickerField(null);
+                                          }}
+                                          className="px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-mono text-[9px] border border-indigo-200 cursor-pointer"
+                                        >
+                                          state.{v}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ====================================================================
+                  BLOCK COMMENT: READ-ONLY NODE CONFIGURATION (user_properties)
+                  Reference: EPIC-PROPS-CONTRACT-001 / STORY-PROPS-001
+                  Description:
+                    `user_properties` are governed by Tenant Admin in `/admin/nodes`.
+                    On the workflow canvas, all non-sensitive values (`host`, `port`,
+                    `database`, `username`, etc.) are displayed clearly as read-only
+                    so the Workflow Designer can inspect them, while sensitive fields
+                    (`password`, `secret`, `token`, `api_key`) are masked as `••••••••`.
+                 ==================================================================== */}
               <div className="border border-slate-150 rounded-xl overflow-hidden shadow-sm bg-white">
                 <button
                   type="button"
                   onClick={() => toggleSection('parameters')}
-                  className="w-full flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors text-left"
+                  className="w-full flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors text-left cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
-                    <Settings className="w-3.5 h-3.5 text-indigo-500" />
+                    <Lock className="w-3.5 h-3.5 text-slate-500" />
                     <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">
-                      Parameters
+                      Node Configuration (user_properties)
                     </span>
                   </div>
-                  <ChevronDown
-                    className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
-                      collapsedSections.parameters ? '-rotate-90' : 'rotate-0'
-                    }`}
-                  />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 tracking-wide uppercase shrink-0">
+                      READ ONLY
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
+                        collapsedSections.parameters ? '-rotate-90' : 'rotate-0'
+                      }`}
+                    />
+                  </div>
                 </button>
                 {!collapsedSections.parameters && (
-                  <div className="p-4 space-y-4 border-t border-slate-100 bg-white">
+                  <div className="p-4 space-y-3 border-t border-slate-100 bg-white">
                     {entries.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="bg-slate-50/75 rounded-xl p-3 border border-slate-150 space-y-2.5 shadow-sm">
                         {entries.map(([key, value]) => {
-                          const valueType =
-                            typeof value === 'boolean'
-                              ? 'boolean'
-                              : typeof value === 'number'
-                                ? 'number'
-                                : typeof value === 'object' && value !== null
-                                  ? 'object'
-                                  : 'string';
-
                           const userPropsArray = ensureArray(
                             (selectedNode?.data as any)?.user_properties,
                           );
@@ -2557,267 +3016,113 @@ export default function PropertiesPanel({
                             systemPropsArray.find((f: any) => f && f.key === key) || {};
 
                           const fieldSchema = {
+                            ...systemSchema,
                             ...catalogSchema,
                             ...userSchema,
-                            ...systemSchema,
-                            options:
-                              catalogSchema.options || userSchema.options || systemSchema.options,
-                            choices:
-                              catalogSchema.choices || userSchema.choices || systemSchema.choices,
-                            configured_values:
-                              catalogSchema.configured_values ||
-                              userSchema.configured_values ||
-                              systemSchema.configured_values,
-                            values:
-                              catalogSchema.values || userSchema.values || systemSchema.values,
                           };
                           const fieldType = String(
-                            fieldSchema?.type || fieldSchema?.field_type || valueType,
+                            fieldSchema?.type || fieldSchema?.field_type || 'string',
                           ).toLowerCase();
-                          // EPIC-NODE-PROPS-UI-001: prefer schema label over formatted key
                           const label = fieldSchema?.label || formatLabel(key);
+                          const isSensitive = isSensitivePropertyField(key, fieldType);
+                          const isCopied = copiedKey === key;
 
-                          // Source type: show label, save key
-                          if (fieldType === 'source' || Boolean(fieldSchema?.source)) {
-                            const propVal = value !== undefined && value !== null ? value : '';
-                            return (
-                              <SourcePropertyField
-                                key={key}
-                                field={{
-                                  key,
-                                  label: fieldSchema?.label || formatLabel(key),
-                                  type: 'source',
-                                  source: fieldSchema?.source || '',
-                                  multiple: fieldSchema?.multiple,
-                                  description: fieldSchema?.description,
-                                }}
-                                isDisabled={false}
-                                propVal={propVal}
-                                handlePropertyChange={handlePropertyChange}
-                              />
-                            );
-                          }
-
-                          // Object / JSON type
-                          if (
-                            fieldType === 'object' ||
-                            fieldType === 'json' ||
-                            fieldType === 'dict' ||
-                            fieldType === 'record' ||
-                            (typeof value === 'object' && value !== null && !Array.isArray(value))
-                          ) {
-                            return (
-                              <JsonObjectPropertyField
-                                key={key}
-                                label={label}
-                                fieldKey={key}
-                                value={value}
-                                isDisabled={false}
-                                description={fieldSchema?.description}
-                                handlePropertyChange={handlePropertyChange}
-                              />
-                            );
-                          }
-
-                          // EPIC-NODE-PROPS-UI-001: choice/select -> <select>, or checkbox list when multi-select
-                          if (fieldType === 'choice' || fieldType === 'select') {
-                            const isMultiSelect = Boolean(
-                              fieldSchema?.multiple ||
-                                fieldSchema?.multi_select ||
-                                fieldSchema?.multiSelect,
-                            );
-                            const rawOptions = getRawChoiceOptions(
-                              fieldSchema,
-                              key,
-                              systemProperties,
-                              isMultiSelect ? undefined : value,
-                            );
-
-                            let options = parseChoiceOptions(rawOptions);
-                            const extractValStr = (val: any): string => {
-                              if (val === undefined || val === null) return '';
-                              if (typeof val === 'object') {
-                                return String(
-                                  val.key ?? val.value ?? val.id ?? val.name ?? val.label ?? '',
-                                );
-                              }
-                              return String(val);
-                            };
-
-                            const rawVal =
-                              value !== undefined && value !== null && value !== ''
-                                ? value
-                                : fieldSchema?.default;
-                            const strVal = Array.isArray(rawVal) ? '' : extractValStr(rawVal);
-                            if (
-                              !isMultiSelect &&
-                              strVal &&
-                              !strVal.includes(',') &&
-                              !options.some((o) => o.toLowerCase() === strVal.toLowerCase())
-                            ) {
-                              options = [strVal, ...options];
-                            }
-                            const isMultiple = isMultiSelect;
-                            const matchedOption = options.find(
-                              (o) => o.toLowerCase() === strVal.toLowerCase(),
-                            );
-                            const selectedVal =
-                              matchedOption || (options.length > 0 ? options[0] : '');
-
-                            if (isMultiple) {
-                              return (
-                                <div key={key} className="space-y-1.5">
-                                  <label
-                                    className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest flex items-center gap-1.5 cursor-help"
-                                    title={fieldSchema?.description}
-                                  >
-                                    {label}
-                                    {fieldSchema?.description && (
-                                      <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
-                                        i
-                                      </span>
-                                    )}
-                                  </label>
-                                  <ChoiceCheckboxList
-                                    disabled={false}
-                                    selected={toSelectedList(rawVal)}
-                                    options={options}
-                                    onChange={(values) => handlePropertyChange(key, values)}
-                                  />
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <div key={key} className="space-y-1.5">
-                                <label
-                                  className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest flex items-center gap-1.5 cursor-help"
-                                  title={fieldSchema?.description}
-                                >
-                                  {label}
-                                  {fieldSchema?.description && (
-                                    <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
-                                      i
-                                    </span>
-                                  )}
-                                </label>
-                                <select
-                                  value={selectedVal}
-                                  disabled={false}
-                                  onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-                                    handlePropertyChange(key, event.target.value)
-                                  }
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm cursor-pointer"
-                                >
-                                  {options.map((option) => (
-                                    <option
-                                      key={option}
-                                      value={option}
-                                      className="bg-white text-slate-900"
-                                    >
-                                      {option}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            );
-                          }
-
-                          if (fieldType === 'boolean') {
-                            return (
-                              <label
-                                key={key}
-                                className="flex items-center justify-between gap-3 rounded-xl border border-slate-150 bg-slate-50/30 px-3.5 py-2.5 text-xs text-slate-700 cursor-pointer shadow-sm hover:border-slate-250 transition-all hover:bg-slate-50"
-                              >
-                                <span className="font-semibold text-slate-655">{label}</span>
-                                <input
-                                  type="checkbox"
-                                  checked={Boolean(value)}
-                                  disabled={false}
-                                  onChange={(e) => handlePropertyChange(key, e.target.checked)}
-                                  className="h-4 w-4 accent-indigo-600 rounded cursor-pointer"
-                                />
-                              </label>
-                            );
-                          }
-
-                          if (fieldType === 'number') {
-                            return (
-                              <div key={key} className="space-y-1.5">
-                                <label className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest">
-                                  {label}
-                                </label>
-                                <input
-                                  type="number"
-                                  value={Number(value ?? 0)}
-                                  disabled={false}
-                                  onChange={(e) =>
-                                    handlePropertyChange(key, Number(e.target.value))
-                                  }
-                                  placeholder="Value"
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none transition-all shadow-inner-sm"
-                                />
-                              </div>
-                            );
-                          }
-
-                          // Helper for stringifying values safely
-                          const displayStr =
-                            typeof value === 'object' && value !== null
+                          const displayStr = isSensitive
+                            ? '••••••••'
+                            : typeof value === 'object' && value !== null
                               ? JSON.stringify(value, null, 2)
                               : String(value ?? '');
 
-                          // Multiline textarea for explicit textarea fields, prompts, or long strings
-                          // EPIC-NODE-PROPS-UI-001: honor schema type 'textarea' / 'text area'
-                          const isTextareaType =
-                            fieldType === 'textarea' ||
-                            fieldType === 'text area' ||
-                            fieldType === 'text_area';
                           const isMultiline =
-                            isTextareaType ||
-                            displayStr.length > 40 ||
-                            key.toLowerCase().includes('prompt') ||
-                            key.toLowerCase().includes('query');
+                            !isSensitive &&
+                            (fieldType === 'textarea' ||
+                              fieldType === 'text area' ||
+                              fieldType === 'text_area' ||
+                              fieldType === 'object' ||
+                              fieldType === 'json' ||
+                              displayStr.length > 50);
+
+                          if (isMultiline) {
+                            return (
+                              <div key={key} className="space-y-1 py-0.5 group/row">
+                                <div className="flex justify-between items-center gap-2">
+                                  <span
+                                    className="font-semibold text-[10px] text-slate-600 truncate"
+                                    title={fieldSchema?.description || key}
+                                  >
+                                    {label}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopy(key, value)}
+                                    className="p-1 hover:bg-slate-150 rounded transition-colors shrink-0 opacity-0 group-hover/row:opacity-100 focus:opacity-100 text-slate-400 hover:text-slate-655 cursor-pointer"
+                                    title="Copy to clipboard"
+                                  >
+                                    {isCopied ? (
+                                      <Check className="w-3 h-3 text-emerald-600 font-bold" />
+                                    ) : (
+                                      <Copy className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                </div>
+                                <textarea
+                                  readOnly
+                                  value={displayStr}
+                                  rows={3}
+                                  className="w-full font-mono text-[10px] text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg shadow-inner-sm resize-y outline-none"
+                                />
+                              </div>
+                            );
+                          }
 
                           return (
-                            <div key={key} className="space-y-1.5">
-                              <label
-                                className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest"
-                                title={fieldSchema?.description}
+                            <div
+                              key={key}
+                              className="flex justify-between items-center gap-2 py-1 border-b border-slate-100 last:border-0 group/row"
+                            >
+                              <span
+                                className="font-semibold text-[10px] text-slate-600 truncate"
+                                title={fieldSchema?.description || key}
                               >
                                 {label}
-                              </label>
-                              {isMultiline ? (
-                                <textarea
-                                  value={displayStr}
-                                  disabled={false}
-                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
-                                  placeholder={fieldSchema?.placeholder || 'Enter text/variables...'}
-                                  rows={isTextareaType ? 4 : 3}
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20"
-                                />
-                              ) : (
-                                <input
-                                  type={
-                                    key.toLowerCase().includes('password') ||
-                                    key.toLowerCase().includes('secret')
-                                      ? 'password'
-                                      : 'text'
-                                  }
-                                  value={displayStr}
-                                  disabled={false}
-                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
-                                  placeholder="Enter value..."
-                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm"
-                                />
-                              )}
+                              </span>
+                              <div className="flex items-center gap-1.5 max-w-[70%]">
+                                <span
+                                  className={`font-mono text-[10px] border px-2 py-0.5 rounded shadow-inner-sm truncate ${
+                                    isSensitive
+                                      ? 'text-slate-400 bg-slate-100 border-slate-200 select-none tracking-widest'
+                                      : 'text-slate-800 bg-white border-slate-200'
+                                  }`}
+                                  title={isSensitive ? 'Protected value' : displayStr || '(empty)'}
+                                >
+                                  {displayStr || '(not set)'}
+                                </span>
+                                {isSensitive ? (
+                                  <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                    Protected
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopy(key, value)}
+                                    className="p-1 hover:bg-slate-150 rounded transition-colors shrink-0 opacity-0 group-hover/row:opacity-100 focus:opacity-100 text-slate-400 hover:text-slate-655 cursor-pointer"
+                                    title="Copy to clipboard"
+                                  >
+                                    {isCopied ? (
+                                      <Check className="w-3 h-3 text-emerald-600 font-bold" />
+                                    ) : (
+                                      <Copy className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                        <p className="text-xs italic">No configurable parameters.</p>
+                      <div className="text-center py-6 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                        <p className="text-xs italic">No node configuration properties defined.</p>
                       </div>
                     )}
                   </div>
@@ -2846,7 +3151,7 @@ export default function PropertiesPanel({
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {hasPredecessor && onOpenMapper && (
+                      {onOpenMapper && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -2868,46 +3173,36 @@ export default function PropertiesPanel({
                   </div>
                   {!collapsedSections.mapping && (
                     <div className="p-4 space-y-4 border-t border-slate-100 bg-white">
-                      {hasPredecessor ? (
-                        <div className="text-[10px] text-slate-655 bg-slate-50 border border-slate-150 rounded-xl p-3.5 space-y-1.5 font-mono max-h-32 overflow-y-auto custom-scrollbar shadow-inner-sm">
-                          {(() => {
-                            let currentMapping: Record<string, string> = {};
-                            try {
-                              const value = properties.mapping_template;
-                              currentMapping =
-                                typeof value === 'string' ? JSON.parse(value) : value || {};
-                            } catch {
-                              currentMapping = {};
-                            }
+                      <div className="text-[10px] text-slate-655 bg-slate-50 border border-slate-150 rounded-xl p-3.5 space-y-1.5 font-mono max-h-32 overflow-y-auto custom-scrollbar shadow-inner-sm">
+                        {(() => {
+                          let currentMapping: Record<string, string> = {};
+                          try {
+                            const value = properties.mapping_template;
+                            currentMapping =
+                              typeof value === 'string' ? JSON.parse(value) : value || {};
+                          } catch {
+                            currentMapping = {};
+                          }
 
-                            return Object.keys(currentMapping).length > 0 ? (
-                              Object.entries(currentMapping).map(([tgt, src]) => (
-                                <div
-                                  key={tgt}
-                                  className="truncate flex items-center justify-between gap-1.5 border-b border-slate-100/50 pb-1 last:border-0 last:pb-0"
-                                >
-                                  <span className="text-indigo-655 font-semibold">{tgt}</span>
-                                  <span className="text-slate-450 font-normal truncate">
-                                    &larr; {String(src)}
-                                  </span>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-[10px] text-slate-455 italic font-sans py-1 text-center">
-                                {userRole === 'user'
-                                  ? 'No fields mapped yet.'
-                                  : 'No fields mapped yet. Click Modify Mapping to configure.'}
-                              </p>
-                            );
-                          })()}
-                        </div>
-                      ) : (
-                        <div className="text-center py-4 text-slate-450 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                          <p className="text-[10px] italic">
-                            Connect an upstream node to enable field mapping.
-                          </p>
-                        </div>
-                      )}
+                          return Object.keys(currentMapping).length > 0 ? (
+                            Object.entries(currentMapping).map(([tgt, src]) => (
+                              <div
+                                key={tgt}
+                                className="truncate flex items-center justify-between gap-1.5 border-b border-slate-100/50 pb-1 last:border-0 last:pb-0"
+                              >
+                                <span className="text-indigo-655 font-semibold">{tgt}</span>
+                                <span className="text-slate-450 font-normal truncate">
+                                  &larr; {String(src)}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-[10px] text-slate-455 italic font-sans py-1 text-center">
+                              No input parameters or mappings configured yet.
+                            </p>
+                          );
+                        })()}
+                      </div>
                     </div>
                   )}
                 </div>

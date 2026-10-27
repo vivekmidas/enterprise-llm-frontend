@@ -23,6 +23,7 @@ import {
   Play,
   Terminal,
   FlaskRound,
+  Copy,
 } from 'lucide-react';
 
 type PropertyTarget = 'user' | 'system';
@@ -52,6 +53,7 @@ type ContractRule = {
   required?: boolean | string;
   stateable?: boolean;
   description?: string;
+  default?: any;
   min_length?: number | '';
   max_length?: number | '';
   min_items?: number | '';
@@ -222,21 +224,31 @@ const propertyEntriesFromValue = (value: any): PropertyEntry[] => {
     return propertyEntriesFromValue(parsed);
   }
   if (Array.isArray(value)) {
-    return value
+    const flat: any[] = [];
+    value.forEach((raw) => {
+      if (Array.isArray(raw)) {
+        flat.push(...raw);
+      } else {
+        flat.push(raw);
+      }
+    });
+    return flat
       .map((item) => (typeof item === 'string' ? safeJsonParse(item) : item))
       .filter(
         (item): item is PropertyEntry =>
-          !!item && typeof item === 'object' && typeof item.key === 'string',
+          !!item && typeof item === 'object' && typeof item.key === 'string' && item.key !== '__base_node__',
       )
       .map(normalizeChoiceEntry);
   }
   if (typeof value === 'object') {
-    return Object.entries(value).map(([key, entryValue]) => ({
-      key,
-      label: key,
-      type: Array.isArray(entryValue) ? 'list' : typeof entryValue,
-      value: entryValue,
-    }));
+    return Object.entries(value)
+      .filter(([key]) => key !== '__base_node__')
+      .map(([key, entryValue]) => ({
+        key,
+        label: key,
+        type: Array.isArray(entryValue) ? 'list' : typeof entryValue,
+        value: entryValue,
+      }));
   }
   return [];
 };
@@ -264,6 +276,7 @@ const normalizeContractRule = (rule: any): ContractRule => {
     required: boolFromValue(rule.required ?? rule.mandatory ?? false),
     stateable: boolFromValue(rule.stateable ?? false),
     description: rule.description || '',
+    default: rule.default !== undefined ? rule.default : '',
     min_length: numberOrEmpty(rule.min_length ?? rule.minLength),
     max_length: numberOrEmpty(rule.max_length ?? rule.maxLength),
     min_items: numberOrEmpty(rule.min_items ?? rule.minItems),
@@ -354,6 +367,7 @@ const cleanContractRule = (rule: ContractRule): ContractRule => {
 
   if (rule.stateable !== undefined) cleaned.stateable = boolFromValue(rule.stateable);
   if (rule.description?.trim()) cleaned.description = rule.description.trim();
+  if (rule.default !== undefined && rule.default !== '') cleaned.default = rule.default;
   if (rule.field_type === 'array') {
     if (hasNumberValue(rule.min_items)) cleaned.min_items = Number(rule.min_items);
     if (hasNumberValue(rule.max_items)) cleaned.max_items = Number(rule.max_items);
@@ -387,7 +401,7 @@ const validateInputContract = (contract: FlatInputContract): FlatInputContract =
 
 interface NodesTabProps {
   userRole: string | null;
-  customerId?: number | null;
+  customerId?: string | number | null;
 }
 
 export default function NodesTab({ userRole, customerId }: NodesTabProps) {
@@ -407,6 +421,25 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
   // Agent Node Edit State
   const [editingAgent, setEditingAgent] = useState<AgentNode | null>(null);
   const [isEditingProp, setIsEditingProp] = useState(false);
+
+  // Clone / Create Configured Node State (EPIC-PROPS-CONTRACT-001 / STORY-PROPS-002)
+  const [cloneModal, setCloneModal] = useState<{
+    isOpen: boolean;
+    baseAgent: AgentNode | null;
+    label: string;
+    name: string;
+    description: string;
+    properties: Record<string, any>;
+    saving: boolean;
+  }>({
+    isOpen: false,
+    baseAgent: null,
+    label: '',
+    name: '',
+    description: '',
+    properties: {},
+    saving: false,
+  });
   const [propModal, setPropModal] = useState({
     isOpen: false,
     target: 'user' as PropertyTarget,
@@ -963,13 +996,13 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
       const currentContract = contractFromValue(editingAgent.input_contract);
       const validatedContract = validateInputContract(currentContract);
 
-      if (customerId) {
+      if (customerId || userRole !== 'system_admin') {
         const overrides: Record<string, any> = {};
         const userProps = propertyEntriesFromValue(editingAgent.user_properties);
         const sysProps = propertyEntriesFromValue(editingAgent.system_properties);
-        [...userProps, ...sysProps].forEach((entry: any) => {
+        [...sysProps, ...userProps].forEach((entry: any) => {
           if (entry.key) {
-            overrides[entry.key] = entry.value !== undefined ? entry.value : entry.default;
+            overrides[entry.key] = entry.value !== undefined && entry.value !== '' ? entry.value : entry.default;
           }
         });
 
@@ -1094,13 +1127,13 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     }
 
     try {
-      if (customerId) {
+      if (customerId || userRole !== 'system_admin') {
         const overrides: Record<string, any> = {};
         const userProps = propertyEntriesFromValue(finalAgent.user_properties);
         const sysProps = propertyEntriesFromValue(finalAgent.system_properties);
-        [...userProps, ...sysProps].forEach((entry: any) => {
+        [...sysProps, ...userProps].forEach((entry: any) => {
           if (entry.key) {
-            overrides[entry.key] = entry.value !== undefined ? entry.value : entry.default;
+            overrides[entry.key] = entry.value !== undefined && entry.value !== '' ? entry.value : entry.default;
           }
         });
 
@@ -1115,7 +1148,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
             output_contract: finalAgent.output_contract,
             label: finalAgent.label,
           },
-          customerId,
+          customerId || undefined,
         );
       } else {
         if (finalAgent.id) {
@@ -1130,6 +1163,68 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
       const isUpdate = !!editingAgent.id;
       console.error(`Failed to ${isUpdate ? 'save' : 'create'} node:`, error);
       alert(`Failed to ${isUpdate ? 'save' : 'create'} node.`);
+    }
+  };
+
+  /* ==============================================================================
+     BLOCK COMMENT: TENANT NODE CLONING HANDLERS (EPIC-PROPS-CONTRACT-001 / STORY-PROPS-002)
+     ============================================================================== */
+  const openCloneModal = (agent: AgentNode) => {
+    const userProps = propertyEntriesFromValue(agent.user_properties);
+    const sysProps = propertyEntriesFromValue(agent.system_properties);
+    const initialProps: Record<string, any> = {};
+    sysProps.forEach((p) => {
+      if (p.key) initialProps[p.key] = p.value !== undefined && p.value !== '' ? p.value : (p.default ?? '');
+    });
+    userProps.forEach((p) => {
+      if (p.key) initialProps[p.key] = p.value !== undefined && p.value !== '' ? p.value : (p.default ?? initialProps[p.key] ?? '');
+    });
+    const baseLabel = (agent.label || agent.name || 'Node').trim();
+    const defaultLabel = `${baseLabel} - Copy`;
+    const defaultSlug = `${agent.name}_copy`.toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
+    setCloneModal({
+      isOpen: true,
+      baseAgent: agent,
+      label: defaultLabel,
+      name: defaultSlug,
+      description: agent.description || '',
+      properties: initialProps,
+      saving: false,
+    });
+  };
+
+  const handleCloneNode = async () => {
+    if (!cloneModal.baseAgent || !cloneModal.name.trim() || !cloneModal.label.trim()) {
+      alert('Please provide both Display Label and Node Identifier.');
+      return;
+    }
+    setCloneModal((prev) => ({ ...prev, saving: true }));
+    try {
+      await api.cloneCustomerNode(
+        {
+          base_node_name: cloneModal.baseAgent.name,
+          name: cloneModal.name.trim(),
+          label: cloneModal.label.trim(),
+          description: cloneModal.description,
+          properties: cloneModal.properties,
+          input_contract: cloneModal.baseAgent.input_contract,
+          output_contract: cloneModal.baseAgent.output_contract,
+        },
+        customerId || undefined,
+      );
+      setCloneModal({
+        isOpen: false,
+        baseAgent: null,
+        label: '',
+        name: '',
+        description: '',
+        properties: {},
+        saving: false,
+      });
+      fetchData();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to clone node.');
+      setCloneModal((prev) => ({ ...prev, saving: false }));
     }
   };
 
@@ -1178,7 +1273,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     // EPIC-NODE-PROPS-UI-001: empty value ("") falls back to default
     const displayValue = !isEmptyVal(value) ? value : field.default;
     const fieldTypeLc = String(field.type || '').toLowerCase();
-    const isDisabled = forceDisabled || (userRole !== 'system_admin' && !customerId);
+    const isDisabled = forceDisabled;
 
     if (field.type === 'password' || field.type?.toLowerCase().includes('secret')) {
       return (
@@ -1635,6 +1730,21 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         <button
                           onClick={() => {
                             if (agent.is_enabled === false) return;
+                            openCloneModal(agent);
+                          }}
+                          disabled={agent.is_enabled === false}
+                          className={`p-1 rounded transition-colors ${
+                            agent.is_enabled === false
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-emerald-600 hover:bg-emerald-50 cursor-pointer'
+                          }`}
+                          title="Clone / Create Named Node Configuration"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (agent.is_enabled === false) return;
                             setEditingAgent({ ...agent });
                           }}
                           disabled={agent.is_enabled === false}
@@ -1643,12 +1753,13 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               ? 'text-gray-300 cursor-not-allowed'
                               : 'text-bg-primary hover:bg-blue-50 cursor-pointer'
                           }`}
+                          title="Configure Node Properties"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
-                        {((userRole === 'admin' &&
+                        {(((userRole === 'admin' || userRole === 'tenant_admin') &&
                           agent.customer_id &&
-                          agent.customer_id === customerId) ||
+                          String(agent.customer_id) === String(customerId)) ||
                           userRole === 'system_admin') && (
                           <button
                             onClick={() => handleDeleteNode(agent.name)}
@@ -1831,15 +1942,23 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                       {(() => {
                         const userProps = propertyEntriesFromValue(editingAgent.user_properties);
                         const sysProps = propertyEntriesFromValue(editingAgent.system_properties);
+                        const userKeySet = new Set(userProps.map((p) => p.key));
 
-                        const rows: PropertyRow[] = [
-                          ...sysProps.map((prop, sourceIndex) => ({
+                        // EPIC-PROPS-CONTRACT-001 / STORY-PROPS-001:
+                        // When a property exists in both system_properties and user_properties,
+                        // Tenant Admin configures the user_property override; hide duplicate system row
+                        // for Tenant Admin to avoid confusion while keeping both visible for System Admin.
+                        const visibleSysProps = sysProps
+                          .map((prop, sourceIndex) => ({
                             ...prop,
                             label: prop.label || prop.key,
                             type: prop.type || 'string',
                             category: 'system' as const,
                             sourceIndex,
-                          })),
+                          }))
+                          .filter((row) => userRole === 'system_admin' || !userKeySet.has(row.key));
+
+                        const rows: PropertyRow[] = [
                           ...userProps.map((prop, sourceIndex) => ({
                             ...prop,
                             label: prop.label || prop.key,
@@ -1847,6 +1966,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                             category: 'user' as const,
                             sourceIndex,
                           })),
+                          ...visibleSysProps,
                         ];
 
                         return rows.map((row, idx) => (
@@ -1939,17 +2059,178 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                     <div>
                       <h4 className="font-bold text-black">Input Contract</h4>
                       <p className="text-xs text-gray-500">
-                        Define the JSON body a node must receive before execution.
+                        Define execution input parameters, allowed dropdown values, and defaults.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setContractGenerator({ isOpen: true, type: 'input' })}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 underline cursor-pointer"
-                    >
-                      Generate from JSON
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateInputContract((current) => ({
+                            ...current,
+                            rules: [
+                              ...current.rules,
+                              {
+                                field_name: '',
+                                field_type: 'string',
+                                required: false,
+                                allowed_values: [],
+                                default: undefined,
+                              },
+                            ],
+                          }))
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-600 hover:bg-indigo-100 border border-indigo-200 cursor-pointer"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Rule
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setContractGenerator({ isOpen: true, type: 'input' })}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 underline cursor-pointer"
+                      >
+                        Generate from JSON
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Interactive Input Contract Rules Editor (EPIC-PROPS-CONTRACT-001) */}
+                  {(() => {
+                    const currentInputContract = contractFromValue(editingAgent.input_contract);
+                    return currentInputContract.rules.length > 0 ? (
+                      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-gray-50 font-bold text-gray-600 border-b">
+                            <tr>
+                              <th className="px-3 py-2">Field Name</th>
+                              <th className="px-3 py-2">Type</th>
+                              <th className="px-3 py-2">Req</th>
+                              <th className="px-3 py-2">Allowed Values (comma-separated)</th>
+                              <th className="px-3 py-2">Default Value</th>
+                              <th className="px-3 py-2 w-8"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {currentInputContract.rules.map((rule, ruleIdx) => (
+                              <tr key={ruleIdx} className="hover:bg-gray-50/50">
+                                <td className="px-3 py-1.5">
+                                  <input
+                                    type="text"
+                                    value={rule.field_name || ''}
+                                    onChange={(e) =>
+                                      updateInputContract((curr) => ({
+                                        ...curr,
+                                        rules: curr.rules.map((r, i) =>
+                                          i === ruleIdx ? { ...r, field_name: e.target.value } : r,
+                                        ),
+                                      }))
+                                    }
+                                    placeholder="e.g. query_type"
+                                    className="w-full rounded border border-gray-200 px-2 py-1 font-mono text-xs text-black"
+                                  />
+                                </td>
+                                <td className="px-3 py-1.5">
+                                  <select
+                                    value={rule.field_type || 'string'}
+                                    onChange={(e) =>
+                                      updateInputContract((curr) => ({
+                                        ...curr,
+                                        rules: curr.rules.map((r, i) =>
+                                          i === ruleIdx ? { ...r, field_type: e.target.value } : r,
+                                        ),
+                                      }))
+                                    }
+                                    className="rounded border border-gray-200 px-2 py-1 text-xs text-black bg-white"
+                                  >
+                                    {CONTRACT_FIELD_TYPES.map((t) => (
+                                      <option key={t} value={t}>
+                                        {t}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="px-3 py-1.5 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(rule.required)}
+                                    onChange={(e) =>
+                                      updateInputContract((curr) => ({
+                                        ...curr,
+                                        rules: curr.rules.map((r, i) =>
+                                          i === ruleIdx ? { ...r, required: e.target.checked } : r,
+                                        ),
+                                      }))
+                                    }
+                                    className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600"
+                                  />
+                                </td>
+                                <td className="px-3 py-1.5">
+                                  <input
+                                    type="text"
+                                    value={
+                                      Array.isArray(rule.allowed_values)
+                                        ? rule.allowed_values.join(', ')
+                                        : ''
+                                    }
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      const parsed = raw
+                                        .split(',')
+                                        .map((s) => s.trim())
+                                        .filter(Boolean);
+                                      updateInputContract((curr) => ({
+                                        ...curr,
+                                        rules: curr.rules.map((r, i) =>
+                                          i === ruleIdx ? { ...r, allowed_values: parsed } : r,
+                                        ),
+                                      }));
+                                    }}
+                                    placeholder="e.g. select, insert, update, delete, raw"
+                                    className="w-full rounded border border-gray-200 px-2 py-1 font-mono text-xs text-black"
+                                  />
+                                </td>
+                                <td className="px-3 py-1.5">
+                                  <input
+                                    type="text"
+                                    value={rule.default !== undefined && rule.default !== null ? String(rule.default) : ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      updateInputContract((curr) => ({
+                                        ...curr,
+                                        rules: curr.rules.map((r, i) =>
+                                          i === ruleIdx
+                                            ? { ...r, default: val === '' ? undefined : val }
+                                            : r,
+                                        ),
+                                      }));
+                                    }}
+                                    placeholder="Optional default"
+                                    className="w-full rounded border border-gray-200 px-2 py-1 font-mono text-xs text-black"
+                                  />
+                                </td>
+                                <td className="px-3 py-1.5 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateInputContract((curr) => ({
+                                        ...curr,
+                                        rules: curr.rules.filter((_, i) => i !== ruleIdx),
+                                      }))
+                                    }
+                                    className="text-gray-400 hover:text-red-500 cursor-pointer"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null;
+                  })()}
+
                   <div className="flex gap-3 items-start">
                     <details className="flex-1 rounded-xl border border-gray-200 bg-gray-50">
                       <summary className="cursor-pointer px-4 py-3 text-xs font-bold uppercase text-gray-500 select-none">
@@ -2016,6 +2297,169 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                 className="flex items-center gap-2 rounded-lg bg-primary px-8 py-2 text-sm font-bold text-white hover:bg-blue-700 shadow-md transition-all cursor-pointer"
               >
                 {editingAgent.id ? 'Update Registry' : 'Create Node Type'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          Clone / Create Named Node Configuration Modal (EPIC-PROPS-CONTRACT-001)
+          Allows Tenant Admin or System Admin to create pre-configured nodes
+          (e.g. "MySQL - Sales DB", "MySQL - HR DB") from a base node type.
+         ===================================================================== */}
+      {cloneModal.isOpen && cloneModal.baseAgent && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden border border-gray-200">
+            <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-bold text-black flex items-center gap-2">
+                  <Copy className="h-5 w-5 text-indigo-600" />
+                  Create Configured Node from {cloneModal.baseAgent.label || cloneModal.baseAgent.name}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Create a named node configuration with pre-filled connection properties for workflow designers.
+                </p>
+              </div>
+              <button
+                onClick={() => setCloneModal((prev) => ({ ...prev, isOpen: false }))}
+                className="text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="max-h-[75vh] overflow-y-auto p-6 space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                    Display Label
+                  </label>
+                  <input
+                    type="text"
+                    value={cloneModal.label}
+                    onChange={(e) => {
+                      const nextLabel = e.target.value;
+                      const autoName = nextLabel
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_]+/g, '_')
+                        .replace(/^_+|_+$/g, '');
+                      setCloneModal((prev) => ({
+                        ...prev,
+                        label: nextLabel,
+                        name: autoName || prev.name,
+                      }));
+                    }}
+                    placeholder="e.g. MySQL - Sales DB"
+                    className="w-full rounded-lg border px-3 py-2 text-sm text-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                    Node Identifier (Slug)
+                  </label>
+                  <input
+                    type="text"
+                    value={cloneModal.name}
+                    onChange={(e) =>
+                      setCloneModal((prev) => ({
+                        ...prev,
+                        name: e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '_'),
+                      }))
+                    }
+                    placeholder="e.g. mysql_sales_db"
+                    className="w-full rounded-lg border px-3 py-2 text-sm font-mono text-black bg-gray-50"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                    Description
+                  </label>
+                  <input
+                    type="text"
+                    value={cloneModal.description}
+                    onChange={(e) =>
+                      setCloneModal((prev) => ({ ...prev, description: e.target.value }))
+                    }
+                    placeholder="Pre-configured connection for..."
+                    className="w-full rounded-lg border px-3 py-2 text-sm text-black"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="text-xs font-bold uppercase text-gray-500 mb-3">
+                  Pre-Configured Node Properties (user_properties)
+                </h4>
+                <div className="space-y-3">
+                  {propertyEntriesFromValue(cloneModal.baseAgent.user_properties)
+                    .filter((entry) => entry.key !== '__base_node__')
+                    .map((entry) => {
+                      const isSecret =
+                        entry.type === 'password' ||
+                        ['password', 'secret', 'token', 'api_key', 'private_key'].includes(
+                          entry.key.toLowerCase(),
+                        );
+                      return (
+                        <div
+                          key={entry.key}
+                          className="grid grid-cols-3 items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2"
+                        >
+                          <div>
+                            <div className="font-mono text-xs font-bold text-gray-800">
+                              {entry.key}
+                            </div>
+                            {entry.description && (
+                              <div className="text-[10px] text-gray-400">{entry.description}</div>
+                            )}
+                          </div>
+                          <div className="col-span-2">
+                            <input
+                              type={isSecret ? 'password' : 'text'}
+                              value={
+                                cloneModal.properties[entry.key] !== undefined &&
+                                cloneModal.properties[entry.key] !== null
+                                  ? String(cloneModal.properties[entry.key])
+                                  : ''
+                              }
+                              onChange={(e) =>
+                                setCloneModal((prev) => ({
+                                  ...prev,
+                                  properties: {
+                                    ...prev.properties,
+                                    [entry.key]: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder={
+                                isSecret
+                                  ? 'Enter secret / password...'
+                                  : `Enter ${entry.key}...`
+                              }
+                              className="w-full rounded border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-mono text-black"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              <button
+                onClick={() => setCloneModal((prev) => ({ ...prev, isOpen: false }))}
+                className="rounded-lg px-5 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCloneNode}
+                disabled={cloneModal.saving}
+                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2 text-sm font-bold text-white hover:bg-indigo-700 shadow-md disabled:opacity-50 cursor-pointer"
+              >
+                <Copy className="h-4 w-4" />
+                {cloneModal.saving ? 'Creating...' : 'Create Configured Node'}
               </button>
             </div>
           </div>
