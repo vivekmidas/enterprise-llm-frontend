@@ -128,6 +128,7 @@ export function CustomLabelEdge({
               pointerEvents: 'none', // Set to none so clicks fall through to select the edge path underneath
               backgroundColor: labelBgColor,
               color: labelColor,
+              background: "#ffcc00",
               padding: '3px 10px',
               borderRadius: '9999px',
               fontSize: '11px',

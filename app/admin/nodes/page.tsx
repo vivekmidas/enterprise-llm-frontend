@@ -430,6 +430,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     name: string;
     description: string;
     properties: Record<string, any>;
+    propertyScopes: Record<string, 'user' | 'system'>;
     saving: boolean;
   }>({
     isOpen: false,
@@ -438,6 +439,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     name: '',
     description: '',
     properties: {},
+    propertyScopes: {},
     saving: false,
   });
   const [propModal, setPropModal] = useState({
@@ -1173,11 +1175,18 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     const userProps = propertyEntriesFromValue(agent.user_properties);
     const sysProps = propertyEntriesFromValue(agent.system_properties);
     const initialProps: Record<string, any> = {};
+    const initialScopes: Record<string, 'user' | 'system'> = {};
     sysProps.forEach((p) => {
-      if (p.key) initialProps[p.key] = p.value !== undefined && p.value !== '' ? p.value : (p.default ?? '');
+      if (p.key && p.key !== '__base_node__') {
+        initialProps[p.key] = p.value !== undefined && p.value !== '' ? p.value : (p.default ?? '');
+        initialScopes[p.key] = 'system';
+      }
     });
     userProps.forEach((p) => {
-      if (p.key) initialProps[p.key] = p.value !== undefined && p.value !== '' ? p.value : (p.default ?? initialProps[p.key] ?? '');
+      if (p.key && p.key !== '__base_node__') {
+        initialProps[p.key] = p.value !== undefined && p.value !== '' ? p.value : (p.default ?? initialProps[p.key] ?? '');
+        initialScopes[p.key] = 'user';
+      }
     });
     const baseLabel = (agent.label || agent.name || 'Node').trim();
     const defaultLabel = `${baseLabel} - Copy`;
@@ -1189,6 +1198,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
       name: defaultSlug,
       description: agent.description || '',
       properties: initialProps,
+      propertyScopes: initialScopes,
       saving: false,
     });
   };
@@ -1200,6 +1210,33 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
     }
     setCloneModal((prev) => ({ ...prev, saving: true }));
     try {
+      const baseUserProps = propertyEntriesFromValue(cloneModal.baseAgent.user_properties);
+      const baseSysProps = propertyEntriesFromValue(cloneModal.baseAgent.system_properties);
+      const mergedByKey = new Map<string, PropertyEntry>();
+      baseSysProps.forEach((p) => {
+        if (p.key && p.key !== '__base_node__') mergedByKey.set(p.key, { ...p });
+      });
+      baseUserProps.forEach((p) => {
+        if (p.key && p.key !== '__base_node__') mergedByKey.set(p.key, { ...mergedByKey.get(p.key), ...p });
+      });
+
+      const nextUserProps: PropertyEntry[] = [];
+      const nextSysProps: PropertyEntry[] = [];
+      mergedByKey.forEach((entry, key) => {
+        const val = cloneModal.properties[key] !== undefined ? cloneModal.properties[key] : (entry.value ?? entry.default ?? '');
+        const updatedEntry: PropertyEntry = {
+          ...entry,
+          value: val,
+          default: val,
+        };
+        const scope = cloneModal.propertyScopes[key] || 'user';
+        if (scope === 'system') {
+          nextSysProps.push(updatedEntry);
+        } else {
+          nextUserProps.push(updatedEntry);
+        }
+      });
+
       await api.cloneCustomerNode(
         {
           base_node_name: cloneModal.baseAgent.name,
@@ -1207,6 +1244,8 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
           label: cloneModal.label.trim(),
           description: cloneModal.description,
           properties: cloneModal.properties,
+          user_properties: propertyEntriesToJsonStrings(nextUserProps),
+          system_properties: propertyEntriesToJsonStrings(nextSysProps),
           input_contract: cloneModal.baseAgent.input_contract,
           output_contract: cloneModal.baseAgent.output_contract,
         },
@@ -1219,6 +1258,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
         name: '',
         description: '',
         properties: {},
+        propertyScopes: {},
         saving: false,
       });
       fetchData();
@@ -1559,6 +1599,17 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
                   JSON Definition
                 </th>
+                {userRole === 'system_admin' && (
+                  <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
+                    Tenant Admin
+                  </th>
+                )}
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
+                  User
+                </th>
+                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
+                  Allow Testing
+                </th>
                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">
                   Actions
                 </th>
@@ -1658,60 +1709,74 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                         </pre>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right min-w-[100px]">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={async () => {
+                    {/* EPIC-PROPS-CONTRACT-001: Tenant Admin (is_enabled) and User (show_in_palette) visibility columns */}
+                    {userRole === 'system_admin' && (
+                      <td className="px-4 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={agent.is_enabled !== false}
+                          onChange={async (e) => {
                             try {
-                              const nextVal = !(agent.allow_node_testing === true);
+                              const nextVal = e.target.checked;
                               await api.configureCustomerNode(
                                 agent.name,
-                                { fieldname: 'properties.allow_node_testing', value: nextVal },
+                                { fieldname: 'is_enabled', value: nextVal },
                                 customerId || undefined,
                               );
                               fetchData();
                             } catch (err: any) {
-                              alert('Failed to toggle node testing: ' + err.message);
+                              alert('Failed to update Tenant Admin visibility: ' + err.message);
                             }
                           }}
-                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
-                            agent.allow_node_testing === true
-                              ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
-                              : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                          }`}
-                          title="Toggle Isolated Node Testing (Debug Mode)"
-                        >
-                          <FlaskRound className="h-3 w-3" />
-                          <span>
-                            {agent.allow_node_testing === true ? 'Testing ON' : 'Testing OFF'}
-                          </span>
-                        </button>
-                        {customerId &&
-                          (agent.is_enabled === false ? (
-                            <div className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border bg-red-50 text-red-700 border-red-200 cursor-not-allowed select-none transition-all shadow-sm">
-                              <Lock className="h-3 w-3 text-red-500" />
-                              <span>Locked</span>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await api.configureCustomerNode(
-                                    agent.name,
-                                    { fieldname: 'is_enabled', value: false },
-                                    customerId || undefined,
-                                  );
-                                  fetchData();
-                                } catch (err: any) {
-                                  alert('Failed to toggle status: ' + err.message);
-                                }
-                              }}
-                              className="px-2.5 py-1 text-xs font-bold rounded-lg border transition-all bg-green-50 text-green-700 border-green-200 hover:bg-green-100 cursor-pointer"
-                              title="Click to Disable"
-                            >
-                              Enabled
-                            </button>
-                          ))}
+                          className="rounded border-gray-300 text-blue-600 h-4 w-4 cursor-pointer"
+                          title="Visible / Allowed for Tenant Admin"
+                        />
+                      </td>
+                    )}
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={agent.show_in_palette !== false}
+                        onChange={async (e) => {
+                          try {
+                            const nextVal = e.target.checked;
+                            await api.configureCustomerNode(
+                              agent.name,
+                              { fieldname: 'show_in_palette', value: nextVal },
+                              customerId || undefined,
+                            );
+                            fetchData();
+                          } catch (err: any) {
+                            alert('Failed to update User palette visibility: ' + err.message);
+                          }
+                        }}
+                        className="rounded border-gray-300 text-blue-600 h-4 w-4 cursor-pointer"
+                        title="Visible to Workflow Designer / User in Canvas Palette"
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={agent.allow_node_testing === true}
+                        onChange={async (e) => {
+                          try {
+                            const nextVal = e.target.checked;
+                            await api.configureCustomerNode(
+                              agent.name,
+                              { fieldname: 'allow_node_testing', value: nextVal },
+                              customerId || undefined,
+                            );
+                            fetchData();
+                          } catch (err: any) {
+                            alert('Failed to toggle node testing: ' + err.message);
+                          }
+                        }}
+                        className="rounded border-gray-300 text-purple-600 h-4 w-4 cursor-pointer"
+                        title="Toggle Isolated Node Testing (Debug Mode)"
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right min-w-[100px]">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => {
                             if (agent.is_enabled === false) return;
@@ -1979,16 +2044,47 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               }
                             }}
                           >
-                            <td className="px-4 py-3">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                disabled={row.key === '__base_node__'}
+                                title="Click to toggle between User (Canvas Editable) and System (Locked Boundary)"
+                                onClick={() => {
+                                  if (row.key === '__base_node__') return;
+                                  setEditingAgent((prev) => {
+                                    if (!prev) return null;
+                                    const uProps = propertyEntriesFromValue(prev.user_properties);
+                                    const sProps = propertyEntriesFromValue(prev.system_properties);
+                                    if (row.category === 'user') {
+                                      const [moved] = uProps.splice(row.sourceIndex, 1);
+                                      if (moved) {
+                                        const existingIdx = sProps.findIndex((p) => p.key === moved.key);
+                                        if (existingIdx >= 0) sProps[existingIdx] = moved;
+                                        else sProps.push(moved);
+                                      }
+                                    } else {
+                                      const [moved] = sProps.splice(row.sourceIndex, 1);
+                                      if (moved) {
+                                        const existingIdx = uProps.findIndex((p) => p.key === moved.key);
+                                        if (existingIdx >= 0) uProps[existingIdx] = moved;
+                                        else uProps.push(moved);
+                                      }
+                                    }
+                                    return {
+                                      ...prev,
+                                      user_properties: propertyEntriesToJsonStrings(uProps),
+                                      system_properties: propertyEntriesToJsonStrings(sProps),
+                                    };
+                                  });
+                                }}
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border cursor-pointer transition-all ${
                                   row.category === 'user'
-                                    ? 'bg-blue-50 text-blue-700 border-blue-100'
-                                    : 'bg-gray-100 text-gray-600 border-gray-200'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                    : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
                                 }`}
                               >
-                                {row.category}
-                              </span>
+                                {row.category === 'user' ? 'USER (Editable)' : 'SYSTEM (Locked)'}
+                              </button>
                             </td>
                             <td className="px-4 py-3 font-mono text-xs text-black">{row.key}</td>
                             <td className="px-4 py-3 text-gray-600">
@@ -2005,12 +2101,12 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               </span>
                             </td>
                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                              {/* EPIC-NODE-PROPS-UI-001: render typed inputs for user + system rows
-                                  (system rows editable only by system_admin) */}
+                              {/* EPIC-NODE-PROPS-UI-001 / EPIC-PROPS-CONTRACT-001:
+                                  Allow both system_admin and tenant_admin to edit system_properties and user_properties */}
                               {renderValueInput(
                                 row,
                                 row.value,
-                                row.category === 'system' && userRole !== 'system_admin',
+                                row.key === '__base_node__',
                               )}
                             </td>
                             {userRole === 'system_admin' && (
@@ -2388,24 +2484,59 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="text-xs font-bold uppercase text-gray-500 mb-3">
-                  Pre-Configured Node Properties (user_properties)
-                </h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-bold uppercase text-gray-500">
+                    Node Properties (System Boundaries & User Defaults)
+                  </h4>
+                  <span className="text-[10px] text-gray-400">
+                    Click badge to toggle SYSTEM (Locked on Canvas) vs USER (Editable on Canvas)
+                  </span>
+                </div>
                 <div className="space-y-3">
-                  {propertyEntriesFromValue(cloneModal.baseAgent.user_properties)
-                    .filter((entry) => entry.key !== '__base_node__')
-                    .map((entry) => {
+                  {(() => {
+                    const sysEntries = propertyEntriesFromValue(cloneModal.baseAgent.system_properties);
+                    const userEntries = propertyEntriesFromValue(cloneModal.baseAgent.user_properties);
+                    const byKey = new Map<string, PropertyEntry>();
+                    sysEntries.forEach((e) => {
+                      if (e.key && e.key !== '__base_node__') byKey.set(e.key, e);
+                    });
+                    userEntries.forEach((e) => {
+                      if (e.key && e.key !== '__base_node__') byKey.set(e.key, { ...byKey.get(e.key), ...e });
+                    });
+                    return Array.from(byKey.values()).map((entry) => {
                       const isSecret =
                         entry.type === 'password' ||
                         ['password', 'secret', 'token', 'api_key', 'private_key'].includes(
                           entry.key.toLowerCase(),
                         );
+                      const scope = cloneModal.propertyScopes[entry.key] || 'user';
                       return (
                         <div
                           key={entry.key}
-                          className="grid grid-cols-3 items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2"
+                          className="grid grid-cols-12 items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2"
                         >
-                          <div>
+                          <div className="col-span-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setCloneModal((prev) => ({
+                                  ...prev,
+                                  propertyScopes: {
+                                    ...prev.propertyScopes,
+                                    [entry.key]: scope === 'system' ? 'user' : 'system',
+                                  },
+                                }))
+                              }
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border cursor-pointer transition-all ${
+                                scope === 'user'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                  : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                              }`}
+                            >
+                              {scope === 'user' ? 'USER (Editable)' : 'SYSTEM (Locked)'}
+                            </button>
+                          </div>
+                          <div className="col-span-3">
                             <div className="font-mono text-xs font-bold text-gray-800">
                               {entry.key}
                             </div>
@@ -2413,7 +2544,7 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                               <div className="text-[10px] text-gray-400">{entry.description}</div>
                             )}
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-6">
                             <input
                               type={isSecret ? 'password' : 'text'}
                               value={
@@ -2441,7 +2572,8 @@ export default function NodesTab({ userRole, customerId }: NodesTabProps) {
                           </div>
                         </div>
                       );
-                    })}
+                    });
+                  })()}
                 </div>
               </div>
             </div>

@@ -2960,14 +2960,13 @@ export default function PropertiesPanel({
               )}
 
               {/* ====================================================================
-                  BLOCK COMMENT: READ-ONLY NODE CONFIGURATION (user_properties)
-                  Reference: EPIC-PROPS-CONTRACT-001 / STORY-PROPS-001
+                  BLOCK COMMENT: EDITABLE NODE CONFIGURATION (user_properties)
+                  Reference: EPIC-NODE-PROPS-UI-001 / EPIC-PROPS-CONTRACT-001
                   Description:
-                    `user_properties` are governed by Tenant Admin in `/admin/nodes`.
-                    On the workflow canvas, all non-sensitive values (`host`, `port`,
-                    `database`, `username`, etc.) are displayed clearly as read-only
-                    so the Workflow Designer can inspect them, while sensitive fields
-                    (`password`, `secret`, `token`, `api_key`) are masked as `••••••••`.
+                    `user_properties` are editable by the Workflow Designer on the
+                    workflow canvas (e.g. prompts, temperature, filter actions,
+                    LLM profile, chunking strategy, etc.), while `system_properties`
+                    (`Runtime System` below) remain strictly read-only.
                  ==================================================================== */}
               <div className="border border-slate-150 rounded-xl overflow-hidden shadow-sm bg-white">
                 <button
@@ -2976,27 +2975,31 @@ export default function PropertiesPanel({
                   className="w-full flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors text-left cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
-                    <Lock className="w-3.5 h-3.5 text-slate-500" />
+                    <Settings className="w-3.5 h-3.5 text-indigo-500" />
                     <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">
-                      Node Configuration (user_properties)
+                      Parameters (user_properties)
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[8px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 tracking-wide uppercase shrink-0">
-                      READ ONLY
-                    </span>
-                    <ChevronDown
-                      className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
-                        collapsedSections.parameters ? '-rotate-90' : 'rotate-0'
-                      }`}
-                    />
-                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-450 transition-transform duration-200 ${
+                      collapsedSections.parameters ? '-rotate-90' : 'rotate-0'
+                    }`}
+                  />
                 </button>
                 {!collapsedSections.parameters && (
-                  <div className="p-4 space-y-3 border-t border-slate-100 bg-white">
+                  <div className="p-4 space-y-4 border-t border-slate-100 bg-white">
                     {entries.length > 0 ? (
-                      <div className="bg-slate-50/75 rounded-xl p-3 border border-slate-150 space-y-2.5 shadow-sm">
+                      <div className="space-y-4">
                         {entries.map(([key, value]) => {
+                          const valueType =
+                            typeof value === 'boolean'
+                              ? 'boolean'
+                              : typeof value === 'number'
+                                ? 'number'
+                                : typeof value === 'object' && value !== null
+                                  ? 'object'
+                                  : 'string';
+
                           const userPropsArray = ensureArray(
                             (selectedNode?.data as any)?.user_properties,
                           );
@@ -3019,110 +3022,288 @@ export default function PropertiesPanel({
                             ...systemSchema,
                             ...catalogSchema,
                             ...userSchema,
+                            options:
+                              catalogSchema.options || userSchema.options || systemSchema.options,
+                            choices:
+                              catalogSchema.choices || userSchema.choices || systemSchema.choices,
+                            configured_values:
+                              catalogSchema.configured_values ||
+                              userSchema.configured_values ||
+                              systemSchema.configured_values,
+                            values:
+                              catalogSchema.values || userSchema.values || systemSchema.values,
                           };
                           const fieldType = String(
-                            fieldSchema?.type || fieldSchema?.field_type || 'string',
+                            fieldSchema?.type || fieldSchema?.field_type || valueType,
                           ).toLowerCase();
                           const label = fieldSchema?.label || formatLabel(key);
                           const isSensitive = isSensitivePropertyField(key, fieldType);
-                          const isCopied = copiedKey === key;
 
-                          const displayStr = isSensitive
-                            ? '••••••••'
-                            : typeof value === 'object' && value !== null
-                              ? JSON.stringify(value, null, 2)
-                              : String(value ?? '');
-
-                          const isMultiline =
-                            !isSensitive &&
-                            (fieldType === 'textarea' ||
-                              fieldType === 'text area' ||
-                              fieldType === 'text_area' ||
-                              fieldType === 'object' ||
-                              fieldType === 'json' ||
-                              displayStr.length > 50);
-
-                          if (isMultiline) {
+                          // Source type: show label, save key
+                          if (fieldType === 'source' || Boolean(fieldSchema?.source)) {
+                            const propVal = value !== undefined && value !== null ? value : '';
                             return (
-                              <div key={key} className="space-y-1 py-0.5 group/row">
-                                <div className="flex justify-between items-center gap-2">
-                                  <span
-                                    className="font-semibold text-[10px] text-slate-600 truncate"
-                                    title={fieldSchema?.description || key}
+                              <SourcePropertyField
+                                key={key}
+                                field={{
+                                  key,
+                                  label,
+                                  type: 'source',
+                                  source: fieldSchema?.source || '',
+                                  multiple: fieldSchema?.multiple,
+                                  description: fieldSchema?.description,
+                                }}
+                                isDisabled={false}
+                                propVal={propVal}
+                                handlePropertyChange={handlePropertyChange}
+                              />
+                            );
+                          }
+
+                          // Path picker type
+                          if (fieldType === 'path') {
+                            const propVal = value !== undefined && value !== null ? String(value) : '';
+                            return (
+                              <PathPropertyField
+                                key={key}
+                                field={{
+                                  key,
+                                  label,
+                                  type: 'path',
+                                  accept: fieldSchema?.accept,
+                                  multiple: fieldSchema?.multiple,
+                                  description: fieldSchema?.description,
+                                } as any}
+                                isDisabled={false}
+                                value={propVal}
+                                handlePropertyChange={handlePropertyChange}
+                              />
+                            );
+                          }
+
+                          // Object / JSON type
+                          if (
+                            fieldType === 'object' ||
+                            fieldType === 'json' ||
+                            fieldType === 'dict' ||
+                            fieldType === 'record' ||
+                            (typeof value === 'object' && value !== null && !Array.isArray(value))
+                          ) {
+                            return (
+                              <JsonObjectPropertyField
+                                key={key}
+                                label={label}
+                                fieldKey={key}
+                                value={value}
+                                isDisabled={false}
+                                description={fieldSchema?.description}
+                                handlePropertyChange={handlePropertyChange}
+                              />
+                            );
+                          }
+
+                          // Choice / Select type
+                          if (fieldType === 'choice' || fieldType === 'select') {
+                            const isMultiSelect = Boolean(
+                              fieldSchema?.multiple ||
+                                fieldSchema?.multi_select ||
+                                fieldSchema?.multiSelect,
+                            );
+                            const rawOptions = getRawChoiceOptions(
+                              fieldSchema,
+                              key,
+                              systemProperties,
+                              isMultiSelect ? undefined : value,
+                            );
+
+                            let options = parseChoiceOptions(rawOptions);
+                            const extractValStr = (val: any): string => {
+                              if (val === undefined || val === null) return '';
+                              if (typeof val === 'object') {
+                                return String(
+                                  val.key ?? val.value ?? val.id ?? val.name ?? val.label ?? '',
+                                );
+                              }
+                              return String(val);
+                            };
+
+                            const rawVal =
+                              value !== undefined && value !== null && value !== ''
+                                ? value
+                                : fieldSchema?.default;
+                            const strVal = Array.isArray(rawVal) ? '' : extractValStr(rawVal);
+                            if (
+                              !isMultiSelect &&
+                              strVal &&
+                              !strVal.includes(',') &&
+                              !options.some((o) => o.toLowerCase() === strVal.toLowerCase())
+                            ) {
+                              options = [strVal, ...options];
+                            }
+                            const matchedOption = options.find(
+                              (o) => o.toLowerCase() === strVal.toLowerCase(),
+                            );
+                            const selectedVal =
+                              matchedOption || (options.length > 0 ? options[0] : '');
+
+                            if (isMultiSelect) {
+                              return (
+                                <div key={key} className="space-y-1.5">
+                                  <label
+                                    className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest flex items-center gap-1.5 cursor-help"
+                                    title={fieldSchema?.description}
                                   >
                                     {label}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopy(key, value)}
-                                    className="p-1 hover:bg-slate-150 rounded transition-colors shrink-0 opacity-0 group-hover/row:opacity-100 focus:opacity-100 text-slate-400 hover:text-slate-655 cursor-pointer"
-                                    title="Copy to clipboard"
-                                  >
-                                    {isCopied ? (
-                                      <Check className="w-3 h-3 text-emerald-600 font-bold" />
-                                    ) : (
-                                      <Copy className="w-3 h-3" />
+                                    {fieldSchema?.description && (
+                                      <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+                                        i
+                                      </span>
                                     )}
-                                  </button>
+                                  </label>
+                                  <ChoiceCheckboxList
+                                    disabled={false}
+                                    selected={toSelectedList(rawVal)}
+                                    options={options}
+                                    onChange={(values) => handlePropertyChange(key, values)}
+                                  />
                                 </div>
-                                <textarea
-                                  readOnly
-                                  value={displayStr}
-                                  rows={3}
-                                  className="w-full font-mono text-[10px] text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg shadow-inner-sm resize-y outline-none"
+                              );
+                            }
+
+                            return (
+                              <div key={key} className="space-y-1.5">
+                                <label
+                                  className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest flex items-center gap-1.5 cursor-help"
+                                  title={fieldSchema?.description}
+                                >
+                                  {label}
+                                  {fieldSchema?.description && (
+                                    <span className="text-[9px] text-blue-500 font-bold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full leading-none shadow-sm">
+                                      i
+                                    </span>
+                                  )}
+                                </label>
+                                <select
+                                  value={selectedVal}
+                                  disabled={false}
+                                  onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+                                    handlePropertyChange(key, event.target.value)
+                                  }
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm cursor-pointer"
+                                >
+                                  {options.map((option) => (
+                                    <option
+                                      key={option}
+                                      value={option}
+                                      className="bg-white text-slate-900"
+                                    >
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          }
+
+                          if (fieldType === 'boolean') {
+                            return (
+                              <label
+                                key={key}
+                                className="flex items-center justify-between gap-3 rounded-xl border border-slate-150 bg-slate-50/30 px-3.5 py-2.5 text-xs text-slate-700 cursor-pointer shadow-sm hover:border-slate-250 transition-all hover:bg-slate-50"
+                                title={fieldSchema?.description}
+                              >
+                                <span className="font-semibold text-slate-655">{label}</span>
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(value)}
+                                  disabled={false}
+                                  onChange={(e) => handlePropertyChange(key, e.target.checked)}
+                                  className="h-4 w-4 accent-indigo-600 rounded cursor-pointer"
+                                />
+                              </label>
+                            );
+                          }
+
+                          if (fieldType === 'number' || fieldType === 'integer') {
+                            return (
+                              <div key={key} className="space-y-1.5">
+                                <label
+                                  className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest"
+                                  title={fieldSchema?.description}
+                                >
+                                  {label}
+                                </label>
+                                <input
+                                  type="number"
+                                  value={value !== undefined && value !== null && value !== '' ? Number(value) : ''}
+                                  disabled={false}
+                                  onChange={(e) =>
+                                    handlePropertyChange(
+                                      key,
+                                      e.target.value === '' ? '' : Number(e.target.value),
+                                    )
+                                  }
+                                  placeholder={
+                                    fieldSchema?.default !== undefined
+                                      ? `Default: ${fieldSchema.default}`
+                                      : 'Value'
+                                  }
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none transition-all shadow-inner-sm"
                                 />
                               </div>
                             );
                           }
 
+                          const displayStr =
+                            typeof value === 'object' && value !== null
+                              ? JSON.stringify(value, null, 2)
+                              : String(value ?? '');
+
+                          const isTextareaType =
+                            fieldType === 'textarea' ||
+                            fieldType === 'text area' ||
+                            fieldType === 'text_area';
+                          const isMultiline =
+                            !isSensitive &&
+                            (isTextareaType ||
+                              displayStr.length > 40 ||
+                              key.toLowerCase().includes('prompt') ||
+                              key.toLowerCase().includes('query'));
+
                           return (
-                            <div
-                              key={key}
-                              className="flex justify-between items-center gap-2 py-1 border-b border-slate-100 last:border-0 group/row"
-                            >
-                              <span
-                                className="font-semibold text-[10px] text-slate-600 truncate"
-                                title={fieldSchema?.description || key}
+                            <div key={key} className="space-y-1.5">
+                              <label
+                                className="block text-[10px] font-bold text-slate-455 uppercase tracking-widest"
+                                title={fieldSchema?.description}
                               >
                                 {label}
-                              </span>
-                              <div className="flex items-center gap-1.5 max-w-[70%]">
-                                <span
-                                  className={`font-mono text-[10px] border px-2 py-0.5 rounded shadow-inner-sm truncate ${
-                                    isSensitive
-                                      ? 'text-slate-400 bg-slate-100 border-slate-200 select-none tracking-widest'
-                                      : 'text-slate-800 bg-white border-slate-200'
-                                  }`}
-                                  title={isSensitive ? 'Protected value' : displayStr || '(empty)'}
-                                >
-                                  {displayStr || '(not set)'}
-                                </span>
-                                {isSensitive ? (
-                                  <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
-                                    Protected
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopy(key, value)}
-                                    className="p-1 hover:bg-slate-150 rounded transition-colors shrink-0 opacity-0 group-hover/row:opacity-100 focus:opacity-100 text-slate-400 hover:text-slate-655 cursor-pointer"
-                                    title="Copy to clipboard"
-                                  >
-                                    {isCopied ? (
-                                      <Check className="w-3 h-3 text-emerald-600 font-bold" />
-                                    ) : (
-                                      <Copy className="w-3 h-3" />
-                                    )}
-                                  </button>
-                                )}
-                              </div>
+                              </label>
+                              {isMultiline ? (
+                                <textarea
+                                  value={displayStr}
+                                  disabled={false}
+                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
+                                  placeholder={fieldSchema?.placeholder || 'Enter text/variables...'}
+                                  rows={isTextareaType ? 4 : 3}
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs font-mono bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-y min-h-20"
+                                />
+                              ) : (
+                                <input
+                                  type={isSensitive ? 'password' : 'text'}
+                                  value={displayStr}
+                                  disabled={false}
+                                  onChange={(e) => handlePropertyChange(key, e.target.value)}
+                                  placeholder={fieldSchema?.placeholder || 'Enter value...'}
+                                  className="w-full border border-slate-200 focus:border-indigo-400 rounded-xl px-3 py-2 text-xs bg-white text-slate-900 outline-none focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner-sm"
+                                />
+                              )}
                             </div>
                           );
                         })}
                       </div>
                     ) : (
                       <div className="text-center py-6 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                        <p className="text-xs italic">No node configuration properties defined.</p>
+                        <p className="text-xs italic">No configurable parameters.</p>
                       </div>
                     )}
                   </div>

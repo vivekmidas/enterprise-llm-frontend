@@ -569,10 +569,19 @@ export default function CustomersTab() {
       const res = await api.getCustomerNodesAdmin(customer.id);
       const assignments: Record<string, boolean> = {};
       const properties: Record<string, Record<string, any>> = {};
+      // Default both Allowed (is_enabled) and Visible in Palette (show_in_palette) to true for all nodes
+      agents.forEach((a: any) => {
+        assignments[a.name] = true;
+        properties[a.name] = { show_in_palette: true };
+      });
       if (res && res.configs) {
         res.configs.forEach((c: any) => {
-          assignments[c.node_name] = c.is_enabled;
-          properties[c.node_name] = c.properties || {};
+          assignments[c.node_name] = c.is_enabled !== false;
+          const existingProps = c.properties || {};
+          properties[c.node_name] = {
+            ...existingProps,
+            show_in_palette: existingProps.show_in_palette !== false,
+          };
         });
       }
       setCustomerNodeAssignments(assignments);
@@ -624,6 +633,21 @@ export default function CustomersTab() {
         [nodeName]: {
           ...currentProps,
           allow_node_testing: !currentTesting,
+        },
+      };
+    });
+  };
+
+  /* BLOCK COMMENT: Toggle workflow designer palette visibility for customer node (defaults to true) */
+  const handleToggleShowInPalette = (nodeName: string) => {
+    setCustomerNodeProperties((prev) => {
+      const currentProps = prev[nodeName] || {};
+      const currentPalette = currentProps.show_in_palette !== false;
+      return {
+        ...prev,
+        [nodeName]: {
+          ...currentProps,
+          show_in_palette: !currentPalette,
         },
       };
     });
@@ -2142,8 +2166,11 @@ export default function CustomersTab() {
                               <th className="px-4 py-2.5 font-bold text-gray-500 uppercase">
                                 Description
                               </th>
-                              <th className="px-4 py-2.5 font-bold text-gray-500 uppercase text-center w-24">
-                                Allowed
+                              <th className="px-4 py-2.5 font-bold text-gray-500 uppercase text-center w-28">
+                                Tenant Admin
+                              </th>
+                              <th className="px-4 py-2.5 font-bold text-gray-500 uppercase text-center w-28">
+                                User
                               </th>
                               {/* BLOCK COMMENT: Testing Allowed Column Header */}
                               <th className="px-4 py-2.5 font-bold text-gray-500 uppercase text-center w-32">
@@ -2208,6 +2235,20 @@ export default function CustomersTab() {
                                         checked={isChecked}
                                         onChange={() => handleToggleSingleAssignment(node.name)}
                                         className="rounded border-gray-300 text-bg-primary w-4 h-4 cursor-pointer"
+                                        title="Visible / Allowed for Tenant Admin"
+                                      />
+                                    </td>
+                                    <td className="px-4 py-3 text-center">
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          (customerNodeProperties[node.name] || {})
+                                            .show_in_palette !== false
+                                        }
+                                        disabled={!isChecked}
+                                        onChange={() => handleToggleShowInPalette(node.name)}
+                                        className="rounded border-gray-300 text-blue-600 w-4 h-4 cursor-pointer disabled:opacity-40"
+                                        title="Visible to Workflow Designers in Canvas Palette"
                                       />
                                     </td>
                                     {/* BLOCK COMMENT: Testing Allowed toggle checkbox cell */}

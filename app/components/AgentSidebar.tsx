@@ -39,6 +39,11 @@ export default function AgentSidebar({
     n.name?.toLowerCase().includes('condition') ||
     n.category?.toLowerCase().includes('condition');
 
+  // EPIC-PROPS-CONTRACT-001: Explicit 2-flag visibility (both default to true)
+  // is_enabled = Visible to Tenant Admin; show_in_palette = Visible to Workflow Designer in Palette
+  const filterLastLevelPaletteNodes = (list: any[]) =>
+    list.filter((n: any) => n.is_enabled !== false && n.show_in_palette !== false);
+
   useEffect(() => {
     Promise.all([
       api.getNodes(),
@@ -51,7 +56,7 @@ export default function AgentSidebar({
           ? nodesData
           : (nodesData as any).nodes || (nodesData as any).agents || [];
 
-        const activeAgents = fetchedAgents.filter((n: any) => n.is_enabled !== false);
+        const activeAgents = filterLastLevelPaletteNodes(fetchedAgents);
 
         // Separate global components from category-specific ones
         setTriggers(activeAgents.filter(isTrigger));
@@ -118,7 +123,7 @@ export default function AgentSidebar({
         ? nodesData
         : (nodesData as any).nodes || (nodesData as any).agents || [];
 
-      const activeNodes = fetchedNodes.filter((n: any) => n.is_enabled !== false);
+      const activeNodes = filterLastLevelPaletteNodes(fetchedNodes);
 
       // Filter out triggers/logic so they don't appear in the Actions section twice
       setCategoryNodes(activeNodes.filter((n: any) => !isTrigger(n) && !isLogic(n)));
