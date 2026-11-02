@@ -154,7 +154,7 @@ function renderDynamicExtractedJson(data: any) {
 
 export interface KnowledgeBasesTabProps {
   userRole?: string;
-  customerId?: number | null;
+  customerId?: string | number | null;
   onSwitchToPlayground?: (kbId: string) => void;
 }
 

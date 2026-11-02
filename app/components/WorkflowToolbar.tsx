@@ -18,6 +18,7 @@ interface WorkflowToolbarProps {
   onGet: () => void;
   onExecute: () => void;
   onCenter: () => void;
+  onExport?: () => void;
   isExecuting?: boolean;
   status?: string;
 }
@@ -29,6 +30,7 @@ export default function WorkflowToolbar({
   onGet,
   onExecute,
   onCenter,
+  onExport,
   isExecuting,
   status,
 }: WorkflowToolbarProps) {
@@ -63,6 +65,16 @@ export default function WorkflowToolbar({
       >
         <SaveAll className="w-3.5 h-3.5 text-slate-500" /> Save As...
       </button>
+
+      {onExport && (
+        <button
+          onClick={onExport}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 border border-slate-200 text-slate-700 bg-white hover:bg-slate-55 hover:border-slate-300 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+          title="Export / Backup workflow as JSON"
+        >
+          <Download className="w-3.5 h-3.5 text-slate-500" /> Export
+        </button>
+      )}
 
       <button
         onClick={onSave}

@@ -330,7 +330,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         return <NodesTab userRole={userRole} customerId={customerId ? String(customerId) : null} />;
       case 'workflows':
         return (
-          <WorkflowsTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
+          <WorkflowsTab userRole={userRole} customerId={customerId ? String(customerId) : null} />
         );
       case 'users':
         return (
@@ -349,7 +349,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         return <ApiKeysTab />;
       case 'domains':
         return (
-          <DomainsTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
+          <DomainsTab userRole={userRole} customerId={customerId ? String(customerId) : null} />
         );
       case 'oauth':
         return <OAuthTab />;
@@ -363,7 +363,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         return (
           <KnowledgeBasesTab
             userRole={userRole || undefined}
-            customerId={customerId ? Number(customerId) : null}
+            customerId={customerId ? String(customerId) : null}
             onSwitchToPlayground={(kbId: string) => {
               setPlaygroundKbId(kbId);
               router.push('/admin/playground');
@@ -372,7 +372,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         );
       case 'profiles':
         return (
-          <ProfilesTab userRole={userRole} customerId={customerId ? Number(customerId) : null} />
+          <ProfilesTab userRole={userRole} customerId={customerId ? String(customerId) : null} />
         );
       case 'provider-presets':
         return <ProviderPresetsTab userRole={userRole} />;

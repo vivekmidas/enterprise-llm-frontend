@@ -113,7 +113,7 @@ Extract all matching schema fields and any unmapped extra domain knowledge in va
 
 interface DomainsTabProps {
   userRole?: string | null;
-  customerId?: number | null;
+  customerId?: string | number | null;
 }
 
 export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {

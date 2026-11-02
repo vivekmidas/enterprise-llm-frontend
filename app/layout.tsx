@@ -16,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Header />
           {children}
         </Providers>
+        {/* <script src="http://localhost:3000/plugin.js" data-api-key="ik_live_intuactai_main_site" async></script> */}
       </body>
     </html>
   );

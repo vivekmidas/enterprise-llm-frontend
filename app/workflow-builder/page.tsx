@@ -671,6 +671,68 @@ function AgentBuilderContent() {
     refreshInvocationSpec,
   ]);
 
+  const onExport = useCallback(async () => {
+    const filename = `${(agentName || agentId || 'workflow')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')}_backup.json`;
+
+    if (agentId) {
+      try {
+        const serverExport = await api.exportWorkflow(agentId);
+        if (serverExport && serverExport.workflows) {
+          const blob = new Blob([JSON.stringify(serverExport, null, 2)], {
+            type: 'application/json',
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          setStatus(`Exported workflow backup: ${filename}`);
+          return;
+        }
+      } catch (err) {
+        console.warn('Backend export failed, falling back to local canvas state', err);
+      }
+    }
+
+    const localBundle = {
+      version: '1.0',
+      export_type: 'workflow_backup',
+      exported_at: new Date().toISOString(),
+      count: 1,
+      workflows: [
+        {
+          name: agentName || 'Unnamed Workflow',
+          description: description || '',
+          category: agentCategory || 'default',
+          entry_point: 'input_guard',
+          is_enabled: isAgentEnabled,
+          nodes: nodes,
+          edges: edges,
+          properties: {},
+        },
+      ],
+    };
+
+    const blob = new Blob([JSON.stringify(localBundle, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setStatus(`Exported canvas workflow backup: ${filename}`);
+  }, [agentId, agentName, description, agentCategory, isAgentEnabled, nodes, edges]);
+
   const loadAgent = useCallback(
     async (id: string) => {
       try {
@@ -998,6 +1060,7 @@ function AgentBuilderContent() {
         onExecute={onExecute}
         onCenter={onCenter}
         onNewAgent={handleNewAgent}
+        onExport={onExport}
       />
 
       {/* ==========================================================================

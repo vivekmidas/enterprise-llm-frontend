@@ -27,6 +27,7 @@ type WorkflowHeaderProps = {
   onExecute: () => Promise<void>;
   onCenter: () => void;
   onNewAgent: () => void;
+  onExport?: () => void;
 };
 
 export default function WorkflowHeader({
@@ -52,6 +53,7 @@ export default function WorkflowHeader({
   onExecute,
   onCenter,
   onNewAgent,
+  onExport,
 }: WorkflowHeaderProps) {
   return (
     <>
@@ -168,6 +170,7 @@ export default function WorkflowHeader({
           isExecuting={isExecuting}
           status={status}
           onCenter={onCenter}
+          onExport={onExport}
         />
         {/* <div className="text-sm ">{agentDescription}</div> */}
       </div>

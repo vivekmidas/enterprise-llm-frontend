@@ -1689,7 +1689,7 @@ export default function ProfilesPage({
         <CreateProfileModal
           userRole={userRole}
           customers={customers}
-          defaultCustomerId={customerFilter !== 'all' ? Number(customerFilter) : customerId}
+          defaultCustomerId={customerFilter !== 'all' ? customerFilter : customerId}
           onCreated={handleCreated}
           onCancel={() => setShowCreate(false)}
         />

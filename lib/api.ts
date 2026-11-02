@@ -225,7 +225,15 @@ export const api = {
   /** Lists all saved workflows stored in the database */
   getSavedAgents: async (customerId?: string | number) => {
     const url = new URL(`${BACKEND_URL}/workflows`);
-    if (customerId !== undefined && customerId !== null && String(customerId) !== 'all') {
+    if (
+      customerId !== undefined &&
+      customerId !== null &&
+      String(customerId) !== 'all' &&
+      String(customerId) !== 'NaN' &&
+      String(customerId) !== 'undefined' &&
+      String(customerId) !== 'null' &&
+      !Number.isNaN(customerId)
+    ) {
       url.searchParams.append('customer_id', String(customerId));
     }
     const res = await fetch(url.toString(), {
@@ -292,6 +300,35 @@ export const api = {
     });
     await handleResponse(res, 'Failed to delete workflow');
     return true;
+  },
+
+  /** Exports a single workflow backup bundle */
+  exportWorkflow: async (workflowId: string) => {
+    const res = await fetch(`${BACKEND_URL}/workflows/${encodeURIComponent(workflowId)}/export`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res, 'Failed to export workflow');
+  },
+
+  /** Exports multiple or all workflows in a single backup bundle */
+  exportWorkflows: async (workflowIds?: string[]) => {
+    const res = await fetch(`${BACKEND_URL}/workflows/export`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ workflow_ids: workflowIds && workflowIds.length > 0 ? workflowIds : null }),
+    });
+    return handleResponse(res, 'Failed to export workflows');
+  },
+
+  /** Restores / imports workflows from a backup JSON */
+  importWorkflows: async (payload: any) => {
+    const res = await fetch(`${BACKEND_URL}/workflows/import`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(res, 'Failed to import workflows');
   },
 
   // =============================================================================
@@ -744,6 +781,8 @@ export const api = {
     label: string;
     description?: string;
     properties?: Record<string, any>;
+    user_properties?: Record<string, any>;
+    system_properties?: Record<string, any>;
     input_contract?: any;
     output_contract?: any;
   }, customerId?: string | number) => {
