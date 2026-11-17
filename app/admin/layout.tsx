@@ -174,6 +174,10 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [tenantTheme, setTenantTheme] = useState<{ primary: string; secondary: string }>({
+    primary: '#4f46e5',
+    secondary: '#e0e7ff',
+  });
 
   const navContainerRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
@@ -249,11 +253,20 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         setUserRole(userData.role);
         setUserId(userData.id);
         setUserEmail(userData.email);
-        setCustomerId(
+        const tenantId =
           userData.customer_id !== null && userData.customer_id !== undefined
             ? String(userData.customer_id)
-            : null,
-        );
+            : null;
+        setCustomerId(tenantId);
+        if (tenantId) {
+          const tenants = await api.getCustomers();
+          const tenant = (tenants || []).find((item: any) => String(item.id) === tenantId);
+          const brand = tenant?.settings?.brand_theme || {};
+          setTenantTheme({
+            primary: /^#[0-9a-f]{6}$/i.test(brand.primary) ? brand.primary : '#4f46e5',
+            secondary: /^#[0-9a-f]{6}$/i.test(brand.secondary) ? brand.secondary : '#e0e7ff',
+          });
+        }
       } catch (err) {
         console.error('Failed to initialize admin user:', err);
         setIsAuthenticated(false);
@@ -386,10 +399,18 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div
+      className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans"
+      style={
+        {
+          '--tenant-primary': tenantTheme.primary,
+          '--tenant-secondary': tenantTheme.secondary,
+        } as React.CSSProperties
+      }
+    >
       <div className="flex-1 w-full max-w mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Dynamic 1-to-1 Route Admin Navigation Bar */}
-        <div className="sticky top-16 z-40 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-2 py-1">
+        <div className="sticky top-16 z-40 bg-white/95 backdrop-blur border border-slate-200 rounded-xl shadow-sm flex items-center justify-between gap-2 py-1 px-2">
           <div
             ref={navContainerRef}
             className="flex items-center overflow-x-auto whitespace-nowrap flex-1 min-w-0"
@@ -402,10 +423,10 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 }}
                 data-tab-id={tab.id}
                 onClick={() => handleNavigateSection(tab.id)}
-                className={`px-4 py-3 text-xs hover:text-primary font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 rounded-none border-b-2 ${
+                className={`px-3.5 py-2.5 text-sm font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 rounded-lg border-b-2 ${
                   currentTabId === tab.id
-                    ? 'text-primary border-primary'
-                    : 'text-muted-foreground hover:text-foreground border-transparent'
+                    ? 'text-[var(--tenant-primary)] bg-[var(--tenant-secondary)] border-[var(--tenant-primary)]'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 border-transparent'
                 }`}
               >
                 {tab.label}
@@ -417,7 +438,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             <div className="relative shrink-0 pr-2">
               <button
                 onClick={() => setIsMenuOpen((prev) => !prev)}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider bg-card border border-border text-muted-foreground rounded-lg shadow-sm transition-all cursor-pointer hover:text-foreground"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white border border-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer hover:bg-slate-50"
                 title="More options"
                 aria-expanded={isMenuOpen}
               >
@@ -432,9 +453,9 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
               {isMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-60 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl py-1 z-50 max-h-96 overflow-y-auto">
-                    <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border-b border-border text-muted-foreground">
-                      Hidden Options
+                  <div className="absolute right-0 top-full mt-2 w-64 bg-white text-slate-900 border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 max-h-96 overflow-y-auto">
+                    <div className="px-4 py-2 text-xs font-medium text-slate-500 border-b border-slate-100">
+                      More sections
                     </div>
                     {hiddenTabs.map((tab) => (
                       <button
@@ -491,4 +512,3 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </Suspense>
   );
 }
-
