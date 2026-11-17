@@ -277,6 +277,8 @@ export default function CustomersTab() {
   const [editCustomerPluginsEnabled, setEditCustomerPluginsEnabled] = useState(false);
   const [editCustomerStoragePath, setEditCustomerStoragePath] = useState('');
   const [editCustomerAllowedDomains, setEditCustomerAllowedDomains] = useState<string[]>([]);
+  const [editBrandPrimary, setEditBrandPrimary] = useState('#4f46e5');
+  const [editBrandSecondary, setEditBrandSecondary] = useState('#e0e7ff');
 
   const [customerNodes, setCustomerNodes] = useState<any[]>([]);
   const [customerNodesLoading, setCustomerNodesLoading] = useState(false);
@@ -290,6 +292,7 @@ export default function CustomersTab() {
   const [newCustomerDomain, setNewCustomerDomain] = useState('');
   const [newCustomerIcon, setNewCustomerIcon] = useState('Building');
   const [newCustomerColor, setNewCustomerColor] = useState('#2563eb');
+  const [newCustomerSecondaryColor, setNewCustomerSecondaryColor] = useState('#e0e7ff');
   const [newCustomerPluginsEnabled, setNewCustomerPluginsEnabled] = useState(false);
   const [newCustomerStoragePath, setNewCustomerStoragePath] = useState('');
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
@@ -447,7 +450,10 @@ export default function CustomersTab() {
     if (!selectedCustomer) return;
     try {
       // Traceability: Story 1 - Prompt Decoupling from Tenant
-      const updatedSettings = { ...(selectedCustomer.settings || {}) };
+      const updatedSettings = {
+        ...(selectedCustomer.settings || {}),
+        brand_theme: { primary: editBrandPrimary, secondary: editBrandSecondary },
+      };
       delete (updatedSettings as any).prompts;
       delete (updatedSettings as any).search_system_prompt;
       delete (updatedSettings as any).search_user_prompt;
@@ -490,7 +496,9 @@ export default function CustomersTab() {
         address: newCustomerAddress || null,
         contact_person: newCustomerContactPerson || null,
         allowed_domains: [],
-        settings: {},
+        settings: {
+          brand_theme: { primary: newCustomerColor, secondary: newCustomerSecondaryColor },
+        },
       });
       setShowAddCustomerModal(false);
       setNewCustomerName('');
@@ -799,6 +807,14 @@ export default function CustomersTab() {
                   setEditCustomerPluginsEnabled(selectedCustomer.custom_plugins_enabled || false);
                   setEditCustomerStoragePath(selectedCustomer.plugin_storage_path || '');
                   setEditCustomerAllowedDomains(selectedCustomer.allowed_domains || []);
+                  setEditBrandPrimary(
+                    selectedCustomer.settings?.brand_theme?.primary ||
+                      selectedCustomer.color_schema ||
+                      '#4f46e5',
+                  );
+                  setEditBrandSecondary(
+                    selectedCustomer.settings?.brand_theme?.secondary || '#e0e7ff',
+                  );
                   setIsEditingCustomer(true);
                 }}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm cursor-pointer"
@@ -928,6 +944,36 @@ export default function CustomersTab() {
                       placeholder="123 Business Rd, Suite 100"
                     />
                   </div>
+                  <fieldset className="rounded-xl border border-slate-200 p-4">
+                    <legend className="px-1 text-sm font-semibold text-slate-800">
+                      Tenant theme
+                    </legend>
+                    <p className="mb-3 text-xs text-slate-500">
+                      These colors guide the navigation and active states for this tenant.
+                    </p>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <label className="flex items-center justify-between gap-3 text-sm text-slate-700">
+                        Primary color
+                        <input
+                          aria-label="Tenant primary color"
+                          type="color"
+                          value={editBrandPrimary}
+                          onChange={(e) => setEditBrandPrimary(e.target.value)}
+                          className="h-10 w-16 cursor-pointer rounded border border-slate-200 bg-white p-1"
+                        />
+                      </label>
+                      <label className="flex items-center justify-between gap-3 text-sm text-slate-700">
+                        Secondary color
+                        <input
+                          aria-label="Tenant secondary color"
+                          type="color"
+                          value={editBrandSecondary}
+                          onChange={(e) => setEditBrandSecondary(e.target.value)}
+                          className="h-10 w-16 cursor-pointer rounded border border-slate-200 bg-white p-1"
+                        />
+                      </label>
+                    </div>
+                  </fieldset>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
@@ -1572,7 +1618,7 @@ export default function CustomersTab() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-                    Color Schema
+                    Primary Theme Color
                   </label>
                   <input
                     type="color"
@@ -1580,6 +1626,23 @@ export default function CustomersTab() {
                     onChange={(e) => setNewCustomerColor(e.target.value)}
                     className="w-full h-10 border border-gray-200 rounded-lg bg-white"
                   />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                  Secondary Theme Color
+                </label>
+                <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <input
+                    aria-label="New tenant secondary theme color"
+                    type="color"
+                    value={newCustomerSecondaryColor}
+                    onChange={(e) => setNewCustomerSecondaryColor(e.target.value)}
+                    className="h-10 w-16 cursor-pointer rounded border border-slate-200 bg-white p-1"
+                  />
+                  <span className="text-sm text-slate-600">
+                    Used for subtle selected-menu backgrounds
+                  </span>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
