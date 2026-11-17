@@ -241,8 +241,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           userData.role_type === 'tenant_admin';
 
         if (!canAccessAdmin) {
-          const fallback = getDefaultRedirectForPermissions(perms, userData.role) || '/legal';
-          router.push(fallback !== '/admin' ? fallback : '/legal');
+          const fallback = getDefaultRedirectForPermissions(perms, userData.role) || '/';
+          router.push(fallback !== '/admin' ? fallback : '/');
           return;
         }
 

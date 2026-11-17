@@ -252,11 +252,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
     const schemaData = domain.schema_json || {};
     const defaultPath =
       schemaData.default_path ||
-      (domain.domain_key === 'legal'
-        ? '/legal'
-        : domain.domain_key === 'general'
-          ? '/admin/knowledge'
-          : `/${domain.domain_key}`);
+      (domain.domain_key === 'general' ? '/admin/knowledge' : `/${domain.domain_key}`);
     setFormDefaultPath(defaultPath);
     setFormScope(domain.scope === 'SYSTEM' ? 'SYSTEM' : 'TENANT');
     setFormStatus(schemaData.status || 'active');
@@ -528,7 +524,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search domain name, key, or default path (e.g. /legal)..."
+            placeholder="Search domain name, key, or default path (e.g. /admin/knowledge)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-50 border border-gray-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-gray-900 focus:bg-white focus:outline-none focus:border-indigo-500 transition-all"
@@ -598,11 +594,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
             const schemaData = domain.schema_json || {};
             const defaultPath =
               schemaData.default_path ||
-              (domain.domain_key === 'legal'
-                ? '/legal'
-                : domain.domain_key === 'general'
-                  ? '/admin/knowledge'
-                  : `/${domain.domain_key}`);
+              (domain.domain_key === 'general' ? '/admin/knowledge' : `/${domain.domain_key}`);
             const themeColor = schemaData.theme_color || '#4f46e5';
             const iconName = schemaData.icon || 'Globe';
             const IconComponent = AVAILABLE_ICONS[iconName] || Globe;
@@ -892,13 +884,6 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => setFormDefaultPath('/legal')}
-                          className="px-2 py-0.5 bg-white text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold hover:bg-indigo-100 transition-all cursor-pointer"
-                        >
-                          /legal
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => setFormDefaultPath('/admin/knowledge')}
                           className="px-2 py-0.5 bg-white text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold hover:bg-indigo-100 transition-all cursor-pointer"
                         >
@@ -919,7 +904,7 @@ export default function DomainsTab({ userRole, customerId }: DomainsTabProps) {
                       required
                       value={formDefaultPath}
                       onChange={(e) => setFormDefaultPath(e.target.value)}
-                      placeholder="/legal or /education"
+                      placeholder="/admin/knowledge"
                       className="w-full border border-indigo-200 rounded-lg px-3 py-2 text-xs font-mono bg-white text-gray-900 focus:outline-none focus:border-indigo-500 shadow-xs"
                     />
                   </div>

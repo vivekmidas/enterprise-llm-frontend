@@ -83,14 +83,13 @@ export function proxy(request: NextRequest) {
     if (!isAuthorized) {
       const fallbackRoute =
         getDefaultRedirectForPermissions(userPermissions, userRole, domainId, defaultRoute) ||
-        (domainId ? `/${domainId}` : null) ||
-        '/legal';
+        '/';
 
       if (fallbackRoute && fallbackRoute !== pathname) {
         return NextResponse.redirect(new URL(fallbackRoute, request.url));
       }
-      if (pathname !== '/legal') {
-        return NextResponse.redirect(new URL('/legal', request.url));
+      if (pathname !== '/') {
+        return NextResponse.redirect(new URL('/', request.url));
       }
       return NextResponse.next();
     }

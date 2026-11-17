@@ -89,6 +89,9 @@ export default function ApiKeysPage() {
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const isSystemAdmin =
+    currentUser?.role === 'system_admin' || currentUser?.role_type === 'system_admin';
+
   const fetchKeys = async () => {
     setLoading(true);
     try {
@@ -120,21 +123,26 @@ export default function ApiKeysPage() {
     }
   };
 
+  /* ==============================================================================
+     BLOCK COMMENT: ROLE-AWARE TENANT CONTEXT INITIALIZATION (EPIC-AUTH-001)
+     system_admin loads all tenants for cross-tenant filtering and key issuance;
+     tenant_admin is strictly scoped to their assigned customer_id.
+     ============================================================================== */
   const loadInitialContext = async () => {
     try {
-      const [custs, user] = await Promise.all([
-        api.getCustomers().catch(() => []),
-        api.getCurrentUser().catch(() => null),
-      ]);
+      const user = await api.getCurrentUser().catch(() => null);
+      setCurrentUser(user);
+
+      const sysAdmin = user?.role === 'system_admin' || user?.role_type === 'system_admin';
+      const custs = sysAdmin ? await api.getCustomers().catch(() => []) : [];
       const safeCusts = Array.isArray(custs) ? custs : [];
       setCustomersList(safeCusts);
-      setCurrentUser(user);
 
       let targetTenant = '';
       if (user?.customer_id) {
         targetTenant = String(user.customer_id);
         setSelectedTenantForNewKey(targetTenant);
-        if (user.role !== 'system_admin' && user.role_type !== 'system_admin') {
+        if (!sysAdmin) {
           setSelectedTenantFilter(targetTenant);
         }
       } else if (safeCusts.length > 0) {
@@ -277,22 +285,24 @@ export default function ApiKeysPage() {
             />
           </div>
 
-          {/* Tenant Filter Dropdown */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
-            <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-            <select
-              value={selectedTenantFilter}
-              onChange={(e) => setSelectedTenantFilter(e.target.value)}
-              className="text-xs font-medium bg-transparent text-slate-700 focus:outline-none cursor-pointer"
-            >
-              <option value="all">All Tenants</option>
-              {customersList.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} {c.domain ? `(${c.domain})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Tenant Filter Dropdown (system_admin only) */}
+          {isSystemAdmin && (
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+              <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+              <select
+                value={selectedTenantFilter}
+                onChange={(e) => setSelectedTenantFilter(e.target.value)}
+                className="text-xs font-medium bg-transparent text-slate-700 focus:outline-none cursor-pointer"
+              >
+                <option value="all">All Tenants</option>
+                {customersList.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.domain ? `(${c.domain})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <button
@@ -438,25 +448,37 @@ export default function ApiKeysPage() {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                   Associated Tenant / Customer <span className="text-rose-500">*</span>
                 </label>
-                <div className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500">
-                  <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-                  <select
-                    required
-                    value={selectedTenantForNewKey}
-                    onChange={(e) => setSelectedTenantForNewKey(e.target.value)}
-                    className="w-full text-sm bg-transparent focus:outline-none text-slate-800 cursor-pointer"
-                  >
-                    {customersList.length === 0 ? (
-                      <option value="">No tenants found</option>
-                    ) : (
-                      customersList.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} {c.domain ? `(${c.domain})` : ''}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
+                {isSystemAdmin ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500">
+                    <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                    <select
+                      required
+                      value={selectedTenantForNewKey}
+                      onChange={(e) => setSelectedTenantForNewKey(e.target.value)}
+                      className="w-full text-sm bg-transparent focus:outline-none text-slate-800 cursor-pointer"
+                    >
+                      {customersList.length === 0 ? (
+                        <option value="">No tenants found</option>
+                      ) : (
+                        customersList.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.domain ? `(${c.domain})` : ''}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
+                    <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>
+                      {currentUser?.customer_name ||
+                        currentUser?.domain ||
+                        selectedTenantForNewKey ||
+                        'Current Tenant'}
+                    </span>
+                  </div>
+                )}
                 <p className="mt-1 text-[11px] text-slate-400">
                   The generated secret token will be strictly bound to this tenant.
                 </p>

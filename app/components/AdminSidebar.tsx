@@ -54,8 +54,6 @@ function buildDynamicNavSections(routes: RoutePermissionRule[]): NavSection[] {
 
   const getIconForRoute = (pattern: string) => {
     if (pattern.includes('api-keys')) return <Key className="w-4 h-4" />;
-    if (pattern.includes('autopilot')) return <Sword className="w-4 h-4" />;
-    if (pattern.includes('legal')) return <Scale className="w-4 h-4" />;
     if (pattern.includes('workflow')) return <Workflow className="w-4 h-4" />;
     if (pattern.includes('users')) return <UsersIcon className="w-4 h-4" />;
     if (pattern.includes('roles')) return <ShieldCheck className="w-4 h-4" />;
@@ -85,7 +83,7 @@ function buildDynamicNavSections(routes: RoutePermissionRule[]): NavSection[] {
     const capitalizedLabel = formattedLabel.charAt(0).toUpperCase() + formattedLabel.slice(1);
 
     const groupKey =
-      rule.module === 'legal' || rule.module === 'workflow'
+      rule.module === 'workflow' || rule.module === 'workflows'
         ? 'Navigation'
         : rule.module === 'admin'
           ? 'Management'

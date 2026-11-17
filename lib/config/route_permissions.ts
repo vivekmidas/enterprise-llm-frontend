@@ -14,77 +14,63 @@ export interface RoutePermissionRule {
 
 // Default baseline route permissions
 export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
-  // Workflow Builder & Demo Flows
+  // Workflow Builder
   {
     pattern: '/workflow-builder/new',
-    permission: 'workflow:builder:create',
+    permission: 'workflows:builder:create',
     module: 'workflows',
     submodule: 'builder',
     label: 'Create Workflow Canvas',
   },
   {
     pattern: '/workflow-builder/*/edit',
-    permission: 'workflow:builder:edit',
+    permission: 'workflows:builder:edit',
     module: 'workflows',
     submodule: 'builder',
     label: 'Edit Workflow Canvas',
   },
   {
     pattern: '/workflow-builder',
-    permission: 'workflow:builder:view',
+    permission: 'workflows:builder:view',
     module: 'workflows',
     submodule: 'builder',
     label: 'Workflow Builder',
   },
   {
     pattern: '/workflow-builder/**',
-    permission: 'workflow:builder:view',
+    permission: 'workflows:builder:view',
     module: 'workflows',
     submodule: 'builder',
     label: 'Workflow Builder Sub-routes',
-  },
-  {
-    pattern: '/demo-flows',
-    permission: 'workflow:builder:view',
-    module: 'workflows',
-    submodule: 'builder',
-    label: 'Demo Flows',
-  },
-  {
-    pattern: '/demo-flows/**',
-    permission: 'workflow:builder:view',
-    module: 'workflows',
-    submodule: 'builder',
-    label: 'Demo Flows Sub-routes',
   },
 
   // Users & Roles
   {
     pattern: '/admin/users',
-    permission: 'admin:user_management:read',
+    permission: 'admin:users:view',
     module: 'admin',
-    submodule: 'user_management',
+    submodule: 'users',
     label: 'Users',
   },
   {
     pattern: '/admin/users/**',
-    permission: 'admin:user_management:read',
+    permission: 'admin:users:view',
     module: 'admin',
-    submodule: 'user_management',
+    submodule: 'users',
     label: 'Users Sub-routes',
   },
   {
     pattern: '/admin/roles',
-    permission: 'admin:role_management:view',
+    permission: 'admin:roles:view',
     module: 'admin',
-    submodule: 'role_management',
+    submodule: 'roles',
     label: 'Roles',
   },
   {
     pattern: '/admin/roles/**',
-    permission: 'admin:role_management:view',
+    permission: 'admin:roles:view',
     module: 'admin',
-    submodule: 'role_management',
+    submodule: 'roles',
     label: 'Roles Sub-routes',
   },
 
@@ -121,32 +107,32 @@ export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
   // Customers / Tenants
   {
     pattern: '/admin/customers',
-    permission: 'admin:customer_management:view',
+    permission: 'admin:customers:view',
     module: 'admin',
-    submodule: 'customer_management',
+    submodule: 'customers',
     label: 'Customers',
   },
   {
     pattern: '/admin/customers/**',
-    permission: 'admin:customer_management:view',
+    permission: 'admin:customers:view',
     module: 'admin',
-    submodule: 'customer_management',
+    submodule: 'customers',
     label: 'Customers Sub-routes',
   },
 
   // Nodes Catalog
   {
     pattern: '/admin/nodes',
-    permission: 'admin:node_management:view',
+    permission: 'admin:nodes:view',
     module: 'admin',
-    submodule: 'node_management',
+    submodule: 'nodes',
     label: 'Nodes',
   },
   {
     pattern: '/admin/nodes/**',
-    permission: 'admin:node_management:view',
+    permission: 'admin:nodes:view',
     module: 'admin',
-    submodule: 'node_management',
+    submodule: 'nodes',
     label: 'Nodes Sub-routes',
   },
 
@@ -227,20 +213,6 @@ export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
     submodule: 'knowledge',
     label: 'Knowledge Bases Sub-routes',
   },
-  {
-    pattern: '/knowledge',
-    permission: 'kb:base:view',
-    module: 'knowledge',
-    submodule: 'base',
-    label: 'Knowledge Portal',
-  },
-  {
-    pattern: '/knowledge/**',
-    permission: 'kb:base:view',
-    module: 'knowledge',
-    submodule: 'base',
-    label: 'Knowledge Portal Sub-routes',
-  },
 
   // Logs
   {
@@ -256,20 +228,6 @@ export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
     module: 'admin',
     submodule: 'logs',
     label: 'Audit Logs Sub-routes',
-  },
-  {
-    pattern: '/logs',
-    permission: 'admin:logs:view',
-    module: 'admin',
-    submodule: 'logs',
-    label: 'System Logs',
-  },
-  {
-    pattern: '/logs/**',
-    permission: 'admin:logs:view',
-    module: 'admin',
-    submodule: 'logs',
-    label: 'System Logs Sub-routes',
   },
 
   // OAuth
@@ -291,34 +249,27 @@ export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
   // API Keys (EPIC-AUTH-001)
   {
     pattern: '/admin/api-keys',
-    permission: 'admin:tenant_settings:configure',
+    permission: 'admin:api_keys:view',
     module: 'admin',
     submodule: 'api_keys',
     label: 'API Keys',
   },
   {
     pattern: '/admin/api-keys/**',
-    permission: 'admin:tenant_settings:configure',
+    permission: 'admin:api_keys:view',
     module: 'admin',
     submodule: 'api_keys',
     label: 'API Keys Sub-routes',
   },
   {
-    pattern: '/oauth',
+    pattern: '/oauth/google',
     permission: 'admin:oauth:view',
     module: 'admin',
     submodule: 'oauth',
-    label: 'OAuth Portal',
-  },
-  {
-    pattern: '/oauth/**',
-    permission: 'admin:oauth:view',
-    module: 'admin',
-    submodule: 'oauth',
-    label: 'OAuth Portal Sub-routes',
+    label: 'Google OAuth Connection',
   },
 
-  // Workflows & Triggers
+  // Workflows
   {
     pattern: '/admin/workflows',
     permission: 'admin:workflows:view',
@@ -332,20 +283,6 @@ export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
     module: 'admin',
     submodule: 'workflows',
     label: 'Workflows Sub-routes',
-  },
-  {
-    pattern: '/admin/triggers',
-    permission: 'admin:triggers:view',
-    module: 'admin',
-    submodule: 'triggers',
-    label: 'Triggers',
-  },
-  {
-    pattern: '/admin/triggers/**',
-    permission: 'admin:triggers:view',
-    module: 'admin',
-    submodule: 'triggers',
-    label: 'Triggers Sub-routes',
   },
 
   // Metrics
@@ -381,147 +318,26 @@ export const DEFAULT_ROUTE_PATTERNS: RoutePermissionRule[] = [
   // Company Settings
   {
     pattern: '/admin/company-settings',
-    permission: 'admin:tenant_settings:configure',
+    permission: 'admin:company_settings:view',
     module: 'admin',
-    submodule: 'tenant_settings',
+    submodule: 'company_settings',
     label: 'Company Settings',
   },
   {
     pattern: '/admin/company-settings/**',
-    permission: 'admin:tenant_settings:configure',
+    permission: 'admin:company_settings:view',
     module: 'admin',
-    submodule: 'tenant_settings',
+    submodule: 'company_settings',
     label: 'Company Settings Sub-routes',
   },
 
-  // Admin & System
+  // Admin
   {
     pattern: '/admin',
     permission: 'admin:dashboard:view',
     module: 'admin',
     submodule: 'dashboard',
     label: 'Admin Dashboard',
-  },
-  {
-    pattern: '/system',
-    permission: 'admin:dashboard:view',
-    module: 'admin',
-    submodule: 'dashboard',
-    label: 'System Overview',
-  },
-  {
-    pattern: '/system/**',
-    permission: 'admin:dashboard:view',
-    module: 'admin',
-    submodule: 'dashboard',
-    label: 'System Sub-routes',
-  },
-
-  // Legal
-  {
-    pattern: '/legal',
-    permission: 'legal:research:query',
-    module: 'legal',
-    submodule: 'hub',
-    label: 'Legal AI Action Hub',
-  },
-  {
-    pattern: '/legal/cases/new',
-    permission: 'legal:research:edit',
-    module: 'legal',
-    submodule: 'cases',
-    label: 'Create Case Workspace',
-  },
-  {
-    pattern: '/legal/cases',
-    permission: 'legal:research:view',
-    module: 'legal',
-    submodule: 'cases',
-    label: 'Case Workspaces',
-  },
-  {
-    pattern: '/legal/cases/**',
-    permission: 'legal:research:view',
-    module: 'legal',
-    submodule: 'cases',
-    label: 'Case Sub-routes',
-  },
-  {
-    pattern: '/legal/summarize',
-    permission: 'legal:research:upload',
-    module: 'legal',
-    submodule: 'summarize',
-    label: 'Matter Summarizer',
-  },
-  {
-    pattern: '/legal/search',
-    permission: 'legal:research:query',
-    module: 'legal',
-    submodule: 'search',
-    label: 'Precedent Discovery',
-  },
-  {
-    pattern: '/legal/statutes',
-    permission: 'legal:research:query',
-    module: 'legal',
-    submodule: 'statutes',
-    label: 'Section & Statute Research',
-  },
-  {
-    pattern: '/legal/parties',
-    permission: 'legal:research:query',
-    module: 'legal',
-    submodule: 'parties',
-    label: 'Party Intelligence',
-  },
-  {
-    pattern: '/legal/translate',
-    permission: 'legal:research:query',
-    module: 'legal',
-    submodule: 'translate',
-    label: 'Indic Legal Translation',
-  },
-  {
-    pattern: '/legal/draft',
-    permission: 'legal:research:query',
-    module: 'legal',
-    submodule: 'draft',
-    label: 'Contract & Deed Drafter',
-  },
-  {
-    pattern: '/legal/**',
-    permission: 'legal:research:query',
-    module: 'legal',
-    submodule: 'research',
-    label: 'Legal AI Sub-routes',
-  },
-  {
-    pattern: '/legal-research',
-    permission: 'legal:research:query',
-    module: 'legal',
-    submodule: 'research',
-    label: 'Legal Research',
-  },
-  {
-    pattern: '/legal-research/**',
-    permission: 'legal:research:query',
-    module: 'legal',
-    submodule: 'research',
-    label: 'Legal Research Sub-routes',
-  },
-  {
-    pattern: '/autopilot',
-    permission: 'legal:autopilot:view',
-    module: 'legal',
-    submodule: 'autopilot',
-    label: 'Litigation Autopilot Workspace',
-  },
-  {
-    pattern: '/autopilot/**',
-    permission: 'legal:autopilot:view',
-    module: 'legal',
-    submodule: 'autopilot',
-    label: 'Litigation Autopilot Sub-routes',
   },
 ];
 
@@ -589,183 +405,44 @@ export function getRequiredPermissionForPath(pathname: string): string | null {
   return null;
 }
 
-/* ==============================================================================
-   BLOCK COMMENT: 1-TO-1 CANONICAL PERMISSION ALIAS & EQUIVALENCE ENGINE
-   Reference: EPIC-RBAC-1TO1-001 / STORY-CANONICAL-ROUTE-PERMS-001
-   Description:
-     Maps simplified 1-to-1 route-aligned permissions (e.g. admin:roles:view,
-     admin:users:view, admin:workflows:view, admin:nodes:view) bidirectionally
-     with legacy 3-tier keys (e.g. admin:role_management:view,
-     admin:user_management:read, workflows:builder:view, nodes:catalog:view).
-   ============================================================================== */
-const MODULE_SUBMODULE_EQUIVALENCE_GROUPS: Array<Array<[string, string]>> = [
-  [
-    ['admin', 'workflows'],
-    ['workflows', 'builder'],
-    ['workflow', 'builder'],
-    ['workflows', 'all'],
-    ['workflow', 'all'],
-  ],
-  [
-    ['admin', 'nodes'],
-    ['nodes', 'catalog'],
-    ['node', 'catalog'],
-    ['admin', 'node_management'],
-    ['nodes', 'all'],
-    ['node', 'all'],
-  ],
-  [
-    ['admin', 'roles'],
-    ['admin', 'role_management'],
-  ],
-  [
-    ['admin', 'users'],
-    ['admin', 'user_management'],
-  ],
-  [
-    ['admin', 'customers'],
-    ['admin', 'customer_management'],
-  ],
-  [
-    ['admin', 'company_settings'],
-    ['admin', 'tenant_settings'],
-    ['admin', 'settings'],
-  ],
-  [
-    ['admin', 'api_keys'],
-    ['admin', 'tenant_settings'],
-  ],
-  [
-    ['admin', 'knowledge'],
-    ['kb', 'base'],
-    ['kb', 'document'],
-    ['knowledge', 'base'],
-    ['kb', 'all'],
-    ['knowledge', 'all'],
-  ],
-  [
-    ['legal', 'research'],
-    ['legal', 'case_management'],
-    ['legal', 'cases'],
-    ['legal', 'hub'],
-    ['legal', 'search'],
-    ['legal', 'statutes'],
-    ['legal', 'parties'],
-    ['legal', 'translate'],
-    ['legal', 'draft'],
-    ['legal', 'summarize'],
-  ],
-];
-
-const KNOWN_ACTIONS = new Set([
-  'view',
-  'read',
-  'create',
-  'edit',
-  'update',
-  'delete',
-  'execute',
-  'manage',
-  'query',
-  'ingest',
-  'configure',
-  'upload',
-  'bookmark',
-  'admin',
-  'evidence',
-  'draft',
-  '*',
-]);
-
-export function expandPermissionAliases(requiredPermission: string): Set<string> {
-  if (!requiredPermission) return new Set();
-  const clean = requiredPermission.trim().toLowerCase();
-  const candidates = new Set<string>([clean, '*:*:*']);
-
-  const parts = clean.split(':');
-  let mod = '';
-  let submod = '';
-  let action = '';
-
-  if (parts.length === 2) {
-    mod = parts[0];
-    if (KNOWN_ACTIONS.has(parts[1])) {
-      submod = 'all';
-      action = parts[1];
-    } else {
-      submod = parts[1];
-      action = 'view';
-    }
-  } else if (parts.length >= 3) {
-    mod = parts[0];
-    submod = parts[1];
-    action = parts[2];
-  } else {
-    return candidates;
-  }
-
-  const equivPairs: Array<[string, string]> = [[mod, submod]];
-  for (const group of MODULE_SUBMODULE_EQUIVALENCE_GROUPS) {
-    const matchesPair = group.some(([m, s]) => m === mod && (s === submod || submod === 'all'));
-    if (matchesPair) {
-      group.forEach((p) => equivPairs.push(p));
-    }
-  }
-
-  const equivActions = new Set<string>([action, '*', 'manage', 'admin']);
-  if (action === 'view' || action === 'read') {
-    equivActions.add('view');
-    equivActions.add('read');
-    if (mod === 'legal' || submod === 'research' || submod === 'playground') {
-      equivActions.add('query');
-    }
-  } else if (action === 'query') {
-    equivActions.add('query');
-    equivActions.add('view');
-    equivActions.add('read');
-  } else if (action === 'edit' || action === 'update' || action === 'configure') {
-    equivActions.add('edit');
-    equivActions.add('update');
-    equivActions.add('configure');
-  }
-
-  for (const [m, s] of equivPairs) {
-    candidates.add(`${m}:*:*`);
-    candidates.add(`${m}:*`);
-    candidates.add(`${m}:manage`);
-    candidates.add(`${m}:all:manage`);
-    candidates.add(`${m}:${s}:*`);
-    candidates.add(`${m}:${s}:manage`);
-    for (const a of equivActions) {
-      candidates.add(`${m}:${s}:${a}`);
-      candidates.add(`${m}:${a}`);
-    }
-  }
-
-  return candidates;
-}
-
 /**
- * Checks if a set of user permissions satisfies a required permission scope,
- * supporting 3-tier wildcard rules (*:*:*, xx:*:*, xx:yy:*) and 1-to-1 / legacy aliases.
+ * Checks if a set of user permissions satisfies a canonical x:y:z permission scope,
+ * supporting exact match, wildcards (*:*:*, xx:*:*, xx:yy:*), and same-submodule :manage / :admin.
  */
 export function hasPermissionScope(userPermissions: string[], requiredPermission: string): boolean {
-  if (!userPermissions || !Array.isArray(userPermissions)) return false;
+  if (!userPermissions || !Array.isArray(userPermissions) || !requiredPermission) return false;
   if (userPermissions.includes('*:*:*')) return true;
 
-  const acceptable = expandPermissionAliases(requiredPermission);
+  const reqClean = requiredPermission.trim().toLowerCase();
+  const rParts = reqClean.split(':');
+  const [rMod, rSub] = rParts;
+
   for (const up of userPermissions) {
     if (!up) continue;
-    const cleanUp = up.trim().toLowerCase();
-    if (acceptable.has(cleanUp)) return true;
+    const g = up.trim().toLowerCase();
+    if (g === '*:*:*' || g === reqClean) return true;
+
+    const gParts = g.split(':');
+    if (rParts.length >= 3 && gParts.length >= 2) {
+      const [gMod, gSub, gAct] = gParts;
+      if (gParts.length >= 3) {
+        if (gMod === rMod && (gSub === '*' || gSub === 'all') && (gAct === '*' || gAct === 'manage' || gAct === 'admin')) {
+          return true;
+        }
+        if (gMod === rMod && gSub === rSub && (gAct === '*' || gAct === 'manage' || gAct === 'admin')) {
+          return true;
+        }
+      } else if (gMod === rMod && (gSub === '*' || gSub === 'manage' || gSub === 'admin')) {
+        return true;
+      }
+    }
   }
 
   return false;
 }
 
 /**
- * Dynamically resolves the best default destination route based on a user's permissions and domain.
- * Returns null if user has no matching authorized route permissions.
+ * Dynamically resolves the best default destination route based on canonical permissions and role.
  */
 export function getDefaultRedirectForPermissions(
   userPermissions: string[],
@@ -773,48 +450,33 @@ export function getDefaultRedirectForPermissions(
   domainId?: string,
   defaultRoute?: string,
 ): string | null {
-  const perms = getEffectivePermissions(userPermissions, userRole);
-  const normalizedRole = (userRole || '').toLowerCase().trim();
-
   if (defaultRoute) return defaultRoute;
 
-  // ==============================================================================
-  // BLOCK COMMENT: STORY 2 - WORKFLOW DESIGNER REDIRECT
-  // When user has workflow design & view rights (or workflow_designer role),
-  // open the workflow editor (/workflow-builder) as default destination.
-  // ==============================================================================
+  const perms = Array.isArray(userPermissions) ? userPermissions : [];
+  const normalizedRole = (userRole || '').toLowerCase().trim();
+
   const hasWorkflowView =
-    hasPermissionScope(perms, 'workflow:builder:view') ||
     hasPermissionScope(perms, 'workflows:builder:view') ||
-    hasPermissionScope(perms, 'workflow:*:*') ||
     hasPermissionScope(perms, 'workflows:*:*') ||
     hasPermissionScope(perms, '*:*:*');
 
   const hasWorkflowDesign =
-    hasPermissionScope(perms, 'workflow:builder:edit') ||
     hasPermissionScope(perms, 'workflows:builder:edit') ||
-    hasPermissionScope(perms, 'workflow:builder:create') ||
     hasPermissionScope(perms, 'workflows:builder:create') ||
-    hasPermissionScope(perms, 'workflow:builder:manage') ||
     hasPermissionScope(perms, 'workflows:builder:manage') ||
-    hasPermissionScope(perms, 'workflow:*:*') ||
     hasPermissionScope(perms, 'workflows:*:*') ||
     hasPermissionScope(perms, '*:*:*');
 
   const isWorkflowDesigner =
     normalizedRole === 'workflow_designer' ||
-    (hasWorkflowView &&
-      hasWorkflowDesign &&
-      !['para_legal', 'paralegal', 'tenant_user', 'standard_user'].includes(normalizedRole));
+    (hasWorkflowView && hasWorkflowDesign && normalizedRole !== 'tenant_user');
 
   if (isWorkflowDesigner) {
     return '/workflow-builder';
   }
 
-  // Admin & Tenant Admin roles route directly to /admin
   if (
     normalizedRole === 'system_admin' ||
-    normalizedRole === 'admin' ||
     normalizedRole === 'tenant_admin' ||
     hasPermissionScope(perms, '*:*:*') ||
     hasPermissionScope(perms, 'admin:*:*') ||
@@ -824,21 +486,11 @@ export function getDefaultRedirectForPermissions(
     return '/admin';
   }
 
-  if (
-    hasPermissionScope(perms, 'legal:research:query') ||
-    hasPermissionScope(perms, 'legal:autopilot:view') ||
-    hasPermissionScope(perms, 'legal:*:*') ||
-    hasPermissionScope(perms, 'kb:base:view') ||
-    hasPermissionScope(perms, 'kb:*:*')
-  ) {
-    return '/legal';
+  if (hasPermissionScope(perms, 'admin:knowledge:view')) {
+    return '/admin/knowledge';
   }
 
-  if (
-    hasPermissionScope(perms, 'workflow:builder:view') ||
-    hasPermissionScope(perms, 'workflows:builder:view') ||
-    hasPermissionScope(perms, 'workflow:*:*')
-  ) {
+  if (hasWorkflowView) {
     return '/workflow-builder';
   }
 
@@ -846,146 +498,4 @@ export function getDefaultRedirectForPermissions(
     return `/${domainId}`;
   }
   return null;
-}
-
-export const ROLE_PRESET_PERMISSIONS: Record<string, string[]> = {
-  system_admin: ['*:*:*'],
-  tenant_admin: [
-    'admin:dashboard:view',
-    'admin:user_management:read',
-    'admin:user_management:create',
-    'admin:user_management:edit',
-    'admin:user_management:delete',
-    'admin:user_management:manage',
-    'admin:role_management:view',
-    'admin:role_management:create',
-    'admin:role_management:edit',
-    'admin:role_management:delete',
-    'admin:role_management:manage',
-    'admin:knowledge:view',
-    'admin:knowledge:create',
-    'admin:knowledge:edit',
-    'admin:knowledge:delete',
-    'admin:knowledge:ingest',
-    'admin:knowledge:manage',
-    'admin:profiles:view',
-    'admin:profiles:create',
-    'admin:profiles:edit',
-    'admin:profiles:delete',
-    'admin:profiles:manage',
-    'workflows:builder:view',
-    'workflows:builder:create',
-    'workflows:builder:edit',
-    'workflows:builder:delete',
-    'workflows:builder:execute',
-    'workflows:builder:manage',
-    'nodes:catalog:view',
-    'nodes:catalog:execute',
-    'nodes:catalog:manage',
-    'admin:playground:view',
-    'admin:playground:query',
-    'admin:provider_presets:view',
-    'admin:provider_presets:manage',
-    'admin:logs:view',
-    'admin:logs:manage',
-    'admin:oauth:view',
-    'admin:oauth:manage',
-    'admin:metrics:view',
-    'admin:metrics:manage',
-    'admin:tenant_settings:view',
-    'admin:tenant_settings:configure',
-    'legal:research:query',
-    'legal:research:view',
-    'legal:research:upload',
-    'legal:research:edit',
-    'legal:research:delete',
-    'legal:research:bookmark',
-    'legal:research:admin',
-    'legal:autopilot:view',
-    'legal:autopilot:edit',
-    'legal:autopilot:evidence',
-    'legal:autopilot:draft',
-  ],
-  workflow_designer: [
-    'workflows:builder:view',
-    'workflows:builder:create',
-    'workflows:builder:edit',
-    'workflows:builder:delete',
-    'workflows:builder:execute',
-    'workflows:builder:manage',
-    'workflow:builder:view',
-    'workflow:builder:create',
-    'workflow:builder:edit',
-    'workflow:builder:delete',
-    'workflow:builder:execute',
-    'workflow:builder:manage',
-    'nodes:catalog:view',
-    'nodes:catalog:execute',
-    'nodes:catalog:manage',
-    'admin:knowledge:view',
-    'admin:profiles:view',
-  ],
-  para_legal: [
-    'legal:research:query',
-    'legal:research:view',
-    'legal:research:upload',
-    'legal:research:bookmark',
-    'legal:autopilot:view',
-    'legal:autopilot:edit',
-    'legal:autopilot:evidence',
-    'legal:autopilot:draft',
-    'admin:knowledge:view',
-    'nodes:catalog:view',
-  ],
-  paralegal: [
-    'legal:research:query',
-    'legal:research:view',
-    'legal:research:upload',
-    'legal:research:bookmark',
-    'legal:autopilot:view',
-    'legal:autopilot:edit',
-    'legal:autopilot:evidence',
-    'legal:autopilot:draft',
-    'admin:knowledge:view',
-    'nodes:catalog:view',
-  ],
-  legal_analyst: [
-    'legal:research:query',
-    'legal:research:view',
-    'legal:research:upload',
-    'legal:research:edit',
-    'legal:research:bookmark',
-    'legal:autopilot:view',
-    'legal:autopilot:edit',
-    'legal:autopilot:evidence',
-    'legal:autopilot:draft',
-    'admin:knowledge:view',
-    'admin:knowledge:ingest',
-    'workflows:builder:view',
-    'workflows:builder:execute',
-    'nodes:catalog:view',
-  ],
-  tenant_user: [
-    'legal:research:query',
-    'legal:research:view',
-    'admin:knowledge:view',
-    'nodes:catalog:view',
-  ],
-  standard_user: [
-    'legal:research:query',
-    'legal:research:view',
-    'admin:knowledge:view',
-    'nodes:catalog:view',
-  ],
-};
-
-/**
- * Returns effective permission list for a user, combining explicit permissions with their role preset.
- */
-export function getEffectivePermissions(userPermissions?: string[], role?: string): string[] {
-  const explicit = Array.isArray(userPermissions) ? userPermissions : [];
-  if (explicit.length > 0) return explicit;
-  if (!role) return [];
-  const normalized = role.toLowerCase().trim();
-  return ROLE_PRESET_PERMISSIONS[normalized] || [];
 }

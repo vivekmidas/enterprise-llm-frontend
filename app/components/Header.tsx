@@ -8,7 +8,6 @@ import { api } from '@/lib/api'; // Assuming api.logout() clears the cookie
 import {
   hasPermissionScope,
   loadRoutePermissionsFromDB,
-  getEffectivePermissions,
 } from '@/lib/config/route_permissions';
 
 // Helper to get a cookie value by name
@@ -85,32 +84,24 @@ export default function Header() {
   // Evaluates if user possesses both Admin rights AND Workflow Designer rights.
   // When dual-privileged, enables seamless 1-click toggling between /admin and /workflow-builder.
   // ===============================================================================
-  const effectivePerms = getEffectivePermissions(userPermissions, userRole || undefined);
-
   const hasAdminRights =
-    ['admin', 'system_admin', 'tenant_admin'].includes((userRole || '').toLowerCase()) ||
-    hasPermissionScope(effectivePerms, '*:*:*') ||
-    hasPermissionScope(effectivePerms, 'admin:*:*') ||
-    hasPermissionScope(effectivePerms, 'admin:dashboard:view') ||
-    effectivePerms.some((p) => p.startsWith('admin:'));
+    ['system_admin', 'tenant_admin'].includes((userRole || '').toLowerCase()) ||
+    hasPermissionScope(userPermissions, '*:*:*') ||
+    hasPermissionScope(userPermissions, 'admin:*:*') ||
+    hasPermissionScope(userPermissions, 'admin:dashboard:view') ||
+    userPermissions.some((p) => p.startsWith('admin:'));
 
   const hasWorkflowView =
-    hasPermissionScope(effectivePerms, 'workflow:builder:view') ||
-    hasPermissionScope(effectivePerms, 'workflows:builder:view') ||
-    hasPermissionScope(effectivePerms, 'workflow:*:*') ||
-    hasPermissionScope(effectivePerms, 'workflows:*:*') ||
-    hasPermissionScope(effectivePerms, '*:*:*');
+    hasPermissionScope(userPermissions, 'workflows:builder:view') ||
+    hasPermissionScope(userPermissions, 'workflows:*:*') ||
+    hasPermissionScope(userPermissions, '*:*:*');
 
   const hasWorkflowDesign =
-    hasPermissionScope(effectivePerms, 'workflow:builder:edit') ||
-    hasPermissionScope(effectivePerms, 'workflows:builder:edit') ||
-    hasPermissionScope(effectivePerms, 'workflow:builder:create') ||
-    hasPermissionScope(effectivePerms, 'workflows:builder:create') ||
-    hasPermissionScope(effectivePerms, 'workflow:builder:manage') ||
-    hasPermissionScope(effectivePerms, 'workflows:builder:manage') ||
-    hasPermissionScope(effectivePerms, 'workflow:*:*') ||
-    hasPermissionScope(effectivePerms, 'workflows:*:*') ||
-    hasPermissionScope(effectivePerms, '*:*:*');
+    hasPermissionScope(userPermissions, 'workflows:builder:edit') ||
+    hasPermissionScope(userPermissions, 'workflows:builder:create') ||
+    hasPermissionScope(userPermissions, 'workflows:builder:manage') ||
+    hasPermissionScope(userPermissions, 'workflows:*:*') ||
+    hasPermissionScope(userPermissions, '*:*:*');
 
   const hasDesignerRights =
     (userRole || '').toLowerCase() === 'workflow_designer' ||
@@ -126,9 +117,6 @@ export default function Header() {
       router.push('/admin');
     }
   };
-
-  // Legal routes render their own focused workspace header.
-  if (pathname?.startsWith('/legal')) return null;
 
   return (
     <>
@@ -198,12 +186,6 @@ export default function Header() {
                   <span className="text-xs font-medium text-gray-500 ml-2">ID: {userId}</span>
                 )} */}
               </div>
-              {/* <Link
-                href="/legal"
-                className="text-sm font-bold text-slate-700 hover:text-indigo-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
-              >
-                Legal Platform
-              </Link> */}
 
               {/*
               ===============================================================================

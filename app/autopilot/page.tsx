@@ -1790,7 +1790,7 @@ export default function LegalPilotInteractiveWorkspacePage() {
           </div>
 
           <Link
-            href="/legal"
+            href="/"
             className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-bold transition shadow-2xs"
           >
             Exit demo
