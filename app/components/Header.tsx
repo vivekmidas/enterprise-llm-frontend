@@ -5,10 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { Workflow, LogOut, User, Github, Shield, ArrowLeftRight } from 'lucide-react';
 import { api } from '@/lib/api'; // Assuming api.logout() clears the cookie
-import {
-  hasPermissionScope,
-  loadRoutePermissionsFromDB,
-} from '@/lib/config/route_permissions';
+import { hasPermissionScope, loadRoutePermissionsFromDB } from '@/lib/config/route_permissions';
 
 // Helper to get a cookie value by name
 const getCookie = (name: string) => {
@@ -129,9 +126,7 @@ export default function Header() {
             <div className="bg-gradient-to-br from-violet-600 to-fuchsia-600 p-1.5 rounded-lg">
               <Workflow className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
-              nFlow
-            </span>
+            <span className="text-lg font-bold tracking-tight text-violet-700">nFlow</span>
           </Link>
         </div>
 

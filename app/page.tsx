@@ -154,9 +154,7 @@ function IntegrationPill({
 function StatCounter({ value, label }: { value: string; label: string }) {
   return (
     <div className="text-center">
-      <div className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
-        {value}
-      </div>
+      <div className="text-3xl md:text-4xl font-extrabold text-violet-700">{value}</div>
       <div className="text-sm text-slate-500 mt-1 font-medium">{label}</div>
     </div>
   );
@@ -245,9 +243,7 @@ export default function LandingPage() {
           {/* Headline */}
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[1.05] mb-6">
             <span className="text-slate-900">Automate </span>
-            <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
-              everything.
-            </span>
+            <span className="text-violet-700">everything.</span>
             <br />
             <span className="text-slate-500 text-4xl md:text-5xl lg:text-6xl font-bold">
               Own your workflows.
@@ -298,10 +294,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl text-slate-900 font-extrabold tracking-tight mb-4">
-              Build workflows{' '}
-              <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
-                visually
-              </span>
+              Build workflows <span className="text-violet-700">visually</span>
             </h2>
             <p className="text-slate-600 text-lg max-w-2xl mx-auto">
               Drag, drop, and connect nodes to automate complex business processes. No code
@@ -550,10 +543,7 @@ export default function LandingPage() {
       <section className="px-6 py-20 md:py-28 border-t border-slate-100 bg-white">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">
-            Connects to{' '}
-            <span className="bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
-              your stack
-            </span>
+            Connects to <span className="text-violet-700">your stack</span>
           </h2>
           <p className="text-slate-600 text-lg max-w-2xl mx-auto mb-12">
             Pre-built connectors for the tools you already use. Or build your own in minutes.
@@ -652,10 +642,7 @@ class SentimentAnalyzer(Node):
       <section className="px-6 py-20 md:py-28 border-t border-slate-100 bg-white">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">
-            Why growing teams choose{' '}
-            <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
-              Enterprise LLM Gateway
-            </span>
+            Why growing teams choose <span className="text-violet-700">Enterprise LLM Gateway</span>
           </h2>
           <p className="text-slate-600 text-lg max-w-2xl mx-auto mb-14">
             Enterprise automation without the enterprise price tag.
@@ -739,9 +726,7 @@ class SentimentAnalyzer(Node):
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center">
               <Workflow className="h-4 w-4 text-white" />
             </div>
-            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-              nFlow
-            </span>
+            <span className="text-lg font-bold tracking-tight text-violet-700">nFlow</span>
           </div>
           <div className="flex gap-8 text-sm text-slate-500 font-medium">
             <Link href="#" className="hover:text-violet-400 transition-colors duration-200">
