@@ -235,14 +235,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         const canAccessAdmin =
           hasPermissionScope(perms, 'admin:dashboard:view') ||
           hasPermissionScope(perms, 'admin:*:*') ||
-          hasPermissionScope(perms, '*:*:*') ||
-          filteredTabs.length > 0 ||
-          userData.role === 'admin' ||
-          userData.role === 'system_admin' ||
-          userData.role === 'tenant_admin' ||
-          userData.role_type === 'admin' ||
-          userData.role_type === 'system_admin' ||
-          userData.role_type === 'tenant_admin';
+          hasPermissionScope(perms, '*:*:*')
 
         if (!canAccessAdmin) {
           const fallback = getDefaultRedirectForPermissions(perms, userData.role) || '/';
@@ -259,13 +252,16 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             : null;
         setCustomerId(tenantId);
         if (tenantId) {
-          const tenants = await api.getCustomers();
-          const tenant = (tenants || []).find((item: any) => String(item.id) === tenantId);
-          const brand = tenant?.settings?.brand_theme || {};
-          setTenantTheme({
-            primary: /^#[0-9a-f]{6}$/i.test(brand.primary) ? brand.primary : '#4f46e5',
-            secondary: /^#[0-9a-f]{6}$/i.test(brand.secondary) ? brand.secondary : '#e0e7ff',
-          });
+          try {
+            const tenant = await api.getCustomer(tenantId);
+            const brand = tenant?.settings?.brand_theme || tenant?.theme || {};
+            setTenantTheme({
+              primary: brand.primary || tenant?.color_schema || '#4f46e5',
+              secondary: brand.secondary || '#e0e7ff',
+            });
+          } catch (e) {
+            console.error('Failed to load tenant details for theme:', e);
+          }
         }
       } catch (err) {
         console.error('Failed to initialize admin user:', err);

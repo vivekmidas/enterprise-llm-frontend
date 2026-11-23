@@ -48,12 +48,14 @@ import {
   Heart,
   Fence,
   Cloud,
+  MicVocal
 } from 'lucide-react';
 
 export const IconMap: Record<string, any> = {
   'play-circle': PlayCircle,
   zap: Zap,
   lock: Lock,
+  'mic-signal': MicVocal,
   'message-square': MessageSquare,
   database: Database,
   mail: Mail,

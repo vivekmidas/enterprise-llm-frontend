@@ -2719,6 +2719,7 @@ export default function PropertiesPanel({
                         const isMultilineInput =
                           fieldName.toLowerCase().includes('query') ||
                           fieldName.toLowerCase().includes('prompt') ||
+                          fieldName.toLowerCase().includes('condition') ||
                           fieldType === 'object' ||
                           fieldType === 'array' ||
                           fieldType === 'json';
@@ -2838,9 +2839,10 @@ export default function PropertiesPanel({
                                 }
                                 rows={2}
                                 placeholder={
-                                  fieldType === 'object' || fieldType === 'json'
+                                  rule.placeholder ||
+                                  (fieldType === 'object' || fieldType === 'json'
                                     ? 'e.g. {"id": 1} or click {} Map'
-                                    : `Enter ${fieldName} or {{ upstream_field }}...`
+                                    : `Enter ${fieldName} or {{ upstream_field }}...`)
                                 }
                                 className="w-full border border-slate-200 focus:border-indigo-400 rounded-lg px-2.5 py-1.5 text-xs font-mono bg-white text-slate-900 outline-none resize-y"
                               />
@@ -2866,9 +2868,10 @@ export default function PropertiesPanel({
                                   }
                                 }}
                                 placeholder={
-                                  defaultVal !== undefined
+                                  rule.placeholder ||
+                                  (defaultVal !== undefined
                                     ? `Default: ${defaultVal}`
-                                    : `Enter ${fieldName} or {{ field }}...`
+                                    : `Enter ${fieldName} or {{ field }}...`)
                                 }
                                 className={`w-full border rounded-lg px-2.5 py-1.5 text-xs font-mono outline-none ${
                                   isMappedExpr

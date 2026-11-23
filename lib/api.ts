@@ -498,6 +498,14 @@ export const api = {
     return res.json();
   },
 
+  getCustomer: async (id: string | number) => {
+    const res = await fetch(`${BACKEND_URL}/admin/customers/${id}`, {
+      headers: getHeaders(),
+      method: 'GET',
+    });
+    return res.json();
+  },
+
   createCustomer: async (customer: any) => {
     const res = await fetch(`${BACKEND_URL}/admin/customers`, {
       method: 'POST',
